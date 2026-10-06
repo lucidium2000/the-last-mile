@@ -1491,6 +1491,35 @@ function act(dir){
   ensureRows(G.maxRow + ROWS_AHEAD);
 }
 
+/* On-screen arrows. A cross in the bottom centre, below the player's row so
+   it only ever covers blocks already crossed. 92px buttons are ~58mm on a 55"
+   Board and ~16mm on a Desk Mini, both comfortably above the ~9mm minimum.
+   Swipes and the invisible tap zones still work; the pad simply takes
+   priority wherever it is hit. */
+var DPAD = (function(){
+  var b = 92, g = 10, cx = LOGICAL_W/2, bottom = LOGICAL_H - 18;
+  var midY = bottom - b, topY = midY - g - b;
+  return {
+    b:b,
+    f:{ x:cx - b/2,       y:topY },
+    l:{ x:cx - b*1.5 - g, y:midY },
+    b2:{ x:cx - b/2,      y:midY },
+    r:{ x:cx + b/2 + g,   y:midY }
+  };
+})();
+function dpadHit(lx, ly){
+  if (G.state !== ST_PLAY) return null;
+  var k = ["f","l","b2","r"], pad = 6;
+  for (var i = 0; i < k.length; i++){
+    var q = DPAD[k[i]];
+    if (lx >= q.x - pad && lx <= q.x + DPAD.b + pad &&
+        ly >= q.y - pad && ly <= q.y + DPAD.b + pad){
+      return k[i] === "b2" ? "b" : k[i];
+    }
+  }
+  return null;
+}
+
 var MUTE_BTN = { x:LOGICAL_W - 146, y:LOGICAL_H - 146, w:114, h:114 };
 function muteBtnActive(){ return G.state === ST_TITLE || G.state === ST_DEAD; }
 function inMuteBtn(lx, ly){
@@ -1499,13 +1528,28 @@ function inMuteBtn(lx, ly){
          ly > MUTE_BTN.y - 14 && ly < MUTE_BTN.y + MUTE_BTN.h + 14;
 }
 
-var ptr = null;
+var ptr = null, held = null;
+function localPt(e){
+  var rect = cv.getBoundingClientRect();
+  return { x:(e.clientX-rect.left)/rect.width * LOGICAL_W,
+           y:(e.clientY-rect.top)/rect.height * LOGICAL_H };
+}
 cv.addEventListener("pointerdown", function(e){
-  e.preventDefault(); AUDIO.unlock(); ptr = { sx:e.clientX, sy:e.clientY };
+  e.preventDefault(); AUDIO.unlock();
+  ptr = { sx:e.clientX, sy:e.clientY, used:false };
+  var p = localPt(e), d = dpadHit(p.x, p.y);
+  if (d){
+    // fire on press, not release - a D-pad that waits for pointerup feels dead
+    act(d);
+    held = { dir:d, t:0, fired:true };
+    ptr.used = true;
+  }
 }, { passive:false });
 cv.addEventListener("pointerup", function(e){
   e.preventDefault();
+  held = null;
   if (!ptr) return;
+  if (ptr.used){ ptr = null; return; }      // already handled on press
   var dx = e.clientX - ptr.sx, dy = e.clientY - ptr.sy;
   if (Math.sqrt(dx*dx + dy*dy) > 42){
     if (Math.abs(dx) > Math.abs(dy)) act(dx > 0 ? "r" : "l");
@@ -1521,7 +1565,7 @@ cv.addEventListener("pointerup", function(e){
   }
   ptr = null;
 }, { passive:false });
-cv.addEventListener("pointercancel", function(){ ptr = null; });
+cv.addEventListener("pointercancel", function(){ ptr = null; held = null; });
 cv.addEventListener("contextmenu", function(e){ e.preventDefault(); });
 
 window.addEventListener("keydown", function(e){
@@ -1781,6 +1825,15 @@ function update(dt){
       if (hitKind) hitPlayer(hitKind, pp);
     }
   }
+
+  /* Holding an arrow repeats, so a long run does not mean a hundred taps on a
+     wall-mounted Board. Longer delay before the first repeat so a single tap
+     is never read as two. */
+  if (held && G.state === ST_PLAY){
+    held.t += dt;
+    var wait = held.fired ? 0.26 : 0.15;
+    if (held.t >= wait){ held.t = 0; held.fired = false; act(held.dir); }
+  } else if (held && G.state !== ST_PLAY){ held = null; }
 
   if (G.state === ST_DEAD) G.deadFor += dt;
   if (G.shake > 0) G.shake = Math.max(0, G.shake - dt*46);
@@ -2288,19 +2341,21 @@ function drawHud(){
   if (G.shield)      chips.push(["E", "ENDPOINT AGENT", C.pw1, 0]);
   if (G.slowT > 0)   chips.push(["I", "INSIGHTS",       C.pw2, G.slowT / POWERS.insight.secs]);
   if (G.revealT > 0) chips.push(["P", "PATH VIS",       C.pw3,   G.revealT / POWERS.path.secs]);
+  /* Compact squares rather than labelled bars: four of the old chips reached
+     x=1014 and ran into the arrow pad. The letter and colour identify each
+     power-up, and its name was announced in full when it was collected. */
   for (var i=0;i<chips.length;i++){
-    var cx = 28 + i*250, cy = CHIP_Y;
-    plate(cx, cy, 236, 60, C.ink, 12);
-    plate(cx+10, cy+10, 40, 40, chips[i][2], 10);
-    txt(chips[i][0], cx+30, cy+31, 24, "#1a0a02");
-    txt(chips[i][1], cx+62, cy+24, 20, C.text, "left", 160);
+    var cx = 28 + i*86, cy = CHIP_Y;
+    plate(cx, cy, 76, 76, C.ink, 14);
+    plate(cx+8, cy+8, 60, 60, chips[i][2], 11);
+    txt(chips[i][0], cx+38, cy+41, 32, "#1a0a02");
     if (chips[i][3] > 0){
-      ctx.fillStyle = "rgba(255,255,255,0.14)"; ctx.fillRect(cx+62, cy+38, 160, 6);
       var low = (chips[i][1] === "FLYING" && G.flyT < 1.4);
+      ctx.fillStyle = "rgba(255,255,255,0.16)"; ctx.fillRect(cx+8, cy+62, 60, 6);
       ctx.fillStyle = low && Math.sin(G.t*20) < 0 ? C.danger : chips[i][2];
-      ctx.fillRect(cx+62, cy+38, 160*chips[i][3], 6);
+      ctx.fillRect(cx+8, cy+62, 60*chips[i][3], 6);
       if (chips[i][1] === "FLYING"){
-        txt(G.flyT.toFixed(1) + "s", cx+212, cy+24, 20, low ? C.danger : C.pw5, "right");
+        txt(G.flyT.toFixed(1)+"s", cx+38, cy+94, 20, low ? C.danger : C.pw5);
       }
     }
   }
@@ -2414,6 +2469,35 @@ function drawLockup(){
   ctx.globalAlpha = 1;
 }
 
+function arrowPath(cx, cy, r, dir){
+  ctx.beginPath();
+  if (dir === "f"){ ctx.moveTo(cx, cy-r); ctx.lineTo(cx+r, cy+r*0.72); ctx.lineTo(cx-r, cy+r*0.72); }
+  else if (dir === "b"){ ctx.moveTo(cx, cy+r); ctx.lineTo(cx+r, cy-r*0.72); ctx.lineTo(cx-r, cy-r*0.72); }
+  else if (dir === "l"){ ctx.moveTo(cx-r, cy); ctx.lineTo(cx+r*0.72, cy-r); ctx.lineTo(cx+r*0.72, cy+r); }
+  else { ctx.moveTo(cx+r, cy); ctx.lineTo(cx-r*0.72, cy-r); ctx.lineTo(cx-r*0.72, cy+r); }
+  ctx.closePath();
+}
+/* Kept low-contrast so it never competes with the traffic, and it brightens
+   on press so you can see the input registered. */
+function drawDpad(){
+  if (G.state !== ST_PLAY) return;
+  var keys = [["f",DPAD.f],["l",DPAD.l],["b",DPAD.b2],["r",DPAD.r]];
+  for (var i = 0; i < keys.length; i++){
+    var dir = keys[i][0], q = keys[i][1];
+    var on = held && held.dir === dir;
+    ctx.globalAlpha = on ? 0.95 : 0.46;
+    plate(q.x, q.y, DPAD.b, DPAD.b, on ? "rgba(255,106,19,0.90)" : "rgba(10,6,4,0.72)", 18);
+    ctx.globalAlpha = on ? 1 : 0.62;
+    ctx.strokeStyle = on ? "#ffd9b8" : "rgba(255,166,74,0.55)";
+    ctx.lineWidth = 2;
+    rr(q.x+1, q.y+1, DPAD.b-2, DPAD.b-2, 17); ctx.stroke();
+    arrowPath(q.x + DPAD.b/2, q.y + DPAD.b/2, DPAD.b*0.235, dir);
+    ctx.fillStyle = on ? "#2a1400" : C.brandLight;
+    ctx.fill();
+    ctx.globalAlpha = 1;
+  }
+}
+
 function drawMuteBtn(){
   if (!muteBtnActive()) return;
   var b = MUTE_BTN, cx = b.x + b.w*0.44, cy = b.y + b.h*0.5;
@@ -2458,7 +2542,7 @@ function drawTitle(){
   txt("TAP TO START", LOGICAL_W/2, 726, 62, C.brand);
   ctx.globalAlpha = 1;
 
-  txt("Tap the top to cross  ·  bottom corners to step aside",
+  txt("Use the arrows, swipe, or tap the top of the screen to cross",
       LOGICAL_W/2, 822, 25, C.textDim);
   txt("A THOUSANDEYES GAME  ·  CISCO", LOGICAL_W/2, 1004, 19,
       "rgba(253,244,238,0.36)");
@@ -2505,7 +2589,7 @@ function render(){
   drawHaze();
   drawSlowTint();
   drawHud();
-  if (G.state === ST_PLAY) drawLockup();
+  if (G.state === ST_PLAY){ drawLockup(); drawDpad(); }
   if (G.state === ST_TITLE) drawTitle();
   if (G.state === ST_DEAD)  drawDead();
   drawMuteBtn();

@@ -10,12 +10,18 @@ palette here are placeholders pending brand review — see *Rebranding* below.
 
 ## Play
 
+Three input methods, all live at once:
+
 | | |
 |---|---|
-| Hop forward | Tap the top half of the screen, swipe up, or `↑` / `W` / `Space` |
-| Step sideways | Tap the bottom left / right third, swipe, or `←` `→` / `A` `D` |
-| Step back | Tap bottom centre, swipe down, or `↓` / `S` |
-| Mute | Button in the bottom-right corner of the title and game-over screens, or `M` |
+| **On-screen arrows** | Cross in the bottom centre. Fires on press, and holding repeats. |
+| **Swipe** | Any direction, anywhere on the screen. |
+| **Tap zones** | Top half = cross, bottom left/right third = step aside, bottom centre = back. |
+| Keyboard | Arrows / `WASD` / `Space`, for desktop testing |
+| Mute | Button in the bottom-right of the title and game-over screens, or `M` |
+
+The arrow pad sits below the player's row so it only ever covers blocks already
+crossed, and it is hidden on the title and game-over screens.
 
 ## URL parameters
 
