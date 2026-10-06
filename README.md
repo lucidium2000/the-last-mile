@@ -128,6 +128,14 @@ Four common ThousandEyes capabilities — Endpoint Agent (absorbs one hit),
 Internet Insights (slows traffic), Path Visualization (lights up safe
 crossings), Executive Sponsor (carries you three rows) — plus one rare tier:
 
+**Path Visualization** traces a route of six to eight crossings, drawn as nodes
+joined by links with a packet running it. Roughly 45% of routes carry one or two
+alternate branches that diverge and rejoin, the way a real path trace shows
+traffic taking more than one way to the same place; about 9% are perfectly
+straight, which is only ever claimed when the player's own column is clear the
+whole way. You cannot be hit anywhere on the route and traffic turns around on
+contact with it.
+
 **TAM.** The headline SKU. Five seconds of flight, which ignores both traffic
 and solid props, hops 32% faster, and renders above the whole world. Unlike
 every other power-up it does not expire: once engaged it stays for the rest of

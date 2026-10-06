@@ -1004,7 +1004,7 @@ var POWERS = {
   chuck:  { col:"#4f9c62", letter:"$", name:"CHUCK BUCKS",
             line:"Straight onto the number.", secs:0 },
   path:   { col:C.pw3,   letter:"P", name:"PATH VISUALIZATION",
-            line:"A traced route. Traffic turns away from it.", secs:9 },
+            line:"A traced route, branches and all. Traffic turns away.", secs:14 },
   sponsor:{ col:C.pw4, letter:"X", name:"EXECUTIVE SPONSOR",
             line:"A car service, three blocks uptown.", secs:0 },
   metro:  { col:"#ffd24a", letter:"M", name:"METROCARD",
@@ -1705,15 +1705,24 @@ function collect(){
    The route only has to dodge PERMANENT blockers (props, parked trucks),
    because traffic cannot touch you on it. Sideways steps are inserted as their
    own nodes so the drawn path is always walkable hop by hop. */
-function buildTrace(){
-  var cells = [{ r:G.row, c:G.col }];
-  var col = G.col, r = G.row, streets = 0, guard = 0;
-  ensureRows(G.row + 40);
-  while (streets < 4 && guard++ < 60){
+function traceColClear(col, fromRow, rowsAhead){
+  for (var r = fromRow + 1; r <= fromRow + rowsAhead; r++){
+    var w = rows[r];
+    if (!w) return false;
+    if (w.blocked && w.blocked[col]) return false;
+  }
+  return true;
+}
+
+/* Walk forward from (r, col), dodging permanent blockers, until `streets`
+   crossings have been made. Returns the list of cells, sideways steps
+   included, so the drawn route is always walkable hop by hop. */
+function traceRun(r, col, streets, cells){
+  var crossed = 0, guard = 0;
+  while (crossed < streets && guard++ < 90){
     var nr = r + 1, row = rows[nr];
     if (!row) break;
     if (row.blocked && row.blocked[col]){
-      // shuffle sideways to the nearest column that is not walled off
       var tgt = -1;
       for (var d = 1; d < COLS; d++){
         if (col + d <= COLS-1 && !row.blocked[col + d]){ tgt = col + d; break; }
@@ -1730,24 +1739,116 @@ function buildTrace(){
     }
     r = nr;
     cells.push({ r:r, c:col });
-    if (row.type === "road" || row.type === "sweep") streets++;
+    if (row.type === "road" || row.type === "sweep") crossed++;
   }
-  return cells;
+  return { r:r, c:col };
+}
+
+/* An alternate route: diverge from the main path, run parallel for a few
+   rows, then rejoin. This is what a real path trace looks like when traffic
+   takes more than one way to the same place. */
+function traceBranch(main){
+  if (main.length < 6) return null;
+  var i = 2 + ((Math.random() * (main.length - 5)) | 0);
+  var from = main[i];
+  var dir = Math.random() < 0.5 ? 1 : -1;
+  var out = [{ r:from.r, c:from.c }];
+  var col = from.c, r = from.r, k;
+
+  var off = 1 + ((Math.random() * 2) | 0);
+  for (k = 0; k < off; k++){
+    var nc = col + dir;
+    if (nc < 0 || nc > COLS-1) break;
+    if (rows[r] && rows[r].blocked && rows[r].blocked[nc]) break;
+    col = nc; out.push({ r:r, c:col });
+  }
+  if (col === from.c) return null;
+
+  var len = 2 + ((Math.random() * 3) | 0);
+  for (k = 0; k < len; k++){
+    var nr = r + 1;
+    if (!rows[nr] || (rows[nr].blocked && rows[nr].blocked[col])) break;
+    r = nr; out.push({ r:r, c:col });
+  }
+
+  // rejoin the main line at whatever column it occupies on this row
+  var joinCol = null;
+  for (var m = 0; m < main.length; m++) if (main[m].r === r){ joinCol = main[m].c; break; }
+  if (joinCol === null) return out.length > 3 ? out : null;
+  var step2 = joinCol > col ? 1 : -1;
+  var guard2 = 0;
+  while (col !== joinCol && guard2++ < COLS){
+    var nc2 = col + step2;
+    if (rows[r] && rows[r].blocked && rows[r].blocked[nc2]) break;
+    col = nc2; out.push({ r:r, c:col });
+  }
+  return out.length > 3 ? out : null;
+}
+
+function buildTrace(){
+  ensureRows(G.row + 70);
+  var streets = 6 + ((Math.random() * 3) | 0);          // 6-8 crossings
+  var main = [{ r:G.row, c:G.col }];
+
+  /* Now and then the route is dead straight - no lateral movement at all.
+     Only claimed when a column really is clear the whole way, so "perfectly
+     straight" is never a lie about what is safe. */
+  var wantStraight = Math.random() < 0.45;
+  var straightCol = -1;
+  if (wantStraight){
+    /* Only the player's own column counts. Allowing a lead-in of a few
+       sideways steps first produced routes with three or four columns in them,
+       which is not what "perfectly straight" means. */
+    var reach = streets * 2 + 3;
+    if (traceColClear(G.col, G.row, reach)) straightCol = G.col;
+  }
+
+  if (straightCol >= 0){
+    var col = G.col, step = straightCol > col ? 1 : -1;
+    while (col !== straightCol){
+      if (rows[G.row] && rows[G.row].blocked && rows[G.row].blocked[col + step]) break;
+      col += step; main.push({ r:G.row, c:col });
+    }
+    var rr = G.row, crossed = 0, guard = 0;
+    while (crossed < streets && guard++ < 90){
+      var row = rows[rr + 1];
+      if (!row || (row.blocked && row.blocked[col])) break;
+      rr++; main.push({ r:rr, c:col });
+      if (row.type === "road" || row.type === "sweep") crossed++;
+    }
+    return { paths:[main], straight:true };
+  }
+
+  traceRun(G.row, G.col, streets, main);
+  var paths = [main];
+  var nb = Math.random() < 0.55 ? (Math.random() < 0.4 ? 2 : 1) : 0;
+  for (var b = 0; b < nb; b++){
+    var br = traceBranch(main);
+    if (br) paths.push(br);
+  }
+  return { paths:paths, straight:false };
+}
+
+function onTrace(r, c){
+  if (!G.trace) return false;
+  for (var p = 0; p < G.trace.paths.length; p++){
+    var path = G.trace.paths[p];
+    for (var i = 0; i < path.length; i++){
+      if (path[i].r === r && path[i].c === c) return true;
+    }
+  }
+  return false;
 }
 /* does a span in row r touch any cell of the trace? */
 function traceBlocks(r, x, w){
   if (!G.trace) return false;
-  for (var i = 0; i < G.trace.length; i++){
-    var t = G.trace[i];
-    if (t.r !== r) continue;
-    if (x < t.c + 0.95 && x + w > t.c + 0.05) return true;
-  }
-  return false;
-}
-function onTrace(r, c){
-  if (!G.trace) return false;
-  for (var i = 0; i < G.trace.length; i++){
-    if (G.trace[i].r === r && G.trace[i].c === c) return true;
+  for (var p = 0; p < G.trace.paths.length; p++){
+    var path = G.trace.paths[p];
+    for (var i = 0; i < path.length; i++){
+      var t = path[i];
+      if (t.r !== r) continue;
+      if (x < t.c + 0.95 && x + w > t.c + 0.05) return true;
+    }
   }
   return false;
 }
@@ -2449,63 +2550,76 @@ function visibleLandmarks(){
 }
 
 /* Draws the trace in the grammar of a ThousandEyes path view: nodes joined by
-   links, small hop ticks along each link, and a packet running the route. */
-function drawTrace(){
-  if (G.revealT <= 0 || !G.trace || !G.trace.length) return;
-  var pts = [], i;
-  for (i = 0; i < G.trace.length; i++){
-    var t = G.trace[i], sy = rowScreenY(t.r);
+   links, hop ticks along each link, a pulsing destination, and a packet
+   running the route. Branches are drawn behind and dimmer than the main line,
+   the way an alternate route reads in the product. */
+function traceScreenPts(path){
+  var pts = [];
+  for (var i = 0; i < path.length; i++){
+    var sy = rowScreenY(path[i].r);
     if (sy < HORIZON - 40) continue;
-    pts.push([ t.c*TILE + TILE*0.5, sy - ROW_H*0.46 ]);
+    pts.push([ path[i].c*TILE + TILE*0.5, sy - ROW_H*0.46 ]);
   }
-  if (pts.length < 2) return;
+  return pts;
+}
+function drawTrace(){
+  if (G.revealT <= 0 || !G.trace || !G.trace.paths.length) return;
   var fade = Math.min(1, G.revealT / 1.2);
   var pulse = 0.5 + 0.5*Math.sin(G.t*4);
-
-  // links, drawn wide and soft then narrow and bright
   ctx.lineCap = "round"; ctx.lineJoin = "round";
-  ctx.globalAlpha = fade * 0.20; ctx.strokeStyle = C.pw3; ctx.lineWidth = 16;
-  ctx.beginPath(); ctx.moveTo(pts[0][0], pts[0][1]);
-  for (i = 1; i < pts.length; i++) ctx.lineTo(pts[i][0], pts[i][1]);
-  ctx.stroke();
-  ctx.globalAlpha = fade * 0.85; ctx.lineWidth = 3;
-  ctx.stroke();
 
-  // hop ticks along each link
-  ctx.globalAlpha = fade * 0.5; ctx.fillStyle = C.brandPale;
-  for (i = 1; i < pts.length; i++){
-    for (var k = 1; k <= 2; k++){
-      var f = k/3;
-      ctx.fillRect(pts[i-1][0] + (pts[i][0]-pts[i-1][0])*f - 2,
-                   pts[i-1][1] + (pts[i][1]-pts[i-1][1])*f - 2, 4, 4);
+  // branches first so the main line sits on top
+  for (var pi = G.trace.paths.length - 1; pi >= 0; pi--){
+    var main = (pi === 0);
+    var pts = traceScreenPts(G.trace.paths[pi]);
+    if (pts.length < 2) continue;
+    var w = main ? 1 : 0.62, i;
+
+    ctx.globalAlpha = fade * (main ? 0.20 : 0.12);
+    ctx.strokeStyle = C.pw3; ctx.lineWidth = 16*w;
+    ctx.beginPath(); ctx.moveTo(pts[0][0], pts[0][1]);
+    for (i = 1; i < pts.length; i++) ctx.lineTo(pts[i][0], pts[i][1]);
+    ctx.stroke();
+    ctx.globalAlpha = fade * (main ? 0.85 : 0.45); ctx.lineWidth = 3*w;
+    ctx.stroke();
+
+    ctx.globalAlpha = fade * (main ? 0.5 : 0.28); ctx.fillStyle = C.brandPale;
+    for (i = 1; i < pts.length; i++){
+      for (var k = 1; k <= 2; k++){
+        var f = k/3;
+        ctx.fillRect(pts[i-1][0] + (pts[i][0]-pts[i-1][0])*f - 2,
+                     pts[i-1][1] + (pts[i][1]-pts[i-1][1])*f - 2, 4, 4);
+      }
+    }
+
+    for (i = 0; i < pts.length; i++){
+      var last = main && (i === pts.length - 1);
+      var rad = (last ? 15 : 10) * w;
+      ctx.globalAlpha = fade * (main ? 0.9 : 0.55);
+      ctx.beginPath(); ctx.arc(pts[i][0], pts[i][1], rad, 0, Math.PI*2);
+      ctx.fillStyle = last ? C.brand : "#0d1a12"; ctx.fill();
+      ctx.lineWidth = 3*w; ctx.strokeStyle = last ? C.brandPale : C.pw3; ctx.stroke();
+      if (last){
+        ctx.globalAlpha = fade * (0.35 + 0.35*pulse);
+        ctx.beginPath(); ctx.arc(pts[i][0], pts[i][1], rad + 8 + 5*pulse, 0, Math.PI*2);
+        ctx.stroke();
+      }
     }
   }
 
-  // nodes
-  for (i = 0; i < pts.length; i++){
-    var last = (i === pts.length - 1);
-    var rad = last ? 15 : 10;
-    ctx.globalAlpha = fade * 0.9;
-    ctx.beginPath(); ctx.arc(pts[i][0], pts[i][1], rad, 0, Math.PI*2);
-    ctx.fillStyle = last ? C.brand : "#0d1a12"; ctx.fill();
-    ctx.lineWidth = 3; ctx.strokeStyle = last ? C.brandPale : C.pw3; ctx.stroke();
-    if (last){
-      ctx.globalAlpha = fade * (0.35 + 0.35*pulse);
-      ctx.beginPath(); ctx.arc(pts[i][0], pts[i][1], rad + 8 + 5*pulse, 0, Math.PI*2);
-      ctx.stroke();
-    }
+  // the packet runs the main route
+  var mp = traceScreenPts(G.trace.paths[0]);
+  if (mp.length >= 2){
+    var span = mp.length - 1;
+    var pos = ((G.t * 0.9) % 1) * span;
+    var seg = Math.min(span - 1, Math.floor(pos)), f2 = pos - seg;
+    var px = mp[seg][0] + (mp[seg+1][0]-mp[seg][0])*f2;
+    var py = mp[seg][1] + (mp[seg+1][1]-mp[seg][1])*f2;
+    ctx.globalAlpha = fade * 0.30; ctx.fillStyle = C.brandPale;
+    ctx.beginPath(); ctx.arc(px, py, 13, 0, Math.PI*2); ctx.fill();
+    ctx.globalAlpha = fade; ctx.fillStyle = "#ffffff";
+    ctx.beginPath(); ctx.arc(px, py, 5, 0, Math.PI*2); ctx.fill();
   }
-
-  // the packet, running the route on a loop
-  var span = pts.length - 1;
-  var pos = ((G.t * 0.9) % 1) * span;
-  var seg = Math.min(span - 1, Math.floor(pos)), f2 = pos - seg;
-  var px = pts[seg][0] + (pts[seg+1][0]-pts[seg][0])*f2;
-  var py = pts[seg][1] + (pts[seg+1][1]-pts[seg][1])*f2;
-  ctx.globalAlpha = fade * 0.30; ctx.fillStyle = C.brandPale;
-  ctx.beginPath(); ctx.arc(px, py, 13, 0, Math.PI*2); ctx.fill();
-  ctx.globalAlpha = fade; ctx.fillStyle = "#ffffff";
-  ctx.beginPath(); ctx.arc(px, py, 5, 0, Math.PI*2); ctx.fill();
   ctx.globalAlpha = 1;
 }
 
