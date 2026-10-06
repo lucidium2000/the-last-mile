@@ -998,9 +998,11 @@ var POWERS = {
   agent:  { col:C.pw1, letter:"E", name:"ENDPOINT AGENT",
             line:"Absorbs the next objection.", secs:0 },
   insight:{ col:C.pw2, letter:"I", name:"INTERNET INSIGHTS",
-            line:"The whole grid slows while you read it.", secs:4.5 },
+            line:"Ten seconds of live risk on every lane.", secs:10 },
+  chuck:  { col:"#4f9c62", letter:"$", name:"CHUCK BUCKS",
+            line:"Straight onto the number.", secs:0 },
   path:   { col:C.pw3,   letter:"P", name:"PATH VISUALIZATION",
-            line:"A traced route. Four streets of safe passage.", secs:9 },
+            line:"A traced route. Traffic turns away from it.", secs:9 },
   sponsor:{ col:C.pw4, letter:"X", name:"EXECUTIVE SPONSOR",
             line:"A car service, three blocks uptown.", secs:0 },
   metro:  { col:"#ffd24a", letter:"M", name:"METROCARD",
@@ -1013,7 +1015,13 @@ var POWERS = {
             line:"Technical Account Manager. Five seconds of flight — and they stay.",
             secs:5 }
 };
-var POWER_KINDS = ["agent","insight","path","sponsor","metro"];  // the common tier
+var POWER_KINDS = ["agent","insight","path","sponsor","metro","chuck"];
+/* Weighted draw rather than uniform: traces and metrocards carry three slots
+   each, since those are the two to see most often. */
+var POWER_POOL = ["path","path","path","metro","metro","metro",
+                  "chuck","chuck","agent","insight","sponsor"];
+var CHUCK_BONUS = 250000;
+var TAM_DURATION = 60;
 var FLY_SECS = 5, TAM_BONUS_SECS = 2, FLY_MAX = 9;
 var TAM_COOLDOWN_ROWS = 16;   // uncommon, not rare - it is the headline SKU
 
@@ -1045,6 +1053,22 @@ var TAM_WINS = [
 ];
 function powerModel(kind){
   var k = POWERS[kind];
+  if (kind === "chuck"){
+    var g1 = "#3f7f4e", g2 = "#4f9c62";
+    return { parts:[
+      P(0.40, 0.40, 0.20, 0.20, 0.03, 0.10, "#1f3d28"),
+      P(0.20, 0.36, 0.60, 0.26, 0.13, 0.055, g1),
+      P(0.21, 0.355, 0.60, 0.26, 0.185, 0.055, g2),
+      P(0.20, 0.36, 0.60, 0.26, 0.24, 0.055, g1),
+      P(0.21, 0.355, 0.60, 0.26, 0.295, 0.06, g2),
+      P(0.38, 0.345, 0.26, 0.29, 0.125, 0.235, "#b9893a")
+    ], decals:[
+      { x:0.23, y:0.355, w:0.54, z:0.305, h:0.085, bg:"#dff0e2", fg:"#1f4a2d",
+        text:"CHUCK", size:13 },
+      { x:0.40, y:0.345, w:0.22, z:0.17, h:0.085, bg:"#e8c97a", fg:"#4a3310",
+        text:"$", size:15 }
+    ], shadow:false, W:1 };
+  }
   if (kind === "metro"){
     return { parts:[
       P(0.40, 0.40, 0.20, 0.20, 0.03, 0.10, "#5a4a12"),
@@ -1056,7 +1080,6 @@ function powerModel(kind){
         text:"METRO", size:13 }
     ], shadow:false, W:1 };
   }
-  if (kind === "metro"){ G.metro = true; }
   else if (kind === "tam"){
     // visibly the biggest pickup on the board: taller core, crown and halo
     return { parts:[
@@ -1241,6 +1264,7 @@ function bakeAll(){
   S.heroFly_l = bake(heroModel(-1, true));
   for (i=0;i<POWER_KINDS.length;i++) S["pw_"+POWER_KINDS[i]] = bake(powerModel(POWER_KINDS[i]));
   S.pw_tam = bake(powerModel("tam"));
+  S.pw_chuck = bake(powerModel("chuck"));
   for (i=0;i<PROP_KINDS.length;i++)  S["pr_"+PROP_KINDS[i]]  = bake(PROP_MODELS[PROP_KINDS[i]]());
   S.walk0 = bakeStrip("walk",0); S.walk1 = bakeStrip("walk",1);
   S.road0 = bakeStrip("road",0); S.road1 = bakeStrip("road",1);
@@ -1373,7 +1397,7 @@ function makeWalk(r){
       if (!blocked[pc]){
         // the TAM is the rare drop, gated by its own long cooldown
         var kind = (r > 7 && r - lastTam >= TAM_COOLDOWN_ROWS && Math.random() < 0.52)
-                   ? "tam" : POWER_KINDS[(Math.random()*POWER_KINDS.length)|0];
+                   ? "tam" : POWER_POOL[(Math.random()*POWER_POOL.length)|0];
         if (kind === "tam") lastTam = r;
         pickup = { col:pc, kind:kind };
         lastPower = r; break;
@@ -1440,7 +1464,7 @@ function reset(){
     stage:-1, coach:-1, toast:null, flash:null,
     shield:false, slowT:0, revealT:0, invulnT:0, powersUsed:0,
     flyT:0, flyA:0, tam:false, tamT:0, tamWins:0,
-    metro:false, ride:null, trace:null, rides:0,
+    metro:false, ride:null, trace:null, rides:0, bonus:0, tamLeft:0,
     trainT:TRAIN_MAX, trainLine:tr[0], trainDest:tr[1],
     trainHH:16 + ((Math.random()*3)|0), trainMM:(Math.random()*60)|0,
     missedTrain:false,
@@ -1458,6 +1482,9 @@ function best(){
 function saveBest(v){ try { if (v > best()) localStorage.setItem("lastmile.best", String(v)); } catch (e){} }
 function rankFor(r){ var n = RANKS[0][1]; for (var i=0;i<RANKS.length;i++) if (r >= RANKS[i][0]) n = RANKS[i][1]; return n; }
 function money(r){ return "$" + (r*DOLLARS_PER_ROW).toLocaleString("en-US"); }
+function cash(v){ return "$" + Math.round(v).toLocaleString("en-US"); }
+/* rows walked, plus whatever Chuck handed over */
+function pipeline(){ return G.maxRow*DOLLARS_PER_ROW + G.bonus; }
 function flash(name, line, col){ G.flash = { life:2.2, name:name, line:line, col:col }; }
 
 /* current street number, from the furthest road row crossed */
@@ -1533,15 +1560,22 @@ function act(dir){
    Board and ~16mm on a Desk Mini, both comfortably above the ~9mm minimum.
    Swipes and the invisible tap zones still work; the pad simply takes
    priority wherever it is hit. */
+/* 1.5x the old buttons: 138px instead of 92px. That forced the layout off the
+   cross and onto one row - a two-row cross at this size is 286px tall and only
+   222px exist below the player's row, so the forward button would have covered
+   the block you were about to cross. Order is left, back, forward, right, with
+   a wide gap between back and forward so the two vertical moves are not
+   neighbours. */
 var DPAD = (function(){
-  var b = 92, g = 10, cx = LOGICAL_W/2, bottom = LOGICAL_H - 18;
-  var midY = bottom - b, topY = midY - g - b;
+  var b = 138, g = 18, mid = 46;
+  var total = 4*b + 2*g + mid;
+  var x0 = (LOGICAL_W - total) / 2, y = LOGICAL_H - 16 - b;
   return {
     b:b,
-    f:{ x:cx - b/2,       y:topY },
-    l:{ x:cx - b*1.5 - g, y:midY },
-    b2:{ x:cx - b/2,      y:midY },
-    r:{ x:cx + b/2 + g,   y:midY }
+    l:{ x:x0,                   y:y },
+    b2:{ x:x0 + b + g,          y:y },
+    f:{ x:x0 + 2*b + g + mid,   y:y },
+    r:{ x:x0 + 3*b + 2*g + mid, y:y }
   };
 })();
 function dpadHit(lx, ly){
@@ -1595,10 +1629,11 @@ cv.addEventListener("pointerup", function(e){
     var rect = cv.getBoundingClientRect();
     var px = (e.clientX-rect.left)/rect.width, py = (e.clientY-rect.top)/rect.height;
     if (inMuteBtn(px*LOGICAL_W, py*LOGICAL_H)){ AUDIO.toggle(); ptr = null; return; }
-    if (py < 0.52)      act("f");
-    else if (px < 0.34) act("l");
-    else if (px > 0.66) act("r");
-    else                act("b");
+    /* A tap anywhere means forward. The old scheme split the screen into four
+       invisible zones, so a tap meant for "cross" near the bottom corners moved
+       you sideways instead. Sideways and back come from the arrows or a swipe,
+       both of which are deliberate. */
+    act("f");
   }
   ptr = null;
 }, { passive:false });
@@ -1623,15 +1658,21 @@ function collect(){
   row.pickup = null;
   G.powersUsed++;
   if (kind === "tam") AUDIO.tam(); else AUDIO.power(kind);
-  flash(k.name, k.line, k.col);
+  flash(k.name, kind === "chuck" ? ("+" + cash(CHUCK_BONUS) + " on the number.") : k.line, k.col);
   burst(G.col*TILE + TILE/2, rowScreenY(G.row) - 40, k.col);
 
-  if (kind === "tam"){
+  if (kind === "chuck"){
+    G.bonus += CHUCK_BONUS;
+    burst(G.col*TILE + TILE/2, rowScreenY(G.row) - 40, "#7fd49a");
+  }
+  else if (kind === "metro"){ G.metro = true; }
+  else if (kind === "tam"){
     G.flyT = Math.min(FLY_MAX, Math.max(G.flyT, FLY_SECS));
     G.tam = true;
     /* First win lands at 3-6s, i.e. right as the initial flight runs out, so
        the SKU is seen delivering immediately rather than silently. Measured
        at 9-16s, most runs ended before a single win fired. */
+    G.tamLeft = TAM_DURATION;
     G.tamT = 3 + Math.random()*3;
   }
   else if (kind === "agent")   G.shield = true;
@@ -1696,6 +1737,16 @@ function buildTrace(){
   }
   return cells;
 }
+/* does a span in row r touch any cell of the trace? */
+function traceBlocks(r, x, w){
+  if (!G.trace) return false;
+  for (var i = 0; i < G.trace.length; i++){
+    var t = G.trace[i];
+    if (t.r !== r) continue;
+    if (x < t.c + 0.95 && x + w > t.c + 0.05) return true;
+  }
+  return false;
+}
 function onTrace(r, c){
   if (!G.trace) return false;
   for (var i = 0; i < G.trace.length; i++){
@@ -1712,7 +1763,7 @@ function colSafeFor(r, col, secs){
   if (row.type === "sweep") return row.phase === "idle";
   if (row.type !== "road") return true;
   var p0 = col+0.12, p1 = col+0.88;
-  var k = (G.slowT > 0) ? 0.45 : 1;
+  var k = 1;
   var spec = HAZ[row.kind], i;
   for (i=0;i<row.cars.length;i++){
     var x = carX(row, row.cars[i]);
@@ -1753,7 +1804,7 @@ function die(kind){
   G.deathObj = pair[0]; G.deathFix = pair[1];
   var pp = playerPos();
   burst(pp.col*TILE + TILE/2, rowScreenY(pp.row) - 36);
-  saveBest(G.maxRow);
+  saveBest(pipeline());
 }
 function missTrain(){
   AUDIO.missedTrain();
@@ -1761,7 +1812,7 @@ function missTrain(){
   G.deathName = "THE " + pad2(G.trainHH % 12 || 12) + ":" + pad2(G.trainMM);
   G.deathObj = "You stood on the corner too long.";
   G.deathFix = "Deals and trains both leave without you.";
-  saveBest(G.maxRow);
+  saveBest(pipeline());
 }
 function pad2(n){ return (n < 10 ? "0" : "") + n; }
 
@@ -1934,6 +1985,13 @@ function update(dt){
 
   /* An engaged TAM keeps delivering for the rest of the run. */
   if (G.tam && G.state === ST_PLAY){
+    G.tamLeft -= dt;
+    if (G.tamLeft <= 0){
+      G.tam = false; G.tamLeft = 0;
+      flash("TAM ENGAGEMENT ENDED", "Sixty seconds. Find another.", C.pw5);
+    }
+  }
+  if (G.tam && G.state === ST_PLAY){
     G.tamT -= dt;
     if (G.tamT <= 0){
       // 8-14s, so an engaged TAM delivers 2-4 times in a typical run and the
@@ -1957,7 +2015,7 @@ function update(dt){
   }
 
   var lo = Math.floor(G.camRow) - ROWS_BEHIND, hi = Math.floor(G.camRow) + ROWS_AHEAD, r, i;
-  var slowK = (G.slowT > 0) ? 0.45 : 1;
+  var slowK = 1;   // Insights no longer slows traffic; it measures it
 
   if (G.state !== ST_DEAD){
     for (r = lo; r <= hi; r++){
@@ -1997,9 +2055,21 @@ function update(dt){
           car.stopped = (cyc > 3.6);
           if (car.stopped && !wasStopped && Math.abs(r - G.row) < 6) AUDIO.hiss();
         }
+        /* While a trace is live, anything that reaches it turns around. The
+           player is already immune on the route; this exists to make that
+           unmistakable. Guard is !(bounce > 0), not bounce <= 0: bounce starts
+           undefined and `undefined <= 0` is false, which silently disabled the
+           whole effect first time round. */
+        if (car.bounce > 0) car.bounce -= dt;
+        if (G.revealT > 0 && G.trace && !(car.bounce > 0) &&
+            traceBlocks(r, carX(row, car), row.eff || 1)){
+          car.rv = -(car.rv || 1);
+          car.bounce = 1.4;
+        }
         if (!car.stopped){
-          car.p += row.speed * slowK * dt;
+          car.p += row.speed * dt * (car.rv || 1);
           if (car.p >= SPAN) car.p -= SPAN;
+          if (car.p < 0) car.p += SPAN;
         }
       }
       if (row.rogue){
@@ -2499,6 +2569,7 @@ function drawWorld(){
     }
   }
 
+  drawRisk();
   drawTrace();
 
   var pp = playerPos();
@@ -2517,6 +2588,7 @@ function drawWorld(){
         else {
           var bob = Math.sin(G.t*2.6 + row.pickup.col) * 7;
           blit(S["pw_"+row.pickup.kind], row.pickup.col*TILE, sy - 10 - bob);
+          drawPickupLabel(row.pickup.kind, row.pickup.col, sy - bob);
         }
       }
     } else {
@@ -2567,6 +2639,21 @@ function drawWorld(){
    glow pool on the pavement, two pulsing rings, rising sparks, and the brand
    mark floating above it. All of it is live per-frame work, but only while a
    TAM is actually on screen - typically one pickup, a few dozen fills. */
+/* Every pickup names itself. A coloured letter on a cube taught a first-time
+   player nothing, and on a shared device most plays are a first play. */
+function drawPickupLabel(kind, col, sy){
+  var k = POWERS[kind];
+  if (!k) return;
+  var cx = col*TILE + TILE*0.5, y = sy - 132;
+  if (y < HORIZON + 10 || y > LOGICAL_H - 30) return;
+  ctx.font = 'bold 15px "Helvetica Neue",Helvetica,Arial,sans-serif';
+  ctx.textAlign = "center";
+  var w = ctx.measureText(k.name).width + 28;
+  plate(cx - w/2, y - 15, w, 28, "rgba(8,5,3,0.86)", 7);
+  ctx.fillStyle = k.col; ctx.fillRect(cx - w/2, y - 15, 4, 28);
+  txt(k.name, cx + 2, y, 15, k.col);
+}
+
 function drawTamPickup(col, sy){
   var cx = col*TILE + TILE*0.5, phase = col * 1.7;
   var bob = Math.sin(G.t*2.1 + phase) * 10;
@@ -2677,10 +2764,57 @@ function drawPlayer(pp){
 }
 
 function drawHaze(){ ctx.fillStyle = hazeGrad; ctx.fillRect(0, HORIZON - 16, LOGICAL_W, 246); }
-function drawSlowTint(){
+/* ===================== INTERNET INSIGHTS ==================================
+   Paints every lane with the live risk of standing in it - seconds until a
+   vehicle would reach that cell. Red is occupied or imminent, amber close,
+   green clear. The product's whole proposition rendered as a mechanic: not a
+   hint, but the measured state of every hop at once. */
+function cellRisk(row, col){
+  var p0 = col + 0.14, p1 = col + 0.86, best = 99, i;
+  if (row.blocked && row.blocked[col]) return 0;
+  if (row.type === "sweep") return row.phase === "idle" ? Math.max(0, row.idleFor - row.t) : 0;
+  var w = row.eff || 1;
+  function consider(x, v){
+    if (x < p1 && x + w > p0){ best = 0; return; }
+    if (!v) return;
+    var t = -1;
+    if (v > 0 && x + w <= p0)  t = (p0 - w - x) / v;
+    else if (v < 0 && x >= p1) t = (p1 - x) / v;
+    if (t >= 0 && t < best) best = t;
+  }
+  for (i = 0; i < row.cars.length; i++){
+    var c = row.cars[i];
+    consider(carX(row, c), c.stopped ? 0 : row.speed * row.dir * (c.rv || 1));
+  }
+  for (i = 0; i < row.parked.length; i++){
+    var px = row.parked[i].col;
+    if (px < p1 && px + HAZ.boxtruck.w > p0) return 0;
+  }
+  if (row.rogue) consider(rogueX(row), -row.speed * row.dir);
+  return best;
+}
+function drawRisk(){
   if (G.slowT <= 0) return;
-  ctx.globalAlpha = 0.075 * Math.min(1, G.slowT);
-  ctx.fillStyle = C.pw2; ctx.fillRect(0, 0, LOGICAL_W, LOGICAL_H);
+  var fade = Math.min(1, G.slowT / 1.5);
+  var lo = Math.floor(G.camRow) - 1, hi = Math.floor(G.camRow) + ROWS_AHEAD;
+  for (var r = lo; r <= hi; r++){
+    var row = rows[r];
+    if (!row || row.type === "safe") continue;
+    var sy = rowScreenY(r);
+    if (sy < HORIZON || sy - ROW_H > LOGICAL_H) continue;
+    for (var c = 0; c < COLS; c++){
+      var t = cellRisk(row, c), col2, a;
+      /* Weighted hard toward danger. Painting every safe cell at the same
+         strength turned the road into a quilt and buried the traffic itself. */
+      if (t <= 0.05){ col2 = "#ff2f4e"; a = 0.44; }
+      else if (t < 0.5){ col2 = "#ff6a13"; a = 0.30; }
+      else if (t < 1.2){ col2 = "#ffc23d"; a = 0.18; }
+      else if (t < 2.4){ col2 = "#9ad84f"; a = 0.09; }
+      else             { col2 = "#2fd47a"; a = 0.05; }
+      ctx.globalAlpha = a * fade; ctx.fillStyle = col2;
+      ctx.fillRect(c*TILE + 3, sy - ROW_H + 3, TILE - 6, ROW_H - 6);
+    }
+  }
   ctx.globalAlpha = 1;
 }
 
@@ -2702,7 +2836,7 @@ function txt(s,x,y,size,col,align,maxW){
 function drawHud(){
   plate(28, 26, 470, 104, C.ink);
   txt("PIPELINE", 52, 58, 26, C.textDim, "left");
-  txt(money(G.maxRow), 52, 98, 56, C.text, "left");
+  txt(cash(pipeline()), 52, 98, 56, C.text, "left");
 
   // where you are, in blocks
   plate(514, 26, 250, 104, C.ink);
@@ -2723,7 +2857,7 @@ function drawHud(){
   if (b > 0){
     plate(LOGICAL_W-400, 26, 372, 104, C.ink);
     txt("BEST WALK", LOGICAL_W-52, 58, 26, C.textDim, "right");
-    txt(money(b), LOGICAL_W-52, 98, 44, C.good, "right");
+    txt(cash(b), LOGICAL_W-52, 98, 44, C.good, "right");
   }
 
   var chips = [];
@@ -2759,8 +2893,9 @@ function drawHud(){
     plate(bx+10, by+10, 40, 40, C.pw5, 10);
     txt("T", bx+30, by+31, 24, "#2a1400");
     txt("TAM ENGAGED", bx+60, by+24, 20, C.pw5, "left", 230);
-    txt(G.tamWins + (G.tamWins === 1 ? " win delivered" : " wins delivered"),
-        bx+60, by+44, 17, C.textDim, "left", 230);
+    txt(Math.ceil(G.tamLeft) + "s  \u00B7  " + G.tamWins +
+        (G.tamWins === 1 ? " win" : " wins"), bx+60, by+44, 17,
+        G.tamLeft < 12 ? C.danger : C.textDim, "left", 230);
   }
 
   /* Both message bands sit ABOVE the horizon, over the skyline rather than
@@ -2877,11 +3012,11 @@ function drawDpad(){
     var dir = keys[i][0], q = keys[i][1];
     var on = held && held.dir === dir;
     ctx.globalAlpha = on ? 0.95 : 0.46;
-    plate(q.x, q.y, DPAD.b, DPAD.b, on ? "rgba(255,106,19,0.90)" : "rgba(10,6,4,0.72)", 18);
+    plate(q.x, q.y, DPAD.b, DPAD.b, on ? "rgba(255,106,19,0.90)" : "rgba(10,6,4,0.72)", 24);
     ctx.globalAlpha = on ? 1 : 0.62;
     ctx.strokeStyle = on ? "#ffd9b8" : "rgba(255,166,74,0.55)";
     ctx.lineWidth = 2;
-    rr(q.x+1, q.y+1, DPAD.b-2, DPAD.b-2, 17); ctx.stroke();
+    rr(q.x+2, q.y+2, DPAD.b-4, DPAD.b-4, 22); ctx.stroke();
     arrowPath(q.x + DPAD.b/2, q.y + DPAD.b/2, DPAD.b*0.235, dir);
     ctx.fillStyle = on ? "#2a1400" : C.brandLight;
     ctx.fill();
@@ -2933,7 +3068,7 @@ function drawTitle(){
   txt("TAP TO START", LOGICAL_W/2, 726, 62, C.brand);
   ctx.globalAlpha = 1;
 
-  txt("Use the arrows, swipe, or tap the top of the screen to cross",
+  txt("Tap anywhere to cross  ·  arrows or swipe to step aside",
       LOGICAL_W/2, 822, 25, C.textDim);
   txt("A THOUSANDEYES GAME  ·  CISCO", LOGICAL_W/2, 1004, 19,
       "rgba(253,244,238,0.36)");
@@ -2959,12 +3094,12 @@ function drawDead(){
 
   plate(LOGICAL_W/2-400, 518, 800, 198, C.ink);
   txt("PIPELINE BUILT", LOGICAL_W/2, 564, 28, C.textDim);
-  txt(money(G.maxRow), LOGICAL_W/2, 626, 82, C.text);
+  txt(cash(pipeline()), LOGICAL_W/2, 626, 82, C.text);
   txt(rankFor(G.maxRow), LOGICAL_W/2, 688, 34, C.brand);
 
   if (G.deadFor > 0.45){
     ctx.globalAlpha = 0.55 + 0.45*Math.sin(G.t*3);
-    txt("TAP ANYWHERE TO WALK IT AGAIN", LOGICAL_W/2, 798, 46, C.brand);
+    txt("TAP ANYWHERE TO PURSUE A NEW PROSPECT", LOGICAL_W/2, 798, 42, C.brand);
     ctx.globalAlpha = 1;
   }
 }
@@ -2979,7 +3114,6 @@ function render(){
   drawWorld();
   drawHaze();
   if (G.ride) drawRide();
-  drawSlowTint();
   drawHud();
   if (G.state === ST_PLAY){ drawLockup(); drawDpad(); }
   if (G.state === ST_TITLE) drawTitle();
