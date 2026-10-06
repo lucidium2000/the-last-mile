@@ -2184,12 +2184,16 @@ function drawTamPickup(col, sy){
 }
 
 function drawPlayer(pp){
-  /* TAM engaged swaps the suit for the cape; airborne swaps to the streaming
-     cape. Falls back to the suit if a hero bake is somehow missing. */
+  /* The cape follows FLIGHT, not the TAM. He suits back up the moment the
+     initial five seconds lapse, and only transforms again when a TAM win hands
+     him another two. Driving it off G.flyA (which eases 0..1 either side of
+     flight) gives the change for free, and the grounded hero becomes the
+     transition frame: suit -> cape -> airborne on the way up, and the reverse
+     on the way down. */
   var right = G.facing > 0, s;
-  if (G.tam) s = (G.flyA > 0.45) ? (right ? S.heroFly_r : S.heroFly_l)
-                                 : (right ? S.hero_r    : S.hero_l);
-  else       s = right ? S.player_r : S.player_l;
+  if (G.flyA > 0.45)      s = right ? S.heroFly_r : S.heroFly_l;
+  else if (G.flyA > 0.02) s = right ? S.hero_r    : S.hero_l;
+  else                    s = right ? S.player_r  : S.player_l;
   if (!s) s = right ? S.player_r : S.player_l;
   var sx = pp.col*TILE, sy = rowScreenY(pp.row);
   var fly = G.flyA, flyLift = fly * 78;
@@ -2223,8 +2227,8 @@ function drawPlayer(pp){
     ctx.ellipse(sx + TILE*0.5, sy - ROW_H*0.46 - pp.lift*0.3, 40, 17, 0, 0, Math.PI*2);
     ctx.stroke(); ctx.globalAlpha = 1;
   }
-  // the hero reads a touch larger than the seller
-  var hk = G.tam ? 1.09 : 1;
+  // grows into the hero as he transforms, rather than popping
+  var hk = 1 + 0.09 * G.flyA;
   blitScaled(s, sx, sy - pp.lift - flyLift,
              (1 - pp.sq*0.10) * hk, (1 + pp.sq*0.14) * hk);
 }
