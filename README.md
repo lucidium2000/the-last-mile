@@ -111,6 +111,19 @@ Cape geometry is dictated by the projection — depth renders as up-and-right, s
 a cape hanging straight down behind the torso sits in the same screen space as
 the legs and is invisible. It has to be wider than the body to read at all.
 
+### Landmarks
+
+Fourteen Midtown landmarks fade in and out by cross street, so the city changes
+as you walk: Penn 1, Macy's, the Empire State, Peloton, Bryant Park, Grand
+Central, Times Square, Rockefeller, Radio City, St Patrick's, Carnegie Hall,
+Columbus Circle, The Plaza and Central Park.
+
+They are flat rects, not voxels - fill rate is the scarce resource on a Board,
+not geometry - and each is assigned one of four lanes across the screen. Two
+landmarks sharing a lane are never scheduled together, fades included;
+without that the Empire State drew out from behind the Times Square
+billboards. Roughly four are up at once and no street is ever bare.
+
 ### Power-ups
 
 Four common ThousandEyes capabilities — Endpoint Agent (absorbs one hit),

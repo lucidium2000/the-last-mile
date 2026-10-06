@@ -297,6 +297,20 @@ var AUDIO = (function(){
       tone({ f:659.25, dur:0.14, type:"sine", g:0.15 });
       tone({ f:987.77, dur:0.18, type:"sine", g:0.11, at:0.075 });
     },
+    /* turnstile swipe: the two-tone accept beep */
+    subway: function(){
+      tone({ f:1046.5, dur:0.09, type:"square", g:0.12, lp:3000 });
+      tone({ f:1318.5, dur:0.11, type:"square", g:0.12, at:0.09, lp:3000 });
+    },
+    /* the train: rolling rumble under a door chime, then wheel squeal */
+    train: function(){
+      tone({ f:62, to:48, dur:1.9, type:"sawtooth", g:0.17, lp:260 });
+      tone({ f:93, to:74, dur:1.9, type:"triangle", g:0.09, lp:400 });
+      hit({ f:900, to:260, dur:1.8, g:0.09 });
+      tone({ f:784, dur:0.16, type:"sine", g:0.13, at:0.05 });
+      tone({ f:587, dur:0.22, type:"sine", g:0.12, at:0.22 });
+      tone({ f:1480, to:2100, dur:0.3, type:"sine", g:0.05, at:1.25, lp:4000 });
+    },
     stage: function(){ arp([523.25, 783.99, 1046.50], "triangle", 0.20, 0); },
     coach: function(){ tone({ f:659.25, dur:0.10, type:"sine", g:0.11 }); },
     ui:    function(){ tone({ f:740, to:880, dur:0.06, type:"square", g:0.12 }); }
@@ -986,9 +1000,11 @@ var POWERS = {
   insight:{ col:C.pw2, letter:"I", name:"INTERNET INSIGHTS",
             line:"The whole grid slows while you read it.", secs:4.5 },
   path:   { col:C.pw3,   letter:"P", name:"PATH VISUALIZATION",
-            line:"Safe crossings light up ahead.", secs:6.5 },
+            line:"A traced route. Four streets of safe passage.", secs:9 },
   sponsor:{ col:C.pw4, letter:"X", name:"EXECUTIVE SPONSOR",
             line:"A car service, three blocks uptown.", secs:0 },
+  metro:  { col:"#ffd24a", letter:"M", name:"METROCARD",
+            line:"Swipe in at any subway. Ride five to ten streets uptown.", secs:0 },
   /* The premium SKU, and the most powerful thing in the game: five seconds of
      flight, and then it STAYS engaged for the rest of the run, periodically
      delivering another two seconds. A real TAM subscription keeps paying out
@@ -997,7 +1013,7 @@ var POWERS = {
             line:"Technical Account Manager. Five seconds of flight — and they stay.",
             secs:5 }
 };
-var POWER_KINDS = ["agent","insight","path","sponsor"];   // the common tier
+var POWER_KINDS = ["agent","insight","path","sponsor","metro"];  // the common tier
 var FLY_SECS = 5, TAM_BONUS_SECS = 2, FLY_MAX = 9;
 var TAM_COOLDOWN_ROWS = 16;   // uncommon, not rare - it is the headline SKU
 
@@ -1029,7 +1045,19 @@ var TAM_WINS = [
 ];
 function powerModel(kind){
   var k = POWERS[kind];
-  if (kind === "tam"){
+  if (kind === "metro"){
+    return { parts:[
+      P(0.40, 0.40, 0.20, 0.20, 0.03, 0.10, "#5a4a12"),
+      P(0.22, 0.38, 0.56, 0.22, 0.13, 0.30, "#f0c93c"),
+      P(0.22, 0.38, 0.56, 0.22, 0.20, 0.05, "#1b4fa8")
+    ], decals:[
+      { x:0.25, y:0.38, w:0.50, h:0.07, z:0.33, bg:"#1b4fa8" },
+      { x:0.25, y:0.38, w:0.50, h:0.09, z:0.15, bg:"#c9a526", fg:"#3a2d08",
+        text:"METRO", size:13 }
+    ], shadow:false, W:1 };
+  }
+  if (kind === "metro"){ G.metro = true; }
+  else if (kind === "tam"){
     // visibly the biggest pickup on the board: taller core, crown and halo
     return { parts:[
       P(0.38, 0.38, 0.24, 0.24, 0.02, 0.13, shade(k.col,-0.58)),
@@ -1412,6 +1440,7 @@ function reset(){
     stage:-1, coach:-1, toast:null, flash:null,
     shield:false, slowT:0, revealT:0, invulnT:0, powersUsed:0,
     flyT:0, flyA:0, tam:false, tamT:0, tamWins:0,
+    metro:false, ride:null, trace:null, rides:0,
     trainT:TRAIN_MAX, trainLine:tr[0], trainDest:tr[1],
     trainHH:16 + ((Math.random()*3)|0), trainMM:(Math.random()*60)|0,
     missedTrain:false,
@@ -1477,6 +1506,14 @@ function act(dir){
   if (nc < 0 || nc > COLS-1){ AUDIO.bump(); return; }
   if (nr < 0 || nr < G.maxRow - 6){ AUDIO.bump(); return; }
   var target = rows[nr];
+  // a card lets you swipe in at any subway entrance
+  if (G.metro && !G.ride && target && target.props){
+    for (var pi = 0; pi < target.props.length; pi++){
+      if (target.props[pi].kind === "subway" && target.props[pi].col === nc){
+        startRide(nr, nc); return;
+      }
+    }
+  }
   // flying carries you over scaffolding, parked trucks, everything solid
   if (G.flyT <= 0 && target && target.blocked && target.blocked[nc]){ AUDIO.bump(); return; }
 
@@ -1599,7 +1636,10 @@ function collect(){
   }
   else if (kind === "agent")   G.shield = true;
   else if (kind === "insight") G.slowT = Math.max(G.slowT, k.secs);
-  else if (kind === "path")    G.revealT = Math.max(G.revealT, k.secs);
+  else if (kind === "path"){
+    G.revealT = Math.max(G.revealT, k.secs);
+    G.trace = buildTrace();
+  }
   else if (kind === "sponsor"){
     var adv = 0;
     for (var i=1;i<=3;i++){
@@ -1617,8 +1657,54 @@ function collect(){
   }
 }
 
-/* every hazard interval in a row over the next `secs`, used by PATH
-   VISUALIZATION and by the fairness tests */
+/* ===================== PATH VISUALIZATION ================================
+   Modelled on a ThousandEyes path trace: a route of nodes joined by links,
+   with a packet running along it. Unlike the product it does not show where
+   you have been - it hands you a route forward, and that route is genuinely
+   safe. While the trace is live you cannot be hit on any cell belonging to it,
+   so it is four streets of guaranteed passage rather than a hint.
+
+   The route only has to dodge PERMANENT blockers (props, parked trucks),
+   because traffic cannot touch you on it. Sideways steps are inserted as their
+   own nodes so the drawn path is always walkable hop by hop. */
+function buildTrace(){
+  var cells = [{ r:G.row, c:G.col }];
+  var col = G.col, r = G.row, streets = 0, guard = 0;
+  ensureRows(G.row + 40);
+  while (streets < 4 && guard++ < 60){
+    var nr = r + 1, row = rows[nr];
+    if (!row) break;
+    if (row.blocked && row.blocked[col]){
+      // shuffle sideways to the nearest column that is not walled off
+      var tgt = -1;
+      for (var d = 1; d < COLS; d++){
+        if (col + d <= COLS-1 && !row.blocked[col + d]){ tgt = col + d; break; }
+        if (col - d >= 0 && !row.blocked[col - d]){ tgt = col - d; break; }
+      }
+      if (tgt < 0) break;
+      var step = tgt > col ? 1 : -1;
+      while (col !== tgt){
+        if (rows[r] && rows[r].blocked && rows[r].blocked[col + step]) break;
+        col += step;
+        cells.push({ r:r, c:col });
+      }
+      if (row.blocked && row.blocked[col]) break;
+    }
+    r = nr;
+    cells.push({ r:r, c:col });
+    if (row.type === "road" || row.type === "sweep") streets++;
+  }
+  return cells;
+}
+function onTrace(r, c){
+  if (!G.trace) return false;
+  for (var i = 0; i < G.trace.length; i++){
+    if (G.trace[i].r === r && G.trace[i].c === c) return true;
+  }
+  return false;
+}
+
+/* every hazard interval in a row over the next `secs`, used by the tests */
 function colSafeFor(r, col, secs){
   var row = rows[r];
   if (!row) return true;
@@ -1684,6 +1770,123 @@ function pad2(n){ return (n < 10 ? "0" : "") + n; }
    scaffold or on top of a bus - either would be an instant death the player
    could not have avoided. So on landing: slide out of any solid cell to the
    nearest free column, and take a moment of grace on the way down. */
+/* ============================== THE RIDE ==================================
+   Swipe in at a subway entrance and you surface five to ten streets uptown,
+   out of another one. Three phases: down the stairs, the train, up the stairs.
+   The exit is forced to exist - a subway prop is planted at the destination if
+   there is not one already - and its cell is unblocked on arrival so you step
+   out of the stairwell rather than into it. Removing a blocker can never
+   create a pin, so the generation guarantees still hold. */
+function startRide(enterRow, enterCol){
+  ensureRows(G.maxRow + 60);
+  var fromSt = streetAt(enterRow);
+  var wantSt = fromSt + 5 + ((Math.random()*6) | 0);     // 5..10 streets
+  var dest = null;
+  for (var r = enterRow + 3; r < enterRow + 80; r++){
+    var w = rows[r];
+    if (!w || w.type !== "safe") continue;
+    if (streetAt(r) >= wantSt){ dest = r; break; }
+  }
+  if (dest === null){ AUDIO.bump(); return; }
+
+  // find or plant the exit
+  var exitCol = -1, dw = rows[dest], i;
+  for (i = 0; i < dw.props.length; i++){
+    if (dw.props[i].kind === "subway"){ exitCol = dw.props[i].col; break; }
+  }
+  if (exitCol < 0){
+    var cand = placeBlockers(1);
+    exitCol = cand.length ? cand[0] : (COLS >> 1);
+    dw.props.push({ col:exitCol, kind:"subway" });
+  }
+  delete dw.blocked[exitCol];
+
+  G.metro = false;                                       // single ride
+  G.rides++;
+  G.ride = { t:0, phase:"down", fromRow:enterRow, fromCol:enterCol,
+             toRow:dest, toCol:exitCol, camFrom:G.camRow, streets:streetAt(dest) - fromSt };
+  G.col = enterCol; G.fromCol = enterCol;
+  G.row = enterRow; G.fromRow = enterRow; G.hop = 1;
+  G.invulnT = Math.max(G.invulnT, 1.2);
+  AUDIO.subway();
+}
+
+function updateRide(dt){
+  var R = G.ride;
+  R.t += dt;
+  if (R.phase === "down"){
+    if (R.t >= 0.55){ R.phase = "train"; R.t = 0; AUDIO.train(); }
+  } else if (R.phase === "train"){
+    var f = Math.min(1, R.t / 2.1);
+    var e = f < 0.5 ? 2*f*f : 1 - Math.pow(-2*f + 2, 2)/2;   // ease in-out
+    G.camRow = R.camFrom + (R.toRow - R.camFrom) * e;
+    if (R.t >= 2.1){
+      R.phase = "up"; R.t = 0;
+      G.row = R.toRow; G.fromRow = R.toRow;
+      G.col = R.toCol; G.fromCol = R.toCol; G.hop = 1;
+      if (G.row > G.maxRow){
+        G.trainT = Math.min(TRAIN_MAX, G.trainT + TRAIN_PER_HOP * (G.row - G.maxRow));
+        G.maxRow = G.row; progress();
+      }
+      ensureRows(G.maxRow + ROWS_AHEAD);
+    }
+  } else {
+    if (R.t >= 0.55){
+      G.ride = null;
+      G.invulnT = Math.max(G.invulnT, 0.8);
+      flash("OUT AT W " + G.street + " ST", R.streets + " streets uptown.", "#ffd24a");
+    }
+  }
+}
+
+/* the subway car, drawn over the world while the camera races uptown */
+function drawRide(){
+  var R = G.ride;
+  if (!R) return;
+  if (R.phase === "down" || R.phase === "up"){
+    var f = R.t / 0.55, a = (R.phase === "down") ? f : 1 - f;
+    ctx.globalAlpha = Math.max(0, Math.min(1, a)) * 0.8;
+    ctx.fillStyle = "#05070a";
+    ctx.fillRect(0, HORIZON, LOGICAL_W, LOGICAL_H - HORIZON);
+    ctx.globalAlpha = 1;
+    return;
+  }
+  // full blackout, then the car
+  ctx.fillStyle = "#05070a";
+  ctx.fillRect(0, HORIZON, LOGICAL_W, LOGICAL_H - HORIZON);
+
+  // tunnel lights streaking past
+  var sp = (G.t * 1400) % 320;
+  ctx.globalAlpha = 0.5; ctx.fillStyle = "#4a3a20";
+  for (var x = -320; x < LOGICAL_W + 320; x += 320) ctx.fillRect(x + sp, 300, 6, 70);
+  ctx.globalAlpha = 1;
+
+  var cy = 560, ch = 300, cx0 = 150, cw = LOGICAL_W - 300;
+  plate(cx0, cy, cw, ch, "#9aa3ab", 20);                 // car body
+  plate(cx0+10, cy+10, cw-20, ch-20, "#2b3138", 16);
+  ctx.fillStyle = "#1b4fa8"; ctx.fillRect(cx0+10, cy+ch-54, cw-20, 12);
+
+  // windows, with the seller in one of them
+  var wn = 5, ww = (cw - 80) / wn;
+  for (var i = 0; i < wn; i++){
+    var wx = cx0 + 40 + i*ww;
+    plate(wx, cy+44, ww-26, 120, "#0c1016", 10);
+    plate(wx+5, cy+49, ww-36, 110, "#17303f", 8);
+    if (i === 2){
+      var sp2 = S.player_r;
+      ctx.drawImage(sp2.img, wx + (ww-26)/2 - sp2.w*0.46, cy+56, sp2.w*0.92, sp2.h*0.92);
+    } else {
+      ctx.globalAlpha = 0.55; ctx.fillStyle = "#3b4a56";
+      ctx.fillRect(wx+22, cy+86, 26, 56); ctx.fillRect(wx+62, cy+94, 24, 48);
+      ctx.globalAlpha = 1;
+    }
+  }
+  plate(cx0+26, cy+196, cw-52, 54, "#1d2228", 10);
+  txt("UPTOWN  \u00B7  " + R.streets + " STREETS", LOGICAL_W/2, cy+224, 26, "#ffd24a");
+  ctx.globalAlpha = 0.35; ctx.fillStyle = "#000";
+  ctx.fillRect(cx0, cy+ch, cw, 18); ctx.globalAlpha = 1;
+}
+
 function landFromFlight(){
   var row = rows[G.row];
   if (row && row.blocked && row.blocked[G.col]){
@@ -1708,13 +1911,17 @@ function hitPlayer(kind, pp){
 }
 
 function update(dt){
-  G.t += dt; G.sweep += dt*0.4; if (G.sweep > 1.7) G.sweep -= 1.7;
+  G.t += dt;
+  if (G.ride){ updateRide(dt); if (G.ride) return; } G.sweep += dt*0.4; if (G.sweep > 1.7) G.sweep -= 1.7;
   if (G.hop < 1){
     G.hop += dt*1000 / (HOP_MS * (1 - 0.32*G.flyA));   // airborne is quicker
     if (G.hop >= 1){ G.hop = 1; collect(); }
   }
   if (G.slowT   > 0) G.slowT   = Math.max(0, G.slowT - dt);
-  if (G.revealT > 0) G.revealT = Math.max(0, G.revealT - dt);
+  if (G.revealT > 0){
+    G.revealT = Math.max(0, G.revealT - dt);
+    if (G.revealT === 0) G.trace = null;
+  }
   if (G.invulnT > 0) G.invulnT = Math.max(0, G.invulnT - dt);
 
   /* Flight. The ascent and descent are eased off a single 0..1 value, so the
@@ -1822,6 +2029,8 @@ function update(dt){
         var rx = rogueX(crow);
         if (rx < p1 && rx + HAZ.ebike.w > p0) hitKind = "ebike";
       }
+      // the traced route is genuine safe passage, not a hint
+      if (hitKind && G.revealT > 0 && onTrace(cr, G.col)) hitKind = null;
       if (hitKind) hitPlayer(hitKind, pp);
     }
   }
@@ -1900,100 +2109,242 @@ var SKY_MID = [[60,96,150],[230,72,186],[380,110,124],[540,84,168],[700,120,110]
                [860,78,178],[1000,108,136],[1180,86,160],[1340,116,118],
                [1520,80,174],[1680,104,142],[1840,90,156]];
 
-/* ---- landmarks. Fade in and out by cross street, so the skyline evolves. -- */
+/* ---- LANDMARKS -----------------------------------------------------------
+   Street-level facades filling the band between the far skyline and the kerb,
+   fading in and out by cross street so the city changes as you walk. All flat
+   rects - no gradients, no per-pixel work - because fill rate is the scarce
+   resource on a Board, not geometry. Two or three are up at once.
+   ------------------------------------------------------------------------ */
 function bandA(st, from, to, fade){
   if (st < from - fade || st > to + fade) return 0;
   if (st < from) return (st - (from - fade)) / fade;
   if (st > to)   return 1 - (st - to) / fade;
   return 1;
 }
-
-/* Penn 1: the boxy 1970s slab you just walked out of, with MSG's drum beside
-   it. Labelled, because the people playing this work in it. */
-function lmPenn1(a){
-  var x = 196, w = 212, h = 206;
-  bldg(x, w, h, "#2b1f20", a, 3, 0.55);
-  slab(x + 14, SKY_BASE - h - 9, w - 28, 9, "#352527", a);
-  ctx.globalAlpha = a * 0.5; ctx.fillStyle = "#1b1315";
-  for (var v = x + 12; v < x + w - 10; v += 26) ctx.fillRect(v, SKY_BASE - h + 10, 7, h - 20);
-  ctx.globalAlpha = 1;
-  // Madison Square Garden: the drum on top of the station
-  bldg(44, 148, 74, "#241a1b", a, 8, 0.22);
-  slab(52, SKY_BASE - 82, 132, 10, "#302224", a);
-  // building sign
-  ctx.globalAlpha = a;
-  plate(x + w/2 - 62, SKY_BASE - h + 24, 124, 34, "rgba(10,6,4,0.82)", 6);
-  txt("PENN 1", x + w/2, SKY_BASE - h + 42, 24, C.brand);
-  ctx.globalAlpha = 1;
+var LA = 1;                                   // alpha of the landmark being drawn
+var LX = 0;                                   // lane base x of the landmark being drawn
+function lr(x, y, w, h, col){
+  ctx.globalAlpha = LA; ctx.fillStyle = col; ctx.fillRect(x, y, w, h);
 }
-/* Empire State: 34th and 5th, so it is in view almost from the start. */
-function lmEmpire(a){
-  var cx = 1196, t = "#2e2122";
-  bldg(cx - 78, 156, 72, t, a, 11, 0.5);
-  slab(cx - 54, SKY_BASE - 118, 108, 46, t, a); winGrid(cx - 54, SKY_BASE - 118, 108, 46, 12, 0.42*a);
-  slab(cx - 36, SKY_BASE - 180, 72, 62, t, a);  winGrid(cx - 36, SKY_BASE - 180, 72, 62, 13, 0.46*a);
-  slab(cx - 22, SKY_BASE - 206, 44, 26, t, a);
-  slab(cx - 7,  SKY_BASE - 238, 14, 32, "#3a2a2a", a);
-  slab(cx - 2,  SKY_BASE - 254, 4,  16, "#45312f", a);
-  ctx.globalAlpha = a * 0.85; ctx.fillStyle = C.brand;
-  ctx.fillRect(cx - 3, SKY_BASE - 258, 6, 6);          // the mast light
-  ctx.globalAlpha = 1;
+function lrA(x, y, w, h, col, a){
+  ctx.globalAlpha = LA * a; ctx.fillStyle = col; ctx.fillRect(x, y, w, h);
 }
-/* Chrysler: the stepped crown is the whole silhouette. */
-function lmChrysler(a){
-  var cx = 1520, t = "#2a2024";
-  bldg(cx - 60, 120, 84, t, a, 21, 0.5);
-  slab(cx - 38, SKY_BASE - 152, 76, 68, t, a); winGrid(cx - 38, SKY_BASE - 152, 76, 68, 22, 0.44*a);
-  var w = 68, y = SKY_BASE - 152;
-  for (var i = 0; i < 5; i++){                          // the arches
-    w -= 11; y -= 13;
-    slab(cx - w/2, y, w, 13, i % 2 ? "#3b2b2d" : "#32252a", a);
+function lwin(x, y, w, h, cols, rws, seed, col){
+  ctx.globalAlpha = LA * 0.75; ctx.fillStyle = col || "#ffae55";
+  var cw = w/cols, ch = h/rws;
+  for (var i = 0; i < cols; i++) for (var j = 0; j < rws; j++){
+    if (((i*7 + j*13 + seed*31) % 17) < 7)
+      ctx.fillRect(x + i*cw + cw*0.22, y + j*ch + ch*0.22, cw*0.56, ch*0.56);
   }
-  slab(cx - 3, y - 38, 6, 38, "#3f2d2c", a);
-  ctx.globalAlpha = a * 0.8; ctx.fillStyle = C.brandLight;
-  ctx.fillRect(cx - 2, y - 42, 4, 5);
-  ctx.globalAlpha = 1;
+  ctx.globalAlpha = LA;
 }
-/* Rockefeller Center: the broad setback slab. */
-function lmRock(a){
-  var x = 636, t = "#2b2023";
-  bldg(x, 170, 128, t, a, 31, 0.52);
-  slab(x + 22, SKY_BASE - 176, 126, 48, t, a); winGrid(x + 22, SKY_BASE - 176, 126, 48, 32, 0.46*a);
-  slab(x + 46, SKY_BASE - 206, 78, 30, t, a);
-  bldg(x - 92, 76, 92, "#241b1e", a, 33, 0.34);
+function ltxt(t, cx, y, size, col){
+  ctx.globalAlpha = LA; ctx.fillStyle = col;
+  ctx.font = "bold " + size + 'px "Helvetica Neue",Helvetica,Arial,sans-serif';
+  ctx.textAlign = "center"; ctx.fillText(t, cx, y);
 }
-/* Billionaires' Row: the pencil towers that define 57th now. */
-function lmSupertall(a){
-  bldg(1252, 38, 232, "#2d2225", a, 41, 0.42);
-  slab(1252, SKY_BASE - 240, 38, 8, "#3a2b2d", a);
-  bldg(1332, 30, 198, "#281e21", a, 42, 0.38);
-  slab(1332, SKY_BASE - 204, 30, 7, "#36282a", a);
-  bldg(1176, 26, 166, "#241b1d", a, 43, 0.3);
+var GB = SKY_BASE;                            // ground line for the facades
+
+/* Penn 1 and the Garden - the block you walk out of */
+function lmPenn1(){
+  var x = LX;
+  lr(x+150, GB-206, 212, 206, "#2b1f20");
+  lr(x+164, GB-215, 184, 9, "#352527");
+  for (var v = 0; v < 190; v += 26) lrA(x+162+v, GB-196, 7, 186, "#1b1315", 0.55);
+  lr(x+20, GB-74, 148, 74, "#241a1b");
+  lr(x+28, GB-82, 132, 10, "#302224");
+  lr(x+194, GB-176, 124, 32, "rgba(10,6,4,0.84)");
+  ltxt("PENN 1", x+256, GB-154, 23, C.brand);
 }
-/* Central Park South: the skyline stops and the trees start. */
-function lmPark(a){
-  ctx.globalAlpha = a;
+/* Macy's Herald Square - storefront, awnings, the star */
+function lmMacys(){
+  var x = LX;
+  lr(x, GB-150, 300, 150, "#33262a");
+  lwin(x+12, GB-142, 276, 70, 7, 3, 4);
+  lr(x, GB-66, 300, 10, "#5a3a3f");
+  for (var a = 0; a < 6; a++) lr(x+8 + a*49, GB-56, 40, 14, "#8c2733");
+  lr(x, GB-92, 300, 26, "#17100f");
+  ltxt("MACY", x+136, GB-74, 20, "#f0e6d8");
+  ltxt("\u2605", x+186, GB-74, 18, "#d8414f");
+  lr(x+324, GB-24, 18, 24, "#8c2733");
+}
+/* Empire State - setbacks and the mast */
+function lmEmpire(){
+  var cx = LX + 210, t = "#2e2122";
+  lr(cx-86, GB-78, 172, 78, t);  lwin(cx-78, GB-72, 156, 32, 8, 2, 11);
+  lr(cx-60, GB-128, 120, 50, t); lwin(cx-52, GB-122, 104, 38, 6, 3, 12);
+  lr(cx-40, GB-196, 80, 68, t);  lwin(cx-33, GB-190, 66, 56, 4, 4, 13);
+  lr(cx-24, GB-224, 48, 28, t);
+  lr(cx-8, GB-258, 16, 34, "#3a2a2a");
+  lr(cx-3, GB-276, 6, 18, "#45312f");
+  lrA(cx-4, GB-282, 8, 8, C.brand, 0.9);
+}
+/* Peloton studio - lit frontage with bikes in the window */
+function lmPeloton(){
+  var x = LX;
+  lr(x, GB-168, 268, 168, "#241d22");
+  lwin(x+10, GB-160, 248, 76, 6, 2, 21);
+  lr(x+8, GB-78, 252, 62, "#0f1418");
+  lrA(x+8, GB-78, 252, 62, "#1d2b33", 0.9);
+  for (var b = 0; b < 4; b++){
+    var bx = x + 28 + b*58;
+    lr(bx, GB-44, 6, 28, "#c9ced4");
+    lr(bx-10, GB-50, 26, 7, "#c9ced4");
+    lr(bx+12, GB-62, 5, 20, "#c9ced4");
+  }
+  lr(x, GB-100, 268, 24, "#12171b");
+  ltxt("PELOTON", x+134, GB-84, 19, "#f0f3f6");
+}
+/* Bryant Park and the library - columns, pediment, trees */
+function lmBryant(){
+  var x = LX;
+  lr(x, GB-26, 300, 26, "#2a2420");
+  lr(x+20, GB-150, 260, 124, "#3a332c");
+  lr(x+10, GB-166, 280, 18, "#463d34");
+  for (var c = 0; c < 7; c++) lr(x+34 + c*34, GB-148, 16, 122, "#4a4038");
+  lr(x+20, GB-60, 260, 10, "#2f2a24");
+  for (var tr = 0; tr < 4; tr++){
+    var tx = x + 316 + tr*42;
+    lr(tx+8, GB-30, 8, 30, "#3a2a1c");
+    lr(tx, GB-70, 26, 42, tr % 2 ? "#1b3a25" : "#20472c");
+  }
+}
+/* Times Square - stacked lit billboards and a running ticker */
+function lmTimes(){
+  var x = LX, y = GB-232;
+  lr(x, y, 420, 232, "#17131a");
+  var bb = [
+    [8,6,190,66,"#c9243f"], [206,6,200,48,"#1b4fd0"],
+    [206,60,200,40,"#e0a81e"], [8,78,120,78,"#12a05c"],
+    [134,78,72,78,"#7b2fd0"], [206,106,200,50,"#d8431f"],
+    [8,162,180,44,"#1f7fd8"], [196,162,210,44,"#e8c12a"]
+  ];
+  for (var i = 0; i < bb.length; i++){
+    var b = bb[i];
+    lrA(x+b[0], y+b[1], b[2], b[3], b[4], 0.92);
+    for (var sy2 = 0; sy2 < b[3]; sy2 += 6)
+      lrA(x+b[0], y+b[1]+sy2, b[2], 2, "#000000", 0.16);
+  }
+  lrA(x+8, y+208, 404, 16, "#0c0a10", 0.95);
+  var tk = (G.t*70) % 460;
+  lrA(x+8+tk-56, y+211, 56, 10, "#e8c12a", 0.85);
+  lrA(x+8+tk-170, y+211, 70, 10, "#d8431f", 0.7);
+  ltxt("TIMES SQ", x+210, y+228, 15, "#9b94a4");
+}
+/* Grand Central - arched windows and the clock */
+function lmGrand(){
+  var x = LX;
+  lr(x, GB-160, 320, 160, "#36302a");
+  for (var a2 = 0; a2 < 3; a2++){
+    var ax = x + 34 + a2*90;
+    lr(ax, GB-140, 64, 96, "#1a1a1e");
+    lrA(ax+6, GB-134, 52, 84, "#5e4f2e", 0.55);
+  }
+  lr(x+118, GB-176, 84, 18, "#443a31");
+  lr(x+146, GB-172, 28, 28, "#e8d7a0");
+  lrA(x+158, GB-162, 3, 10, "#2a2016", 1);
+  ltxt("GRAND CENTRAL", x+160, GB-12, 15, "#cbbfae");
+}
+/* Radio City - the vertical blade sign */
+function lmRadio(){
+  var x = LX;
+  lr(x, GB-150, 250, 150, "#2b2630");
+  lr(x+8, GB-46, 234, 30, "#1a1620");
+  for (var m = 0; m < 14; m++) lrA(x+14 + m*16, GB-38, 8, 8, "#ffd166", 0.9);
+  lr(x+252, GB-210, 42, 210, "#b02a1e");
+  var L = "RADIOCITY";
+  for (var i2 = 0; i2 < L.length; i2++)
+    ltxt(L.charAt(i2), x+273, GB-192 + i2*22, 16, "#f6efe2");
+  lr(x+40, GB-100, 170, 40, "#17131a");
+  ltxt("MUSIC HALL", x+125, GB-76, 17, "#e8c12a");
+}
+/* Rockefeller Center - slab, flags, the rink */
+function lmRock(){
+  var x = LX + 180;
+  lr(x, GB-230, 170, 230, "#2b2023"); lwin(x+10, GB-222, 150, 180, 5, 9, 31);
+  lr(x+22, GB-258, 126, 28, "#332629");
+  lr(x-110, GB-96, 104, 96, "#241b1e"); lwin(x-102, GB-90, 88, 66, 4, 3, 33);
+  lr(x-170, GB-30, 180, 30, "#1b2a33");
+  lrA(x-170, GB-30, 180, 6, "#8fc6de", 0.5);
+  for (var f = 0; f < 6; f++){
+    lr(x-158 + f*28, GB-74, 3, 44, "#6b6257");
+    lrA(x-155 + f*28, GB-74, 16, 11, f % 2 ? "#d8431f" : "#e8c12a", 0.95);
+  }
+}
+/* St Patrick's - twin spires and the rose window */
+function lmStPats(){
+  var x = LX;
+  lr(x, GB-150, 220, 150, "#413a33");
+  lr(x+16, GB-250, 40, 100, "#4a423a"); lr(x+28, GB-286, 16, 36, "#564c43");
+  lr(x+164, GB-250, 40, 100, "#4a423a"); lr(x+176, GB-286, 16, 36, "#564c43");
+  lr(x+86, GB-120, 48, 48, "#1c1a18");
+  lrA(x+94, GB-112, 32, 32, "#8c6f3a", 0.7);
+  lr(x+94, GB-60, 32, 60, "#241f1b");
+}
+/* Carnegie Hall - brick and arches */
+function lmCarnegie(){
+  var x = LX;
+  lr(x, GB-180, 240, 180, "#51312a");
+  for (var r2 = 0; r2 < 3; r2++) for (var c2 = 0; c2 < 4; c2++)
+    lr(x+22 + c2*54, GB-160 + r2*44, 32, 30, "#2a1a16");
+  lr(x+40, GB-36, 160, 14, "#1d1a18");
+  lrA(x+40, GB-36, 160, 4, "#e8c12a", 0.8);
+  ltxt("CARNEGIE HALL", x+120, GB-48, 15, "#e6d8c2");
+}
+/* The Plaza - mansard roof and flags */
+function lmPlaza(){
+  var x = LX;
+  lr(x, GB-170, 230, 170, "#3f3a34"); lwin(x+12, GB-160, 206, 120, 7, 5, 41);
+  lr(x-6, GB-206, 242, 36, "#2a2622");
+  for (var d = 0; d < 5; d++) lr(x+22 + d*44, GB-200, 22, 22, "#1d1a17");
+  for (var f2 = 0; f2 < 3; f2++){
+    lr(x+56 + f2*56, GB-236, 3, 32, "#6b6257");
+    lrA(x+59 + f2*56, GB-236, 14, 10, "#d8431f", 0.9);
+  }
+}
+/* Columbus Circle - the twin towers */
+function lmColumbus(){
+  var x = LX;
+  lr(x, GB-250, 78, 250, "#2d2225");     lwin(x+8, GB-242, 62, 200, 3, 10, 51);
+  lr(x+104, GB-250, 78, 250, "#2d2225"); lwin(x+112, GB-242, 62, 200, 3, 10, 52);
+  lr(x+78, GB-150, 26, 150, "#231a1d");
+  lr(x+210, GB-40, 10, 40, "#4a443c");
+  lrA(x+206, GB-52, 18, 14, "#5d564c", 1);
+}
+/* Central Park South - the skyline stops and the trees start */
+function lmPark(){
   var blobs = [[520,66,44],[600,84,56],[700,72,48],[790,96,60],[900,78,50],
                [990,90,58],[1090,70,46],[1170,86,54],[1270,76,50],[1360,92,58]];
-  for (var i = 0; i < blobs.length; i++){
-    var b = blobs[i];
-    ctx.fillStyle = i % 2 ? "#17301f" : "#1b3a25";
+  for (var i3 = 0; i3 < blobs.length; i3++){
+    var b2 = blobs[i3];
+    ctx.globalAlpha = LA; ctx.fillStyle = i3 % 2 ? "#17301f" : "#1b3a25";
     ctx.beginPath();
-    ctx.ellipse(b[0], SKY_BASE - b[2]*0.45, b[1]*0.5, b[2]*0.55, 0, 0, Math.PI*2);
+    ctx.ellipse(b2[0], GB - b2[2]*0.45, b2[1]*0.5, b2[2]*0.55, 0, 0, Math.PI*2);
     ctx.fill();
   }
-  ctx.fillStyle = "#132a1b";
-  ctx.fillRect(470, SKY_BASE - 18, 940, 18);
-  ctx.globalAlpha = 1;
+  lr(470, GB-18, 940, 18, "#132a1b");
 }
 
+/* Four lanes across the screen. Two landmarks that share a lane are never
+   scheduled to be visible at the same time, fades included - otherwise they
+   draw straight through each other (the Empire State was coming out from
+   behind the Times Square billboards). */
+var LANE = [20, 500, 980, 1460];
 var LANDMARKS = [
-  { from:34, to:43, fade:3, draw:lmPenn1 },
-  { from:34, to:50, fade:5, draw:lmEmpire },
-  { from:40, to:57, fade:5, draw:lmChrysler },
-  { from:46, to:62, fade:5, draw:lmRock },
-  { from:52, to:74, fade:6, draw:lmSupertall },
-  { from:58, to:999, fade:5, draw:lmPark }
+  { from:34, to:39,  fade:2, lane:0, draw:lmPenn1 },
+  { from:34, to:37,  fade:2, lane:1, draw:lmMacys },
+  { from:34, to:44,  fade:2, lane:3, draw:lmEmpire },
+  { from:38, to:43,  fade:2, lane:2, draw:lmPeloton },
+  { from:42, to:45,  fade:2, lane:1, draw:lmBryant },
+  { from:44, to:47,  fade:2, lane:0, draw:lmGrand },
+  { from:48, to:52,  fade:2, lane:2, draw:lmTimes },
+  { from:49, to:55,  fade:2, lane:3, draw:lmRock },
+  { from:50, to:53,  fade:2, lane:1, draw:lmRadio },
+  { from:52, to:57,  fade:2, lane:0, draw:lmStPats },
+  { from:57, to:62,  fade:2, lane:2, draw:lmCarnegie },
+  { from:58, to:64,  fade:2, lane:1, draw:lmColumbus },
+  { from:60, to:66,  fade:2, lane:3, draw:lmPlaza },
+  { from:60, to:999, fade:3, lane:-1, draw:lmPark }
 ];
 
 function drawSky(){
@@ -2013,8 +2364,13 @@ function drawSky(){
   }
   for (i = 0; i < LANDMARKS.length; i++){
     var a = bandA(G.street, LANDMARKS[i].from, LANDMARKS[i].to, LANDMARKS[i].fade);
-    if (a > 0.01) LANDMARKS[i].draw(Math.min(1, a));
+    if (a > 0.01){
+      LA = Math.min(1, a);
+      LX = LANDMARKS[i].lane < 0 ? 0 : LANE[LANDMARKS[i].lane];
+      LANDMARKS[i].draw();
+    }
   }
+  LA = 1; ctx.globalAlpha = 1;
   for (i = 0; i < SKY_MID.length; i++){
     bldg(SKY_MID[i][0], SKY_MID[i][1], SKY_MID[i][2], "#231a1d", 0.92, i + 50, 0.30);
   }
@@ -2033,31 +2389,65 @@ function visibleLandmarks(){
   return out;
 }
 
-/* PATH VISUALIZATION */
-function drawReveal(){
-  if (G.revealT <= 0) return;
-  var pulse = 0.5 + 0.5*Math.sin(G.t*7);
-  for (var i=1;i<=3;i++){
-    var r = G.row + i, row = rows[r];
-    if (!row) continue;
-    /* Only mark crossings, never sidewalks. Every column of a safe row is
-       trivially clear, so revealing them lit up all 16 cells on three rows at
-       once and buried the screen in markers that carried no information. */
-    if (row.type === "safe") continue;
-    var sy = rowScreenY(r);
-    if (sy < HORIZON) continue;
-    for (var c=0;c<COLS;c++){
-      if (!colSafeFor(r, c, 0.5)) continue;
-      var x = c*TILE + 10, y = sy - ROW_H + 8, w = TILE - 20, h = ROW_H - 18;
-      ctx.globalAlpha = 0.10 + 0.07*pulse; ctx.fillStyle = C.pw3;
-      ctx.fillRect(x, y, w, h);
-      ctx.globalAlpha = 0.55 + 0.3*pulse; ctx.strokeStyle = C.pw3; ctx.lineWidth = 2;
-      ctx.strokeRect(x, y, w, h);
-      ctx.globalAlpha = 0.80 + 0.2*pulse;
-      drawEye(x + w/2, y + h/2, 13, C.pw3, "#1a0a02", null);
-      ctx.globalAlpha = 1;
+/* Draws the trace in the grammar of a ThousandEyes path view: nodes joined by
+   links, small hop ticks along each link, and a packet running the route. */
+function drawTrace(){
+  if (G.revealT <= 0 || !G.trace || !G.trace.length) return;
+  var pts = [], i;
+  for (i = 0; i < G.trace.length; i++){
+    var t = G.trace[i], sy = rowScreenY(t.r);
+    if (sy < HORIZON - 40) continue;
+    pts.push([ t.c*TILE + TILE*0.5, sy - ROW_H*0.46 ]);
+  }
+  if (pts.length < 2) return;
+  var fade = Math.min(1, G.revealT / 1.2);
+  var pulse = 0.5 + 0.5*Math.sin(G.t*4);
+
+  // links, drawn wide and soft then narrow and bright
+  ctx.lineCap = "round"; ctx.lineJoin = "round";
+  ctx.globalAlpha = fade * 0.20; ctx.strokeStyle = C.pw3; ctx.lineWidth = 16;
+  ctx.beginPath(); ctx.moveTo(pts[0][0], pts[0][1]);
+  for (i = 1; i < pts.length; i++) ctx.lineTo(pts[i][0], pts[i][1]);
+  ctx.stroke();
+  ctx.globalAlpha = fade * 0.85; ctx.lineWidth = 3;
+  ctx.stroke();
+
+  // hop ticks along each link
+  ctx.globalAlpha = fade * 0.5; ctx.fillStyle = C.brandPale;
+  for (i = 1; i < pts.length; i++){
+    for (var k = 1; k <= 2; k++){
+      var f = k/3;
+      ctx.fillRect(pts[i-1][0] + (pts[i][0]-pts[i-1][0])*f - 2,
+                   pts[i-1][1] + (pts[i][1]-pts[i-1][1])*f - 2, 4, 4);
     }
   }
+
+  // nodes
+  for (i = 0; i < pts.length; i++){
+    var last = (i === pts.length - 1);
+    var rad = last ? 15 : 10;
+    ctx.globalAlpha = fade * 0.9;
+    ctx.beginPath(); ctx.arc(pts[i][0], pts[i][1], rad, 0, Math.PI*2);
+    ctx.fillStyle = last ? C.brand : "#0d1a12"; ctx.fill();
+    ctx.lineWidth = 3; ctx.strokeStyle = last ? C.brandPale : C.pw3; ctx.stroke();
+    if (last){
+      ctx.globalAlpha = fade * (0.35 + 0.35*pulse);
+      ctx.beginPath(); ctx.arc(pts[i][0], pts[i][1], rad + 8 + 5*pulse, 0, Math.PI*2);
+      ctx.stroke();
+    }
+  }
+
+  // the packet, running the route on a loop
+  var span = pts.length - 1;
+  var pos = ((G.t * 0.9) % 1) * span;
+  var seg = Math.min(span - 1, Math.floor(pos)), f2 = pos - seg;
+  var px = pts[seg][0] + (pts[seg+1][0]-pts[seg][0])*f2;
+  var py = pts[seg][1] + (pts[seg+1][1]-pts[seg][1])*f2;
+  ctx.globalAlpha = fade * 0.30; ctx.fillStyle = C.brandPale;
+  ctx.beginPath(); ctx.arc(px, py, 13, 0, Math.PI*2); ctx.fill();
+  ctx.globalAlpha = fade; ctx.fillStyle = "#ffffff";
+  ctx.beginPath(); ctx.arc(px, py, 5, 0, Math.PI*2); ctx.fill();
+  ctx.globalAlpha = 1;
 }
 
 /* green-and-white street sign on the corner of every crossing */
@@ -2109,7 +2499,7 @@ function drawWorld(){
     }
   }
 
-  drawReveal();
+  drawTrace();
 
   var pp = playerPos();
   var meRow = Math.round(pp.row);
@@ -2341,6 +2731,7 @@ function drawHud(){
   if (G.shield)      chips.push(["E", "ENDPOINT AGENT", C.pw1, 0]);
   if (G.slowT > 0)   chips.push(["I", "INSIGHTS",       C.pw2, G.slowT / POWERS.insight.secs]);
   if (G.revealT > 0) chips.push(["P", "PATH VIS",       C.pw3,   G.revealT / POWERS.path.secs]);
+  if (G.metro)       chips.push(["M", "METROCARD",      "#ffd24a", 0]);
   /* Compact squares rather than labelled bars: four of the old chips reached
      x=1014 and ran into the arrow pad. The letter and colour identify each
      power-up, and its name was announced in full when it was collected. */
@@ -2587,6 +2978,7 @@ function render(){
   drawSky();
   drawWorld();
   drawHaze();
+  if (G.ride) drawRide();
   drawSlowTint();
   drawHud();
   if (G.state === ST_PLAY){ drawLockup(); drawDpad(); }
