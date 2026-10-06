@@ -1987,6 +1987,10 @@ function drawReveal(){
   for (var i=1;i<=3;i++){
     var r = G.row + i, row = rows[r];
     if (!row) continue;
+    /* Only mark crossings, never sidewalks. Every column of a safe row is
+       trivially clear, so revealing them lit up all 16 cells on three rows at
+       once and buried the screen in markers that carried no information. */
+    if (row.type === "safe") continue;
     var sy = rowScreenY(r);
     if (sy < HORIZON) continue;
     for (var c=0;c<COLS;c++){
