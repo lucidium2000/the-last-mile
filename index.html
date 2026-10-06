@@ -59,6 +59,14 @@
      external assets, no network calls, touch-first, DPR capped, bake capped at
      1:1 to keep sprite memory near 6MB, instant restart.
 
+   POWER-UPS
+     Four common ThousandEyes capabilities, plus the TAM as a rare premium
+     tier: 5 seconds of flight, and unlike every other power-up it does not
+     expire - once engaged it keeps paying out another 2 seconds every so
+     often, announcing something a real TAM actually did. Flight is the only
+     thing in the game that ignores both traffic and solid props, so the
+     landing is handled carefully (see landFromFlight).
+
    ?fps=1   perf overlay
    ?safe=1  guest-safe mode: network hazards instead of sales objections
    ?mute=1  deploy silent
@@ -104,6 +112,7 @@ var BRAND = {
   p2:    "#ff8c2b",   // INTERNET INSIGHTS
   p3:    "#ffc23d",   // PATH VISUALIZATION
   p4:    "#ffe08a",   // EXECUTIVE SPONSOR
+  p5:    "#fff0bd",   // TAM - brightest in the ramp, it is the premium tier
   cisco: "#00bceb"    // Cisco cyan, used once, for the attribution line
 };
 
@@ -123,7 +132,7 @@ var C = {
   amber:BRAND.amber, amberGlow:"rgba(255,140,43,0.14)",
   brand:BRAND.core, brandDeep:BRAND.deep, brandLight:BRAND.light,
   brandPale:BRAND.pale, cisco:BRAND.cisco,
-  pw1:BRAND.p1, pw2:BRAND.p2, pw3:BRAND.p3, pw4:BRAND.p4,
+  pw1:BRAND.p1, pw2:BRAND.p2, pw3:BRAND.p3, pw4:BRAND.p4, pw5:BRAND.p5,
   signGreen:"#1f6b4a",                       // real NYC street-sign green
   good:"#8fe388", danger:"#ff4f7e",
   text:"#fdf4ee", textDim:"rgba(253,244,238,0.58)",
@@ -267,6 +276,19 @@ var AUDIO = (function(){
       tone({ f:880,  to:1320, dur:0.18, type:"sine", g:0.22 });
       tone({ f:1324,          dur:0.22, type:"sine", g:0.12, at:0.02 });
       hit({ f:4200, hp:true,  dur:0.12, g:0.08 });
+    },
+    /* the TAM fanfare is deliberately the biggest sound in the game */
+    tam: function(){
+      var n = [392.00, 523.25, 659.25, 783.99, 1046.50];
+      for (var i = 0; i < n.length; i++){
+        tone({ f:n[i],     dur:0.26, type:"triangle", g:0.19, at:i*0.075 });
+        tone({ f:n[i] * 2, dur:0.18, type:"sine",     g:0.07, at:i*0.075 + 0.02 });
+      }
+      hit({ f:6200, hp:true, dur:0.45, g:0.045, at:0.05 });
+    },
+    tamWin: function(){
+      tone({ f:659.25, dur:0.14, type:"sine", g:0.15 });
+      tone({ f:987.77, dur:0.18, type:"sine", g:0.11, at:0.075 });
     },
     stage: function(){ arp([523.25, 783.99, 1046.50], "triangle", 0.20, 0); },
     coach: function(){ tone({ f:659.25, dur:0.10, type:"sine", g:0.11 }); },
@@ -873,11 +895,59 @@ var POWERS = {
   path:   { col:C.pw3,   letter:"P", name:"PATH VISUALIZATION",
             line:"Safe crossings light up ahead.", secs:6.5 },
   sponsor:{ col:C.pw4, letter:"X", name:"EXECUTIVE SPONSOR",
-            line:"A car service, three blocks uptown.", secs:0 }
+            line:"A car service, three blocks uptown.", secs:0 },
+  /* The premium SKU, and the most powerful thing in the game: five seconds of
+     flight, and then it STAYS engaged for the rest of the run, periodically
+     delivering another two seconds. A real TAM subscription keeps paying out
+     after onboarding, so this one does too. */
+  tam:    { col:C.pw5, letter:"T", name:"TAM",
+            line:"Technical Account Manager. Five seconds of flight — and they stay.",
+            secs:5 }
 };
-var POWER_KINDS = ["agent","insight","path","sponsor"];
+var POWER_KINDS = ["agent","insight","path","sponsor"];   // the common tier
+var FLY_SECS = 5, TAM_BONUS_SECS = 2;
+var TAM_COOLDOWN_ROWS = 34;          // rare on purpose
+
+/* Things a ThousandEyes TAM actually does. One fires on a timer for as long as
+   the TAM is engaged, each worth another two seconds of flight. */
+var TAM_WINS = [
+  "TAM has increased agent adoption 40%",
+  "TAM has uncovered a potential Webex opportunity",
+  "TAM has deployed the endpoint agents you were not using",
+  "TAM has tuned your alert rules — noise down 60%",
+  "TAM has run a health check across every test",
+  "TAM has built the executive dashboard you asked for",
+  "TAM has cut MTTR on the last three incidents",
+  "TAM has enabled Internet Insights across the estate",
+  "TAM has found 200 unused test units",
+  "TAM has delivered an enablement workshop to the NOC",
+  "TAM has walked your QBR deck to the CIO",
+  "TAM has set up BGP monitoring on your prefixes",
+  "TAM has piped alerts into ServiceNow",
+  "TAM has documented proof of value for the renewal",
+  "TAM has escalated and closed your TAC case",
+  "TAM has carried your feature request to engineering",
+  "TAM has benchmarked you against peers in your sector",
+  "TAM has written the incident runbook",
+  "TAM has mapped your SD-WAN monitoring gaps",
+  "TAM has spotted a Catalyst refresh opportunity",
+  "TAM has onboarded three new regions",
+  "TAM has proved the outage was not your network"
+];
 function powerModel(kind){
   var k = POWERS[kind];
+  if (kind === "tam"){
+    // visibly the biggest pickup on the board: taller core, crown and halo
+    return { parts:[
+      P(0.40, 0.40, 0.20, 0.20, 0.02, 0.11, shade(k.col,-0.58)),
+      P(0.29, 0.32, 0.42, 0.36, 0.13, 0.40, shade(k.col,-0.20)),
+      E(0.25, 0.29, 0.50, 0.42, 0.53, 0.06, k.col),
+      E(0.21, 0.26, 0.58, 0.48, 0.61, 0.04, shade(k.col,0.30))
+    ], decals:[
+      { x:0.32, y:0.32, w:0.36, z:0.19, h:0.28, bg:k.col, core:shade(k.col,0.5),
+        glow:true, fg:"#2a1400", text:"TAM", size:20 }
+    ], shadow:false, W:1 };
+  }
   return { parts:[
     P(0.34, 0.36, 0.32, 0.28, 0.16, 0.30, shade(k.col,-0.20)),
     E(0.30, 0.34, 0.40, 0.32, 0.46, 0.05, k.col),
@@ -1044,6 +1114,7 @@ function bakeAll(){
   S.player_r = bake(playerModel(1));
   S.player_l = bake(playerModel(-1));
   for (i=0;i<POWER_KINDS.length;i++) S["pw_"+POWER_KINDS[i]] = bake(powerModel(POWER_KINDS[i]));
+  S.pw_tam = bake(powerModel("tam"));
   for (i=0;i<PROP_KINDS.length;i++)  S["pr_"+PROP_KINDS[i]]  = bake(PROP_MODELS[PROP_KINDS[i]]());
   S.walk0 = bakeStrip("walk",0); S.walk1 = bakeStrip("walk",1);
   S.road0 = bakeStrip("road",0); S.road1 = bakeStrip("road",1);
@@ -1051,7 +1122,7 @@ function bakeAll(){
 
 /* ------------------------------------------------------------- world build */
 var rows = {};
-var genCursor = 0, roadRun = 0, safeRun = 0, lastPower = 0, nextStreet = START_ST + 1;
+var genCursor = 0, roadRun = 0, safeRun = 0, lastPower = 0, lastTam = -99, nextStreet = START_ST + 1;
 var lastSweep = -99, prevWasSafe = true;
 
 /* MIN_WINDOW is the shortest time a column may stay clear. A hop is 135ms, so
@@ -1174,7 +1245,11 @@ function makeWalk(r){
     for (var t=0;t<14;t++){
       var pc = (Math.random()*COLS)|0;
       if (!blocked[pc]){
-        pickup = { col:pc, kind:POWER_KINDS[(Math.random()*POWER_KINDS.length)|0] };
+        // the TAM is the rare drop, gated by its own long cooldown
+        var kind = (r > 16 && r - lastTam >= TAM_COOLDOWN_ROWS && Math.random() < 0.34)
+                   ? "tam" : POWER_KINDS[(Math.random()*POWER_KINDS.length)|0];
+        if (kind === "tam") lastTam = r;
+        pickup = { col:pc, kind:kind };
         lastPower = r; break;
       }
     }
@@ -1230,7 +1305,7 @@ var G = null;
 
 function reset(){
   rows = {}; genCursor = 0; roadRun = 0; safeRun = 0; lastPower = 0;
-  nextStreet = START_ST + 1; lastSweep = -99; prevWasSafe = true;
+  nextStreet = START_ST + 1; lastSweep = -99; prevWasSafe = true; lastTam = -99;
   ensureRows(ROWS_AHEAD);
   var tr = TRAINS[(Math.random()*TRAINS.length)|0];
   G = {
@@ -1238,6 +1313,7 @@ function reset(){
     hop:1, facing:1, maxRow:0, camRow:0, street:START_ST,
     stage:-1, coach:-1, toast:null, flash:null,
     shield:false, slowT:0, revealT:0, invulnT:0, powersUsed:0,
+    flyT:0, flyA:0, tam:false, tamT:0, tamWins:0,
     trainT:TRAIN_MAX, trainLine:tr[0], trainDest:tr[1],
     trainHH:16 + ((Math.random()*3)|0), trainMM:(Math.random()*60)|0,
     missedTrain:false,
@@ -1303,7 +1379,8 @@ function act(dir){
   if (nc < 0 || nc > COLS-1){ AUDIO.bump(); return; }
   if (nr < 0 || nr < G.maxRow - 6){ AUDIO.bump(); return; }
   var target = rows[nr];
-  if (target && target.blocked && target.blocked[nc]){ AUDIO.bump(); return; }
+  // flying carries you over scaffolding, parked trucks, everything solid
+  if (G.flyT <= 0 && target && target.blocked && target.blocked[nc]){ AUDIO.bump(); return; }
 
   if (dir === "f"){
     AUDIO.hop();
@@ -1366,11 +1443,16 @@ function collect(){
   var kind = row.pickup.kind, k = POWERS[kind];
   row.pickup = null;
   G.powersUsed++;
-  AUDIO.power(kind);
+  if (kind === "tam") AUDIO.tam(); else AUDIO.power(kind);
   flash(k.name, k.line, k.col);
   burst(G.col*TILE + TILE/2, rowScreenY(G.row) - 40, k.col);
 
-  if (kind === "agent")        G.shield = true;
+  if (kind === "tam"){
+    G.flyT = Math.max(G.flyT, FLY_SECS);
+    G.tam = true;
+    G.tamT = 9 + Math.random()*7;        // first win lands a few seconds in
+  }
+  else if (kind === "agent")   G.shield = true;
   else if (kind === "insight") G.slowT = Math.max(G.slowT, k.secs);
   else if (kind === "path")    G.revealT = Math.max(G.revealT, k.secs);
   else if (kind === "sponsor"){
@@ -1452,6 +1534,24 @@ function missTrain(){
 }
 function pad2(n){ return (n < 10 ? "0" : "") + n; }
 
+/* Coming down is the dangerous part. Flight carries you over solid props and
+   straight through traffic, so when it expires you can be standing inside a
+   scaffold or on top of a bus - either would be an instant death the player
+   could not have avoided. So on landing: slide out of any solid cell to the
+   nearest free column, and take a moment of grace on the way down. */
+function landFromFlight(){
+  var row = rows[G.row];
+  if (row && row.blocked && row.blocked[G.col]){
+    for (var d = 1; d < COLS; d++){
+      if (G.col + d <= COLS - 1 && !row.blocked[G.col + d]){ G.col += d; break; }
+      if (G.col - d >= 0        && !row.blocked[G.col - d]){ G.col -= d; break; }
+    }
+    G.fromCol = G.col; G.hop = 1;
+  }
+  G.invulnT = Math.max(G.invulnT, 0.85);
+  AUDIO.hiss();
+}
+
 function hitPlayer(kind, pp){
   if (G.invulnT > 0) return;
   if (G.shield){
@@ -1465,12 +1565,35 @@ function hitPlayer(kind, pp){
 function update(dt){
   G.t += dt; G.sweep += dt*0.4; if (G.sweep > 1.7) G.sweep -= 1.7;
   if (G.hop < 1){
-    G.hop += dt*1000/HOP_MS;
+    G.hop += dt*1000 / (HOP_MS * (1 - 0.32*G.flyA));   // airborne is quicker
     if (G.hop >= 1){ G.hop = 1; collect(); }
   }
   if (G.slowT   > 0) G.slowT   = Math.max(0, G.slowT - dt);
   if (G.revealT > 0) G.revealT = Math.max(0, G.revealT - dt);
   if (G.invulnT > 0) G.invulnT = Math.max(0, G.invulnT - dt);
+
+  /* Flight. The ascent and descent are eased off a single 0..1 value, so the
+     lift, the faster hop and the shadow all stay in sync. */
+  var wasFlying = G.flyT > 0;
+  if (G.flyT > 0) G.flyT = Math.max(0, G.flyT - dt);
+  if (wasFlying && G.flyT <= 0) landFromFlight();
+  G.flyA += ((G.flyT > 0 ? 1 : 0) - G.flyA) * Math.min(1, dt * 7);
+  if (G.flyA < 0.002) G.flyA = 0;
+
+  /* An engaged TAM keeps delivering for the rest of the run. */
+  if (G.tam && G.state === ST_PLAY){
+    G.tamT -= dt;
+    if (G.tamT <= 0){
+      // 8-14s, so an engaged TAM delivers 2-4 times in a typical run and the
+      // win lines actually get read - they are the point of the power-up
+      G.tamT = 8 + Math.random()*6;
+      G.tamWins++;
+      G.flyT += TAM_BONUS_SECS;
+      AUDIO.tamWin();
+      flash(TAM_WINS[(Math.random()*TAM_WINS.length)|0],
+            "+" + TAM_BONUS_SECS + "s of flight.", C.pw5);
+    }
+  }
 
   var pp = playerPos();
   G.camRow += (pp.row - G.camRow) * Math.min(1, dt*11);
@@ -1535,7 +1658,7 @@ function update(dt){
     }
   }
 
-  if (G.state === ST_PLAY){
+  if (G.state === ST_PLAY && G.flyT <= 0){
     var cr = (G.hop < 0.5) ? G.fromRow : G.row;
     var crow = rows[cr];
     if (crow && (crow.type === "road" || crow.type === "sweep")){
@@ -1869,8 +1992,11 @@ function drawWorld(){
       drawStreetSign(row, sy);
     }
 
-    if (meRow === r && G.state !== ST_DEAD) drawPlayer(pp);
+    if (meRow === r && G.state !== ST_DEAD && G.flyA < 0.15) drawPlayer(pp);
   }
+
+  // while airborne the player is above everything, not tucked into its row
+  if (G.state !== ST_DEAD && G.flyA >= 0.15) drawPlayer(pp);
 
   if (G.state === ST_DEAD){
     for (i=0;i<G.parts.length;i++){
@@ -1888,11 +2014,29 @@ function drawWorld(){
 function drawPlayer(pp){
   var s = G.facing > 0 ? S.player_r : S.player_l;
   var sx = pp.col*TILE, sy = rowScreenY(pp.row);
-  var k = 1 - pp.sq*0.35;
-  ctx.globalAlpha = 0.34 - pp.sq*0.12; ctx.fillStyle = "#000";
+  var fly = G.flyA, flyLift = fly * 78;
+  var k = (1 - pp.sq*0.35) * (1 - fly*0.45);          // shadow shrinks with height
+  ctx.globalAlpha = (0.34 - pp.sq*0.12) * (1 - fly*0.45);
+  ctx.fillStyle = "#000";
   ctx.beginPath();
   ctx.ellipse(sx + TILE*0.5, sy - ROW_H*0.46, 29*k, 11*k, 0, 0, Math.PI*2);
   ctx.fill(); ctx.globalAlpha = 1;
+
+  if (fly > 0.02){
+    // pulsing lift ring under the feet, and a warning flicker as it runs out
+    var low = G.flyT > 0 && G.flyT < 1.4;
+    var pul = 0.5 + 0.5*Math.sin(G.t * (low ? 20 : 7));
+    ctx.globalAlpha = fly * (0.30 + 0.35*pul);
+    ctx.strokeStyle = low ? C.danger : C.pw5; ctx.lineWidth = 5;
+    ctx.beginPath();
+    ctx.ellipse(sx + TILE*0.5, sy - ROW_H*0.46 - flyLift*0.22,
+                34 + 10*pul, 13 + 4*pul, 0, 0, Math.PI*2);
+    ctx.stroke();
+    ctx.globalAlpha = fly * 0.16; ctx.fillStyle = C.pw5;
+    ctx.beginPath();
+    ctx.ellipse(sx + TILE*0.5, sy - ROW_H*0.46 - flyLift*0.22, 44, 17, 0, 0, Math.PI*2);
+    ctx.fill(); ctx.globalAlpha = 1;
+  }
   if (G.shield || G.invulnT > 0){
     var pulse = 0.55 + 0.45*Math.sin(G.t*9);
     ctx.globalAlpha = (G.shield ? 0.8 : 0.45) * pulse;
@@ -1901,7 +2045,7 @@ function drawPlayer(pp){
     ctx.ellipse(sx + TILE*0.5, sy - ROW_H*0.46 - pp.lift*0.3, 40, 17, 0, 0, Math.PI*2);
     ctx.stroke(); ctx.globalAlpha = 1;
   }
-  blitScaled(s, sx, sy - pp.lift, 1 - pp.sq*0.10, 1 + pp.sq*0.14);
+  blitScaled(s, sx, sy - pp.lift - flyLift, 1 - pp.sq*0.10, 1 + pp.sq*0.14);
 }
 
 function drawHaze(){ ctx.fillStyle = hazeGrad; ctx.fillRect(0, HORIZON - 16, LOGICAL_W, 246); }
@@ -1955,6 +2099,7 @@ function drawHud(){
   }
 
   var chips = [];
+  if (G.flyT > 0)    chips.push(["T", "FLYING", C.pw5, Math.min(1, G.flyT / FLY_SECS)]);
   if (G.shield)      chips.push(["E", "ENDPOINT AGENT", C.pw1, 0]);
   if (G.slowT > 0)   chips.push(["I", "INSIGHTS",       C.pw2, G.slowT / POWERS.insight.secs]);
   if (G.revealT > 0) chips.push(["P", "PATH VIS",       C.pw3,   G.revealT / POWERS.path.secs]);
@@ -1966,8 +2111,25 @@ function drawHud(){
     txt(chips[i][1], cx+62, cy+24, 20, C.text, "left", 160);
     if (chips[i][3] > 0){
       ctx.fillStyle = "rgba(255,255,255,0.14)"; ctx.fillRect(cx+62, cy+38, 160, 6);
-      ctx.fillStyle = chips[i][2];              ctx.fillRect(cx+62, cy+38, 160*chips[i][3], 6);
+      var low = (chips[i][1] === "FLYING" && G.flyT < 1.4);
+      ctx.fillStyle = low && Math.sin(G.t*20) < 0 ? C.danger : chips[i][2];
+      ctx.fillRect(cx+62, cy+38, 160*chips[i][3], 6);
+      if (chips[i][1] === "FLYING"){
+        txt(G.flyT.toFixed(1) + "s", cx+212, cy+24, 20, low ? C.danger : C.pw5, "right");
+      }
     }
+  }
+
+  /* Once engaged the TAM never lapses, so it gets a standing badge rather
+     than a timed chip. The counter is the point: it keeps delivering. */
+  if (G.tam){
+    var bw = 300, bx = LOGICAL_W - bw - 28, by = 146;
+    plate(bx, by, bw, 60, C.ink, 12);
+    plate(bx+10, by+10, 40, 40, C.pw5, 10);
+    txt("T", bx+30, by+31, 24, "#2a1400");
+    txt("TAM ENGAGED", bx+60, by+24, 20, C.pw5, "left", 230);
+    txt(G.tamWins + (G.tamWins === 1 ? " win delivered" : " wins delivered"),
+        bx+60, by+44, 17, C.textDim, "left", 230);
   }
 
   if (G.toast && G.toast.a > 0.01){
@@ -2053,26 +2215,35 @@ function drawTitle(){
   txt("PENN 1  →  THE MEETING", LOGICAL_W/2, 404, 34, C.amber);
   txt("Walk uptown. Mind the traffic. Make your train.", LOGICAL_W/2, 456, 28, C.textDim);
 
+  // four common power-ups on one row, then the TAM on its own, wider card
   var kinds = POWER_KINDS, bw = 400, gap = 24;
   var total = kinds.length*bw + (kinds.length-1)*gap;
   var x0 = (LOGICAL_W - total)/2;
   for (var i=0;i<kinds.length;i++){
     var k = POWERS[kinds[i]], bx = x0 + i*(bw+gap);
-    plate(bx, 508, bw, 108, C.ink, 12);
-    plate(bx+16, 528, 56, 56, k.col, 12);
-    txt(k.letter, bx+44, 557, 32, "#1a0a02");
-    txt(k.name, bx+86, 546, 22, k.col, "left", bw-104);
-    txt(k.line, bx+86, 580, 18, C.textDim, "left", bw-104);
+    plate(bx, 500, bw, 104, C.ink, 12);
+    plate(bx+16, 518, 56, 56, k.col, 12);
+    txt(k.letter, bx+44, 547, 32, "#1a0a02");
+    txt(k.name, bx+86, 536, 22, k.col, "left", bw-104);
+    txt(k.line, bx+86, 570, 18, C.textDim, "left", bw-104);
   }
+  var tw2 = 1000, tx = (LOGICAL_W - tw2)/2;
+  plate(tx, 616, tw2, 96, "rgba(255,240,189,0.11)", 12);
+  ctx.fillStyle = C.pw5; ctx.fillRect(tx, 616, 7, 96);
+  plate(tx+22, 636, 56, 56, C.pw5, 12);
+  txt("T", tx+50, 665, 32, "#2a1400");
+  txt("TAM  —  RARE", tx+94, 650, 24, C.pw5, "left", 400);
+  txt("Fly for 5 seconds, then they stay engaged and keep delivering.",
+      tx+94, 682, 19, C.textDim, "left", tw2-130);
 
-  plate(LOGICAL_W/2-340, 652, 680, 128, C.ink);
-  txt("TAP THE TOP OF THE SCREEN TO CROSS", LOGICAL_W/2, 690, 28, C.text, "center", 620);
-  txt("TAP THE BOTTOM LEFT / RIGHT TO STEP ALONG THE BLOCK", LOGICAL_W/2, 730, 24, C.textDim, "center", 620);
-  txt("(swipes work too)", LOGICAL_W/2, 764, 22, C.textDim, "center", 620);
-  txt("A THOUSANDEYES GAME  ·  CISCO", LOGICAL_W/2, 812, 22, C.cisco);
+  plate(LOGICAL_W/2-340, 732, 680, 120, C.ink);
+  txt("TAP THE TOP OF THE SCREEN TO CROSS", LOGICAL_W/2, 766, 26, C.text, "center", 620);
+  txt("TAP THE BOTTOM LEFT / RIGHT TO STEP ALONG THE BLOCK", LOGICAL_W/2, 802, 22, C.textDim, "center", 620);
+  txt("(swipes work too)", LOGICAL_W/2, 834, 20, C.textDim, "center", 620);
+  txt("A THOUSANDEYES GAME  ·  CISCO", LOGICAL_W/2, 880, 20, C.cisco);
 
   ctx.globalAlpha = 0.6 + 0.4*Math.sin(G.t*3);
-  txt("TAP TO START", LOGICAL_W/2, 872, 52, C.brand);
+  txt("TAP TO START", LOGICAL_W/2, 936, 48, C.brand);
   ctx.globalAlpha = 1;
 }
 

@@ -95,6 +95,27 @@ rather than generic cars with labels stuck on them:
 Objections and rebuttals appear on the game-over screen, with coaching lines
 between milestones so the slow hazards that rarely kill you still get read.
 
+### Power-ups
+
+Four common ThousandEyes capabilities — Endpoint Agent (absorbs one hit),
+Internet Insights (slows traffic), Path Visualization (lights up safe
+crossings), Executive Sponsor (carries you three rows) — plus one rare tier:
+
+**TAM.** Five seconds of flight, which ignores both traffic and solid props.
+Unlike every other power-up it does not expire: once engaged it stays for the
+rest of the run and periodically delivers another two seconds, announcing
+something a ThousandEyes TAM actually does. Roughly one spawn every 70 rows,
+with a 34-row cooldown. Measured effect: median run goes from row 46 to row
+144 if you get one.
+
+Flight is the only thing that bypasses both hazard types, so landing is
+handled explicitly in `landFromFlight()` — on expiry the player slides out of
+any solid cell to the nearest free column and gets a moment of grace, since
+flight can otherwise end inside a scaffold or on top of a bus.
+
+Tuning dials: `FLY_SECS`, `TAM_BONUS_SECS`, `TAM_COOLDOWN_ROWS`, the `0.34`
+spawn roll in `makeWalk`, and the `8 + random*6` payout interval in `update`.
+
 Cross streets are generated from the real grid: direction follows the
 even-eastbound one-way rule, and 34th / 42nd / 57th generate as paired two-way
 crossings.
