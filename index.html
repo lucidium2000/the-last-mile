@@ -995,10 +995,12 @@ function heroModel(dir, flying){
 
 /* ------------------------------------------------------- model: power-ups */
 var POWERS = {
-  agent:  { col:C.pw1, letter:"E", name:"ENDPOINT AGENT",
-            line:"Absorbs the next objection.", secs:0 },
+  agent:  { col:C.pw1, letter:"E", name:"ENDPOINT",
+            line:"A shield. Absorbs the next objection.", secs:0 },
   insight:{ col:C.pw2, letter:"I", name:"INTERNET INSIGHTS",
-            line:"Ten seconds of live risk on every lane.", secs:10 },
+            line:"The whole grid slows while you read it.", secs:6 },
+  traffic:{ col:"#8fd3e8", letter:"TI", name:"TRAFFIC INSIGHTS",
+            line:"Every lane coloured by live risk.", secs:10 },
   chuck:  { col:"#4f9c62", letter:"$", name:"CHUCK BUCKS",
             line:"Straight onto the number.", secs:0 },
   path:   { col:C.pw3,   letter:"P", name:"PATH VISUALIZATION",
@@ -1015,11 +1017,11 @@ var POWERS = {
             line:"Technical Account Manager. Five seconds of flight — and they stay.",
             secs:5 }
 };
-var POWER_KINDS = ["agent","insight","path","sponsor","metro","chuck"];
+var POWER_KINDS = ["agent","insight","path","sponsor","metro","chuck","traffic"];
 /* Weighted draw rather than uniform: traces and metrocards carry three slots
    each, since those are the two to see most often. */
 var POWER_POOL = ["path","path","path","metro","metro","metro",
-                  "chuck","chuck","agent","insight","sponsor"];
+                  "chuck","chuck","traffic","traffic","agent","insight","sponsor"];
 var CHUCK_BONUS = 250000;
 var TAM_DURATION = 60;
 var FLY_SECS = 5, TAM_BONUS_SECS = 2, FLY_MAX = 9;
@@ -1053,6 +1055,43 @@ var TAM_WINS = [
 ];
 function powerModel(kind){
   var k = POWERS[kind];
+  if (kind === "agent"){
+    /* A shield: stacked rows narrowing to a point, which is the only way to
+       get a curved silhouette out of axis-aligned boxes. */
+    var sc = k.col, rim = shade(sc, 0.30), face = shade(sc, -0.22);
+    var band = [[0.14,0.72,0.46,0.13],[0.15,0.70,0.33,0.13],[0.18,0.64,0.21,0.12],
+                [0.24,0.52,0.11,0.10],[0.32,0.36,0.03,0.08]];
+    var parts = [ P(0.40, 0.40, 0.20, 0.20, 0, 0.06, shade(sc,-0.55)) ];
+    for (var i = 0; i < band.length; i++){
+      parts.push(P(band[i][0], 0.38, band[i][1], 0.22, band[i][2], band[i][3],
+                   i === 0 ? rim : face));
+    }
+    parts.push(P(0.12, 0.36, 0.76, 0.26, 0.58, 0.05, rim));      // top edge
+    return { parts:parts, decals:[
+      { x:0.30, y:0.38, w:0.40, z:0.30, h:0.20, bg:rim, fg:"#3a1403", text:"E", size:20 }
+    ], shadow:false, W:1 };
+  }
+  if (kind === "traffic"){
+    /* A magnifying glass. A ring of blocks around a circle scattered into a
+       cluster at this scale, so the lens is a square frame of four bars with
+       the glass inset and a stepped handle - which reads far better in a
+       blocky style than an approximated circle. */
+    var lens = "#8fd3e8", frame = "#c9d3da", brass = "#b9893a";
+    return { parts:[
+      P(0.40, 0.40, 0.20, 0.20, 0,    0.06, "#28353d"),          // stand
+      P(0.18, 0.39, 0.54, 0.22, 0.60, 0.09, frame),              // top bar
+      P(0.18, 0.39, 0.54, 0.22, 0.30, 0.09, frame),              // bottom bar
+      P(0.18, 0.39, 0.09, 0.22, 0.30, 0.39, frame),              // left bar
+      P(0.63, 0.39, 0.09, 0.22, 0.30, 0.39, frame),              // right bar
+      P(0.27, 0.41, 0.36, 0.18, 0.39, 0.21, lens),               // the glass
+      P(0.68, 0.41, 0.12, 0.18, 0.21, 0.11, brass),              // handle
+      P(0.76, 0.41, 0.13, 0.18, 0.10, 0.12, shade(brass,-0.18))
+    ], decals:[
+      { x:0.29, y:0.41, w:0.32, z:0.42, h:0.15, bg:shade(lens,0.22),
+        fg:"#15333e", text:"TI", size:15 },
+      { x:0.30, y:0.41, w:0.06, z:0.44, h:0.11, bg:"#eaf7fb" }   // glint
+    ], shadow:false, W:1 };
+  }
   if (kind === "chuck"){
     var g1 = "#3f7f4e", g2 = "#4f9c62";
     return { parts:[
@@ -1265,6 +1304,7 @@ function bakeAll(){
   for (i=0;i<POWER_KINDS.length;i++) S["pw_"+POWER_KINDS[i]] = bake(powerModel(POWER_KINDS[i]));
   S.pw_tam = bake(powerModel("tam"));
   S.pw_chuck = bake(powerModel("chuck"));
+  S.pw_traffic = bake(powerModel("traffic"));
   for (i=0;i<PROP_KINDS.length;i++)  S["pr_"+PROP_KINDS[i]]  = bake(PROP_MODELS[PROP_KINDS[i]]());
   S.walk0 = bakeStrip("walk",0); S.walk1 = bakeStrip("walk",1);
   S.road0 = bakeStrip("road",0); S.road1 = bakeStrip("road",1);
@@ -1464,7 +1504,7 @@ function reset(){
     stage:-1, coach:-1, toast:null, flash:null,
     shield:false, slowT:0, revealT:0, invulnT:0, powersUsed:0,
     flyT:0, flyA:0, tam:false, tamT:0, tamWins:0,
-    metro:false, ride:null, trace:null, rides:0, bonus:0, tamLeft:0,
+    metro:false, ride:null, trace:null, rides:0, bonus:0, tamLeft:0, riskT:0,
     trainT:TRAIN_MAX, trainLine:tr[0], trainDest:tr[1],
     trainHH:16 + ((Math.random()*3)|0), trainMM:(Math.random()*60)|0,
     missedTrain:false,
@@ -1677,6 +1717,7 @@ function collect(){
   }
   else if (kind === "agent")   G.shield = true;
   else if (kind === "insight") G.slowT = Math.max(G.slowT, k.secs);
+  else if (kind === "traffic") G.riskT = Math.max(G.riskT, k.secs);
   else if (kind === "path"){
     G.revealT = Math.max(G.revealT, k.secs);
     G.trace = buildTrace();
@@ -1763,7 +1804,7 @@ function colSafeFor(r, col, secs){
   if (row.type === "sweep") return row.phase === "idle";
   if (row.type !== "road") return true;
   var p0 = col+0.12, p1 = col+0.88;
-  var k = 1;
+  var k = (G.slowT > 0) ? 0.45 : 1;
   var spec = HAZ[row.kind], i;
   for (i=0;i<row.cars.length;i++){
     var x = carX(row, row.cars[i]);
@@ -1969,6 +2010,7 @@ function update(dt){
     if (G.hop >= 1){ G.hop = 1; collect(); }
   }
   if (G.slowT   > 0) G.slowT   = Math.max(0, G.slowT - dt);
+  if (G.riskT > 0) G.riskT = Math.max(0, G.riskT - dt);
   if (G.revealT > 0){
     G.revealT = Math.max(0, G.revealT - dt);
     if (G.revealT === 0) G.trace = null;
@@ -2015,7 +2057,7 @@ function update(dt){
   }
 
   var lo = Math.floor(G.camRow) - ROWS_BEHIND, hi = Math.floor(G.camRow) + ROWS_AHEAD, r, i;
-  var slowK = 1;   // Insights no longer slows traffic; it measures it
+  var slowK = (G.slowT > 0) ? 0.45 : 1;   // Internet Insights slows the grid
 
   if (G.state !== ST_DEAD){
     for (r = lo; r <= hi; r++){
@@ -2067,7 +2109,7 @@ function update(dt){
           car.bounce = 1.4;
         }
         if (!car.stopped){
-          car.p += row.speed * dt * (car.rv || 1);
+          car.p += row.speed * slowK * dt * (car.rv || 1);
           if (car.p >= SPAN) car.p -= SPAN;
           if (car.p < 0) car.p += SPAN;
         }
@@ -2793,9 +2835,16 @@ function cellRisk(row, col){
   if (row.rogue) consider(rogueX(row), -row.speed * row.dir);
   return best;
 }
-function drawRisk(){
+/* Internet Insights slows the grid; a faint tint says it is on. */
+function drawSlowTint(){
   if (G.slowT <= 0) return;
-  var fade = Math.min(1, G.slowT / 1.5);
+  ctx.globalAlpha = 0.07 * Math.min(1, G.slowT);
+  ctx.fillStyle = C.pw2; ctx.fillRect(0, 0, LOGICAL_W, LOGICAL_H);
+  ctx.globalAlpha = 1;
+}
+function drawRisk(){
+  if (G.riskT <= 0) return;
+  var fade = Math.min(1, G.riskT / 1.5);
   var lo = Math.floor(G.camRow) - 1, hi = Math.floor(G.camRow) + ROWS_AHEAD;
   for (var r = lo; r <= hi; r++){
     var row = rows[r];
@@ -2862,9 +2911,10 @@ function drawHud(){
 
   var chips = [];
   if (G.flyT > 0)    chips.push(["T", "FLYING", C.pw5, Math.min(1, G.flyT / FLY_SECS)]);
-  if (G.shield)      chips.push(["E", "ENDPOINT AGENT", C.pw1, 0]);
+  if (G.shield)      chips.push(["E", "ENDPOINT",       C.pw1, 0]);
   if (G.slowT > 0)   chips.push(["I", "INSIGHTS",       C.pw2, G.slowT / POWERS.insight.secs]);
   if (G.revealT > 0) chips.push(["P", "PATH VIS",       C.pw3,   G.revealT / POWERS.path.secs]);
+  if (G.riskT > 0)   chips.push(["TI","TRAFFIC INS",    "#8fd3e8", G.riskT / POWERS.traffic.secs]);
   if (G.metro)       chips.push(["M", "METROCARD",      "#ffd24a", 0]);
   /* Compact squares rather than labelled bars: four of the old chips reached
      x=1014 and ran into the arrow pad. The letter and colour identify each
@@ -2873,7 +2923,7 @@ function drawHud(){
     var cx = 28 + i*86, cy = CHIP_Y;
     plate(cx, cy, 76, 76, C.ink, 14);
     plate(cx+8, cy+8, 60, 60, chips[i][2], 11);
-    txt(chips[i][0], cx+38, cy+41, 32, "#1a0a02");
+    txt(chips[i][0], cx+38, cy+41, chips[i][0].length > 1 ? 24 : 32, "#1a0a02");
     if (chips[i][3] > 0){
       var low = (chips[i][1] === "FLYING" && G.flyT < 1.4);
       ctx.fillStyle = "rgba(255,255,255,0.16)"; ctx.fillRect(cx+8, cy+62, 60, 6);
@@ -3113,6 +3163,7 @@ function render(){
   drawSky();
   drawWorld();
   drawHaze();
+  drawSlowTint();
   if (G.ride) drawRide();
   drawHud();
   if (G.state === ST_PLAY){ drawLockup(); drawDpad(); }
