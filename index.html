@@ -1277,6 +1277,32 @@ function citiDockModel(){
    trace for you - the same power-up the pickup grants. The screen carries the
    wordmark in the real two-tone, which needed the slab widened: the old
    display was 20px across and could not hold a word. */
+/* Frontage at the very edge of the pavement. Deliberately taller than
+   anything else in the world and poking up into the sky band - it is there to
+   give the street a sense of scale, so it has to break the skyline. Only ever
+   at column 0 or the last column, where it never eats playable width. */
+function facadeModel(kind){
+  var tone = kind === 0 ? "#3a2b26" : (kind === 1 ? "#2b3340" : "#38302a");
+  var trim = shade(tone, 0.18), glass = kind === 1 ? "#1d3647" : "#241c1a";
+  var parts = [
+    P(0.02, 0.18, 0.96, 0.66, 0,    1.95, tone),
+    P(-0.02, 0.14, 1.04, 0.74, 1.95, 0.07, trim),
+    P(0.06, 0.16, 0.88, 0.04, 0,    0.30, shade(tone,-0.22))   // ground floor
+  ];
+  var dec = [];
+  for (var fl = 0; fl < 9; fl++){
+    var z = 0.36 + fl*0.17;
+    dec.push({ x:0.10, y:0.18, w:0.80, z:z, h:0.095, bg:glass });
+    for (var c = 0; c < 3; c++){
+      if (((fl*7 + c*13 + kind*5) % 11) < 5)
+        dec.push({ x:0.14 + c*0.26, y:0.18, w:0.17, z:z+0.012, h:0.07, bg:"#ffb55e" });
+    }
+  }
+  dec.push({ x:0.12, y:0.16, w:0.76, z:0.06, h:0.17, bg:"#120e0c" });   // doorway
+  dec.push({ x:0.30, y:0.16, w:0.40, z:0.25, h:0.035, bg:C.brand });    // canopy light
+  return { parts:parts, decals:dec, W:1 };
+}
+
 function kioskModel(){
   return { parts:[
     P(0.30, 0.40, 0.42, 0.16, 0,    0.07, "#1b2230"),
@@ -1294,6 +1320,7 @@ function kioskModel(){
 }
 /* "subway" twice, so entrances turn up about twice as often - there is no
    point carrying a card if there is nowhere to swipe in. */
+var FACADE_KINDS = ["facadeA","facadeB","facadeC"];
 var PROP_KINDS = ["shed","halal","newsstand","subway","subway","trash",
                   "planter","citidock","kiosk"];
 var PROP_MODELS = {
@@ -1363,6 +1390,7 @@ function bakeAll(){
   S.pw_chuck = bake(powerModel("chuck"));
   S.pw_traffic = bake(powerModel("traffic"));
   for (i=0;i<PROP_KINDS.length;i++)  S["pr_"+PROP_KINDS[i]]  = bake(PROP_MODELS[PROP_KINDS[i]]());
+  for (i=0;i<FACADE_KINDS.length;i++) S["pr_"+FACADE_KINDS[i]] = bake(facadeModel(i));
   S.walk0 = bakeStrip("walk",0); S.walk1 = bakeStrip("walk",1);
   S.road0 = bakeStrip("road",0); S.road1 = bakeStrip("road",1);
 }
@@ -1370,6 +1398,7 @@ function bakeAll(){
 /* ------------------------------------------------------------- world build */
 var rows = {};
 var genCursor = 0, roadRun = 0, safeRun = 0, lastPower = 0, lastTam = -99, nextStreet = START_ST + 1;
+var curStreet = START_ST, curLane = 0;
 var lastSweep = -99, prevWasSafe = true;
 
 /* MIN_WINDOW is the shortest time a column may stay clear. A hop is 135ms, so
@@ -1394,8 +1423,8 @@ var BLOCK_COLS = (function(){
   var a = []; for (var c=0;c<COLS;c++) if (c!==1 && c!==COLS-2) a.push(c); return a;
 })();
 var MIN_SEP = 3;
-function placeBlockers(n){
-  var chosen = [], tries = 0;
+function placeBlockers(n, seed){
+  var chosen = seed ? seed.slice() : [], tries = 0, taken = chosen.length;
   while (chosen.length < n && tries++ < 40){
     var col = BLOCK_COLS[(Math.random()*BLOCK_COLS.length)|0], ok = true;
     for (var j=0;j<chosen.length;j++){
@@ -1403,7 +1432,7 @@ function placeBlockers(n){
     }
     if (ok) chosen.push(col);
   }
-  return chosen;
+  return chosen.slice(taken);        // only the ones added here
 }
 
 function pickFleet(r){
@@ -1478,10 +1507,23 @@ function makeSweep(r, streetNo, dir){
 }
 
 function makeWalk(r){
-  var props = [], blocked = {};
+  var props = [], blocked = {}, chosen = [];
+  /* Frontage goes down first and is seeded into the separation list, because a
+     building at column 0 plus a prop at column 2 would strand column 1 between
+     two blockers - exactly the pin the placement rules exist to prevent. */
+  if (r >= 6 && Math.random() < 0.34){
+    var side = Math.random() < 0.5 ? 0 : COLS-1;
+    blocked[side] = true; chosen.push(side);
+    props.push({ col:side, kind:FACADE_KINDS[(Math.random()*FACADE_KINDS.length)|0] });
+    if (Math.random() < 0.28){
+      var other = side === 0 ? COLS-1 : 0;
+      blocked[other] = true; chosen.push(other);
+      props.push({ col:other, kind:FACADE_KINDS[(Math.random()*FACADE_KINDS.length)|0] });
+    }
+  }
   if (r >= 5){
     var n = [1,1,2,2,3][(Math.random()*5)|0];
-    var cols = placeBlockers(n);
+    var cols = placeBlockers(n, chosen);
     for (var i=0;i<cols.length;i++){
       blocked[cols[i]] = true;
       props.push({ col:cols[i], kind:PROP_KINDS[(Math.random()*PROP_KINDS.length)|0] });
@@ -1520,9 +1562,20 @@ function ensureRows(upTo){
     else if (safeRun >= 3)   wantRoad = true;
     else                     wantRoad = Math.random() < 0.62;
 
-    if (!wantRoad){ pushRow(makeWalk(r)); safeRun++; roadRun = 0; prevWasSafe = true; continue; }
+    if (!wantRoad){
+      pushRow(makeWalk(r));
+      safeRun++; roadRun = 0; prevWasSafe = true;
+      continue;
+    }
 
-    var no = nextStreet++;
+    /* A street is every lane between one pavement and the next, so the number
+       only advances after a sidewalk break. Consecutive road rows are extra
+       lanes of the SAME crossing and share its number - walking across four
+       lanes of 42nd should not read as crossing 42nd, 43rd, 44th and 45th. */
+    if (prevWasSafe){ curStreet = nextStreet++; curLane = 0; }
+    else curLane++;
+    var no = curStreet;
+
     // motorcade only on bigger streets, never back to back, and only with a
     // sidewalk behind it so stepping back is always possible
     if (no >= 40 && prevWasSafe && (no - lastSweep) >= 6 && Math.random() < 0.15){
@@ -1530,16 +1583,12 @@ function ensureRows(upTo){
       lastSweep = no; roadRun = 99; safeRun = 0; prevWasSafe = false;
       continue;
     }
-    if (isTwoWay(no)){
-      // 42nd and 57th are two-way: paired rows, opposite directions
-      pushRow(makeRoad(r, no,  1));
-      pushRow(makeRoad(r + 1, no, -1));
-      roadRun += 2;
-    } else {
-      pushRow(makeRoad(r, no, streetDir(no)));
-      roadRun++;
-    }
-    safeRun = 0; prevWasSafe = false;
+
+    /* One-way streets run every lane the same way. Two-way streets alternate
+       lane by lane, which is what makes 42nd and 57th the dangerous ones. */
+    var dir = isTwoWay(no) ? (curLane % 2 ? -1 : 1) : streetDir(no);
+    pushRow(makeRoad(r, no, dir));
+    roadRun++; safeRun = 0; prevWasSafe = false;
   }
 }
 function pruneRows(below){ for (var k in rows) if (+k < below) delete rows[k]; }
@@ -1557,6 +1606,7 @@ var G = null;
 function reset(){
   rows = {}; genCursor = 0; roadRun = 0; safeRun = 0; lastPower = 0;
   nextStreet = START_ST + 1; lastSweep = -99; prevWasSafe = true; lastTam = -99;
+  curStreet = START_ST; curLane = 0;
   ensureRows(ROWS_AHEAD);
   var tr = TRAINS[(Math.random()*TRAINS.length)|0];
   G = {
@@ -1566,6 +1616,7 @@ function reset(){
     shield:false, slowT:0, revealT:0, invulnT:0, powersUsed:0,
     flyT:0, flyA:0, tam:false, tamT:0, tamWins:0, hurtT:0,
     metro:false, ride:null, trace:null, rides:0, bonus:0, tamLeft:0, riskT:0,
+    scene:null, scenesSeen:{},
     trainT:TRAIN_MAX, trainLine:tr[0], trainDest:tr[1],
     trainHH:16 + ((Math.random()*3)|0), trainMM:(Math.random()*60)|0,
     missedTrain:false,
@@ -1597,6 +1648,7 @@ function progress(){
   var st = streetAt(G.maxRow);
   if (st !== G.street){
     G.street = st;
+    if (SCENES[st] && !G.scenesSeen[st] && G.state === ST_PLAY) startScene(st);
     var ms = MILESTONES[st];
     if (ms){
       AUDIO.stage();
@@ -2149,6 +2201,152 @@ function drawCar(ox, rock, lit){
   }
 }
 
+/* ====================== ARRIVAL SCENES ===================================
+   Reaching a landmark crossing stops the walk for a beat and shows you where
+   you are, in the same register as the subway ride. Flat rects again - these
+   run over the top of a frozen world, so the budget is the same as a frame.
+   Each plays once per run. */
+var SCENE_SECS = 2.9;
+function sceneFrame(title, sub, body){
+  var R = G.scene, t = R.t;
+  var fin = Math.min(1, t/0.3), fout = Math.min(1, (SCENE_SECS - t)/0.35);
+  var a = Math.max(0, Math.min(fin, fout));
+  ctx.globalAlpha = a * 0.93; ctx.fillStyle = "#07080c";
+  ctx.fillRect(0, 0, LOGICAL_W, LOGICAL_H);
+  ctx.globalAlpha = a;
+  body(t, a);
+  // letterbox and titles
+  ctx.globalAlpha = a; ctx.fillStyle = "#07080c";
+  ctx.fillRect(0, 0, LOGICAL_W, 150); ctx.fillRect(0, LOGICAL_H-190, LOGICAL_W, 190);
+  ctx.fillStyle = C.brand; ctx.fillRect(LOGICAL_W/2 - 180, LOGICAL_H-150, 360, 4);
+  txt(title, LOGICAL_W/2, LOGICAL_H-104, 56, C.text);
+  txt(sub, LOGICAL_W/2, LOGICAL_H-58, 26, C.textDim);
+  ctx.globalAlpha = 1;
+}
+/* Times Square: the red steps, the screens, the crowd */
+function sceneTimes(t, a){
+  for (var i = 0; i < 9; i++){                       // screens
+    var x = 60 + (i%3)*640, y = 170 + ((i/3)|0)*110;
+    var cols = ["#c9243f","#1b4fd0","#e0a81e","#12a05c","#7b2fd0","#d8431f"];
+    var c = cols[(i + ((t*3)|0)) % cols.length];
+    ctx.fillStyle = c; ctx.globalAlpha = a * (0.55 + 0.45*Math.sin(t*5 + i));
+    ctx.fillRect(x, y, 600, 96);
+    ctx.globalAlpha = a * 0.22; ctx.fillStyle = "#000";
+    for (var sy = 0; sy < 96; sy += 7) ctx.fillRect(x, y+sy, 600, 2);
+  }
+  ctx.globalAlpha = a;
+  for (var st = 0; st < 7; st++){                    // the red steps
+    ctx.fillStyle = st % 2 ? "#b8202f" : "#cf2838";
+    ctx.fillRect(560, 560 + st*26, 800 - st*40, 26);
+  }
+  var tk = (t*420) % 1920;                           // the ticker
+  ctx.fillStyle = "#0c0a10"; ctx.fillRect(0, 500, LOGICAL_W, 42);
+  ctx.fillStyle = "#e8c12a"; ctx.fillRect(1920 - tk, 510, 300, 22);
+  ctx.fillStyle = "#d8431f"; ctx.fillRect(1920 - tk + 400, 510, 220, 22);
+  for (var c2 = 0; c2 < 22; c2++){                   // crowd
+    var cx = 70 + c2*86 + Math.sin(t*2 + c2)*6;
+    ctx.fillStyle = ["#2a3038","#39302c","#2c3340","#332a33"][c2 % 4];
+    ctx.fillRect(cx, 690, 36, 92);
+    ctx.fillStyle = "#c79a74"; ctx.fillRect(cx+8, 664, 20, 26);
+  }
+}
+/* Rockefeller: the sunken plaza, the fountains, the flags */
+function sceneRock(t, a){
+  ctx.fillStyle = "#241b1e"; ctx.fillRect(0, 150, LOGICAL_W, 420);
+  for (var w = 0; w < 7; w++){                       // slab windows
+    for (var h = 0; h < 5; h++){
+      ctx.globalAlpha = a * (((w*7+h*13)%11) < 6 ? 0.5 : 0.12);
+      ctx.fillStyle = "#ffae55";
+      ctx.fillRect(300 + w*180, 190 + h*70, 110, 44);
+    }
+  }
+  ctx.globalAlpha = a;
+  ctx.fillStyle = "#1b2a33"; ctx.fillRect(260, 600, 1400, 190);   // the rink
+  ctx.globalAlpha = a*0.45; ctx.fillStyle = "#8fc6de"; ctx.fillRect(260, 600, 1400, 20);
+  ctx.globalAlpha = a;
+  for (var f = 0; f < 9; f++){                       // flags
+    ctx.fillStyle = "#6b6257"; ctx.fillRect(300 + f*160, 480, 5, 120);
+    ctx.fillStyle = f % 2 ? "#d8431f" : "#e8c12a";
+    ctx.fillRect(305 + f*160, 480, 36, 24);
+  }
+  for (var j = 0; j < 5; j++){                       // fountain jets
+    var jx = 520 + j*220, hgt = 70 + Math.abs(Math.sin(t*3 + j))*110;
+    ctx.globalAlpha = a*0.75; ctx.fillStyle = "#bfe4f2";
+    ctx.fillRect(jx, 600 - hgt, 9, hgt);
+    ctx.globalAlpha = a*0.35;
+    ctx.fillRect(jx-16, 600 - hgt*0.6, 41, hgt*0.6);
+    ctx.globalAlpha = a*0.5;
+    ctx.beginPath(); ctx.ellipse(jx+4, 604, 46, 11, 0, 0, Math.PI*2); ctx.fill();
+  }
+  ctx.globalAlpha = a; ctx.fillStyle = "#c9a227";     // the gilded figure
+  ctx.fillRect(930, 520, 60, 80); ctx.fillRect(946, 486, 28, 34);
+}
+/* Billionaires' Row: the pencil towers */
+function sceneRow(t, a){
+  var tw = [[420,120,520],[640,90,620],[840,70,700],[1060,100,580],[1260,80,660],[1440,110,500]];
+  for (var i = 0; i < tw.length; i++){
+    ctx.fillStyle = i % 2 ? "#2d2225" : "#281e21";
+    ctx.fillRect(tw[i][0], 760 - tw[i][2], tw[i][1], tw[i][2]);
+    for (var h = 0; h < 14; h++){
+      ctx.globalAlpha = a * (((i*5+h*11)%13) < 5 ? 0.55 : 0.1);
+      ctx.fillStyle = "#ffae55";
+      ctx.fillRect(tw[i][0]+12, 760 - tw[i][2] + 24 + h*((tw[i][2]-40)/14), tw[i][1]-24, 14);
+    }
+    ctx.globalAlpha = a;
+  }
+  var cl = (t*60) % (LOGICAL_W + 400) - 200;          // cloud drifting past
+  ctx.globalAlpha = a*0.18; ctx.fillStyle = "#cfd8de";
+  ctx.fillRect(cl, 300, 420, 46); ctx.fillRect(cl+90, 270, 240, 40);
+  ctx.globalAlpha = a; ctx.fillStyle = "#1b2027"; ctx.fillRect(0, 760, LOGICAL_W, 60);
+}
+/* Central Park South: trees, the pond, a carriage */
+function scenePark(t, a){
+  ctx.fillStyle = "#12261a"; ctx.fillRect(0, 430, LOGICAL_W, 390);
+  for (var i = 0; i < 16; i++){                       // canopy
+    var cx = 50 + i*126 + Math.sin(t + i)*4;
+    ctx.fillStyle = i % 2 ? "#17301f" : "#1d3f28";
+    ctx.beginPath(); ctx.ellipse(cx, 430 + (i%3)*26, 92, 62, 0, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = "#2f2217"; ctx.fillRect(cx-9, 470 + (i%3)*26, 18, 70);
+  }
+  ctx.fillStyle = "#1b3a4a"; ctx.fillRect(420, 640, 1100, 130);   // pond
+  ctx.globalAlpha = a*0.4; ctx.fillStyle = "#9fd3e8";
+  for (var w = 0; w < 5; w++) ctx.fillRect(460 + w*200, 660 + Math.sin(t*2+w)*7, 160, 5);
+  ctx.globalAlpha = a;
+  var hx = 180 + ((t*120) % (LOGICAL_W + 300));                   // carriage
+  ctx.fillStyle = "#6b4a33"; ctx.fillRect(hx, 700, 96, 48);
+  ctx.fillRect(hx+86, 680, 34, 34);
+  ctx.fillStyle = "#7d2230"; ctx.fillRect(hx-110, 696, 104, 46);
+  ctx.fillStyle = "#2b2118";
+  ctx.fillRect(hx-96, 740, 24, 24); ctx.fillRect(hx-28, 742, 20, 20);
+  // skyline behind
+  ctx.fillStyle = "#1a1316";
+  var sk = [[120,110,170],[300,80,230],[460,140,140],[1180,100,200],[1380,130,160],[1600,90,240]];
+  for (var k = 0; k < sk.length; k++) ctx.fillRect(sk[k][0], 430 - sk[k][2], sk[k][1], sk[k][2]);
+}
+
+var SCENES = {
+  42: { title:"TIMES SQUARE",        sub:"Forty-second and Broadway", draw:sceneTimes },
+  50: { title:"ROCKEFELLER CENTER",  sub:"The plaza and the rink",    draw:sceneRock },
+  57: { title:"BILLIONAIRES\u2019 ROW", sub:"Fifty-seventh Street",  draw:sceneRow },
+  59: { title:"CENTRAL PARK SOUTH",  sub:"You made it uptown",        draw:scenePark }
+};
+
+function startScene(st){
+  G.scene = { st:st, t:0 };
+  G.scenesSeen[st] = true;
+  AUDIO.stage();
+}
+function updateScene(dt){
+  G.scene.t += dt;
+  if (G.scene.t >= SCENE_SECS) G.scene = null;
+}
+function drawScene(){
+  if (!G.scene) return;
+  var sc = SCENES[G.scene.st];
+  if (!sc){ G.scene = null; return; }
+  sceneFrame(sc.title, sc.sub, sc.draw);
+}
+
 function drawRide(){
   var R = G.ride;
   if (!R) return;
@@ -2269,6 +2467,7 @@ function hitPlayer(kind, pp){
 
 function update(dt){
   G.t += dt;
+  if (G.scene){ updateScene(dt); if (G.scene) return; }
   if (G.ride){ updateRide(dt); if (G.ride) return; } G.sweep += dt*0.4; if (G.sweep > 1.7) G.sweep -= 1.7;
   if (G.hop < 1){
     G.hop += dt*1000 / (HOP_MS * (1 - 0.32*G.flyA));   // airborne is quicker
@@ -3452,6 +3651,9 @@ function render(){
   if (G.state === ST_PLAY) drawLockup();
   if (G.state === ST_TITLE) drawTitle();
   if (G.state === ST_DEAD)  drawDead();
+  // the arrival scenes sit over everything, HUD included - they are a
+  // cutscene, not an overlay
+  if (G.scene) drawScene();
   drawMuteBtn();
   if (SHOW_FPS){
     ctx.setTransform(scale, 0, 0, scale, 0, 0);
