@@ -60,12 +60,16 @@
      1:1 to keep sprite memory near 6MB, instant restart.
 
    POWER-UPS
-     Four common ThousandEyes capabilities, plus the TAM as a rare premium
-     tier: 5 seconds of flight, and unlike every other power-up it does not
-     expire - once engaged it keeps paying out another 2 seconds every so
-     often, announcing something a real TAM actually did. Flight is the only
-     thing in the game that ignores both traffic and solid props, so the
-     landing is handled carefully (see landFromFlight).
+     Four common ThousandEyes capabilities, plus the TAM as the headline tier:
+     5 seconds of flight, and unlike every other power-up it does not expire -
+     once engaged it keeps paying out another 2 seconds every 8-14s,
+     announcing something a real TAM actually did. Flight is the only thing in
+     the game that ignores both traffic and solid props, so the landing is
+     handled carefully (see landFromFlight) and total flight is capped.
+
+     The TAM pickup is staged rather than just placed - beam, glow pool,
+     rings, sparks and the brand mark overhead (see drawTamPickup) - so it
+     reads as the premium item from several blocks away.
 
    ?fps=1   perf overlay
    ?safe=1  guest-safe mode: network hazards instead of sales objections
@@ -300,7 +304,7 @@ var AUDIO = (function(){
 var cv = document.getElementById("c");
 var ctx = cv.getContext("2d", { alpha:false });
 var scale = 1, BAKE = 1, ready = false;
-var skyGrad = null, hazeGrad = null;
+var skyGrad = null, hazeGrad = null, tamBeamGrad = null;
 
 function layout(){
   var vw = window.innerWidth || LOGICAL_W, vh = window.innerHeight || LOGICAL_H;
@@ -335,6 +339,13 @@ function layout(){
 
   // capped at 1:1 so sprite memory stays near 6MB on a 4K Board. HUD text
   // still renders at full device resolution; only sprites are upscaled.
+  /* Beam gradient for the TAM pickup. Gradients are transformed by the CTM,
+     so this is defined at the origin and translated into place per pickup. */
+  tamBeamGrad = ctx.createLinearGradient(0, 0, 0, -360);
+  tamBeamGrad.addColorStop(0,    "rgba(255,240,189,0.34)");
+  tamBeamGrad.addColorStop(0.35, "rgba(255,170,60,0.16)");
+  tamBeamGrad.addColorStop(1,    "rgba(255,170,60,0)");
+
   var nb = Math.max(0.5, Math.min(1, scale));
   if (!ready || Math.abs(nb - BAKE) > 0.02){ BAKE = nb; if (ready) bakeAll(); }
 }
@@ -905,8 +916,8 @@ var POWERS = {
             secs:5 }
 };
 var POWER_KINDS = ["agent","insight","path","sponsor"];   // the common tier
-var FLY_SECS = 5, TAM_BONUS_SECS = 2;
-var TAM_COOLDOWN_ROWS = 34;          // rare on purpose
+var FLY_SECS = 5, TAM_BONUS_SECS = 2, FLY_MAX = 9;
+var TAM_COOLDOWN_ROWS = 16;   // uncommon, not rare - it is the headline SKU
 
 /* Things a ThousandEyes TAM actually does. One fires on a timer for as long as
    the TAM is engaged, each worth another two seconds of flight. */
@@ -939,13 +950,14 @@ function powerModel(kind){
   if (kind === "tam"){
     // visibly the biggest pickup on the board: taller core, crown and halo
     return { parts:[
-      P(0.40, 0.40, 0.20, 0.20, 0.02, 0.11, shade(k.col,-0.58)),
-      P(0.29, 0.32, 0.42, 0.36, 0.13, 0.40, shade(k.col,-0.20)),
-      E(0.25, 0.29, 0.50, 0.42, 0.53, 0.06, k.col),
-      E(0.21, 0.26, 0.58, 0.48, 0.61, 0.04, shade(k.col,0.30))
+      P(0.38, 0.38, 0.24, 0.24, 0.02, 0.13, shade(k.col,-0.58)),
+      P(0.24, 0.28, 0.52, 0.44, 0.15, 0.50, shade(k.col,-0.20)),
+      E(0.19, 0.24, 0.62, 0.52, 0.65, 0.07, k.col),
+      E(0.14, 0.20, 0.72, 0.60, 0.74, 0.05, shade(k.col,0.30)),
+      E(0.30, 0.33, 0.40, 0.34, 0.81, 0.04, shade(k.col,0.45))
     ], decals:[
-      { x:0.32, y:0.32, w:0.36, z:0.19, h:0.28, bg:k.col, core:shade(k.col,0.5),
-        glow:true, fg:"#2a1400", text:"TAM", size:20 }
+      { x:0.28, y:0.28, w:0.44, z:0.22, h:0.34, bg:k.col, core:shade(k.col,0.5),
+        glow:true, fg:"#2a1400", text:"TAM", size:25 }
     ], shadow:false, W:1 };
   }
   return { parts:[
@@ -1246,7 +1258,7 @@ function makeWalk(r){
       var pc = (Math.random()*COLS)|0;
       if (!blocked[pc]){
         // the TAM is the rare drop, gated by its own long cooldown
-        var kind = (r > 16 && r - lastTam >= TAM_COOLDOWN_ROWS && Math.random() < 0.34)
+        var kind = (r > 7 && r - lastTam >= TAM_COOLDOWN_ROWS && Math.random() < 0.52)
                    ? "tam" : POWER_KINDS[(Math.random()*POWER_KINDS.length)|0];
         if (kind === "tam") lastTam = r;
         pickup = { col:pc, kind:kind };
@@ -1448,9 +1460,12 @@ function collect(){
   burst(G.col*TILE + TILE/2, rowScreenY(G.row) - 40, k.col);
 
   if (kind === "tam"){
-    G.flyT = Math.max(G.flyT, FLY_SECS);
+    G.flyT = Math.min(FLY_MAX, Math.max(G.flyT, FLY_SECS));
     G.tam = true;
-    G.tamT = 9 + Math.random()*7;        // first win lands a few seconds in
+    /* First win lands at 3-6s, i.e. right as the initial flight runs out, so
+       the SKU is seen delivering immediately rather than silently. Measured
+       at 9-16s, most runs ended before a single win fired. */
+    G.tamT = 3 + Math.random()*3;
   }
   else if (kind === "agent")   G.shield = true;
   else if (kind === "insight") G.slowT = Math.max(G.slowT, k.secs);
@@ -1588,7 +1603,7 @@ function update(dt){
       // win lines actually get read - they are the point of the power-up
       G.tamT = 8 + Math.random()*6;
       G.tamWins++;
-      G.flyT += TAM_BONUS_SECS;
+      G.flyT = Math.min(FLY_MAX, G.flyT + TAM_BONUS_SECS);
       AUDIO.tamWin();
       flash(TAM_WINS[(Math.random()*TAM_WINS.length)|0],
             "+" + TAM_BONUS_SECS + "s of flight.", C.pw5);
@@ -1965,8 +1980,11 @@ function drawWorld(){
         blit(S["pr_"+row.props[i].kind], row.props[i].col*TILE, sy);
       }
       if (row.pickup){
-        var bob = Math.sin(G.t*2.6 + row.pickup.col) * 7;
-        blit(S["pw_"+row.pickup.kind], row.pickup.col*TILE, sy - 10 - bob);
+        if (row.pickup.kind === "tam") drawTamPickup(row.pickup.col, sy);
+        else {
+          var bob = Math.sin(G.t*2.6 + row.pickup.col) * 7;
+          blit(S["pw_"+row.pickup.kind], row.pickup.col*TILE, sy - 10 - bob);
+        }
       }
     } else {
       // parked first, then moving traffic, then the wrong-way bike on top
@@ -2009,6 +2027,70 @@ function drawWorld(){
     ctx.globalAlpha = 1;
   }
   ctx.restore();
+}
+
+/* The TAM is the headline SKU, so it is staged rather than just placed: a
+   beam of light up into the sky band (visible from several blocks away), a
+   glow pool on the pavement, two pulsing rings, rising sparks, and the brand
+   mark floating above it. All of it is live per-frame work, but only while a
+   TAM is actually on screen - typically one pickup, a few dozen fills. */
+function drawTamPickup(col, sy){
+  var cx = col*TILE + TILE*0.5, phase = col * 1.7;
+  var bob = Math.sin(G.t*2.1 + phase) * 10;
+  var pul = 0.5 + 0.5*Math.sin(G.t*2.6 + phase);
+  var ground = sy - ROW_H*0.46;
+
+  // beam of light
+  ctx.save();
+  ctx.translate(cx, ground);
+  ctx.globalAlpha = 0.80 + 0.20*pul;
+  ctx.fillStyle = tamBeamGrad;
+  ctx.fillRect(-46, -360, 92, 360);
+  ctx.globalAlpha = 0.30 + 0.22*pul;
+  ctx.fillRect(-13, -360, 26, 360);
+  ctx.restore();
+
+  // glow pool on the pavement
+  ctx.globalAlpha = 0.20 + 0.12*pul; ctx.fillStyle = C.pw5;
+  ctx.beginPath();
+  ctx.ellipse(cx, ground, 54 + 8*pul, 20 + 3*pul, 0, 0, Math.PI*2);
+  ctx.fill();
+
+  // two pulsing rings
+  ctx.lineWidth = 3;
+  for (var i = 0; i < 2; i++){
+    var ph = (G.t*0.55 + i*0.5) % 1;
+    ctx.globalAlpha = (1 - ph) * 0.55;
+    ctx.strokeStyle = i ? C.brand : C.pw5;
+    ctx.beginPath();
+    ctx.ellipse(cx, ground, 26 + ph*46, 10 + ph*17, 0, 0, Math.PI*2);
+    ctx.stroke();
+  }
+  ctx.globalAlpha = 1;
+
+  blit(S.pw_tam, col*TILE, sy - 14 - bob);
+
+  // rising sparks, deterministic from the clock so they need no state
+  ctx.fillStyle = C.pw5;
+  for (var k = 0; k < 7; k++){
+    var t = ((G.t*0.45) + k/7) % 1;
+    var sx2 = cx + Math.sin(k*2.1 + G.t*0.8) * 30;
+    var sy2 = ground - 18 - t*150;
+    ctx.globalAlpha = (1 - t) * 0.85;
+    var sz = 5 - t*2.5;
+    ctx.fillRect(sx2 - sz/2, sy2 - sz/2, sz, sz);
+  }
+  ctx.globalAlpha = 1;
+
+  // the brand mark above it, and a label so it reads at a distance
+  var eyeY = sy - 182 - bob*0.6;
+  ctx.globalAlpha = 0.86 + 0.14*pul;
+  drawEye(cx, eyeY, 21 + 2*pul, C.pw5, "#2a1400", C.brand);
+  ctx.globalAlpha = 1;
+  ctx.font = 'bold 22px "Helvetica Neue",Helvetica,Arial,sans-serif';
+  var lw = ctx.measureText("TAM").width + 34;
+  plate(cx - lw/2, eyeY - 62, lw, 30, "rgba(10,6,4,0.80)", 6);
+  txt("TAM", cx, eyeY - 46, 22, C.pw5);
 }
 
 function drawPlayer(pp){

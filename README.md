@@ -101,20 +101,33 @@ Four common ThousandEyes capabilities — Endpoint Agent (absorbs one hit),
 Internet Insights (slows traffic), Path Visualization (lights up safe
 crossings), Executive Sponsor (carries you three rows) — plus one rare tier:
 
-**TAM.** Five seconds of flight, which ignores both traffic and solid props.
-Unlike every other power-up it does not expire: once engaged it stays for the
-rest of the run and periodically delivers another two seconds, announcing
-something a ThousandEyes TAM actually does. Roughly one spawn every 70 rows,
-with a 34-row cooldown. Measured effect: median run goes from row 46 to row
-144 if you get one.
+**TAM.** The headline SKU. Five seconds of flight, which ignores both traffic
+and solid props, hops 32% faster, and renders above the whole world. Unlike
+every other power-up it does not expire: once engaged it stays for the rest of
+the run and delivers another two seconds every 8-14s, announcing something a
+ThousandEyes TAM actually does (22 lines). The first payout lands 3-6s after
+pickup, as the opening flight runs out, so the SKU is seen working immediately.
+Total flight is capped at 9s so it cannot be hoarded.
+
+Uncommon rather than rare: ~38% of pickups, one every ~37 rows, 16-row
+cooldown, and it can appear as early as row 10. Measured over 90 bot runs:
+median run goes from row 47 to row 124 when a TAM is collected, and every TAM
+run saw at least one win delivered.
+
+On screen it is staged rather than just placed - a beam of light up into the
+sky band, a glow pool on the pavement, two pulsing rings, rising sparks and the
+brand mark floating overhead with a TAM label (`drawTamPickup`). The pickup
+sprite itself is 2.2x the area of the common four. The beam is what makes it
+findable from several blocks away.
 
 Flight is the only thing that bypasses both hazard types, so landing is
 handled explicitly in `landFromFlight()` — on expiry the player slides out of
 any solid cell to the nearest free column and gets a moment of grace, since
 flight can otherwise end inside a scaffold or on top of a bus.
 
-Tuning dials: `FLY_SECS`, `TAM_BONUS_SECS`, `TAM_COOLDOWN_ROWS`, the `0.34`
-spawn roll in `makeWalk`, and the `8 + random*6` payout interval in `update`.
+Tuning dials: `FLY_SECS`, `TAM_BONUS_SECS`, `FLY_MAX`, `TAM_COOLDOWN_ROWS`,
+the `0.52` spawn roll in `makeWalk`, and the payout intervals in `collect`
+(first win) and `update` (subsequent).
 
 Cross streets are generated from the real grid: direction follows the
 even-eastbound one-way rule, and 34th / 42nd / 57th generate as paired two-way
