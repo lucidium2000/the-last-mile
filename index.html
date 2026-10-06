@@ -1600,37 +1600,6 @@ function act(dir){
    Board and ~16mm on a Desk Mini, both comfortably above the ~9mm minimum.
    Swipes and the invisible tap zones still work; the pad simply takes
    priority wherever it is hit. */
-/* 1.5x the old buttons: 138px instead of 92px. That forced the layout off the
-   cross and onto one row - a two-row cross at this size is 286px tall and only
-   222px exist below the player's row, so the forward button would have covered
-   the block you were about to cross. Order is left, back, forward, right, with
-   a wide gap between back and forward so the two vertical moves are not
-   neighbours. */
-var DPAD = (function(){
-  var b = 138, g = 18, mid = 46;
-  var total = 4*b + 2*g + mid;
-  var x0 = (LOGICAL_W - total) / 2, y = LOGICAL_H - 16 - b;
-  return {
-    b:b,
-    l:{ x:x0,                   y:y },
-    b2:{ x:x0 + b + g,          y:y },
-    f:{ x:x0 + 2*b + g + mid,   y:y },
-    r:{ x:x0 + 3*b + 2*g + mid, y:y }
-  };
-})();
-function dpadHit(lx, ly){
-  if (G.state !== ST_PLAY) return null;
-  var k = ["f","l","b2","r"], pad = 6;
-  for (var i = 0; i < k.length; i++){
-    var q = DPAD[k[i]];
-    if (lx >= q.x - pad && lx <= q.x + DPAD.b + pad &&
-        ly >= q.y - pad && ly <= q.y + DPAD.b + pad){
-      return k[i] === "b2" ? "b" : k[i];
-    }
-  }
-  return null;
-}
-
 var MUTE_BTN = { x:LOGICAL_W - 146, y:LOGICAL_H - 146, w:114, h:114 };
 function muteBtnActive(){ return G.state === ST_TITLE || G.state === ST_DEAD; }
 function inMuteBtn(lx, ly){
@@ -1639,26 +1608,13 @@ function inMuteBtn(lx, ly){
          ly > MUTE_BTN.y - 14 && ly < MUTE_BTN.y + MUTE_BTN.h + 14;
 }
 
-var ptr = null, held = null;
-function localPt(e){
-  var rect = cv.getBoundingClientRect();
-  return { x:(e.clientX-rect.left)/rect.width * LOGICAL_W,
-           y:(e.clientY-rect.top)/rect.height * LOGICAL_H };
-}
+var ptr = null;
 cv.addEventListener("pointerdown", function(e){
   e.preventDefault(); AUDIO.unlock();
   ptr = { sx:e.clientX, sy:e.clientY, used:false };
-  var p = localPt(e), d = dpadHit(p.x, p.y);
-  if (d){
-    // fire on press, not release - a D-pad that waits for pointerup feels dead
-    act(d);
-    held = { dir:d, t:0, fired:true };
-    ptr.used = true;
-  }
 }, { passive:false });
 cv.addEventListener("pointerup", function(e){
   e.preventDefault();
-  held = null;
   if (!ptr) return;
   if (ptr.used){ ptr = null; return; }      // already handled on press
   var dx = e.clientX - ptr.sx, dy = e.clientY - ptr.sy;
@@ -1677,7 +1633,7 @@ cv.addEventListener("pointerup", function(e){
   }
   ptr = null;
 }, { passive:false });
-cv.addEventListener("pointercancel", function(){ ptr = null; held = null; });
+cv.addEventListener("pointercancel", function(){ ptr = null; });
 cv.addEventListener("contextmenu", function(e){ e.preventDefault(); });
 
 window.addEventListener("keydown", function(e){
@@ -2146,15 +2102,6 @@ function update(dt){
       if (hitKind) hitPlayer(hitKind, pp);
     }
   }
-
-  /* Holding an arrow repeats, so a long run does not mean a hundred taps on a
-     wall-mounted Board. Longer delay before the first repeat so a single tap
-     is never read as two. */
-  if (held && G.state === ST_PLAY){
-    held.t += dt;
-    var wait = held.fired ? 0.26 : 0.15;
-    if (held.t >= wait){ held.t = 0; held.fired = false; act(held.dir); }
-  } else if (held && G.state !== ST_PLAY){ held = null; }
 
   if (G.state === ST_DEAD) G.deadFor += dt;
   if (G.shake > 0) G.shake = Math.max(0, G.shake - dt*46);
@@ -3045,35 +2992,6 @@ function drawLockup(){
   ctx.globalAlpha = 1;
 }
 
-function arrowPath(cx, cy, r, dir){
-  ctx.beginPath();
-  if (dir === "f"){ ctx.moveTo(cx, cy-r); ctx.lineTo(cx+r, cy+r*0.72); ctx.lineTo(cx-r, cy+r*0.72); }
-  else if (dir === "b"){ ctx.moveTo(cx, cy+r); ctx.lineTo(cx+r, cy-r*0.72); ctx.lineTo(cx-r, cy-r*0.72); }
-  else if (dir === "l"){ ctx.moveTo(cx-r, cy); ctx.lineTo(cx+r*0.72, cy-r); ctx.lineTo(cx+r*0.72, cy+r); }
-  else { ctx.moveTo(cx+r, cy); ctx.lineTo(cx-r*0.72, cy-r); ctx.lineTo(cx-r*0.72, cy+r); }
-  ctx.closePath();
-}
-/* Kept low-contrast so it never competes with the traffic, and it brightens
-   on press so you can see the input registered. */
-function drawDpad(){
-  if (G.state !== ST_PLAY) return;
-  var keys = [["f",DPAD.f],["l",DPAD.l],["b",DPAD.b2],["r",DPAD.r]];
-  for (var i = 0; i < keys.length; i++){
-    var dir = keys[i][0], q = keys[i][1];
-    var on = held && held.dir === dir;
-    ctx.globalAlpha = on ? 0.95 : 0.46;
-    plate(q.x, q.y, DPAD.b, DPAD.b, on ? "rgba(255,106,19,0.90)" : "rgba(10,6,4,0.72)", 24);
-    ctx.globalAlpha = on ? 1 : 0.62;
-    ctx.strokeStyle = on ? "#ffd9b8" : "rgba(255,166,74,0.55)";
-    ctx.lineWidth = 2;
-    rr(q.x+2, q.y+2, DPAD.b-4, DPAD.b-4, 22); ctx.stroke();
-    arrowPath(q.x + DPAD.b/2, q.y + DPAD.b/2, DPAD.b*0.235, dir);
-    ctx.fillStyle = on ? "#2a1400" : C.brandLight;
-    ctx.fill();
-    ctx.globalAlpha = 1;
-  }
-}
-
 function drawMuteBtn(){
   if (!muteBtnActive()) return;
   var b = MUTE_BTN, cx = b.x + b.w*0.44, cy = b.y + b.h*0.5;
@@ -3118,7 +3036,7 @@ function drawTitle(){
   txt("TAP TO START", LOGICAL_W/2, 726, 62, C.brand);
   ctx.globalAlpha = 1;
 
-  txt("Tap anywhere to cross  ·  arrows or swipe to step aside",
+  txt("Tap anywhere to cross  ·  swipe to step aside",
       LOGICAL_W/2, 822, 25, C.textDim);
   txt("A THOUSANDEYES GAME  ·  CISCO", LOGICAL_W/2, 1004, 19,
       "rgba(253,244,238,0.36)");
@@ -3166,7 +3084,7 @@ function render(){
   drawSlowTint();
   if (G.ride) drawRide();
   drawHud();
-  if (G.state === ST_PLAY){ drawLockup(); drawDpad(); }
+  if (G.state === ST_PLAY) drawLockup();
   if (G.state === ST_TITLE) drawTitle();
   if (G.state === ST_DEAD)  drawDead();
   drawMuteBtn();
