@@ -1068,7 +1068,8 @@ var POWER_KINDS = ["agent","insight","path","sponsor","metro","chuck","traffic"]
    available far more often than any other power-up. */
 var POWER_POOL = ["path","path","path",
                   "metro","metro","metro","metro","metro","metro","metro","metro","metro",
-                  "chuck","chuck","traffic","traffic","agent","insight","sponsor"];
+                  "metro","metro","metro","metro","metro","metro","metro","metro","metro",
+                  "chuck","chuck","traffic","traffic","agent","agent","agent","insight","sponsor"];
 var CHUCK_BONUS = 250000;
 var TAM_DURATION = 60;
 var FLY_SECS = 5, TAM_BONUS_SECS = 2, FLY_MAX = 9;
@@ -1291,7 +1292,10 @@ function kioskModel(){
       glow:true, fg:"#1a0a02", text:"PATH", size:13 }
   ], W:1 };
 }
-var PROP_KINDS = ["shed","halal","newsstand","subway","trash","planter","citidock","kiosk"];
+/* "subway" twice, so entrances turn up about twice as often - there is no
+   point carrying a card if there is nowhere to swipe in. */
+var PROP_KINDS = ["shed","halal","newsstand","subway","subway","trash",
+                  "planter","citidock","kiosk"];
 var PROP_MODELS = {
   shed:shedModel, halal:halalModel, newsstand:newsstandModel, subway:subwayModel,
   trash:trashModel, planter:planterModel, citidock:citiDockModel, kiosk:kioskModel
@@ -1484,7 +1488,11 @@ function makeWalk(r){
     }
   }
   var pickup = null;
-  if (r >= 7 && r - lastPower >= 8 && Math.random() < 0.34){
+  /* Pickups land more often now. Metrocards were already 62% of the pool and
+     could not get meaningfully more common by taking a bigger share - the
+     ceiling is how often a pickup spawns at all. Raising the density lifts
+     every power-up's absolute rate, which is what doubling actually needs. */
+  if (r >= 7 && r - lastPower >= 6 && Math.random() < 0.48){
     for (var t=0;t<14;t++){
       var pc = (Math.random()*COLS)|0;
       if (!blocked[pc]){
@@ -1643,11 +1651,17 @@ function act(dir){
       }
     }
   }
-  // a card lets you swipe in at any subway entrance
-  if (G.metro && !G.ride && target && target.props){
+  /* A card lets you swipe in at any subway entrance. Without one, say so -
+     walking into a staircase and getting a dull thud told the player nothing
+     about why it would not open. */
+  if (!G.ride && target && target.props){
     for (var pi = 0; pi < target.props.length; pi++){
-      if (target.props[pi].kind === "subway" && target.props[pi].col === nc){
-        startRide(nr, nc); return;
+      var sw = target.props[pi];
+      if (sw.kind === "subway" && sw.col === nc){
+        if (G.metro){ startRide(nr, nc); return; }
+        AUDIO.bump();
+        flash("NO METROCARD", "Find one to ride the subway.", "#ffd24a");
+        return;
       }
     }
   }
