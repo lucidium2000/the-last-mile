@@ -84,6 +84,9 @@ var ROW_H = 72, SKEW = 27, ZH = 100;
 /* The player sits low on screen so there is room for both a real skyline and
    enough readable rows ahead. Raising BASE_Y buys lookahead for free, where
    weakening the haze would have cost the horizon fade. */
+/* Messages sit above the horizon so they never cover the road; chips sit
+   below the player, over rows already crossed. */
+var MSG_Y = 134, CHIP_Y = 892;
 var BASE_Y = 858, HORIZON = 250;   // rows are culled above this; sky above it
 var SKY_BASE = 254;                // skyline baseline, just under the cull line
 var PAD = 4, SPAN = COLS + PAD * 2;
@@ -877,75 +880,102 @@ var MODELS = {
 /* ----------------------------------------------------------- model: player */
 /* Luminance steps between adjacent parts or the figure blobs:
    trousers 0.21 -> shirt 0.47 -> skin 0.74, dark collar between the two. */
-/* The seller: dark suit, white shirt, orange tie. Luminance has to step
-   between adjacent parts or the figure reads as one blob - trousers 0.13,
-   jacket 0.18, skin 0.74, with a white shirt and an orange tie carrying the
-   focal point down the middle. */
+/* SHARED PROPORTIONS
+   The first pass gave both figures a head about a third of their height and
+   nearly as wide as the torso, which made them read as blocks with a beige box
+   on top. Head is now ~17% of height, there is a neck, the legs are longer and
+   the shoulders are wider than the hips.
+
+   Body depth is kept shallow (y+d = 0.58) for a second reason: the painter
+   sort is far-edge-first, so the cape must sit at a greater y than the torso.
+   The shallower the torso, the closer the cape can sit behind it, and the less
+   the projection shoves the cape up the screen. */
 function playerModel(dir){
-  var skin = "#e9b98c", suit = "#232f44", suitDark = "#1a2433";
+  var skin = "#e9b98c", suit = "#232f44", suitDark = "#19222f";
   var parts = [
-    P(0.28, 0.44, 0.15, 0.16, 0,     0.055, "#12151a"),      // shoes
-    P(0.57, 0.44, 0.15, 0.16, 0,     0.055, "#12151a"),
-    P(0.31, 0.43, 0.38, 0.18, 0.05,  0.23,  suitDark),       // trousers
-    P(0.23, 0.39, 0.54, 0.26, 0.28,  0.22,  suit),           // jacket
-    P(0.17, 0.43, 0.08, 0.18, 0.30,  0.18,  shade(suit,-0.22)), // sleeves
-    P(0.76, 0.43, 0.08, 0.18, 0.30,  0.18,  shade(suit,-0.22)),
-    P(0.35, 0.41, 0.30, 0.21, 0.535, 0.16,  skin),           // head
-    P(0.34, 0.40, 0.32, 0.23, 0.675, 0.055, "#2e2118")       // hair
+    P(0.28, 0.46, 0.16, 0.13, 0,     0.06,  "#12151a"),      // shoes
+    P(0.56, 0.46, 0.16, 0.13, 0,     0.06,  "#12151a"),
+    P(0.30, 0.45, 0.17, 0.14, 0.05,  0.29,  suitDark),       // trouser legs
+    P(0.53, 0.45, 0.17, 0.14, 0.05,  0.29,  suitDark),
+    P(0.24, 0.42, 0.52, 0.16, 0.33,  0.26,  suit),           // jacket
+    P(0.21, 0.41, 0.58, 0.17, 0.53,  0.09,  shade(suit,0.07)),// shoulders, wider
+    P(0.16, 0.45, 0.08, 0.12, 0.34,  0.21,  shade(suit,-0.24)),// sleeves
+    P(0.76, 0.45, 0.08, 0.12, 0.34,  0.21,  shade(suit,-0.24)),
+    P(0.42, 0.44, 0.16, 0.14, 0.615, 0.04,  shade(skin,-0.30)),// neck
+    P(0.37, 0.43, 0.26, 0.15, 0.655, 0.145, skin),           // head
+    P(0.355, 0.42, 0.29, 0.17, 0.78, 0.075, "#2b1d14")       // hair
   ];
-  parts.push(P(dir > 0 ? 0.80 : 0.07, 0.44, 0.17, 0.15, 0.14, 0.15, "#17202c"));
+  parts.push(P(dir > 0 ? 0.82 : 0.05, 0.46, 0.15, 0.13, 0.17, 0.14, "#17202c"));
   return { parts:parts, decals:[
-    { x:0.395, y:0.39, w:0.21, z:0.28,  h:0.22,  bg:"#f4f7fa" },   // shirt front
-    { x:0.455, y:0.39, w:0.09, z:0.28,  h:0.19,  bg:C.brand },     // tie
-    { x:0.44,  y:0.39, w:0.12, z:0.465, h:0.035, bg:"#ffffff" },   // collar
-    { x:0.30,  y:0.39, w:0.09, z:0.30,  h:0.19,  bg:shade(suit,0.10) }, // lapel
-    { x:0.61,  y:0.39, w:0.09, z:0.30,  h:0.19,  bg:shade(suit,0.10) }
+    { x:0.405, y:0.42, w:0.19, z:0.33,  h:0.25,  bg:"#f4f7fa" },   // shirt
+    { x:0.455, y:0.42, w:0.09, z:0.33,  h:0.21,  bg:C.brand },     // tie
+    { x:0.44,  y:0.42, w:0.12, z:0.565, h:0.035, bg:"#ffffff" },   // collar
+    { x:0.30,  y:0.42, w:0.10, z:0.35,  h:0.22,  bg:shade(suit,0.10) },
+    { x:0.60,  y:0.42, w:0.10, z:0.35,  h:0.22,  bg:shade(suit,0.10) }
   ], shadow:false, W:1 };
 }
 
 /* TAM engaged: the suit comes off. Orange rather than red, T rather than S.
-   Two cape states - hanging when grounded, streaming straight back when
-   airborne - baked separately because the camera never rotates. */
+
+   Making the cape read took three things:
+   1. A RED-ORANGE cape against the bright orange suit. The first attempt used
+      a dark shade of the same orange and read as shadow, not fabric.
+   2. FLARE: narrow at the collar, widest at the hem, so the silhouette says
+      cape rather than slab.
+   3. The hem drops to NEGATIVE z. Depth projects upward here, so a cape at the
+      torso's depth with its hem at ground level floats ~16px above the boots.
+      Letting it hang below the ground plane puts the hem back at the feet. */
 function heroModel(dir, flying){
-  var skin = "#e9b98c", suit = C.brand, boot = shade(C.brand, -0.34);
-  var cape = shade(C.brand, -0.42), capeIn = shade(C.brand, -0.26);
+  var skin = "#e9b98c";
+  var suit = "#ff7a1f", trim = "#d14a09";
+  var cape = "#c22d08", capeIn = "#9d2206";
   var parts = [];
 
-  /* Cape geometry is dictated by the projection: depth renders as up-and-right,
-     so a cape hanging straight down behind the torso occupies the same screen
-     space as the legs and is entirely hidden by them. To read at all it has to
-     be WIDER than the body, so its edges show as panels either side. */
+  /* Only the parts of the cape WIDER than the body are ever visible - the
+     torso occludes the middle. So every section is wider than the body part it
+     sits behind (shoulders span 0.19-0.81, chest 0.23-0.77, legs 0.30-0.70),
+     which leaves a continuous red band down each side that widens toward the
+     hem. The previous collar was narrower than the shoulders and so was
+     invisible, leaving two disconnected panels that read as crates. */
   if (flying){
-    // streaming: long run of depth, which reads as sweeping up and back
-    parts.push(P(0.08, 0.58, 0.84, 0.15, 0.40, 0.11, cape));
-    parts.push(P(0.12, 0.74, 0.76, 0.15, 0.42, 0.10, capeIn));
-    parts.push(P(0.18, 0.90, 0.64, 0.15, 0.44, 0.09, cape));
-    parts.push(P(0.26, 1.06, 0.48, 0.13, 0.46, 0.08, capeIn));
-    parts.push(P(0.35, 1.21, 0.30, 0.11, 0.48, 0.07, cape));
+    /* Each row of depth pushes a part 72px UP the screen, so a cape trailed
+       backwards at constant height climbs over the head - which is exactly
+       what the first version did, reading as a mane. Dropping z by ~0.72 per
+       unit of y cancels that; dropping it slightly faster makes the cape
+       trail away and down, which is what a cape in flight does. */
+    parts.push(P(0.10, 0.59, 0.80, 0.12, 0.42, 0.16, cape));
+    parts.push(P(0.06, 0.70, 0.88, 0.12, 0.34, 0.15, capeIn));
+    parts.push(P(0.09, 0.81, 0.82, 0.12, 0.26, 0.14, cape));
+    parts.push(P(0.16, 0.92, 0.68, 0.11, 0.18, 0.12, capeIn));
+    parts.push(P(0.26, 1.02, 0.48, 0.10, 0.11, 0.10, cape));
+    parts.push(P(0.36, 1.11, 0.28, 0.09, 0.05, 0.08, capeIn));
   } else {
-    // hanging: one wide panel behind, overhanging the body on both sides
-    parts.push(P(0.03, 0.58, 0.94, 0.06, 0.11, 0.41, cape));
-    parts.push(P(0.09, 0.55, 0.82, 0.05, 0.40, 0.15, capeIn));   // shoulder yoke
-    parts.push(P(0.05, 0.60, 0.12, 0.05, 0.11, 0.33, capeIn));   // left edge fold
-    parts.push(P(0.83, 0.60, 0.12, 0.05, 0.11, 0.33, capeIn));   // right edge fold
+    // a real triangular flare: narrow at the collar, full width at the hem
+    parts.push(P(0.15, 0.59, 0.70, 0.05, 0.46, 0.17, cape));      // collar
+    parts.push(P(0.10, 0.60, 0.80, 0.05, 0.26, 0.21, capeIn));    // upper
+    parts.push(P(0.05, 0.61, 0.90, 0.05, 0.08, 0.19, cape));      // lower
+    parts.push(P(0.02, 0.62, 0.96, 0.05, -0.05, 0.14, capeIn));   // hem
   }
 
-  parts.push(P(0.28, 0.44, 0.16, 0.16, 0,     0.09,  boot));       // boots
-  parts.push(P(0.56, 0.44, 0.16, 0.16, 0,     0.09,  boot));
-  parts.push(P(0.31, 0.43, 0.38, 0.18, 0.09,  0.20,  shade(suit,-0.16)));
-  parts.push(P(0.24, 0.39, 0.52, 0.26, 0.28,  0.22,  suit));       // chest
-  parts.push(P(0.18, 0.43, 0.07, 0.18, 0.30,  0.18,  shade(suit,-0.26)));
-  parts.push(P(0.75, 0.43, 0.07, 0.18, 0.30,  0.18,  shade(suit,-0.26)));
-  parts.push(P(0.35, 0.41, 0.30, 0.21, 0.535, 0.16,  skin));
-  parts.push(P(0.34, 0.40, 0.32, 0.23, 0.675, 0.055, "#2e2118"));
-  // belt
-  parts.push(P(0.30, 0.42, 0.40, 0.20, 0.27, 0.035, shade(suit,-0.45)));
+  parts.push(P(0.28, 0.46, 0.17, 0.13, 0,     0.15,  trim));      // tall boots
+  parts.push(P(0.55, 0.46, 0.17, 0.13, 0,     0.15,  trim));
+  parts.push(P(0.30, 0.45, 0.17, 0.14, 0.14,  0.19,  suit));      // legs
+  parts.push(P(0.53, 0.45, 0.17, 0.14, 0.14,  0.19,  suit));
+  parts.push(P(0.29, 0.44, 0.42, 0.15, 0.31,  0.08,  trim));      // trunks
+  parts.push(P(0.23, 0.42, 0.54, 0.16, 0.38,  0.24,  suit));      // chest
+  parts.push(P(0.22, 0.41, 0.56, 0.17, 0.55,  0.09,  shade(suit,0.08))); // shoulders
+  parts.push(P(0.14, 0.45, 0.09, 0.12, 0.38,  0.20,  shade(suit,-0.22)));// arms
+  parts.push(P(0.77, 0.45, 0.09, 0.12, 0.38,  0.20,  shade(suit,-0.22)));
+  parts.push(P(0.42, 0.44, 0.16, 0.14, 0.635, 0.04,  shade(skin,-0.30))); // neck
+  parts.push(P(0.37, 0.43, 0.26, 0.15, 0.675, 0.145, skin));
+  parts.push(P(0.355, 0.42, 0.29, 0.17, 0.80, 0.075, "#2b1d14"));
 
   return { parts:parts, decals:[
-    // the shield, and the T
-    { x:0.37, y:0.39, w:0.26, z:0.31, h:0.17, bg:"#fff3d6" },
-    { x:0.395, y:0.39, w:0.21, z:0.325, h:0.14, bg:C.brand,
-      fg:"#fff3d6", text:"T", size:17 }
+    // shield: wide top, tapered bottom, with the T across it
+    { x:0.32, y:0.42, w:0.36, z:0.46,  h:0.14,  bg:"#ffe9a8" },
+    { x:0.37, y:0.42, w:0.26, z:0.405, h:0.06,  bg:"#ffe9a8" },
+    { x:0.345, y:0.42, w:0.31, z:0.475, h:0.105, bg:suit, fg:"#5a1f02",
+      text:"T", size:20 }
   ], shadow:false, W:1 };
 }
 
@@ -2189,7 +2219,10 @@ function drawPlayer(pp){
     ctx.ellipse(sx + TILE*0.5, sy - ROW_H*0.46 - pp.lift*0.3, 40, 17, 0, 0, Math.PI*2);
     ctx.stroke(); ctx.globalAlpha = 1;
   }
-  blitScaled(s, sx, sy - pp.lift - flyLift, 1 - pp.sq*0.10, 1 + pp.sq*0.14);
+  // the hero reads a touch larger than the seller
+  var hk = G.tam ? 1.09 : 1;
+  blitScaled(s, sx, sy - pp.lift - flyLift,
+             (1 - pp.sq*0.10) * hk, (1 + pp.sq*0.14) * hk);
 }
 
 function drawHaze(){ ctx.fillStyle = hazeGrad; ctx.fillRect(0, HORIZON - 16, LOGICAL_W, 246); }
@@ -2248,7 +2281,7 @@ function drawHud(){
   if (G.slowT > 0)   chips.push(["I", "INSIGHTS",       C.pw2, G.slowT / POWERS.insight.secs]);
   if (G.revealT > 0) chips.push(["P", "PATH VIS",       C.pw3,   G.revealT / POWERS.path.secs]);
   for (var i=0;i<chips.length;i++){
-    var cx = 28 + i*250, cy = 146;
+    var cx = 28 + i*250, cy = CHIP_Y;
     plate(cx, cy, 236, 60, C.ink, 12);
     plate(cx+10, cy+10, 40, 40, chips[i][2], 10);
     txt(chips[i][0], cx+30, cy+31, 24, "#1a0a02");
@@ -2267,7 +2300,7 @@ function drawHud(){
   /* Once engaged the TAM never lapses, so it gets a standing badge rather
      than a timed chip. The counter is the point: it keeps delivering. */
   if (G.tam){
-    var bw = 300, bx = LOGICAL_W - bw - 28, by = 146;
+    var bw = 300, bx = LOGICAL_W - bw - 28, by = CHIP_Y;
     plate(bx, by, bw, 60, C.ink, 12);
     plate(bx+10, by+10, 40, 40, C.pw5, 10);
     txt("T", bx+30, by+31, 24, "#2a1400");
@@ -2276,24 +2309,28 @@ function drawHud(){
         bx+60, by+44, 17, C.textDim, "left", 230);
   }
 
-  if (G.toast && G.toast.a > 0.01){
+  /* Both message bands sit ABOVE the horizon, over the skyline rather than
+     over the road. They used to sit at y=380, in the clear part of the
+     playfield, which hid the traffic you were about to cross. A flash
+     suppresses the milestone banner rather than stacking on top of it. */
+  if (G.toast && G.toast.a > 0.01 && !G.flash){
     ctx.globalAlpha = G.toast.a;
     var w = 820, x = (LOGICAL_W-w)/2;
-    plate(x, 226, w, 132, "rgba(255,106,19,0.16)");
-    ctx.fillStyle = C.brand; ctx.fillRect(x, 226, 8, 132);
-    txt(G.toast.name, LOGICAL_W/2, 262, 40, C.text, "center", w-60);
-    txt(G.toast.stage, LOGICAL_W/2, 300, 24, C.amber, "center", w-60);
-    txt(G.toast.line, LOGICAL_W/2, 334, 22, C.brandPale, "center", w-60);
+    plate(x, MSG_Y, w, 118, "rgba(255,106,19,0.16)");
+    ctx.fillStyle = C.brand; ctx.fillRect(x, MSG_Y, 8, 118);
+    txt(G.toast.name,  LOGICAL_W/2, MSG_Y+34, 38, C.text,      "center", w-60);
+    txt(G.toast.stage, LOGICAL_W/2, MSG_Y+68, 23, C.amber,     "center", w-60);
+    txt(G.toast.line,  LOGICAL_W/2, MSG_Y+98, 21, C.brandPale, "center", w-60);
     ctx.globalAlpha = 1;
   }
 
   if (G.flash){
     ctx.globalAlpha = Math.min(1, G.flash.life/0.4);
-    var fw = 860, fx = (LOGICAL_W-fw)/2;
-    plate(fx, 380, fw, 100, C.ink);
-    ctx.fillStyle = G.flash.col; ctx.fillRect(fx, 380, 8, 100);
-    txt(G.flash.name, LOGICAL_W/2, 412, 26, G.flash.col, "center", fw-60);
-    txt(G.flash.line, LOGICAL_W/2, 450, 22, C.text, "center", fw-60);
+    var fw = 880, fx = (LOGICAL_W-fw)/2;
+    plate(fx, MSG_Y, fw, 96, C.ink);
+    ctx.fillStyle = G.flash.col; ctx.fillRect(fx, MSG_Y, 8, 96);
+    txt(G.flash.name, LOGICAL_W/2, MSG_Y+32, 26, G.flash.col, "center", fw-60);
+    txt(G.flash.line, LOGICAL_W/2, MSG_Y+68, 21, C.text,      "center", fw-60);
     ctx.globalAlpha = 1;
   }
 }
