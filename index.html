@@ -1064,7 +1064,10 @@ var POWERS = {
 var POWER_KINDS = ["agent","insight","path","sponsor","metro","chuck","traffic"];
 /* Weighted draw rather than uniform: traces and metrocards carry three slots
    each, since those are the two to see most often. */
-var POWER_POOL = ["path","path","path","metro","metro","metro",
+/* Metrocards carry nine slots - three times what they had - so a ride is
+   available far more often than any other power-up. */
+var POWER_POOL = ["path","path","path",
+                  "metro","metro","metro","metro","metro","metro","metro","metro","metro",
                   "chuck","chuck","traffic","traffic","agent","insight","sponsor"];
 var CHUCK_BONUS = 250000;
 var TAM_DURATION = 60;
