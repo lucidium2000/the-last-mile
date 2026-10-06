@@ -1,0 +1,2163 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow, noarchive, nosnippet">
+<meta name="googlebot" content="noindex, nofollow">
+<meta name="referrer" content="no-referrer">
+<title>The Last Mile</title>
+<style>
+  html,body{
+    margin:0;padding:0;height:100%;width:100%;
+    background:#07080c;overflow:hidden;
+    touch-action:none;-ms-touch-action:none;
+    user-select:none;-webkit-user-select:none;
+    -webkit-tap-highlight-color:transparent;
+    font-family:"Helvetica Neue",Helvetica,Arial,sans-serif;
+  }
+  #wrap{position:fixed;inset:0;display:block;}
+  canvas{position:absolute;left:0;top:0;display:block;}
+</style>
+</head>
+<body>
+<div id="wrap"><canvas id="c"></canvas></div>
+<script>
+"use strict";
+/* ============================================================================
+   THE LAST MILE  —  Penn 1 to the meeting, uptown through Midtown.
+   A ThousandEyes / Cisco-sales game for Cisco RoomOS devices.
+
+   DESIGN NOTE ON OBSTACLES
+     Earlier versions labelled generic cars with objections ("NO BUDGET" on a
+     money truck). The label did all the work and taught the player nothing.
+     Here every hazard is a real Midtown hazard whose BEHAVIOUR already is the
+     sales obstacle: the M34 stops at every block the way a PO sits in
+     procurement; the sanitation truck is enormous and already full; the
+     carriage is ancient and somehow still allowed. Vehicles carry real
+     signage, and the sales parallel lands on the death screen, where a player
+     is actually reading.
+
+   GEOGRAPHY
+     You walk north. Each road row is a numbered cross street starting at 35th.
+     Midtown cross streets are one-way and alternate direction, so lane
+     direction is derived from the real street grid (even = eastbound).
+     34th / 42nd / 57th are two-way, generated as paired rows with opposite
+     directions - the wide dangerous ones land where a Penn 1 seller expects.
+
+   RENDERER
+     Cabinet projection with a small camera yaw; every cuboid shows three faces
+     (top / front / right) from one light direction plus an emissive rim.
+       screenX = x*TILE + y*SKEW
+       screenY = -(y*ROW_H) - (z*ZH)
+     Models are built from small cuboids and BAKED once into offscreen
+     canvases, so a frame is ~50 drawImage blits rather than ~2000 polygon
+     fills. Rim lights, multi-pass glow and contact shadows are all bake-time.
+
+   CONSTRAINTS (RoomOS WebEngine)
+     canvas 2D only - no WebGL, no filter/blur/shadowBlur at runtime, no
+     external assets, no network calls, touch-first, DPR capped, bake capped at
+     1:1 to keep sprite memory near 6MB, instant restart.
+
+   ?fps=1   perf overlay
+   ?safe=1  guest-safe mode: network hazards instead of sales objections
+   ?mute=1  deploy silent
+   Palette is a stand-in until official brand assets are approved.
+   ========================================================================= */
+
+/* ---------------------------------------------------------------- geometry */
+var LOGICAL_W = 1920, LOGICAL_H = 1080;
+var COLS = 16, TILE = LOGICAL_W / COLS;
+var ROW_H = 72, SKEW = 27, ZH = 100;
+/* The player sits low on screen so there is room for both a real skyline and
+   enough readable rows ahead. Raising BASE_Y buys lookahead for free, where
+   weakening the haze would have cost the horizon fade. */
+var BASE_Y = 858, HORIZON = 250;   // rows are culled above this; sky above it
+var SKY_BASE = 254;                // skyline baseline, just under the cull line
+var PAD = 4, SPAN = COLS + PAD * 2;
+var ROWS_AHEAD = 15, ROWS_BEHIND = 6;
+var HOP_MS = 135, DOLLARS_PER_ROW = 5000;
+
+var SHOW_FPS  = /[?&]fps=1/.test(location.search);
+var SAFE_MODE = /[?&]safe=1/.test(location.search);
+
+/* ================================================================= BRAND ===
+   Every ThousandEyes colour in the game resolves from this one block. The HUD,
+   street grid, power-ups, kiosks, shield ring, stage banners, title and death
+   screen all derive from it, so dropping the official hexes in here reskins
+   the whole game in one edit.
+
+   THESE ARE APPROXIMATIONS. They were picked to read correctly as a family on
+   a dark Board at ten feet; they are NOT taken from an official brand sheet,
+   because I have no way to verify the real values from here. Replace them.
+
+   p1..p4 are the four power-up colours. They walk a red-orange -> gold ramp so
+   the set reads as one branded family while staying tellable apart at a
+   glance, and all four are light enough to carry dark text in the HUD chips. */
+var BRAND = {
+  core:  "#ff6a13",   // primary ThousandEyes orange
+  deep:  "#c9480a",   // darker step: horizon, depth, environment glow
+  light: "#ffa552",
+  pale:  "#ffd9b8",   // warm near-white, for body copy on dark
+  amber: "#ffc23d",
+  p1:    "#ff5a1f",   // ENDPOINT AGENT
+  p2:    "#ff8c2b",   // INTERNET INSIGHTS
+  p3:    "#ffc23d",   // PATH VISUALIZATION
+  p4:    "#ffe08a",   // EXECUTIVE SPONSOR
+  cisco: "#00bceb"    // Cisco cyan, used once, for the attribution line
+};
+
+/* ------------------- palette: Midtown at dusk, ThousandEyes orange --------
+   The ground stays neutral-dark and only warms toward the horizon. Orange is
+   a warm hue, so it reads loudest against a cool/neutral field - warming the
+   asphalt too would have muted the thing the brand is carried by. */
+var C = {
+  sky0:"#0a0708", sky1:"#161014", sky2:"#2a1b16",
+  horizon:BRAND.deep,
+  walk:"#232022", walkB:"#2a2526",          // concrete under sodium light
+  curb:"#423630",
+  road:"#0c0c0e", roadB:"#111113",          // asphalt
+  lane:"#c9b24a",                            // NYC yellow lane line - stays
+  laneGlow:"rgba(201,178,74,0.16)",
+  gridGlow:"rgba(255,106,19,0.10)", gridCore:"rgba(255,106,19,0.36)",
+  amber:BRAND.amber, amberGlow:"rgba(255,140,43,0.14)",
+  brand:BRAND.core, brandDeep:BRAND.deep, brandLight:BRAND.light,
+  brandPale:BRAND.pale, cisco:BRAND.cisco,
+  pw1:BRAND.p1, pw2:BRAND.p2, pw3:BRAND.p3, pw4:BRAND.p4,
+  signGreen:"#1f6b4a",                       // real NYC street-sign green
+  good:"#8fe388", danger:"#ff4f7e",
+  text:"#fdf4ee", textDim:"rgba(253,244,238,0.58)",
+  ink:"rgba(10,6,4,0.76)"
+};
+
+/* ======================================================= procedural audio */
+/* Every sound is synthesised at runtime - no files, no fetches. Three hard
+   requirements for a shared RoomOS device:
+     1. The AudioContext is created inside a real user gesture (autoplay
+        policy); nothing is touched until the first tap.
+     2. If Web Audio is missing or throws, `failed` latches and every call
+        becomes a no-op. The game must behave identically with no audio at all.
+     3. Low master gain and no music bed - this lives in an office hallway
+        next to rooms that are in calls.
+   Mute persists; ?mute=1 forces silence for a whole deployment. */
+var AUDIO = (function(){
+  var ac = null, master = null, noiseBuf = null;
+  var avail = false, failed = false;
+  var muted = (function(){
+    if (/[?&](mute|silent)=1/.test(location.search)) return true;
+    try { return localStorage.getItem("lastmile.mute") === "1"; } catch (e){ return false; }
+  })();
+  var ladder = 0;
+  var PENT = [0, 2, 4, 7, 9];
+
+  function ensure(){
+    if (ac || failed) return;
+    try {
+      var AC = window.AudioContext || window.webkitAudioContext;
+      if (!AC){ failed = true; return; }
+      ac = new AC();
+      master = ac.createGain();
+      master.gain.value = 0.32;
+      master.connect(ac.destination);
+      var n = Math.floor(ac.sampleRate * 0.35);
+      noiseBuf = ac.createBuffer(1, n, ac.sampleRate);
+      var d = noiseBuf.getChannelData(0);
+      for (var i = 0; i < n; i++) d[i] = Math.random() * 2 - 1;
+      avail = true;
+    } catch (e){ failed = true; avail = false; ac = null; }
+  }
+  function live(){
+    if (!avail || muted || !ac) return false;
+    if (ac.state === "closed") return false;
+    if (ac.state === "suspended"){ try { ac.resume(); } catch (e){} }
+    return true;
+  }
+  function tone(o){
+    if (!live()) return;
+    try {
+      var t = ac.currentTime + (o.at || 0), dur = o.dur;
+      var osc = ac.createOscillator(), g = ac.createGain();
+      osc.type = o.type || "triangle";
+      osc.frequency.setValueAtTime(o.f, t);
+      if (o.to) osc.frequency.exponentialRampToValueAtTime(Math.max(20, o.to), t + dur);
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.exponentialRampToValueAtTime(o.g || 0.25, t + Math.min(0.02, dur * 0.3));
+      g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+      osc.connect(g);
+      if (o.lp){
+        var f = ac.createBiquadFilter();
+        f.type = "lowpass"; f.frequency.value = o.lp;
+        g.connect(f); f.connect(master);
+      } else g.connect(master);
+      osc.start(t); osc.stop(t + dur + 0.02);
+    } catch (e){}
+  }
+  function hit(o){
+    if (!live()) return;
+    try {
+      var t = ac.currentTime + (o.at || 0), dur = o.dur;
+      var src = ac.createBufferSource(); src.buffer = noiseBuf;
+      var g = ac.createGain(), f = ac.createBiquadFilter();
+      f.type = o.hp ? "highpass" : "lowpass";
+      f.frequency.setValueAtTime(o.f, t);
+      if (o.to) f.frequency.exponentialRampToValueAtTime(Math.max(60, o.to), t + dur);
+      g.gain.setValueAtTime(o.g || 0.22, t);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+      src.connect(f); f.connect(g); g.connect(master);
+      src.start(t); src.stop(t + dur + 0.02);
+    } catch (e){}
+  }
+  function arp(notes, type, gain, lp){
+    for (var i = 0; i < notes.length; i++){
+      tone({ f:notes[i], dur:0.17, type:type, g:gain, at:i * 0.068, lp:lp });
+    }
+  }
+  var POWER_ARP = {
+    agent:   [[523.25, 659.25, 783.99], "sine",     0.22, 0],
+    insight: [[392.00, 523.25, 622.25], "triangle", 0.22, 2600],
+    path:    [[440.00, 554.37, 659.25], "square",   0.13, 2200],
+    sponsor: [[349.23, 523.25, 698.46], "sawtooth", 0.17, 2000]
+  };
+
+  return {
+    unlock: function(){ ensure(); if (ac && ac.state === "suspended"){ try { ac.resume(); } catch (e){} } },
+    suspend: function(){ if (ac && ac.state === "running"){ try { ac.suspend(); } catch (e){} } },
+    available: function(){ return avail; },
+    isMuted: function(){ return muted; },
+    toggle: function(){
+      muted = !muted;
+      try { localStorage.setItem("lastmile.mute", muted ? "1" : "0"); } catch (e){}
+      if (!muted){ ensure(); this.ui(); }
+      return muted;
+    },
+    resetLadder: function(){ ladder = 0; },
+    hop: function(){
+      if (ladder < 12) ladder++;          // caps ~1.3kHz; higher gets shrill
+      var i = ladder % PENT.length, oct = Math.floor(ladder / PENT.length);
+      var f = 261.63 * Math.pow(2, (PENT[i] + oct * 12) / 12);
+      tone({ f:f, to:f * 1.06, dur:0.10, type:"triangle", g:0.20 });
+      hit({ f:2600, hp:true, dur:0.035, g:0.07 });
+    },
+    step: function(){ ladder = 0; tone({ f:196, to:208, dur:0.08, type:"triangle", g:0.14 }); },
+    bump: function(){
+      hit({ f:320, to:120, dur:0.12, g:0.26 });
+      tone({ f:92, to:62, dur:0.14, type:"sine", g:0.26 });
+    },
+    die: function(){
+      ladder = 0;
+      tone({ f:233, to:58,  dur:0.50, type:"sawtooth", g:0.26, lp:1200 });
+      tone({ f:116, to:44,  dur:0.56, type:"square",   g:0.10, lp:600 });
+      hit({ f:1800, to:160, dur:0.45, g:0.26 });
+    },
+    /* two-tone wail for the motorcade warning */
+    siren: function(){
+      for (var i = 0; i < 3; i++){
+        tone({ f:740,  to:980, dur:0.19, type:"square", g:0.11, at:i*0.42, lp:2400 });
+        tone({ f:980,  to:740, dur:0.19, type:"square", g:0.11, at:i*0.42+0.20, lp:2400 });
+      }
+    },
+    /* air-brake hiss when a bus pulls up */
+    hiss: function(){ hit({ f:5200, to:2200, hp:true, dur:0.26, g:0.07 }); },
+    missedTrain: function(){
+      tone({ f:392, to:196, dur:0.7, type:"sawtooth", g:0.22, lp:900 });
+      tone({ f:261, to:130, dur:0.8, type:"triangle", g:0.16, at:0.1 });
+    },
+    power: function(kind){ var a = POWER_ARP[kind] || POWER_ARP.agent; arp(a[0], a[1], a[2], a[3]); },
+    shield: function(){
+      tone({ f:880,  to:1320, dur:0.18, type:"sine", g:0.22 });
+      tone({ f:1324,          dur:0.22, type:"sine", g:0.12, at:0.02 });
+      hit({ f:4200, hp:true,  dur:0.12, g:0.08 });
+    },
+    stage: function(){ arp([523.25, 783.99, 1046.50], "triangle", 0.20, 0); },
+    coach: function(){ tone({ f:659.25, dur:0.10, type:"sine", g:0.11 }); },
+    ui:    function(){ tone({ f:740, to:880, dur:0.06, type:"square", g:0.12 }); }
+  };
+})();
+
+/* ------------------------------------------------------------------ canvas */
+var cv = document.getElementById("c");
+var ctx = cv.getContext("2d", { alpha:false });
+var scale = 1, BAKE = 1, ready = false;
+var skyGrad = null, hazeGrad = null;
+
+function layout(){
+  var vw = window.innerWidth || LOGICAL_W, vh = window.innerHeight || LOGICAL_H;
+  var s = Math.min(vw / LOGICAL_W, vh / LOGICAL_H);
+  var cssW = Math.max(1, Math.floor(LOGICAL_W * s));
+  var cssH = Math.max(1, Math.floor(LOGICAL_H * s));
+  var dpr = Math.min(window.devicePixelRatio || 1, 1.5);
+
+  cv.style.width = cssW + "px"; cv.style.height = cssH + "px";
+  cv.style.left = Math.floor((vw - cssW) / 2) + "px";
+  cv.style.top  = Math.floor((vh - cssH) / 2) + "px";
+  cv.width = Math.floor(cssW * dpr); cv.height = Math.floor(cssH * dpr);
+
+  scale = (cssW * dpr) / LOGICAL_W;
+  ctx.setTransform(scale, 0, 0, scale, 0, 0);
+  ctx.textBaseline = "middle";
+
+  skyGrad = ctx.createLinearGradient(0, 0, 0, LOGICAL_H);
+  skyGrad.addColorStop(0, C.sky0);
+  skyGrad.addColorStop(0.40, C.sky1);
+  skyGrad.addColorStop(1, C.sky2);
+
+  /* Street-level haze, and it earns its keep three ways: it hides the hard
+     line where ground rows are culled, it veils the flat top of a tall vehicle
+     clipped at the horizon, and it gives distance. Strong early then decaying
+     fast, so as many near rows as possible stay fully readable. */
+  hazeGrad = ctx.createLinearGradient(0, HORIZON - 16, 0, HORIZON + 230);
+  hazeGrad.addColorStop(0,    "rgba(32,21,19,0.96)");
+  hazeGrad.addColorStop(0.22, "rgba(32,21,19,0.80)");
+  hazeGrad.addColorStop(0.55, "rgba(32,21,19,0.34)");
+  hazeGrad.addColorStop(1,    "rgba(32,21,19,0)");
+
+  // capped at 1:1 so sprite memory stays near 6MB on a 4K Board. HUD text
+  // still renders at full device resolution; only sprites are upscaled.
+  var nb = Math.max(0.5, Math.min(1, scale));
+  if (!ready || Math.abs(nb - BAKE) > 0.02){ BAKE = nb; if (ready) bakeAll(); }
+}
+window.addEventListener("resize", layout);
+window.addEventListener("orientationchange", layout);
+
+/* ------------------------------------------------------- voxel draw kernel */
+function proj(x, y, z){ return [ x * TILE + y * SKEW, -(y * ROW_H) - z * ZH ]; }
+
+function shade(hex, amt){
+  var r = parseInt(hex.slice(1,3),16), g = parseInt(hex.slice(3,5),16), b = parseInt(hex.slice(5,7),16);
+  if (amt > 0){ r += (255-r)*amt; g += (255-g)*amt; b += (255-b)*amt; }
+  else        { r *= (1+amt);     g *= (1+amt);     b *= (1+amt); }
+  function h2(v){ v = Math.max(0, Math.min(255, v|0)).toString(16); return v.length<2 ? "0"+v : v; }
+  return "#" + h2(r) + h2(g) + h2(b);
+}
+function quad(g, a, b, c, d, col){
+  g.beginPath();
+  g.moveTo(a[0],a[1]); g.lineTo(b[0],b[1]); g.lineTo(c[0],c[1]); g.lineTo(d[0],d[1]);
+  g.closePath(); g.fillStyle = col; g.fill();
+}
+function glowLine(g, a, b, col, core){
+  g.lineCap = "round";
+  g.globalAlpha = 0.18; g.lineWidth = 9; g.strokeStyle = col;
+  g.beginPath(); g.moveTo(a[0],a[1]); g.lineTo(b[0],b[1]); g.stroke();
+  g.globalAlpha = 0.34; g.lineWidth = 5;
+  g.beginPath(); g.moveTo(a[0],a[1]); g.lineTo(b[0],b[1]); g.stroke();
+  g.globalAlpha = 1;    g.lineWidth = 2; g.strokeStyle = core || col;
+  g.beginPath(); g.moveTo(a[0],a[1]); g.lineTo(b[0],b[1]); g.stroke();
+}
+function glowRect(g, x, y, w, h, col, core){
+  g.globalAlpha = 0.14; g.fillStyle = col; g.fillRect(x-4, y-4, w+8, h+8);
+  g.globalAlpha = 0.30;                    g.fillRect(x-2, y-2, w+4, h+4);
+  g.globalAlpha = 1;    g.fillStyle = core || col; g.fillRect(x, y, w, h);
+}
+/* three visible faces; the left face is provably hidden at this yaw */
+function cuboid(g, p){
+  var x0=p.x, x1=p.x+p.w, y0=p.y, y1=p.y+p.d, z0=p.z, z1=p.z+p.h;
+  quad(g, proj(x1,y0,z0), proj(x1,y1,z0), proj(x1,y1,z1), proj(x1,y0,z1), shade(p.c,-0.40));
+  quad(g, proj(x0,y0,z1), proj(x1,y0,z1), proj(x1,y1,z1), proj(x0,y1,z1), shade(p.c, 0.18));
+  quad(g, proj(x0,y0,z0), proj(x1,y0,z0), proj(x1,y0,z1), proj(x0,y0,z1), p.c);
+  if (p.emit){
+    glowLine(g, proj(x0,y0,z1), proj(x1,y0,z1), p.c, shade(p.c, 0.70));
+  } else if (p.rim !== false && p.w > 0.12){
+    var a = proj(x0,y0,z1), b = proj(x1,y0,z1);
+    g.globalAlpha = 0.55; g.lineWidth = 2; g.strokeStyle = shade(p.c, 0.58);
+    g.beginPath(); g.moveTo(a[0],a[1]); g.lineTo(b[0],b[1]); g.stroke();
+    g.globalAlpha = 1;
+  }
+}
+function decal(g, d){
+  var a = proj(d.x, d.y, d.z + d.h), b = proj(d.x + d.w, d.y, d.z);
+  if (d.glow) glowRect(g, a[0], a[1], b[0]-a[0], b[1]-a[1], d.bg, d.core || d.bg);
+  else { g.fillStyle = d.bg; g.fillRect(a[0], a[1], b[0]-a[0], b[1]-a[1]); }
+  if (d.text){
+    g.fillStyle = d.fg;
+    g.font = "bold " + (d.size||20) + 'px "Helvetica Neue",Helvetica,Arial,sans-serif';
+    g.textAlign = "center";
+    g.fillText(d.text, (a[0]+b[0])/2, (a[1]+b[1])/2 + 1, (b[0]-a[0]) * 0.9);
+  }
+}
+function bake(model){
+  var pad = 14, minX=1e9, maxX=-1e9, minY=1e9, maxY=-1e9, i, a, b, c, p, q;
+  function acc(pt){
+    if (pt[0]<minX) minX=pt[0]; if (pt[0]>maxX) maxX=pt[0];
+    if (pt[1]<minY) minY=pt[1]; if (pt[1]>maxY) maxY=pt[1];
+  }
+  var sh = null;
+  if (model.shadow !== false){
+    var x0=1e9, x1=-1e9, y0=1e9, y1=-1e9;
+    for (i=0;i<model.parts.length;i++){
+      p = model.parts[i];
+      if (p.z > 0.25) continue;
+      if (p.x < x0) x0 = p.x; if (p.x+p.w > x1) x1 = p.x+p.w;
+      if (p.y < y0) y0 = p.y; if (p.y+p.d > y1) y1 = p.y+p.d;
+    }
+    if (x1 > x0){
+      var ctr = proj((x0+x1)/2, (y0+y1)/2, 0);
+      sh = { cx:ctr[0], cy:ctr[1], rx:(x1-x0)*TILE*0.54, ry:Math.max(6,(y1-y0)*ROW_H*0.46) };
+      acc([sh.cx-sh.rx, sh.cy-sh.ry]); acc([sh.cx+sh.rx, sh.cy+sh.ry]);
+    }
+  }
+  for (i=0;i<model.parts.length;i++){
+    p = model.parts[i];
+    var xs=[p.x,p.x+p.w], ys=[p.y,p.y+p.d], zs=[p.z,p.z+p.h];
+    for (a=0;a<2;a++) for (b=0;b<2;b++) for (c=0;c<2;c++) acc(proj(xs[a],ys[b],zs[c]));
+  }
+  if (model.decals) for (i=0;i<model.decals.length;i++){
+    q = model.decals[i];
+    acc(proj(q.x, q.y, q.z)); acc(proj(q.x+q.w, q.y, q.z+q.h));
+  }
+  var lw = (maxX-minX)+pad*2, lh = (maxY-minY)+pad*2;
+  var off = document.createElement("canvas");
+  off.width  = Math.max(1, Math.ceil(lw*BAKE));
+  off.height = Math.max(1, Math.ceil(lh*BAKE));
+  var g = off.getContext("2d");
+  g.setTransform(BAKE, 0, 0, BAKE, (-minX+pad)*BAKE, (-minY+pad)*BAKE);
+  g.textBaseline = "middle"; g.lineJoin = "round";
+  if (sh){
+    g.globalAlpha = 0.34; g.fillStyle = "#000";
+    g.beginPath(); g.ellipse(sh.cx, sh.cy, sh.rx, sh.ry, 0, 0, Math.PI*2); g.fill();
+    g.globalAlpha = 1;
+  }
+  var parts = model.parts.slice().sort(function(u,v){
+    return (v.y+v.d) - (u.y+u.d) || u.z - v.z;
+  });
+  for (i=0;i<parts.length;i++) cuboid(g, parts[i]);
+  if (model.decals) for (i=0;i<model.decals.length;i++) decal(g, model.decals[i]);
+  return { img:off, ox:(-minX+pad), oy:(-minY+pad), w:lw, h:lh };
+}
+function blit(s, sx, sy){ ctx.drawImage(s.img, sx - s.ox, sy - s.oy, s.w, s.h); }
+function blitScaled(s, sx, sy, kx, ky){
+  ctx.drawImage(s.img, sx - s.ox*kx, sy - s.oy*ky, s.w*kx, s.h*ky);
+}
+function P(x,y,w,d,z,h,c){ return { x:x, y:y, w:w, d:d, z:z, h:h, c:c }; }
+function E(x,y,w,d,z,h,c){ return { x:x, y:y, w:w, d:d, z:z, h:h, c:c, emit:true }; }
+function flip(model, W){
+  function fx(o){ var r={}; for (var k in o) r[k]=o[k]; r.x = W - o.x - o.w; return r; }
+  return { parts:model.parts.map(fx), decals:(model.decals||[]).map(fx), shadow:model.shadow };
+}
+
+/* ========================================================= Midtown hazards */
+/* Each entry's WIDTH, SPEED and MECHANIC are the sales obstacle. The signage
+   is what the real vehicle actually says. The objection and rebuttal appear
+   on the death screen. */
+var HAZ = {
+  cab: {
+    w:1.45, spd:1.34, name:"YELLOW CAB",
+    lines:[
+      ['"Your competitor came in thirty percent lower."',
+       '"Lower on price, or lower on scope? Let us compare what they are not measuring."'],
+      ['"We got a cheaper quote."',
+       '"Cheap is easy until the first outage you cannot explain."'],
+      ['"Someone else promised it faster."',
+       '"Fast to sign, slow to show anything. Ask what they can prove in week one."']
+    ],
+    safeLines:[['A route changed mid-session.','Path visualisation shows the hop that moved.']]
+  },
+  bus: {
+    w:2.60, spd:0.72, stops:true, name:"M34 SELECT BUS",
+    lines:[
+      ['"It is sitting in procurement."',
+       '"Who actually signs it? Let us go help them."'],
+      ['"Legal has it in the queue."',
+       '"Here is the pack legal and security both need. In parallel, not in series."'],
+      ['"We are waiting on one more approval."',
+       '"Name them. I will build the one-pager they need."']
+    ],
+    safeLines:[['Queueing on a congested link.','Per-hop latency shows where the queue forms.']]
+  },
+  dsny: {
+    w:2.40, spd:0.48, stops:true, name:"DSNY",
+    lines:[
+      ['"There is no budget this year."',
+       '"What does one hour of downtime cost you?"'],
+      ['"We spent it all on the refresh."',
+       '"This protects the refresh you already paid for."'],
+      ['"Ask me again next fiscal."',
+       '"Next fiscal is three outages away."']
+    ],
+    safeLines:[['Packets dropped upstream.','Hop-by-hop loss names the responsible network.']]
+  },
+  ebike: {
+    w:0.80, spd:1.72, name:"DELIVERY",
+    lines:[
+      ['"We need this live by Friday."',
+       '"Then let us scope what actually ships Friday, and what follows it."'],
+      ['"Leadership just moved the deadline up."',
+       '"Good. Deadlines unstick procurement."'],
+      ['"Can you make it work by the board meeting?"',
+       '"Yes, if we agree today what the board needs to see."']
+    ],
+    safeLines:[['Jitter spiked on the voice path.','Per-hop timing finds the wobbling link.']]
+  },
+  citi: {
+    w:0.85, spd:1.14, pack:3, name:"CITI BIKE",
+    lines:[
+      ['"I need to run it past the team."',
+       '"Who is on the team? Let us get them in one room, once."'],
+      ['"Four of us have to agree."',
+       '"Then four of us should be on the next call."'],
+      ['"Let me socialise it internally."',
+       '"I will send you a version that survives being forwarded."']
+    ],
+    safeLines:[['Load balanced across four paths.','Test each path, not just the average.']]
+  },
+  suv: {
+    w:1.60, spd:1.46, name:"",
+    lines:[
+      ['"The CIO will decide."',
+       '"Great. What does the CIO need to see from me?"'],
+      ['"That is above my level."',
+       '"Then let us build the case together and you walk it up."'],
+      ['"Leadership is not engaged on this."',
+       '"Outages engage leadership. Let us get ahead of that."']
+    ],
+    safeLines:[['Traffic is going through an opaque hop.','Agents inside the path make it visible.']]
+  },
+  carriage: {
+    w:2.10, spd:0.30, name:"",
+    lines:[
+      ['"We are happy with the incumbent."',
+       '"Ask them to show you the path outside their own network."'],
+      ['"We just renewed with them."',
+       '"Then you already own the gap. Let us measure it."'],
+      ['"They have been with us for years."',
+       '"And the internet changed last Tuesday."']
+    ],
+    safeLines:[['Legacy probe, five minute resolution.','A five minute average hides a five minute outage.']]
+  },
+  crowd: {
+    w:2.90, spd:0.36, name:"",
+    lines:[
+      ['"Honestly, nobody really owns this."',
+       '"Whoever gets paged at two in the morning owns it. Let us start there."'],
+      ['"Everyone has an opinion on it."',
+       '"Data ends opinions. Let us run one test."'],
+      ['"It keeps getting pushed to the next meeting."',
+       '"Give me ten minutes at the start of the next one."']
+    ],
+    safeLines:[['Thousands of users, one symptom.','Aggregate by location to find the pattern.']]
+  },
+  boxtruck: {
+    w:2.00, spd:0, parked:true, name:"LOADING",
+    lines:[
+      ['"It has been in the pipeline all year."',
+       '"Then let us either close it or kill it this month."'],
+      ['"We keep meaning to get to it."',
+       '"What has changed since you first said yes to the idea?"'],
+      ['"Circle back next quarter."',
+       '"I will. With this quarter’s outage report."']
+    ],
+    safeLines:[['A stale route is still being advertised.','Route monitoring flags it the moment it goes stale.']]
+  },
+  motorcade: {
+    w:1.70, spd:6.4, sweeper:true, name:"NYPD",
+    lines:[
+      ['"There is a re-org. Everything is frozen."',
+       '"Re-orgs end. Let us have the business case ready when it does."'],
+      ['"My sponsor just left the company."',
+       '"Who inherited their problems? That is our new sponsor."'],
+      ['"Company-wide spending freeze."',
+       '"Freezes thaw for the things that stop revenue loss."']
+    ],
+    safeLines:[['Emergency maintenance window.','Correlate the dip with the scheduled change.']]
+  }
+};
+var FLEETS = ["cab","bus","dsny","ebike","citi","suv","carriage","crowd"];
+var ALL_HAZ = FLEETS.concat(["boxtruck","motorcade"]);
+
+/* `name` above is the signage painted on the vehicle - a real SUV, carriage or
+   crowd carries none, so it is blank. These are the death-screen labels. */
+var LABELS = {
+  cab:"A YELLOW CAB", bus:"THE M34", dsny:"A SANITATION TRUCK",
+  ebike:"A DELIVERY E-BIKE", citi:"A CITI BIKE PACK", suv:"A BLACK SUV",
+  carriage:"A HORSE CARRIAGE", crowd:"A TOURIST CROWD",
+  boxtruck:"A DOUBLE-PARKED TRUCK", motorcade:"A MOTORCADE"
+};
+function lineOf(k){
+  var set = SAFE_MODE ? HAZ[k].safeLines : HAZ[k].lines;
+  return set[(Math.random() * set.length) | 0];
+}
+function hazName(k){ return LABELS[k] || k.toUpperCase(); }
+
+/* ------------------------------------------------------------- street grid */
+var START_ST = 34;
+/* Real Midtown one-way rule: even cross streets run eastbound, odd westbound.
+   34 / 42 / 57 are two-way and generate as paired rows. */
+function streetDir(no){ return (no % 2 === 0) ? 1 : -1; }
+function isTwoWay(no){ return no === 34 || no === 42 || no === 57; }
+
+var MILESTONES = {
+  38:["GARMENT DISTRICT",   "QUALIFIED",      "ThousandEyes watches the paths you do not own."],
+  42:["BRYANT PARK",        "DEMO BOOKED",    "Hop by hop, end to end."],
+  47:["DIAMOND DISTRICT",   "TECHNICAL WIN",  "Internet Insights: outages before the tickets."],
+  50:["ROCK CENTER",        "POV RUNNING",    "Endpoint agents see it from the user’s chair."],
+  54:["MoMA",               "BUSINESS CASE",  "Proof beats opinion."],
+  57:["BILLIONAIRES’ ROW","PROCUREMENT", "Find the signature. Walk it in yourself."],
+  59:["CENTRAL PARK SOUTH", "CLOSED WON",     "You made the meeting. Now do it again."],
+  65:["LENOX HILL",         "RENEWAL",        "The quarter never ends."],
+  72:["UPPER EAST SIDE",    "EXPANSION",      "One site proved it. Now do ninety."],
+  79:["THE MET",            "REFERENCE",      "Your customer is now your best slide."],
+  86:["CARL SCHURZ",        "LEGEND",         "Nobody walks this far."]
+};
+
+/* Commute flavour: a real departure off the board at Penn. */
+var TRAINS = [
+  ["LIRR","HUNTINGTON"], ["LIRR","RONKONKOMA"], ["LIRR","BABYLON"],
+  ["LIRR","PORT WASHINGTON"], ["LIRR","HICKSVILLE"], ["LIRR","FAR ROCKAWAY"],
+  ["NJ TRANSIT","TRENTON"], ["NJ TRANSIT","DOVER"], ["NJ TRANSIT","LONG BRANCH"],
+  ["NJ TRANSIT","HAMILTON"], ["NJ TRANSIT","RARITAN"]
+];
+
+/* ----------------------------------------------------------- hazard models */
+var TYRE = "#0a0d11";
+function wheels(parts, xs, w, h){
+  for (var i=0;i<xs.length;i++){
+    parts.push(P(xs[i], 0.08, w, 0.16, 0, h, TYRE));
+    parts.push(P(xs[i], 0.78, w, 0.16, 0, h, TYRE));
+  }
+}
+
+/* Yellow cab - fast, narrow, cuts you off. Medallion number, roof light. */
+function cabModel(){
+  var body = "#f2c021";
+  var parts = [
+    P(0.05, 0.17, 1.35, 0.66, 0.09, 0.21, body),
+    P(0.32, 0.20, 0.68, 0.60, 0.30, 0.19, shade(body,0.07)),
+    P(0.94, 0.20, 0.14, 0.60, 0.30, 0.17, "#1b171c"),       // windscreen
+    P(0.34, 0.16, 0.58, 0.03, 0.33, 0.13, "#1e1a20"),       // side glass
+    P(0.55, 0.26, 0.24, 0.30, 0.49, 0.06, "#f7f3e6"),       // roof light
+    E(1.38, 0.21, 0.05, 0.11, 0.17, 0.08, "#ffe9a6"),
+    E(0.03, 0.23, 0.04, 0.10, 0.17, 0.07, "#ff6a6a")
+  ];
+  wheels(parts, [0.17, 1.00], 0.21, 0.13);
+  var dec = [
+    { x:0.52, y:0.26, w:0.30, z:0.50, h:0.045, bg:"#f7f3e6", fg:"#1a1a1a", text:"TAXI", size:11 },
+    { x:0.18, y:0.17, w:0.34, z:0.13, h:0.12, bg:"#f7f3e6", fg:"#161616", text:"7K42", size:14 }
+  ];
+  // checker band, the real cab livery
+  for (var i=0;i<9;i++){
+    dec.push({ x:0.14+i*0.13, y:0.17, w:0.065, z:0.265, h:0.03, bg:(i%2)?"#1b1b1b":"#f7f3e6" });
+  }
+  return { parts:parts, decals:dec, W:1.45 };
+}
+
+/* M34 Select Bus - enormous, and it STOPS at every block. Procurement. */
+function busModel(){
+  var shell = "#e9eef2", mta = "#0a39a0";
+  var parts = [
+    P(0.05, 0.14, 2.50, 0.72, 0.11, 0.17, mta),             // skirt
+    P(0.05, 0.14, 2.50, 0.72, 0.28, 0.40, shell),           // body
+    P(0.08, 0.13, 2.44, 0.03, 0.44, 0.19, "#1e1a20"),       // window band
+    P(2.40, 0.16, 0.15, 0.68, 0.44, 0.17, "#1e1a20"),       // windscreen
+    P(0.20, 0.26, 2.10, 0.46, 0.68, 0.05, shade(shell,0.10)),
+    E(2.52, 0.18, 0.05, 0.12, 0.20, 0.09, "#ffe9a6"),
+    E(2.52, 0.70, 0.05, 0.12, 0.20, 0.09, "#ffe9a6"),
+    E(0.02, 0.20, 0.05, 0.10, 0.22, 0.09, "#ff6a6a")
+  ];
+  wheels(parts, [0.26, 1.90], 0.26, 0.15);
+  return { parts:parts, decals:[
+    { x:0.30, y:0.14, w:1.30, z:0.31, h:0.12, bg:"#0a39a0", fg:"#ffffff",
+      text:"M34 SELECT BUS SERVICE", size:13 },
+    { x:1.90, y:0.13, w:0.48, z:0.455, h:0.15, bg:"#0c1118", fg:"#ffb02e",
+      text:"34 ST", size:17 },
+    { x:0.05, y:0.14, w:2.50, z:0.275, h:0.025, bg:"#ffb02e" }
+  ], W:2.60 };
+}
+
+/* DSNY - huge, slow, stops, and already completely full. No budget. */
+function dsnyModel(){
+  var shell = "#eef2f4", trim = "#1f7a46";
+  var parts = [
+    P(0.05, 0.15, 2.30, 0.70, 0.12, 0.15, "#1a2029"),
+    P(0.46, 0.15, 1.88, 0.70, 0.27, 0.46, shell),           // hopper
+    P(0.05, 0.17, 0.44, 0.66, 0.27, 0.40, shell),           // cab
+    P(0.05, 0.19, 0.16, 0.62, 0.47, 0.16, "#1e1a20"),
+    P(0.52, 0.22, 1.74, 0.56, 0.73, 0.08, shade(shell,-0.22)),
+    E(0.60, 0.24, 0.22, 0.10, 0.81, 0.06, "#ffb02e"),
+    E(1.90, 0.24, 0.22, 0.10, 0.81, 0.06, "#ffb02e"),
+    E(2.32, 0.20, 0.06, 0.10, 0.30, 0.09, "#ff6a6a")
+  ];
+  wheels(parts, [0.22, 1.18, 1.86], 0.26, 0.16);
+  return { parts:parts, decals:[
+    { x:0.05, y:0.15, w:2.30, z:0.235, h:0.035, bg:trim },
+    { x:0.60, y:0.15, w:1.10, z:0.42, h:0.20, bg:"#f6f9fa", fg:trim,
+      text:"NYC SANITATION", size:18 },
+    { x:1.80, y:0.15, w:0.44, z:0.42, h:0.20, bg:trim, fg:"#f6f9fa", text:"DSNY", size:16 }
+  ], W:2.40 };
+}
+
+/* Delivery e-bike - fastest thing on the board, and it comes the WRONG WAY. */
+function ebikeModel(){
+  var box = "#2fa84f";
+  var parts = [
+    P(0.10, 0.34, 0.62, 0.32, 0.11, 0.08, "#1d2228"),       // frame
+    P(0.46, 0.33, 0.26, 0.34, 0.19, 0.30, box),             // insulated cube bag
+    P(0.16, 0.34, 0.20, 0.32, 0.19, 0.16, "#2b3340"),       // rider legs
+    P(0.14, 0.33, 0.24, 0.34, 0.35, 0.20, "#d94f3d"),       // rider torso
+    P(0.18, 0.35, 0.17, 0.30, 0.55, 0.12, "#e9b98c"),       // head
+    P(0.17, 0.34, 0.19, 0.32, 0.67, 0.05, "#15202c"),       // helmet
+    E(0.74, 0.36, 0.06, 0.09, 0.22, 0.07, "#fff0b0")
+  ];
+  wheels(parts, [0.08, 0.60], 0.17, 0.12);
+  return { parts:parts, decals:[
+    { x:0.46, y:0.33, w:0.26, z:0.26, h:0.14, bg:"#f3f7f2", fg:"#1f7a46", text:"▲", size:13 }
+  ], W:0.80 };
+}
+
+/* Citi Bike - arrives as a PACK, one rider after another. The committee. */
+function citiModel(){
+  var blue = "#1a63a8";
+  var parts = [
+    P(0.10, 0.34, 0.66, 0.32, 0.12, 0.07, blue),
+    P(0.46, 0.35, 0.22, 0.30, 0.19, 0.12, shade(blue,0.12)), // front basket
+    P(0.20, 0.34, 0.20, 0.32, 0.19, 0.17, "#31405a"),
+    P(0.18, 0.33, 0.24, 0.34, 0.36, 0.19, "#d8dfe6"),
+    P(0.21, 0.35, 0.17, 0.30, 0.55, 0.12, "#c98d63"),
+    P(0.20, 0.34, 0.19, 0.32, 0.67, 0.05, "#1b2834")
+  ];
+  wheels(parts, [0.08, 0.62], 0.16, 0.12);
+  return { parts:parts, decals:[
+    { x:0.12, y:0.34, w:0.30, z:0.135, h:0.045, bg:"#f0f4f8", fg:blue, text:"CITI", size:10 }
+  ], W:0.85 };
+}
+
+/* Black SUV, tinted - fast, and you cannot see who is inside. */
+function suvModel(){
+  var body = "#14181d";
+  var parts = [
+    P(0.05, 0.16, 1.50, 0.68, 0.10, 0.26, body),
+    P(0.22, 0.19, 1.08, 0.62, 0.36, 0.26, shade(body,0.10)),
+    P(1.26, 0.19, 0.16, 0.62, 0.38, 0.22, "#141013"),       // windscreen
+    P(0.26, 0.15, 0.96, 0.03, 0.42, 0.18, "#0b131b"),       // tinted glass
+    P(1.46, 0.18, 0.09, 0.64, 0.20, 0.14, "#5a6268"),       // chrome grille
+    E(1.53, 0.20, 0.05, 0.12, 0.24, 0.09, "#eaf4ff"),
+    E(1.53, 0.66, 0.05, 0.12, 0.24, 0.09, "#eaf4ff"),
+    E(0.02, 0.22, 0.04, 0.10, 0.24, 0.08, "#ff6a6a")
+  ];
+  wheels(parts, [0.16, 1.10], 0.23, 0.15);
+  return { parts:parts, decals:[
+    { x:0.18, y:0.16, w:0.22, z:0.13, h:0.07, bg:"#2a3038", fg:"#8d99a6", text:"T&LC", size:9 }
+  ], W:1.60 };
+}
+
+/* Horse carriage - ancient, plodding, somehow still permitted. The incumbent. */
+function carriageModel(){
+  var horse = "#6b4a33", cab = "#7d2230";
+  var parts = [
+    // horse
+    P(1.30, 0.32, 0.56, 0.30, 0.26, 0.24, horse),
+    P(1.80, 0.34, 0.20, 0.26, 0.40, 0.20, horse),           // neck
+    P(1.86, 0.34, 0.24, 0.26, 0.54, 0.14, shade(horse,0.10)),// head
+    P(1.34, 0.33, 0.07, 0.07, 0, 0.27, shade(horse,-0.25)),
+    P(1.34, 0.56, 0.07, 0.07, 0, 0.27, shade(horse,-0.25)),
+    P(1.76, 0.33, 0.07, 0.07, 0, 0.27, shade(horse,-0.25)),
+    P(1.76, 0.56, 0.07, 0.07, 0, 0.27, shade(horse,-0.25)),
+    P(1.24, 0.38, 0.09, 0.18, 0.34, 0.14, shade(horse,-0.35)),// tail
+    // carriage
+    P(0.12, 0.24, 0.96, 0.50, 0.22, 0.22, cab),
+    P(0.18, 0.26, 0.84, 0.46, 0.44, 0.06, shade(cab,-0.30)), // bench
+    P(0.20, 0.28, 0.14, 0.42, 0.50, 0.26, "#2a2f36"),        // driver
+    P(0.21, 0.30, 0.12, 0.38, 0.76, 0.10, "#e9b98c"),
+    P(0.14, 0.26, 0.90, 0.08, 0.62, 0.05, "#20262e"),        // canopy
+    P(0.16, 0.26, 0.05, 0.05, 0.50, 0.14, "#20262e"),
+    P(0.98, 0.26, 0.05, 0.05, 0.50, 0.14, "#20262e"),
+    E(1.06, 0.26, 0.05, 0.08, 0.40, 0.06, "#ffd98a")
+  ];
+  parts.push(P(0.18, 0.20, 0.10, 0.10, 0, 0.30, "#2b2118"));
+  parts.push(P(0.18, 0.70, 0.10, 0.10, 0, 0.30, "#2b2118"));
+  parts.push(P(0.86, 0.22, 0.12, 0.12, 0, 0.38, "#2b2118"));
+  parts.push(P(0.86, 0.68, 0.12, 0.12, 0, 0.38, "#2b2118"));
+  return { parts:parts, decals:[], W:2.10 };
+}
+
+/* Tourist crowd - a slow wide blob that spreads. Nobody owns it. */
+function crowdModel(){
+  var shirts = ["#d94f3d","#2fa84f","#2f6fa8","#e0b347","#8b5cf6","#d8dfe6","#e0666f"];
+  var skins  = ["#e9b98c","#c98d63","#8d6243","#f0cba4"];
+  var parts = [];
+  var spots = [[0.10,0.30],[0.48,0.52],[0.86,0.26],[1.22,0.56],[1.58,0.32],
+               [1.94,0.54],[2.30,0.28],[2.56,0.50]];
+  for (var i=0;i<spots.length;i++){
+    var x = spots[i][0], y = spots[i][1];
+    var sh = shirts[i % shirts.length], sk = skins[i % skins.length];
+    parts.push(P(x+0.04, y, 0.18, 0.16, 0,    0.16, "#242a33"));  // legs
+    parts.push(P(x,      y-0.02, 0.26, 0.20, 0.16, 0.22, sh));    // torso
+    parts.push(P(x+0.05, y, 0.16, 0.16, 0.38, 0.13, sk));         // head
+    parts.push(P(x+0.04, y-0.01, 0.18, 0.18, 0.51, 0.04, (i%3)?"#2b2118":"#4a3528"));
+    if (i % 3 === 0){                                              // phone held up
+      parts.push(P(x+0.21, y+0.02, 0.05, 0.05, 0.34, 0.12, "#1b2230"));
+      parts.push(E(x+0.21, y+0.02, 0.05, 0.03, 0.44, 0.03, "#9fe6fa"));
+    }
+  }
+  return { parts:parts, decals:[], W:2.90 };
+}
+
+/* Double-parked box truck - PARKED. Hazards on. Never moves. The stalled deal. */
+/* Trimmed to exactly 2.0 tiles so its collision box matches the two columns
+   it blocks. Cones stay inside that footprint - anything overhanging would
+   render into a cell the player is allowed to stand in. */
+function boxtruckModel(){
+  var shell = "#d8d2c4", cab = "#8d5a2b";
+  var parts = [
+    P(0.04, 0.15, 1.92, 0.70, 0.11, 0.14, "#1a2029"),
+    P(0.42, 0.15, 1.54, 0.70, 0.25, 0.50, shell),
+    P(0.04, 0.17, 0.40, 0.66, 0.25, 0.38, cab),
+    P(0.04, 0.19, 0.14, 0.62, 0.45, 0.15, "#1e1a20"),
+    E(0.46, 0.15, 0.09, 0.10, 0.30, 0.10, "#ffb02e"),       // hazard flashers
+    E(1.86, 0.15, 0.09, 0.10, 0.30, 0.10, "#ffb02e"),
+    E(1.93, 0.20, 0.05, 0.10, 0.28, 0.09, "#ff6a6a")
+  ];
+  wheels(parts, [0.18, 1.48], 0.24, 0.15);
+  parts.push(P(0.02, 0.30, 0.12, 0.12, 0, 0.17, "#e05a24"));
+  parts.push(E(0.03, 0.31, 0.10, 0.10, 0.11, 0.03, "#f6f2e8"));
+  parts.push(P(1.86, 0.58, 0.12, 0.12, 0, 0.17, "#e05a24"));
+  parts.push(E(1.87, 0.59, 0.10, 0.10, 0.11, 0.03, "#f6f2e8"));
+  return { parts:parts, decals:[
+    { x:0.52, y:0.15, w:1.36, z:0.38, h:0.26, bg:"#eeeae0", fg:"#5c4a2e",
+      text:"LOADING — 5 MIN", size:20 }
+  ], W:2.00 };
+}
+
+/* NYPD cruiser - the motorcade sweeper. Warning lights, then the street is gone. */
+function cruiserModel(){
+  var body = "#1b3f78";
+  var parts = [
+    P(0.05, 0.17, 1.60, 0.66, 0.09, 0.22, body),
+    P(0.34, 0.20, 0.78, 0.60, 0.31, 0.20, shade(body,0.08)),
+    P(1.06, 0.20, 0.15, 0.60, 0.31, 0.18, "#171318"),
+    P(0.36, 0.16, 0.68, 0.03, 0.34, 0.14, "#13202c"),
+    P(0.52, 0.24, 0.46, 0.34, 0.51, 0.05, "#141a22"),       // light bar
+    E(0.53, 0.24, 0.20, 0.34, 0.56, 0.05, "#ff3b5c"),
+    E(0.77, 0.24, 0.20, 0.34, 0.56, 0.05, "#3bb0ff"),
+    E(1.63, 0.21, 0.05, 0.11, 0.17, 0.08, "#eaf4ff")
+  ];
+  wheels(parts, [0.18, 1.14], 0.22, 0.13);
+  return { parts:parts, decals:[
+    { x:0.20, y:0.17, w:0.72, z:0.13, h:0.14, bg:"#eef2f6", fg:"#1b3f78", text:"NYPD", size:18 }
+  ], W:1.70 };
+}
+
+var MODELS = {
+  cab:cabModel, bus:busModel, dsny:dsnyModel, ebike:ebikeModel, citi:citiModel,
+  suv:suvModel, carriage:carriageModel, crowd:crowdModel,
+  boxtruck:boxtruckModel, motorcade:cruiserModel
+};
+
+/* ----------------------------------------------------------- model: player */
+/* Luminance steps between adjacent parts or the figure blobs:
+   trousers 0.21 -> shirt 0.47 -> skin 0.74, dark collar between the two. */
+function playerModel(dir){
+  var skin = "#e9b98c", shirt = "#0a9fd0", trouser = "#1e2838";
+  var parts = [
+    P(0.28, 0.44, 0.15, 0.16, 0,     0.055, "#141820"),
+    P(0.57, 0.44, 0.15, 0.16, 0,     0.055, "#141820"),
+    P(0.30, 0.43, 0.40, 0.18, 0.05,  0.22,  trouser),
+    P(0.22, 0.39, 0.56, 0.26, 0.27,  0.22,  shirt),
+    P(0.16, 0.43, 0.07, 0.18, 0.30,  0.17,  shade(shirt,-0.28)),
+    P(0.77, 0.43, 0.07, 0.18, 0.30,  0.17,  shade(shirt,-0.28)),
+    P(0.33, 0.39, 0.34, 0.24, 0.49,  0.045, "#07445e"),
+    P(0.35, 0.41, 0.30, 0.21, 0.535, 0.16,  skin),
+    P(0.34, 0.40, 0.32, 0.23, 0.675, 0.055, "#2e2118")
+  ];
+  parts.push(P(dir > 0 ? 0.80 : 0.07, 0.44, 0.17, 0.15, 0.14, 0.15, "#1b2838"));
+  return { parts:parts, decals:[
+    { x:0.40,  y:0.39, w:0.17, z:0.33,  h:0.11, bg:"#ffffff" },
+    { x:0.445, y:0.39, w:0.07, z:0.355, h:0.05, bg:C.brand, glow:true }
+  ], shadow:false, W:1 };
+}
+
+/* ------------------------------------------------------- model: power-ups */
+var POWERS = {
+  agent:  { col:C.pw1, letter:"E", name:"ENDPOINT AGENT",
+            line:"Absorbs the next objection.", secs:0 },
+  insight:{ col:C.pw2, letter:"I", name:"INTERNET INSIGHTS",
+            line:"The whole grid slows while you read it.", secs:4.5 },
+  path:   { col:C.pw3,   letter:"P", name:"PATH VISUALIZATION",
+            line:"Safe crossings light up ahead.", secs:6.5 },
+  sponsor:{ col:C.pw4, letter:"X", name:"EXECUTIVE SPONSOR",
+            line:"A car service, three blocks uptown.", secs:0 }
+};
+var POWER_KINDS = ["agent","insight","path","sponsor"];
+function powerModel(kind){
+  var k = POWERS[kind];
+  return { parts:[
+    P(0.34, 0.36, 0.32, 0.28, 0.16, 0.30, shade(k.col,-0.20)),
+    E(0.30, 0.34, 0.40, 0.32, 0.46, 0.05, k.col),
+    P(0.40, 0.40, 0.20, 0.20, 0.04, 0.12, shade(k.col,-0.55))
+  ], decals:[
+    { x:0.37, y:0.36, w:0.26, z:0.22, h:0.20, bg:k.col, core:shade(k.col,0.45),
+      glow:true, fg:"#1a0a02", text:k.letter, size:22 }
+  ], shadow:false, W:1 };
+}
+
+/* -------------------------------------------------------- sidewalk props */
+/* Solid obstacles on the sidewalk rows. All of them are things actually
+   bolted to a Midtown sidewalk. */
+function shedModel(){                        // sidewalk shed / scaffolding
+  var deck = "#2f6b3f", pole = "#4a5560";
+  return { parts:[
+    P(0.08, 0.20, 0.09, 0.09, 0,    0.86, pole),
+    P(0.83, 0.20, 0.09, 0.09, 0,    0.86, pole),
+    P(0.08, 0.72, 0.09, 0.09, 0,    0.86, pole),
+    P(0.83, 0.72, 0.09, 0.09, 0,    0.86, pole),
+    P(0.04, 0.16, 0.92, 0.68, 0.86, 0.10, deck),
+    P(0.04, 0.16, 0.92, 0.05, 0.60, 0.24, shade(deck,-0.15))
+  ], decals:[
+    { x:0.10, y:0.16, w:0.80, z:0.66, h:0.14, bg:"#f2f4f0", fg:"#2f6b3f",
+      text:"SIDEWALK CLOSED", size:12 },
+    { x:0.14, y:0.16, w:0.72, z:0.40, h:0.035, bg:"#ffd166", glow:true }
+  ], W:1 };
+}
+function halalModel(){                       // halal cart, umbrella up
+  return { parts:[
+    P(0.22, 0.34, 0.56, 0.32, 0.12, 0.26, "#c9ced4"),
+    P(0.22, 0.34, 0.56, 0.32, 0.38, 0.05, "#8d969e"),
+    P(0.48, 0.48, 0.05, 0.05, 0.43, 0.30, "#5a6268"),
+    P(0.14, 0.26, 0.72, 0.50, 0.73, 0.07, "#d93f4a"),
+    P(0.26, 0.33, 0.10, 0.10, 0,    0.13, "#2b3038"),
+    P(0.66, 0.33, 0.10, 0.10, 0,    0.13, "#2b3038")
+  ], decals:[
+    { x:0.26, y:0.34, w:0.48, z:0.18, h:0.13, bg:"#f6d84a", fg:"#3a2d08",
+      text:"HALAL", size:14 },
+    { x:0.30, y:0.34, w:0.40, z:0.395, h:0.03, bg:"#ffd166", glow:true }
+  ], W:1 };
+}
+function newsstandModel(){
+  return { parts:[
+    P(0.14, 0.26, 0.72, 0.50, 0,    0.62, "#1f4a3c"),
+    P(0.10, 0.22, 0.80, 0.58, 0.62, 0.07, "#28604d"),
+    P(0.18, 0.24, 0.64, 0.03, 0.26, 0.26, "#0e1a22")
+  ], decals:[
+    { x:0.20, y:0.24, w:0.60, z:0.30, h:0.18, bg:"#e8e2d4", fg:"#1f2a30",
+      text:"NEWS", size:15 },
+    { x:0.18, y:0.22, w:0.64, z:0.655, h:0.03, bg:"#ffd166", glow:true }
+  ], W:1 };
+}
+function subwayModel(){                      // Penn Station stair + globe lamp
+  return { parts:[
+    P(0.12, 0.22, 0.76, 0.56, 0,    0.07, "#0b1118"),
+    P(0.12, 0.22, 0.05, 0.56, 0.07, 0.34, "#39424b"),
+    P(0.83, 0.22, 0.05, 0.56, 0.07, 0.34, "#39424b"),
+    P(0.12, 0.22, 0.76, 0.04, 0.38, 0.05, "#39424b"),
+    P(0.80, 0.68, 0.07, 0.07, 0,    0.52, "#2b3238"),
+    E(0.76, 0.64, 0.15, 0.15, 0.52, 0.13, "#8fe388")        // green = always open
+  ], decals:[
+    { x:0.16, y:0.22, w:0.52, z:0.16, h:0.14, bg:"#0e1a22", fg:"#e8eef4",
+      text:"SUBWAY", size:13 }
+  ], W:1 };
+}
+function trashModel(){
+  var bag = "#15191f";
+  return { parts:[
+    P(0.14, 0.30, 0.32, 0.30, 0,    0.30, bag),
+    P(0.44, 0.36, 0.28, 0.26, 0,    0.26, shade(bag,0.10)),
+    P(0.26, 0.52, 0.30, 0.24, 0,    0.24, shade(bag,0.05)),
+    P(0.30, 0.38, 0.26, 0.24, 0.30, 0.20, shade(bag,0.14))
+  ], decals:[], W:1 };
+}
+function planterModel(){
+  return { parts:[
+    P(0.22, 0.30, 0.56, 0.40, 0,    0.26, "#8d8d85"),
+    P(0.26, 0.33, 0.48, 0.34, 0.26, 0.05, "#3a3f32"),
+    P(0.34, 0.38, 0.32, 0.24, 0.31, 0.26, "#2a6b3c"),
+    P(0.40, 0.42, 0.20, 0.17, 0.57, 0.14, "#357f49")
+  ], decals:[], W:1 };
+}
+function citiDockModel(){
+  var parts = [ P(0.06, 0.40, 0.88, 0.14, 0, 0.09, "#2a3038") ];
+  for (var i=0;i<4;i++){
+    var x = 0.10 + i*0.21;
+    parts.push(P(x, 0.32, 0.05, 0.30, 0.09, 0.26, "#1a63a8"));
+    parts.push(P(x-0.02, 0.34, 0.09, 0.09, 0.09, 0.19, "#15191f"));
+    parts.push(P(x-0.02, 0.56, 0.09, 0.09, 0.09, 0.19, "#15191f"));
+  }
+  return { parts:parts, decals:[], W:1 };
+}
+/* LinkNYC-style kiosk - where the ThousandEyes branding lives at street level */
+function kioskModel(){
+  return { parts:[
+    P(0.38, 0.40, 0.26, 0.16, 0,    0.07, "#1b2230"),
+    P(0.40, 0.42, 0.22, 0.12, 0.07, 0.80, "#10202c"),
+    E(0.39, 0.41, 0.24, 0.02, 0.86, 0.04, C.brand)
+  ], decals:[
+    { x:0.415, y:0.42, w:0.17, z:0.30, h:0.46, bg:"#2a1206", core:"#3d1b08", glow:true },
+    { x:0.425, y:0.42, w:0.15, z:0.58, h:0.09, bg:C.brand, core:C.brandLight, glow:true,
+      fg:"#1a0a02", text:"1000", size:11 },
+    { x:0.425, y:0.42, w:0.15, z:0.46, h:0.09, bg:"#3d1b08", fg:C.brandPale,
+      text:"EYES", size:11 },
+    { x:0.428, y:0.42, w:0.144, z:0.345, h:0.02, bg:C.brand, glow:true }
+  ], W:1 };
+}
+var PROP_KINDS = ["shed","halal","newsstand","subway","trash","planter","citidock","kiosk"];
+var PROP_MODELS = {
+  shed:shedModel, halal:halalModel, newsstand:newsstandModel, subway:subwayModel,
+  trash:trashModel, planter:planterModel, citidock:citiDockModel, kiosk:kioskModel
+};
+
+/* ------------------------------------------------------------ ground strips */
+function bakeStrip(kind, alt){
+  var h = ROW_H + 2;
+  var off = document.createElement("canvas");
+  off.width = Math.ceil(LOGICAL_W*BAKE); off.height = Math.ceil(h*BAKE);
+  var g = off.getContext("2d");
+  g.setTransform(BAKE, 0, 0, BAKE, 0, 0);
+
+  if (kind === "walk"){
+    g.fillStyle = alt ? C.walkB : C.walk;
+    g.fillRect(0, 0, LOGICAL_W, h);
+    // concrete paver joints
+    g.strokeStyle = "rgba(255,255,255,0.045)"; g.lineWidth = 2;
+    g.beginPath();
+    for (var j=0;j<=COLS;j++){ g.moveTo(j*TILE, 0); g.lineTo(j*TILE, h); }
+    g.moveTo(0, h*0.5); g.lineTo(LOGICAL_W, h*0.5);
+    g.stroke();
+    // amber streetlight pools
+    for (var p=0;p<5;p++) glowRect(g, 180+p*400, h*0.1, 240, h*0.8, C.amberGlow, "rgba(255,176,46,0.05)");
+    // the curb: raised lip on the street side
+    g.fillStyle = C.curb;              g.fillRect(0, h-9, LOGICAL_W, 6);
+    g.fillStyle = "rgba(255,255,255,0.10)"; g.fillRect(0, h-9, LOGICAL_W, 2);
+    g.fillStyle = "rgba(0,0,0,0.45)";  g.fillRect(0, h-3, LOGICAL_W, 3);
+    glowRect(g, 0, 0, LOGICAL_W, 2, C.gridGlow, C.gridCore);
+  } else {
+    g.fillStyle = alt ? C.roadB : C.road;
+    g.fillRect(0, 0, LOGICAL_W, h);
+    g.fillStyle = "rgba(255,255,255,0.014)";
+    g.fillRect(0, h*0.24, LOGICAL_W, h*0.14);
+    g.fillRect(0, h*0.62, LOGICAL_W, h*0.14);
+    // crosswalk ladder stripes - tells you this is a place you cross
+    g.fillStyle = "rgba(235,242,250,0.085)";
+    for (var x=0;x<LOGICAL_W;x+=TILE) g.fillRect(x+16, 4, TILE-32, h-10);
+    g.fillStyle = "#1a222c"; g.fillRect(0, 0, LOGICAL_W, 3);
+    g.fillStyle = "rgba(0,0,0,0.50)"; g.fillRect(0, h-3, LOGICAL_W, 3);
+    for (var d=14;d<LOGICAL_W;d+=112) glowRect(g, d, h*0.48, 54, 3, C.laneGlow, C.lane);
+  }
+  return { img:off, ox:0, oy:0, w:LOGICAL_W, h:h };
+}
+
+/* ---------------------------------------------------------------- bake all */
+var S = {};
+function bakeAll(){
+  var i, k, m;
+  for (i=0;i<ALL_HAZ.length;i++){
+    k = ALL_HAZ[i]; m = MODELS[k]();
+    S[k+"_r"] = bake(m);
+    S[k+"_l"] = bake(flip(m, m.W));
+  }
+  S.player_r = bake(playerModel(1));
+  S.player_l = bake(playerModel(-1));
+  for (i=0;i<POWER_KINDS.length;i++) S["pw_"+POWER_KINDS[i]] = bake(powerModel(POWER_KINDS[i]));
+  for (i=0;i<PROP_KINDS.length;i++)  S["pr_"+PROP_KINDS[i]]  = bake(PROP_MODELS[PROP_KINDS[i]]());
+  S.walk0 = bakeStrip("walk",0); S.walk1 = bakeStrip("walk",1);
+  S.road0 = bakeStrip("road",0); S.road1 = bakeStrip("road",1);
+}
+
+/* ------------------------------------------------------------- world build */
+var rows = {};
+var genCursor = 0, roadRun = 0, safeRun = 0, lastPower = 0, nextStreet = START_ST + 1;
+var lastSweep = -99, prevWasSafe = true;
+
+/* MIN_WINDOW is the shortest time a column may stay clear. A hop is 135ms, so
+   0.60s leaves room to read the gap and commit. MAX_SPEED keeps traffic
+   trackable by eye on a Board at ten feet. */
+var MIN_WINDOW = 0.60, MAX_SPEED = 6.2, SWEEP_SPEED = 16;
+
+function difficulty(r){
+  var t = Math.min(1, r/150);
+  return { speed:1.5 + 3.1*t, gap:5.6 - 2.9*t, group:1 + Math.floor(Math.min(3.9, 1 + r/26)) };
+}
+
+/* Blocker columns, used by BOTH sidewalk props and parked trucks.
+   A player at (R,c) is pinned when forward, left and right are all blocked:
+     interior c -> needs blockers at c-1 AND c+1, i.e. two exactly 2 apart
+     c = 0      -> needs a blocker at column 1
+     c = COLS-1 -> needs a blocker at column COLS-2
+   Minimum separation of 3 plus never using columns 1 and COLS-2 makes both
+   unreachable, for any row type, with no backtracking required. Without this,
+   generation soft-locked roughly 1 run in 4. */
+var BLOCK_COLS = (function(){
+  var a = []; for (var c=0;c<COLS;c++) if (c!==1 && c!==COLS-2) a.push(c); return a;
+})();
+var MIN_SEP = 3;
+function placeBlockers(n){
+  var chosen = [], tries = 0;
+  while (chosen.length < n && tries++ < 40){
+    var col = BLOCK_COLS[(Math.random()*BLOCK_COLS.length)|0], ok = true;
+    for (var j=0;j<chosen.length;j++){
+      if (Math.abs(chosen[j]-col) < MIN_SEP){ ok = false; break; }
+    }
+    if (ok) chosen.push(col);
+  }
+  return chosen;
+}
+
+function pickFleet(r){
+  if (r < 8) return "cab";                           // tutorial: one type, slow
+  var pool = ["cab","cab","citi"];
+  if (r > 14) pool.push("bus","suv");
+  if (r > 26) pool.push("dsny","ebike","cab");
+  if (r > 40) pool.push("carriage","crowd","bus");
+  if (r > 60) pool.push("crowd","dsny","ebike");
+  return pool[(Math.random()*pool.length)|0];
+}
+
+function makeRoad(r, streetNo, dir){
+  var d = difficulty(r), kind = pickFleet(r), spec = HAZ[kind];
+  var speed = Math.min(MAX_SPEED, d.speed * spec.spd * (0.85 + Math.random()*0.3));
+
+  /* A pack is placed as one super-vehicle so the minimum-gap guarantee still
+     holds; the riders are drawn inside its footprint. */
+  var packN = spec.pack || 1, packGap = 0.42;
+  var eff = packN * spec.w + (packN - 1) * packGap;
+
+  /* The gap has to be expressed in TIME, not tiles. Ramping speed up while
+     ramping the tile gap down compounds: at depth the e-bike hit ~9 tiles/s
+     against a 2.7 tile gap, which left zero landable columns on 75% of
+     sampled instants. Requiring gap >= speed * MIN_WINDOW keeps the crossing
+     window at any column from ever falling below MIN_WINDOW seconds, which
+     only binds at high speed - mid-game spacing is unchanged. */
+  var gap = Math.max(d.gap, speed * MIN_WINDOW);
+  var n = Math.max(1, Math.floor(SPAN / (eff + gap)));
+  var slot = SPAN / n, cars = [];
+  for (var i=0;i<n;i++){
+    cars.push({ p: i*slot + Math.random()*(slot-eff)*0.5,
+                stop: spec.stops ? (Math.random()*5.2) : 0 });
+  }
+
+  var row = { type:"road", streetNo:streetNo, dir:dir, speed:speed, kind:kind,
+              cars:cars, eff:eff, packN:packN, packGap:packGap,
+              parked:[], blocked:{}, rogue:null };
+
+  /* Double-parked box truck: a permanent blocker you route around.
+     It is 2 tiles wide, so it blocks BOTH columns it covers - otherwise the
+     player could legally step into the second one and die on arrival. A
+     contiguous 2-wide run cannot satisfy the min-separation rule, so the
+     invariant here is the more general one it was protecting: never leave a
+     single free column with blocked neighbours on both sides, and keep
+     columns 1 and COLS-2 free. Exactly one truck, starting in [2, COLS-4],
+     satisfies both with gaps of >= 2 on each side. */
+  if (r > 20 && Math.random() < 0.22){
+    var tc = 2 + ((Math.random() * (COLS - 5)) | 0);     // 2 .. COLS-4
+    row.parked.push({ col:tc });
+    row.blocked[tc] = true;
+    row.blocked[tc + 1] = true;
+  }
+  /* One wrong-way delivery bike, against the posted direction. It is an EXTRA
+     hazard on top of the fleet, so it only rides slower fleets - adding it to
+     fast traffic stacked two tight windows on one row. */
+  if (r > 24 && spec.spd <= 1.2 && Math.random() < 0.26){
+    row.rogue = { p: Math.random()*SPAN,
+                  speed: Math.min(MAX_SPEED, d.speed * HAZ.ebike.spd * 1.05) };
+  }
+  return row;
+}
+
+/* Motorcade row: empty, then warning lights, then the street is gone.
+   Generation requires a sidewalk immediately south so retreat always exists. */
+function makeSweep(r, streetNo, dir){
+  // absolute speed, not difficulty-scaled: the scaled version reached 29
+  // tiles/s, which crossed the screen faster than the eye tracks
+  return { type:"sweep", streetNo:streetNo, dir:dir, kind:"motorcade",
+           phase:"idle", t:0, idleFor:3.4 + Math.random()*3.2,
+           cars:[], parked:[], blocked:{}, rogue:null, speed:SWEEP_SPEED };
+}
+
+function makeWalk(r){
+  var props = [], blocked = {};
+  if (r >= 5){
+    var n = [1,1,2,2,3][(Math.random()*5)|0];
+    var cols = placeBlockers(n);
+    for (var i=0;i<cols.length;i++){
+      blocked[cols[i]] = true;
+      props.push({ col:cols[i], kind:PROP_KINDS[(Math.random()*PROP_KINDS.length)|0] });
+    }
+  }
+  var pickup = null;
+  if (r >= 7 && r - lastPower >= 8 && Math.random() < 0.34){
+    for (var t=0;t<14;t++){
+      var pc = (Math.random()*COLS)|0;
+      if (!blocked[pc]){
+        pickup = { col:pc, kind:POWER_KINDS[(Math.random()*POWER_KINDS.length)|0] };
+        lastPower = r; break;
+      }
+    }
+  }
+  return { type:"safe", tone:(r%2), props:props, blocked:blocked, pickup:pickup };
+}
+
+function pushRow(row){ rows[genCursor++] = row; }
+
+function ensureRows(upTo){
+  while (genCursor <= upTo){
+    var r = genCursor;
+    if (r < 3){ pushRow(makeWalk(r)); safeRun++; prevWasSafe = true; continue; }
+
+    var d = difficulty(r), wantRoad;
+    if (roadRun >= d.group)  wantRoad = false;
+    else if (safeRun >= 3)   wantRoad = true;
+    else                     wantRoad = Math.random() < 0.62;
+
+    if (!wantRoad){ pushRow(makeWalk(r)); safeRun++; roadRun = 0; prevWasSafe = true; continue; }
+
+    var no = nextStreet++;
+    // motorcade only on bigger streets, never back to back, and only with a
+    // sidewalk behind it so stepping back is always possible
+    if (no >= 40 && prevWasSafe && (no - lastSweep) >= 6 && Math.random() < 0.15){
+      pushRow(makeSweep(r, no, streetDir(no)));
+      lastSweep = no; roadRun = 99; safeRun = 0; prevWasSafe = false;
+      continue;
+    }
+    if (isTwoWay(no)){
+      // 42nd and 57th are two-way: paired rows, opposite directions
+      pushRow(makeRoad(r, no,  1));
+      pushRow(makeRoad(r + 1, no, -1));
+      roadRun += 2;
+    } else {
+      pushRow(makeRoad(r, no, streetDir(no)));
+      roadRun++;
+    }
+    safeRun = 0; prevWasSafe = false;
+  }
+}
+function pruneRows(below){ for (var k in rows) if (+k < below) delete rows[k]; }
+function carX(row, car){ return (row.dir > 0 ? car.p : SPAN - car.p) - PAD; }
+function rogueX(row){ return (row.dir > 0 ? SPAN - row.rogue.p : row.rogue.p) - PAD; }
+
+/* -------------------------------------------------------------- game state */
+var ST_TITLE = 0, ST_PLAY = 1, ST_DEAD = 2;
+var RANKS = [[0,"SDR INTERN"],[18,"AE IN RAMP"],[40,"QUOTA CARRIER"],
+             [70,"PRESIDENT'S CLUB"],[110,"MIDTOWN LEGEND"]];
+var TRAIN_MAX = 60, TRAIN_PER_HOP = 1.25;
+
+var G = null;
+
+function reset(){
+  rows = {}; genCursor = 0; roadRun = 0; safeRun = 0; lastPower = 0;
+  nextStreet = START_ST + 1; lastSweep = -99; prevWasSafe = true;
+  ensureRows(ROWS_AHEAD);
+  var tr = TRAINS[(Math.random()*TRAINS.length)|0];
+  G = {
+    state:ST_TITLE, row:0, col:COLS>>1, fromRow:0, fromCol:COLS>>1,
+    hop:1, facing:1, maxRow:0, camRow:0, street:START_ST,
+    stage:-1, coach:-1, toast:null, flash:null,
+    shield:false, slowT:0, revealT:0, invulnT:0, powersUsed:0,
+    trainT:TRAIN_MAX, trainLine:tr[0], trainDest:tr[1],
+    trainHH:16 + ((Math.random()*3)|0), trainMM:(Math.random()*60)|0,
+    missedTrain:false,
+    shake:0, parts:[], deathName:"", deathObj:"", deathFix:"", deadFor:0,
+    t:0, sweep:0
+  };
+  for (var i=0;i<30;i++) G.parts.push({ life:0, x:0, y:0, vx:0, vy:0, s:0, c:"#fff" });
+  AUDIO.resetLadder();
+}
+
+function best(){
+  try { return parseInt(localStorage.getItem("lastmile.best") || "0", 10) || 0; }
+  catch (e){ return 0; }
+}
+function saveBest(v){ try { if (v > best()) localStorage.setItem("lastmile.best", String(v)); } catch (e){} }
+function rankFor(r){ var n = RANKS[0][1]; for (var i=0;i<RANKS.length;i++) if (r >= RANKS[i][0]) n = RANKS[i][1]; return n; }
+function money(r){ return "$" + (r*DOLLARS_PER_ROW).toLocaleString("en-US"); }
+function flash(name, line, col){ G.flash = { life:2.2, name:name, line:line, col:col }; }
+
+/* current street number, from the furthest road row crossed */
+function streetAt(r){
+  for (var i=r;i>=0;i--){ var w = rows[i]; if (w && w.streetNo) return w.streetNo; }
+  return START_ST;
+}
+function progress(){
+  var st = streetAt(G.maxRow);
+  if (st !== G.street){
+    G.street = st;
+    var ms = MILESTONES[st];
+    if (ms){
+      AUDIO.stage();
+      G.toast = { a:0, life:3.0, name:st + "th — " + ms[0], stage:ms[1], line:ms[2] };
+    }
+  }
+  /* Rebuttals are the payload, but they live on the death screen - and the
+     widest, slowest hazards get routed around rather than died to. Coaching
+     lines fire between milestones so every objection gets read regardless of
+     what kills you. */
+  var m = Math.floor((G.maxRow - 6) / 12);
+  if (G.maxRow >= 6 && m !== G.coach){
+    G.coach = m;
+    var k = ALL_HAZ[(Math.random()*ALL_HAZ.length)|0];
+    AUDIO.coach();
+    flash(lineOf(k)[0], lineOf(k)[1], C.good);
+  }
+}
+
+/* ------------------------------------------------------------------- input */
+function act(dir){
+  if (G.state === ST_TITLE){ G.state = ST_PLAY; AUDIO.ui(); return; }
+  if (G.state === ST_DEAD){
+    if (G.deadFor > 0.45){ reset(); G.state = ST_PLAY; AUDIO.ui(); }
+    return;
+  }
+  if (G.hop < 1) return;
+
+  var nr = G.row, nc = G.col;
+  if (dir === "f") nr++;
+  else if (dir === "b") nr--;
+  else if (dir === "l"){ nc--; G.facing = -1; }
+  else if (dir === "r"){ nc++; G.facing = 1; }
+
+  if (nc < 0 || nc > COLS-1){ AUDIO.bump(); return; }
+  if (nr < 0 || nr < G.maxRow - 6){ AUDIO.bump(); return; }
+  var target = rows[nr];
+  if (target && target.blocked && target.blocked[nc]){ AUDIO.bump(); return; }
+
+  if (dir === "f"){
+    AUDIO.hop();
+    G.trainT = Math.min(TRAIN_MAX, G.trainT + TRAIN_PER_HOP);
+  } else AUDIO.step();
+
+  G.fromRow = G.row; G.fromCol = G.col;
+  G.row = nr; G.col = nc; G.hop = 0;
+  if (nr > G.maxRow){ G.maxRow = nr; progress(); }
+  ensureRows(G.maxRow + ROWS_AHEAD);
+}
+
+var MUTE_BTN = { x:LOGICAL_W - 146, y:LOGICAL_H - 146, w:114, h:114 };
+function muteBtnActive(){ return G.state === ST_TITLE || G.state === ST_DEAD; }
+function inMuteBtn(lx, ly){
+  return muteBtnActive() &&
+         lx > MUTE_BTN.x - 14 && lx < MUTE_BTN.x + MUTE_BTN.w + 14 &&
+         ly > MUTE_BTN.y - 14 && ly < MUTE_BTN.y + MUTE_BTN.h + 14;
+}
+
+var ptr = null;
+cv.addEventListener("pointerdown", function(e){
+  e.preventDefault(); AUDIO.unlock(); ptr = { sx:e.clientX, sy:e.clientY };
+}, { passive:false });
+cv.addEventListener("pointerup", function(e){
+  e.preventDefault();
+  if (!ptr) return;
+  var dx = e.clientX - ptr.sx, dy = e.clientY - ptr.sy;
+  if (Math.sqrt(dx*dx + dy*dy) > 42){
+    if (Math.abs(dx) > Math.abs(dy)) act(dx > 0 ? "r" : "l");
+    else                             act(dy < 0 ? "f" : "b");
+  } else {
+    var rect = cv.getBoundingClientRect();
+    var px = (e.clientX-rect.left)/rect.width, py = (e.clientY-rect.top)/rect.height;
+    if (inMuteBtn(px*LOGICAL_W, py*LOGICAL_H)){ AUDIO.toggle(); ptr = null; return; }
+    if (py < 0.52)      act("f");
+    else if (px < 0.34) act("l");
+    else if (px > 0.66) act("r");
+    else                act("b");
+  }
+  ptr = null;
+}, { passive:false });
+cv.addEventListener("pointercancel", function(){ ptr = null; });
+cv.addEventListener("contextmenu", function(e){ e.preventDefault(); });
+
+window.addEventListener("keydown", function(e){
+  var k = e.key;
+  if (k==="m" || k==="M"){ AUDIO.unlock(); AUDIO.toggle(); e.preventDefault(); return; }
+  AUDIO.unlock();
+  if (k==="ArrowUp"    || k==="w" || k===" "){ act("f"); e.preventDefault(); }
+  if (k==="ArrowDown"  || k==="s"){ act("b"); e.preventDefault(); }
+  if (k==="ArrowLeft"  || k==="a"){ act("l"); e.preventDefault(); }
+  if (k==="ArrowRight" || k==="d"){ act("r"); e.preventDefault(); }
+});
+
+/* ----------------------------------------------------------------- powers */
+function collect(){
+  var row = rows[G.row];
+  if (!row || !row.pickup || row.pickup.col !== G.col) return;
+  var kind = row.pickup.kind, k = POWERS[kind];
+  row.pickup = null;
+  G.powersUsed++;
+  AUDIO.power(kind);
+  flash(k.name, k.line, k.col);
+  burst(G.col*TILE + TILE/2, rowScreenY(G.row) - 40, k.col);
+
+  if (kind === "agent")        G.shield = true;
+  else if (kind === "insight") G.slowT = Math.max(G.slowT, k.secs);
+  else if (kind === "path")    G.revealT = Math.max(G.revealT, k.secs);
+  else if (kind === "sponsor"){
+    var adv = 0;
+    for (var i=1;i<=3;i++){
+      var w = rows[G.row+i];
+      if (w && w.blocked && w.blocked[G.col]) break;
+      adv = i;
+    }
+    if (adv > 0){
+      G.fromRow = G.row; G.fromCol = G.col;
+      G.row += adv; G.hop = 0; G.invulnT = Math.max(G.invulnT, 0.95);
+      G.trainT = Math.min(TRAIN_MAX, G.trainT + TRAIN_PER_HOP*adv);
+      if (G.row > G.maxRow){ G.maxRow = G.row; progress(); }
+      ensureRows(G.maxRow + ROWS_AHEAD);
+    }
+  }
+}
+
+/* every hazard interval in a row over the next `secs`, used by PATH
+   VISUALIZATION and by the fairness tests */
+function colSafeFor(r, col, secs){
+  var row = rows[r];
+  if (!row) return true;
+  if (row.blocked && row.blocked[col]) return false;
+  if (row.type === "sweep") return row.phase === "idle";
+  if (row.type !== "road") return true;
+  var p0 = col+0.12, p1 = col+0.88;
+  var k = (G.slowT > 0) ? 0.45 : 1;
+  var spec = HAZ[row.kind], i;
+  for (i=0;i<row.cars.length;i++){
+    var x = carX(row, row.cars[i]);
+    var v = row.speed * k * secs * (row.cars[i].stopped ? 0 : 1);
+    var a = Math.min(x, x + row.dir*v), b = Math.max(x, x + row.dir*v) + row.eff;
+    if (a < p1 && b > p0) return false;
+  }
+  if (row.rogue){
+    var rx = rogueX(row), rv = row.rogue.speed * k * secs;
+    var ra = Math.min(rx, rx - row.dir*rv), rb = Math.max(rx, rx - row.dir*rv) + HAZ.ebike.w;
+    if (ra < p1 && rb > p0) return false;
+  }
+  return true;
+}
+
+/* ------------------------------------------------------------------ update */
+function playerPos(){
+  var e = G.hop >= 1 ? 1 : 1 - Math.pow(1-G.hop, 3);
+  var s = G.hop >= 1 ? 0 : Math.sin(G.hop * Math.PI);
+  return { col:G.fromCol + (G.col-G.fromCol)*e, row:G.fromRow + (G.row-G.fromRow)*e,
+           lift:s*30, sq:s };
+}
+function burst(x, y, col){
+  for (var i=0;i<G.parts.length;i++){
+    var p = G.parts[i];
+    p.life = 0.5 + Math.random()*0.4;
+    p.x = x; p.y = y;
+    p.vx = (Math.random()-0.5)*560; p.vy = -120 - Math.random()*420;
+    p.s = 6 + Math.random()*13;
+    p.c = col || ((Math.random()<0.5) ? C.brand : C.danger);
+  }
+}
+function die(kind){
+  var pair = lineOf(kind);
+  AUDIO.die();
+  G.state = ST_DEAD; G.deadFor = 0; G.shake = 16;
+  G.deathName = hazName(kind);
+  G.deathObj = pair[0]; G.deathFix = pair[1];
+  var pp = playerPos();
+  burst(pp.col*TILE + TILE/2, rowScreenY(pp.row) - 36);
+  saveBest(G.maxRow);
+}
+function missTrain(){
+  AUDIO.missedTrain();
+  G.state = ST_DEAD; G.deadFor = 0; G.shake = 10; G.missedTrain = true;
+  G.deathName = "THE " + pad2(G.trainHH % 12 || 12) + ":" + pad2(G.trainMM);
+  G.deathObj = "You stood on the corner too long.";
+  G.deathFix = "Deals and trains both leave without you.";
+  saveBest(G.maxRow);
+}
+function pad2(n){ return (n < 10 ? "0" : "") + n; }
+
+function hitPlayer(kind, pp){
+  if (G.invulnT > 0) return;
+  if (G.shield){
+    G.shield = false; G.invulnT = 1.1; G.shake = 11;
+    AUDIO.shield();
+    flash("OBJECTION HANDLED", "Endpoint Agent absorbed it.", C.pw1);
+    burst(pp.col*TILE + TILE/2, rowScreenY(pp.row) - 40, C.pw1);
+  } else die(kind);
+}
+
+function update(dt){
+  G.t += dt; G.sweep += dt*0.4; if (G.sweep > 1.7) G.sweep -= 1.7;
+  if (G.hop < 1){
+    G.hop += dt*1000/HOP_MS;
+    if (G.hop >= 1){ G.hop = 1; collect(); }
+  }
+  if (G.slowT   > 0) G.slowT   = Math.max(0, G.slowT - dt);
+  if (G.revealT > 0) G.revealT = Math.max(0, G.revealT - dt);
+  if (G.invulnT > 0) G.invulnT = Math.max(0, G.invulnT - dt);
+
+  var pp = playerPos();
+  G.camRow += (pp.row - G.camRow) * Math.min(1, dt*11);
+
+  // the commute clock: only forward progress buys time back
+  if (G.state === ST_PLAY){
+    G.trainT -= dt;
+    if (G.trainT <= 0){ G.trainT = 0; missTrain(); }
+  }
+
+  var lo = Math.floor(G.camRow) - ROWS_BEHIND, hi = Math.floor(G.camRow) + ROWS_AHEAD, r, i;
+  var slowK = (G.slowT > 0) ? 0.45 : 1;
+
+  if (G.state !== ST_DEAD){
+    for (r = lo; r <= hi; r++){
+      var row = rows[r];
+      if (!row) continue;
+
+      if (row.type === "sweep"){
+        row.t += dt;
+        if (row.phase === "idle" && row.t >= row.idleFor){
+          row.phase = "warn"; row.t = 0;
+          if (Math.abs(r - G.row) < 9) AUDIO.siren();
+        } else if (row.phase === "warn" && row.t >= 2.0){
+          row.phase = "sweep"; row.t = 0;
+          row.cars = [];
+          var convoyW = HAZ.motorcade.w;
+          for (i=0;i<4;i++) row.cars.push({ p: -(i*(convoyW+0.5)) - convoyW, stop:0 });
+          row.eff = convoyW;
+        } else if (row.phase === "sweep"){
+          for (i=0;i<row.cars.length;i++) row.cars[i].p += row.speed * slowK * dt;
+          if (row.cars.length && row.cars[0].p > SPAN + 2){
+            row.phase = "idle"; row.t = 0; row.cars = [];
+            row.idleFor = 3.4 + Math.random()*3.2;
+          }
+        }
+        continue;
+      }
+
+      if (row.type !== "road") continue;
+      var spec = HAZ[row.kind];
+      for (i=0;i<row.cars.length;i++){
+        var car = row.cars[i];
+        if (spec.stops){
+          // moves 3.6s, halts 1.6s - the M34 rhythm
+          car.stop += dt;
+          var cyc = car.stop % 5.2;
+          var wasStopped = car.stopped;
+          car.stopped = (cyc > 3.6);
+          if (car.stopped && !wasStopped && Math.abs(r - G.row) < 6) AUDIO.hiss();
+        }
+        if (!car.stopped){
+          car.p += row.speed * slowK * dt;
+          if (car.p >= SPAN) car.p -= SPAN;
+        }
+      }
+      if (row.rogue){
+        // against the posted direction, which is the whole joke
+        row.rogue.p += row.rogue.speed * slowK * dt;
+        if (row.rogue.p >= SPAN) row.rogue.p -= SPAN;
+      }
+    }
+  }
+
+  if (G.state === ST_PLAY){
+    var cr = (G.hop < 0.5) ? G.fromRow : G.row;
+    var crow = rows[cr];
+    if (crow && (crow.type === "road" || crow.type === "sweep")){
+      var p0 = pp.col+0.14, p1 = pp.col+0.86, hitKind = null;
+      for (i=0;i<crow.cars.length;i++){
+        var cx = carX(crow, crow.cars[i]);
+        if (cx < p1 && cx + (crow.eff || HAZ[crow.kind].w) > p0){ hitKind = crow.kind; break; }
+      }
+      if (!hitKind && crow.parked){
+        for (i=0;i<crow.parked.length;i++){
+          var px0 = crow.parked[i].col;
+          if (px0 < p1 && px0 + HAZ.boxtruck.w > p0){ hitKind = "boxtruck"; break; }
+        }
+      }
+      if (!hitKind && crow.rogue){
+        var rx = rogueX(crow);
+        if (rx < p1 && rx + HAZ.ebike.w > p0) hitKind = "ebike";
+      }
+      if (hitKind) hitPlayer(hitKind, pp);
+    }
+  }
+
+  if (G.state === ST_DEAD) G.deadFor += dt;
+  if (G.shake > 0) G.shake = Math.max(0, G.shake - dt*46);
+
+  if (G.toast){
+    G.toast.life -= dt;
+    G.toast.a += ((G.toast.life > 0.5 ? 1 : 0) - G.toast.a) * Math.min(1, dt*7);
+    if (G.toast.life < -0.4) G.toast = null;
+  }
+  if (G.flash){ G.flash.life -= dt; if (G.flash.life <= 0) G.flash = null; }
+
+  for (i=0;i<G.parts.length;i++){
+    var pt = G.parts[i];
+    if (pt.life <= 0) continue;
+    pt.life -= dt; pt.vy += 1500*dt;
+    pt.x += pt.vx*dt; pt.y += pt.vy*dt;
+  }
+  pruneRows(Math.floor(G.camRow) - ROWS_BEHIND - 4);
+}
+
+/* -------------------------------------------------------------------- draw */
+function rowScreenY(r){ return BASE_Y - (r - G.camRow) * ROW_H; }
+
+/* =============================================================== SKYLINE ===
+   Three layers above the horizon: a static far band, a nearer band, and a
+   LANDMARK layer that changes as you walk uptown. Everything is plain rects,
+   drawn fresh each frame (~400 fills) rather than baked, because a 1920x250
+   bake per landmark set would have cost ~2MB each.
+
+   Window lighting is hashed from integer pixel coords, so a given window is
+   lit consistently every frame instead of strobing.
+   ========================================================================= */
+function winGrid(x, y, w, h, seed, a, stepX, stepY){
+  if (w < 22 || h < 22) return;
+  stepX = stepX || 18; stepY = stepY || 20;
+  ctx.globalAlpha = a;
+  ctx.fillStyle = "#ffae55";
+  for (var wy = y + 9; wy < y + h - 11; wy += stepY){
+    for (var wx = x + 7; wx < x + w - 9; wx += stepX){
+      if ((((wx | 0) * 7 + (wy | 0) * 13 + seed * 31) % 17) < 6){
+        ctx.fillRect(wx | 0, wy | 0, 6, 8);
+      }
+    }
+  }
+  ctx.globalAlpha = 1;
+}
+/* one box sitting on the skyline baseline */
+function bldg(x, w, h, tone, a, seed, winA){
+  ctx.globalAlpha = a; ctx.fillStyle = tone;
+  ctx.fillRect(x, SKY_BASE - h, w, h);
+  ctx.globalAlpha = 1;
+  if (winA > 0) winGrid(x, SKY_BASE - h, w, h, seed, winA * a);
+}
+/* a box stacked at an arbitrary height, for setbacks and crowns */
+function slab(x, y, w, h, tone, a){
+  ctx.globalAlpha = a; ctx.fillStyle = tone;
+  ctx.fillRect(x, y, w, h); ctx.globalAlpha = 1;
+}
+
+var SKY_FAR = [[-20,170,96],[160,110,132],[290,150,78],[470,120,118],[620,190,66],
+               [790,130,140],[950,160,88],[1130,110,126],[1280,180,72],
+               [1460,130,134],[1620,150,92],[1780,160,116]];
+var SKY_MID = [[60,96,150],[230,72,186],[380,110,124],[540,84,168],[700,120,110],
+               [860,78,178],[1000,108,136],[1180,86,160],[1340,116,118],
+               [1520,80,174],[1680,104,142],[1840,90,156]];
+
+/* ---- landmarks. Fade in and out by cross street, so the skyline evolves. -- */
+function bandA(st, from, to, fade){
+  if (st < from - fade || st > to + fade) return 0;
+  if (st < from) return (st - (from - fade)) / fade;
+  if (st > to)   return 1 - (st - to) / fade;
+  return 1;
+}
+
+/* Penn 1: the boxy 1970s slab you just walked out of, with MSG's drum beside
+   it. Labelled, because the people playing this work in it. */
+function lmPenn1(a){
+  var x = 196, w = 212, h = 206;
+  bldg(x, w, h, "#2b1f20", a, 3, 0.55);
+  slab(x + 14, SKY_BASE - h - 9, w - 28, 9, "#352527", a);
+  ctx.globalAlpha = a * 0.5; ctx.fillStyle = "#1b1315";
+  for (var v = x + 12; v < x + w - 10; v += 26) ctx.fillRect(v, SKY_BASE - h + 10, 7, h - 20);
+  ctx.globalAlpha = 1;
+  // Madison Square Garden: the drum on top of the station
+  bldg(44, 148, 74, "#241a1b", a, 8, 0.22);
+  slab(52, SKY_BASE - 82, 132, 10, "#302224", a);
+  // building sign
+  ctx.globalAlpha = a;
+  plate(x + w/2 - 62, SKY_BASE - h + 24, 124, 34, "rgba(10,6,4,0.82)", 6);
+  txt("PENN 1", x + w/2, SKY_BASE - h + 42, 24, C.brand);
+  ctx.globalAlpha = 1;
+}
+/* Empire State: 34th and 5th, so it is in view almost from the start. */
+function lmEmpire(a){
+  var cx = 1196, t = "#2e2122";
+  bldg(cx - 78, 156, 72, t, a, 11, 0.5);
+  slab(cx - 54, SKY_BASE - 118, 108, 46, t, a); winGrid(cx - 54, SKY_BASE - 118, 108, 46, 12, 0.42*a);
+  slab(cx - 36, SKY_BASE - 180, 72, 62, t, a);  winGrid(cx - 36, SKY_BASE - 180, 72, 62, 13, 0.46*a);
+  slab(cx - 22, SKY_BASE - 206, 44, 26, t, a);
+  slab(cx - 7,  SKY_BASE - 238, 14, 32, "#3a2a2a", a);
+  slab(cx - 2,  SKY_BASE - 254, 4,  16, "#45312f", a);
+  ctx.globalAlpha = a * 0.85; ctx.fillStyle = C.brand;
+  ctx.fillRect(cx - 3, SKY_BASE - 258, 6, 6);          // the mast light
+  ctx.globalAlpha = 1;
+}
+/* Chrysler: the stepped crown is the whole silhouette. */
+function lmChrysler(a){
+  var cx = 1520, t = "#2a2024";
+  bldg(cx - 60, 120, 84, t, a, 21, 0.5);
+  slab(cx - 38, SKY_BASE - 152, 76, 68, t, a); winGrid(cx - 38, SKY_BASE - 152, 76, 68, 22, 0.44*a);
+  var w = 68, y = SKY_BASE - 152;
+  for (var i = 0; i < 5; i++){                          // the arches
+    w -= 11; y -= 13;
+    slab(cx - w/2, y, w, 13, i % 2 ? "#3b2b2d" : "#32252a", a);
+  }
+  slab(cx - 3, y - 38, 6, 38, "#3f2d2c", a);
+  ctx.globalAlpha = a * 0.8; ctx.fillStyle = C.brandLight;
+  ctx.fillRect(cx - 2, y - 42, 4, 5);
+  ctx.globalAlpha = 1;
+}
+/* Rockefeller Center: the broad setback slab. */
+function lmRock(a){
+  var x = 636, t = "#2b2023";
+  bldg(x, 170, 128, t, a, 31, 0.52);
+  slab(x + 22, SKY_BASE - 176, 126, 48, t, a); winGrid(x + 22, SKY_BASE - 176, 126, 48, 32, 0.46*a);
+  slab(x + 46, SKY_BASE - 206, 78, 30, t, a);
+  bldg(x - 92, 76, 92, "#241b1e", a, 33, 0.34);
+}
+/* Billionaires' Row: the pencil towers that define 57th now. */
+function lmSupertall(a){
+  bldg(1252, 38, 232, "#2d2225", a, 41, 0.42);
+  slab(1252, SKY_BASE - 240, 38, 8, "#3a2b2d", a);
+  bldg(1332, 30, 198, "#281e21", a, 42, 0.38);
+  slab(1332, SKY_BASE - 204, 30, 7, "#36282a", a);
+  bldg(1176, 26, 166, "#241b1d", a, 43, 0.3);
+}
+/* Central Park South: the skyline stops and the trees start. */
+function lmPark(a){
+  ctx.globalAlpha = a;
+  var blobs = [[520,66,44],[600,84,56],[700,72,48],[790,96,60],[900,78,50],
+               [990,90,58],[1090,70,46],[1170,86,54],[1270,76,50],[1360,92,58]];
+  for (var i = 0; i < blobs.length; i++){
+    var b = blobs[i];
+    ctx.fillStyle = i % 2 ? "#17301f" : "#1b3a25";
+    ctx.beginPath();
+    ctx.ellipse(b[0], SKY_BASE - b[2]*0.45, b[1]*0.5, b[2]*0.55, 0, 0, Math.PI*2);
+    ctx.fill();
+  }
+  ctx.fillStyle = "#132a1b";
+  ctx.fillRect(470, SKY_BASE - 18, 940, 18);
+  ctx.globalAlpha = 1;
+}
+
+var LANDMARKS = [
+  { from:34, to:43, fade:3, draw:lmPenn1 },
+  { from:34, to:50, fade:5, draw:lmEmpire },
+  { from:40, to:57, fade:5, draw:lmChrysler },
+  { from:46, to:62, fade:5, draw:lmRock },
+  { from:52, to:74, fade:6, draw:lmSupertall },
+  { from:58, to:999, fade:5, draw:lmPark }
+];
+
+function drawSky(){
+  ctx.fillStyle = skyGrad;
+  ctx.fillRect(0, 0, LOGICAL_W, LOGICAL_H);
+
+  // warm glow behind the skyline, brightest right at the street
+  var gl = ctx.createLinearGradient(0, SKY_BASE - 150, 0, SKY_BASE);
+  gl.addColorStop(0, "rgba(201,72,10,0)");
+  gl.addColorStop(1, "rgba(201,72,10,0.30)");
+  ctx.fillStyle = gl;
+  ctx.fillRect(0, SKY_BASE - 150, LOGICAL_W, 150);
+
+  var i;
+  for (i = 0; i < SKY_FAR.length; i++){
+    bldg(SKY_FAR[i][0], SKY_FAR[i][1], SKY_FAR[i][2], "#1a1316", 0.85, i, 0.16);
+  }
+  for (i = 0; i < LANDMARKS.length; i++){
+    var a = bandA(G.street, LANDMARKS[i].from, LANDMARKS[i].to, LANDMARKS[i].fade);
+    if (a > 0.01) LANDMARKS[i].draw(Math.min(1, a));
+  }
+  for (i = 0; i < SKY_MID.length; i++){
+    bldg(SKY_MID[i][0], SKY_MID[i][1], SKY_MID[i][2], "#231a1d", 0.92, i + 50, 0.30);
+  }
+
+  ctx.globalAlpha = 0.55; ctx.fillStyle = C.horizon;
+  ctx.fillRect(0, SKY_BASE, LOGICAL_W, 3);
+  ctx.globalAlpha = 1;
+}
+/* which landmarks are on screen right now - used by the tests */
+function visibleLandmarks(){
+  var out = [];
+  for (var i = 0; i < LANDMARKS.length; i++){
+    var a = bandA(G.street, LANDMARKS[i].from, LANDMARKS[i].to, LANDMARKS[i].fade);
+    if (a > 0.01) out.push(LANDMARKS[i].draw.name + "@" + a.toFixed(2));
+  }
+  return out;
+}
+
+/* PATH VISUALIZATION */
+function drawReveal(){
+  if (G.revealT <= 0) return;
+  var pulse = 0.5 + 0.5*Math.sin(G.t*7);
+  for (var i=1;i<=3;i++){
+    var r = G.row + i, row = rows[r];
+    if (!row) continue;
+    var sy = rowScreenY(r);
+    if (sy < HORIZON) continue;
+    for (var c=0;c<COLS;c++){
+      if (!colSafeFor(r, c, 0.5)) continue;
+      var x = c*TILE + 10, y = sy - ROW_H + 8, w = TILE - 20, h = ROW_H - 18;
+      ctx.globalAlpha = 0.10 + 0.07*pulse; ctx.fillStyle = C.pw3;
+      ctx.fillRect(x, y, w, h);
+      ctx.globalAlpha = 0.55 + 0.3*pulse; ctx.strokeStyle = C.pw3; ctx.lineWidth = 2;
+      ctx.strokeRect(x, y, w, h);
+      ctx.globalAlpha = 0.80 + 0.2*pulse;
+      drawEye(x + w/2, y + h/2, 13, C.pw3, "#1a0a02", null);
+      ctx.globalAlpha = 1;
+    }
+  }
+}
+
+/* green-and-white street sign on the corner of every crossing */
+function drawStreetSign(row, sy){
+  if (!row.streetNo) return;
+  var label = "W " + row.streetNo + " ST";
+  var y = sy - ROW_H - 26;
+  if (y < HORIZON || y > LOGICAL_H - 40) return;
+  ctx.font = 'bold 19px "Helvetica Neue",Helvetica,Arial,sans-serif';
+  var w = ctx.measureText(label).width + 30;
+  plate(12, y - 15, w, 30, C.signGreen, 5);
+  ctx.strokeStyle = "rgba(255,255,255,0.55)"; ctx.lineWidth = 1.5;
+  rr(14, y - 13, w - 4, 26, 4); ctx.stroke();
+  txt(label, 12 + w/2, y + 1, 19, "#f2f7f4");
+  if (!isTwoWay(row.streetNo)){
+    plate(12 + w + 8, y - 13, 62, 26, "#141013", 4);
+    txt(row.dir > 0 ? "ONE WAY ▶" : "◀ ONE WAY", 12 + w + 39, y + 1, 11, C.textDim);
+  } else {
+    plate(12 + w + 8, y - 13, 62, 26, "#141013", 4);
+    txt("TWO WAY", 12 + w + 39, y + 1, 11, C.amber);
+  }
+}
+
+function drawWorld(){
+  var lo = Math.floor(G.camRow) - ROWS_BEHIND, hi = Math.floor(G.camRow) + ROWS_AHEAD;
+  var r, row, sy, i;
+
+  /* Clip the whole world to below the horizon. Without this a tall vehicle in
+     the farthest row paints up over the skyline and appears to float in the
+     sky; the ground strips are culled at HORIZON but a bus is 150px tall. */
+  ctx.save();
+  ctx.beginPath(); ctx.rect(0, HORIZON, LOGICAL_W, LOGICAL_H - HORIZON); ctx.clip();
+
+  for (r = hi; r >= lo; r--){
+    row = rows[r]; if (!row) continue;
+    sy = rowScreenY(r);
+    if (sy < HORIZON || sy - ROW_H > LOGICAL_H) continue;
+    var strip = row.type === "safe" ? (row.tone ? S.walk1 : S.walk0)
+                                    : (r % 2 ? S.road1 : S.road0);
+    ctx.drawImage(strip.img, 0, sy - ROW_H, LOGICAL_W, ROW_H + 2);
+
+    // motorcade warning: the whole street flashes before it clears
+    if (row.type === "sweep" && row.phase === "warn"){
+      var f = Math.sin(row.t * 16) > 0;
+      ctx.globalAlpha = 0.30;
+      ctx.fillStyle = f ? "#ff3b5c" : "#3bb0ff";
+      ctx.fillRect(0, sy - ROW_H, LOGICAL_W, ROW_H);
+      ctx.globalAlpha = 1;
+    }
+  }
+
+  drawReveal();
+
+  var pp = playerPos();
+  var meRow = Math.round(pp.row);
+  for (r = hi; r >= lo; r--){
+    row = rows[r]; if (!row) continue;
+    sy = rowScreenY(r);
+    if (sy < HORIZON - 60 || sy - ROW_H > LOGICAL_H + 80) continue;
+
+    if (row.type === "safe"){
+      for (i=0;i<row.props.length;i++){
+        blit(S["pr_"+row.props[i].kind], row.props[i].col*TILE, sy);
+      }
+      if (row.pickup){
+        var bob = Math.sin(G.t*2.6 + row.pickup.col) * 7;
+        blit(S["pw_"+row.pickup.kind], row.pickup.col*TILE, sy - 10 - bob);
+      }
+    } else {
+      // parked first, then moving traffic, then the wrong-way bike on top
+      for (i=0;i<row.parked.length;i++){
+        blit(S.boxtruck_r, row.parked[i].col*TILE, sy);
+      }
+      var sprite = S[row.kind + (row.dir > 0 ? "_r" : "_l")];
+      for (i=0;i<row.cars.length;i++){
+        var x = carX(row, row.cars[i]);
+        if (x + (row.eff||1) < -1.6 || x > COLS + 1.6) continue;
+        if (row.packN > 1){
+          for (var q=0;q<row.packN;q++){
+            blit(sprite, (x + q*(HAZ[row.kind].w + row.packGap))*TILE, sy);
+          }
+        } else blit(sprite, x*TILE, sy);
+      }
+      if (row.rogue){
+        var rx = rogueX(row);
+        if (rx + HAZ.ebike.w > -1.6 && rx < COLS + 1.6){
+          blit(S["ebike" + (row.dir > 0 ? "_l" : "_r")], rx*TILE, sy);
+        }
+      }
+      drawStreetSign(row, sy);
+    }
+
+    if (meRow === r && G.state !== ST_DEAD) drawPlayer(pp);
+  }
+
+  if (G.state === ST_DEAD){
+    for (i=0;i<G.parts.length;i++){
+      var p = G.parts[i];
+      if (p.life <= 0) continue;
+      ctx.globalAlpha = Math.max(0, Math.min(1, p.life*2));
+      ctx.fillStyle = p.c;
+      ctx.fillRect(p.x - p.s/2, p.y - p.s/2, p.s, p.s);
+    }
+    ctx.globalAlpha = 1;
+  }
+  ctx.restore();
+}
+
+function drawPlayer(pp){
+  var s = G.facing > 0 ? S.player_r : S.player_l;
+  var sx = pp.col*TILE, sy = rowScreenY(pp.row);
+  var k = 1 - pp.sq*0.35;
+  ctx.globalAlpha = 0.34 - pp.sq*0.12; ctx.fillStyle = "#000";
+  ctx.beginPath();
+  ctx.ellipse(sx + TILE*0.5, sy - ROW_H*0.46, 29*k, 11*k, 0, 0, Math.PI*2);
+  ctx.fill(); ctx.globalAlpha = 1;
+  if (G.shield || G.invulnT > 0){
+    var pulse = 0.55 + 0.45*Math.sin(G.t*9);
+    ctx.globalAlpha = (G.shield ? 0.8 : 0.45) * pulse;
+    ctx.strokeStyle = C.pw1; ctx.lineWidth = 4;
+    ctx.beginPath();
+    ctx.ellipse(sx + TILE*0.5, sy - ROW_H*0.46 - pp.lift*0.3, 40, 17, 0, 0, Math.PI*2);
+    ctx.stroke(); ctx.globalAlpha = 1;
+  }
+  blitScaled(s, sx, sy - pp.lift, 1 - pp.sq*0.10, 1 + pp.sq*0.14);
+}
+
+function drawHaze(){ ctx.fillStyle = hazeGrad; ctx.fillRect(0, HORIZON - 16, LOGICAL_W, 246); }
+function drawSlowTint(){
+  if (G.slowT <= 0) return;
+  ctx.globalAlpha = 0.075 * Math.min(1, G.slowT);
+  ctx.fillStyle = C.pw2; ctx.fillRect(0, 0, LOGICAL_W, LOGICAL_H);
+  ctx.globalAlpha = 1;
+}
+
+/* --------------------------------------------------------------------- HUD */
+function rr(x,y,w,h,r){
+  r = Math.min(r, w*0.5, h*0.5);
+  ctx.beginPath(); ctx.moveTo(x+r,y);
+  ctx.arcTo(x+w,y,x+w,y+h,r); ctx.arcTo(x+w,y+h,x,y+h,r);
+  ctx.arcTo(x,y+h,x,y,r);     ctx.arcTo(x,y,x+w,y,r);
+  ctx.closePath();
+}
+function plate(x,y,w,h,col,rad){ rr(x,y,w,h,rad===undefined?14:rad); ctx.fillStyle = col; ctx.fill(); }
+function txt(s,x,y,size,col,align,maxW){
+  ctx.font = "bold " + size + 'px "Helvetica Neue",Helvetica,Arial,sans-serif';
+  ctx.textAlign = align || "center"; ctx.fillStyle = col;
+  if (maxW) ctx.fillText(s,x,y,maxW); else ctx.fillText(s,x,y);
+}
+
+function drawHud(){
+  plate(28, 26, 470, 104, C.ink);
+  txt("PIPELINE", 52, 58, 26, C.textDim, "left");
+  txt(money(G.maxRow), 52, 98, 56, C.text, "left");
+
+  // where you are, in blocks
+  plate(514, 26, 250, 104, C.ink);
+  txt("BLOCK", 538, 58, 26, C.textDim, "left");
+  txt("W " + G.street + " ST", 538, 98, 42, C.amber, "left");
+
+  // the departure board - the real reason you are hurrying
+  var secs = Math.max(0, Math.ceil(G.trainT));
+  var urgent = G.trainT < 12;
+  plate(LOGICAL_W/2 - 250, 26, 500, 78, C.ink);
+  txt(G.trainLine + "  ·  " + pad2(G.trainHH % 12 || 12) + ":" + pad2(G.trainMM) +
+      "  ·  " + G.trainDest, LOGICAL_W/2, 50, 20, C.textDim, "center", 460);
+  var tcol = urgent ? C.danger : C.amber;
+  if (urgent && Math.sin(G.t*9) < 0) tcol = C.text;
+  txt("DEPARTS  " + Math.floor(secs/60) + ":" + pad2(secs%60), LOGICAL_W/2, 82, 34, tcol);
+
+  var b = best();
+  if (b > 0){
+    plate(LOGICAL_W-400, 26, 372, 104, C.ink);
+    txt("BEST WALK", LOGICAL_W-52, 58, 26, C.textDim, "right");
+    txt(money(b), LOGICAL_W-52, 98, 44, C.good, "right");
+  }
+
+  var chips = [];
+  if (G.shield)      chips.push(["E", "ENDPOINT AGENT", C.pw1, 0]);
+  if (G.slowT > 0)   chips.push(["I", "INSIGHTS",       C.pw2, G.slowT / POWERS.insight.secs]);
+  if (G.revealT > 0) chips.push(["P", "PATH VIS",       C.pw3,   G.revealT / POWERS.path.secs]);
+  for (var i=0;i<chips.length;i++){
+    var cx = 28 + i*250, cy = 146;
+    plate(cx, cy, 236, 60, C.ink, 12);
+    plate(cx+10, cy+10, 40, 40, chips[i][2], 10);
+    txt(chips[i][0], cx+30, cy+31, 24, "#1a0a02");
+    txt(chips[i][1], cx+62, cy+24, 20, C.text, "left", 160);
+    if (chips[i][3] > 0){
+      ctx.fillStyle = "rgba(255,255,255,0.14)"; ctx.fillRect(cx+62, cy+38, 160, 6);
+      ctx.fillStyle = chips[i][2];              ctx.fillRect(cx+62, cy+38, 160*chips[i][3], 6);
+    }
+  }
+
+  if (G.toast && G.toast.a > 0.01){
+    ctx.globalAlpha = G.toast.a;
+    var w = 820, x = (LOGICAL_W-w)/2;
+    plate(x, 226, w, 132, "rgba(255,106,19,0.16)");
+    ctx.fillStyle = C.brand; ctx.fillRect(x, 226, 8, 132);
+    txt(G.toast.name, LOGICAL_W/2, 262, 40, C.text, "center", w-60);
+    txt(G.toast.stage, LOGICAL_W/2, 300, 24, C.amber, "center", w-60);
+    txt(G.toast.line, LOGICAL_W/2, 334, 22, C.brandPale, "center", w-60);
+    ctx.globalAlpha = 1;
+  }
+
+  if (G.flash){
+    ctx.globalAlpha = Math.min(1, G.flash.life/0.4);
+    var fw = 860, fx = (LOGICAL_W-fw)/2;
+    plate(fx, 380, fw, 100, C.ink);
+    ctx.fillStyle = G.flash.col; ctx.fillRect(fx, 380, 8, 100);
+    txt(G.flash.name, LOGICAL_W/2, 412, 26, G.flash.col, "center", fw-60);
+    txt(G.flash.line, LOGICAL_W/2, 450, 22, C.text, "center", fw-60);
+    ctx.globalAlpha = 1;
+  }
+}
+
+/* The brand mark, drawn from paths: an eye, because the product is about
+   seeing the path. A motif in ThousandEyes' colour, not their official logo -
+   swap in the real asset when you have it (it would need to be inlined as a
+   data URI or redrawn here; the viewer blocks external images). */
+function drawEye(cx, cy, r, col, iris, lid){
+  ctx.beginPath();
+  ctx.moveTo(cx - r, cy);
+  ctx.quadraticCurveTo(cx, cy - r*0.92, cx + r, cy);
+  ctx.quadraticCurveTo(cx, cy + r*0.92, cx - r, cy);
+  ctx.closePath();
+  ctx.fillStyle = col; ctx.fill();
+  if (lid){ ctx.lineWidth = Math.max(2, r*0.09); ctx.strokeStyle = lid; ctx.stroke(); }
+  ctx.beginPath(); ctx.arc(cx, cy, r*0.33, 0, Math.PI*2);
+  ctx.fillStyle = iris; ctx.fill();
+  ctx.beginPath(); ctx.arc(cx + r*0.11, cy - r*0.11, r*0.10, 0, Math.PI*2);
+  ctx.fillStyle = "rgba(255,255,255,0.75)"; ctx.fill();
+}
+
+/* small persistent lockup, so the game is branded during play and not only on
+   the menus. Drawn only - it has no hit test, so it never steals a hop. */
+function drawLockup(){
+  ctx.globalAlpha = 0.62;
+  drawEye(58, LOGICAL_H - 46, 15, C.brand, "#1a0a02", null);
+  txt("THOUSANDEYES", 84, LOGICAL_H - 45, 21, C.brandLight, "left");
+  ctx.globalAlpha = 1;
+}
+
+function drawMuteBtn(){
+  if (!muteBtnActive()) return;
+  var b = MUTE_BTN, cx = b.x + b.w*0.44, cy = b.y + b.h*0.5;
+  var on = !AUDIO.isMuted(), col = on ? C.brand : C.textDim;
+  plate(b.x, b.y, b.w, b.h, C.ink, 18);
+  ctx.fillStyle = col;
+  ctx.fillRect(cx - 22, cy - 9, 11, 18);
+  ctx.beginPath();
+  ctx.moveTo(cx - 11, cy - 9); ctx.lineTo(cx + 4, cy - 23);
+  ctx.lineTo(cx + 4,  cy + 23); ctx.lineTo(cx - 11, cy + 9);
+  ctx.closePath(); ctx.fill();
+  ctx.strokeStyle = col; ctx.lineWidth = 3.5; ctx.lineCap = "round";
+  if (on){
+    for (var i=1;i<=2;i++){
+      ctx.beginPath(); ctx.arc(cx + 6, cy, 10 + i*9, -Math.PI/3, Math.PI/3); ctx.stroke();
+    }
+  } else {
+    ctx.beginPath();
+    ctx.moveTo(cx + 12, cy - 13); ctx.lineTo(cx + 32, cy + 13);
+    ctx.moveTo(cx + 32, cy - 13); ctx.lineTo(cx + 12, cy + 13);
+    ctx.stroke();
+  }
+  txt(on ? "SOUND" : "MUTED", b.x + b.w*0.5, b.y + b.h - 13, 15, C.textDim);
+}
+
+function drawTitle(){
+  ctx.fillStyle = "rgba(8,5,3,0.78)";
+  ctx.fillRect(0, 0, LOGICAL_W, LOGICAL_H);
+  drawEye(LOGICAL_W/2, 152, 52, C.brand, "#1a0a02", C.brandLight);
+  txt("THOUSANDEYES", LOGICAL_W/2, 236, 46, C.brandLight);
+  txt("THE LAST MILE", LOGICAL_W/2, 330, 116, C.text);
+  txt("PENN 1  →  THE MEETING", LOGICAL_W/2, 404, 34, C.amber);
+  txt("Walk uptown. Mind the traffic. Make your train.", LOGICAL_W/2, 456, 28, C.textDim);
+
+  var kinds = POWER_KINDS, bw = 400, gap = 24;
+  var total = kinds.length*bw + (kinds.length-1)*gap;
+  var x0 = (LOGICAL_W - total)/2;
+  for (var i=0;i<kinds.length;i++){
+    var k = POWERS[kinds[i]], bx = x0 + i*(bw+gap);
+    plate(bx, 508, bw, 108, C.ink, 12);
+    plate(bx+16, 528, 56, 56, k.col, 12);
+    txt(k.letter, bx+44, 557, 32, "#1a0a02");
+    txt(k.name, bx+86, 546, 22, k.col, "left", bw-104);
+    txt(k.line, bx+86, 580, 18, C.textDim, "left", bw-104);
+  }
+
+  plate(LOGICAL_W/2-340, 652, 680, 128, C.ink);
+  txt("TAP THE TOP OF THE SCREEN TO CROSS", LOGICAL_W/2, 690, 28, C.text, "center", 620);
+  txt("TAP THE BOTTOM LEFT / RIGHT TO STEP ALONG THE BLOCK", LOGICAL_W/2, 730, 24, C.textDim, "center", 620);
+  txt("(swipes work too)", LOGICAL_W/2, 764, 22, C.textDim, "center", 620);
+  txt("A THOUSANDEYES GAME  ·  CISCO", LOGICAL_W/2, 812, 22, C.cisco);
+
+  ctx.globalAlpha = 0.6 + 0.4*Math.sin(G.t*3);
+  txt("TAP TO START", LOGICAL_W/2, 872, 52, C.brand);
+  ctx.globalAlpha = 1;
+}
+
+function drawDead(){
+  ctx.fillStyle = "rgba(8,5,3,0.84)";
+  ctx.fillRect(0, 0, LOGICAL_W, LOGICAL_H);
+  if (G.missedTrain){
+    txt("MISSED YOUR TRAIN", LOGICAL_W/2, 206, 96, C.amber);
+    txt(G.trainLine + " · " + G.trainDest + " · " + G.deathName, LOGICAL_W/2, 288, 34, C.text);
+  } else {
+    txt("DIDN’T MAKE IT", LOGICAL_W/2, 206, 100, C.danger);
+    txt("STOPPED ON W " + G.street + " ST BY " + G.deathName, LOGICAL_W/2, 288, 34, C.text);
+  }
+
+  plate(LOGICAL_W/2-580, 336, 1160, 152, C.ink);
+  ctx.fillStyle = G.missedTrain ? C.amber : C.danger;
+  ctx.fillRect(LOGICAL_W/2-580, 336, 8, 152);
+  txt(G.deathObj, LOGICAL_W/2, 382, 30, C.textDim, "center", 1080);
+  txt(G.missedTrain ? "REMEMBER" : "TRY THIS", LOGICAL_W/2, 428, 20, C.good);
+  txt(G.deathFix, LOGICAL_W/2, 462, 30, C.text, "center", 1080);
+
+  plate(LOGICAL_W/2-400, 518, 800, 198, C.ink);
+  txt("PIPELINE BUILT", LOGICAL_W/2, 564, 28, C.textDim);
+  txt(money(G.maxRow), LOGICAL_W/2, 626, 82, C.text);
+  txt(rankFor(G.maxRow), LOGICAL_W/2, 688, 34, C.brand);
+
+  if (G.deadFor > 0.45){
+    ctx.globalAlpha = 0.55 + 0.45*Math.sin(G.t*3);
+    txt("TAP ANYWHERE TO WALK IT AGAIN", LOGICAL_W/2, 798, 46, C.brand);
+    ctx.globalAlpha = 1;
+  }
+}
+
+/* --------------------------------------------------------------- main loop */
+var fps = { acc:0, frames:0, value:0 };
+function render(){
+  var sx = 0, sy = 0;
+  if (G.shake > 0){ sx = (Math.random()-0.5)*G.shake; sy = (Math.random()-0.5)*G.shake; }
+  ctx.setTransform(scale, 0, 0, scale, sx*scale, sy*scale);
+  drawSky();
+  drawWorld();
+  drawHaze();
+  drawSlowTint();
+  drawHud();
+  if (G.state === ST_PLAY) drawLockup();
+  if (G.state === ST_TITLE) drawTitle();
+  if (G.state === ST_DEAD)  drawDead();
+  drawMuteBtn();
+  if (SHOW_FPS){
+    ctx.setTransform(scale, 0, 0, scale, 0, 0);
+    ctx.font = "bold 24px monospace"; ctx.textAlign = "left";
+    ctx.fillStyle = fps.value < 24 ? C.danger : C.good;
+    ctx.fillText(fps.value.toFixed(0) + " fps  " + cv.width + "x" + cv.height +
+                 "  dpr" + (window.devicePixelRatio||1).toFixed(2) +
+                 "  bake" + BAKE.toFixed(2), 32, LOGICAL_H - 36);
+  }
+}
+
+var STEP = 1/60, accum = 0, prev = performance.now(), paused = false;
+function frame(now){
+  requestAnimationFrame(frame);
+  if (paused){ prev = now; return; }
+  var delta = (now - prev)/1000; prev = now;
+  if (delta > 0.1) delta = 0.1;
+  accum += delta;
+  var guard = 0;
+  while (accum >= STEP && guard++ < 6){ update(STEP); accum -= STEP; }
+  fps.frames++; fps.acc += delta;
+  if (fps.acc >= 0.5){ fps.value = fps.frames/fps.acc; fps.frames = 0; fps.acc = 0; }
+  render();
+}
+
+document.addEventListener("visibilitychange", function(){
+  paused = document.hidden; prev = performance.now(); accum = 0;
+  if (paused) AUDIO.suspend();
+});
+window.addEventListener("pagehide", function(){ AUDIO.suspend(); });
+window.addEventListener("blur",  function(){ accum = 0; });
+window.addEventListener("focus", function(){ prev = performance.now(); accum = 0; });
+
+layout();
+bakeAll();
+ready = true;
+reset();
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>
