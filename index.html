@@ -1225,19 +1225,23 @@ function citiDockModel(){
   }
   return { parts:parts, decals:[], W:1 };
 }
-/* LinkNYC-style kiosk - where the ThousandEyes branding lives at street level */
+/* A ThousandEyes Path terminal on the pavement. Walk into one and it runs a
+   trace for you - the same power-up the pickup grants. The screen carries the
+   wordmark in the real two-tone, which needed the slab widened: the old
+   display was 20px across and could not hold a word. */
 function kioskModel(){
   return { parts:[
-    P(0.38, 0.40, 0.26, 0.16, 0,    0.07, "#1b2230"),
-    P(0.40, 0.42, 0.22, 0.12, 0.07, 0.80, "#10202c"),
-    E(0.39, 0.41, 0.24, 0.02, 0.86, 0.04, C.brand)
+    P(0.30, 0.40, 0.42, 0.16, 0,    0.07, "#1b2230"),
+    P(0.31, 0.41, 0.40, 0.14, 0.07, 0.78, "#10202c"),
+    E(0.295, 0.405, 0.43, 0.03, 0.85, 0.045, C.brand)
   ], decals:[
-    { x:0.415, y:0.42, w:0.17, z:0.30, h:0.46, bg:"#2a1206", core:"#3d1b08", glow:true },
-    { x:0.425, y:0.42, w:0.15, z:0.58, h:0.09, bg:C.brand, core:C.brandLight, glow:true,
-      fg:"#1a0a02", text:"1000", size:11 },
-    { x:0.425, y:0.42, w:0.15, z:0.46, h:0.09, bg:"#3d1b08", fg:C.brandPale,
-      text:"EYES", size:11 },
-    { x:0.428, y:0.42, w:0.144, z:0.345, h:0.02, bg:C.brand, glow:true }
+    { x:0.325, y:0.41, w:0.37, z:0.26, h:0.54, bg:"#06212e", core:"#0a3348", glow:true },
+    { x:0.335, y:0.41, w:0.35, z:0.62, h:0.10, bg:"#06212e", fg:"#ffffff",
+      text:"Thousand", size:11 },
+    { x:0.335, y:0.41, w:0.35, z:0.52, h:0.10, bg:"#06212e", fg:C.brand,
+      text:"Eyes", size:11 },
+    { x:0.345, y:0.41, w:0.33, z:0.33, h:0.14, bg:C.brand, core:shade(C.brand,0.35),
+      glow:true, fg:"#1a0a02", text:"PATH", size:13 }
   ], W:1 };
 }
 var PROP_KINDS = ["shed","halal","newsstand","subway","trash","planter","citidock","kiosk"];
@@ -1573,6 +1577,23 @@ function act(dir){
   if (nc < 0 || nc > COLS-1){ AUDIO.bump(); return; }
   if (nr < 0 || nr < G.maxRow - 6){ AUDIO.bump(); return; }
   var target = rows[nr];
+  /* A ThousandEyes Path terminal runs a trace for you. You do not step into
+     it - you use it from where you stand - so the kiosk stays solid and is
+     spent afterwards. */
+  if (target && target.props){
+    for (var ki = 0; ki < target.props.length; ki++){
+      var kp = target.props[ki];
+      if (kp.kind === "kiosk" && kp.col === nc && !kp.used){
+        kp.used = true;
+        G.revealT = Math.max(G.revealT, POWERS.path.secs);
+        G.trace = buildTrace();
+        AUDIO.power("path");
+        flash("THOUSANDEYES PATH", POWERS.path.line, POWERS.path.col);
+        burst(nc*TILE + TILE/2, rowScreenY(nr) - 40, POWERS.path.col);
+        return;
+      }
+    }
+  }
   // a card lets you swipe in at any subway entrance
   if (G.metro && !G.ride && target && target.props){
     for (var pi = 0; pi < target.props.length; pi++){
@@ -2684,7 +2705,11 @@ function drawWorld(){
 
     if (row.type === "safe"){
       for (i=0;i<row.props.length;i++){
-        blit(S["pr_"+row.props[i].kind], row.props[i].col*TILE, sy);
+        var pr2 = row.props[i];
+        if (pr2.kind === "kiosk" && pr2.used) ctx.globalAlpha = 0.4;  // spent
+        blit(S["pr_"+pr2.kind], pr2.col*TILE, sy);
+        ctx.globalAlpha = 1;
+        if (pr2.kind === "kiosk" && !pr2.used) drawKioskLabel(pr2.col, sy);
       }
       if (row.pickup){
         if (row.pickup.kind === "tam") drawTamPickup(row.pickup.col, sy);
@@ -2744,6 +2769,21 @@ function drawWorld(){
    TAM is actually on screen - typically one pickup, a few dozen fills. */
 /* Every pickup names itself. A coloured letter on a cube taught a first-time
    player nothing, and on a shared device most plays are a first play. */
+/* Terminals get the same floating label the pickups do, so it is obvious they
+   are usable and not just scenery. */
+function drawKioskLabel(col, sy){
+  var cx = col*TILE + TILE*0.5, y = sy - 142;
+  if (y < HORIZON + 10 || y > LOGICAL_H - 30) return;
+  var pulse = 0.72 + 0.28*Math.sin(G.t*3 + col);
+  ctx.font = 'bold 15px "Helvetica Neue",Helvetica,Arial,sans-serif';
+  var w = ctx.measureText("THOUSANDEYES PATH").width + 28;
+  ctx.globalAlpha = pulse;
+  plate(cx - w/2, y - 15, w, 28, "rgba(8,5,3,0.86)", 7);
+  ctx.fillStyle = C.pw3; ctx.fillRect(cx - w/2, y - 15, 4, 28);
+  txt("THOUSANDEYES PATH", cx + 2, y, 15, C.pw3);
+  ctx.globalAlpha = 1;
+}
+
 function drawPickupLabel(kind, col, sy){
   var k = POWERS[kind];
   if (!k) return;
