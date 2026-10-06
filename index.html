@@ -88,7 +88,7 @@ var BASE_Y = 858, HORIZON = 250;   // rows are culled above this; sky above it
 var SKY_BASE = 254;                // skyline baseline, just under the cull line
 var PAD = 4, SPAN = COLS + PAD * 2;
 var ROWS_AHEAD = 15, ROWS_BEHIND = 6;
-var HOP_MS = 135, DOLLARS_PER_ROW = 5000;
+var HOP_MS = 135, DOLLARS_PER_ROW = 15000;   // row 70 ~= $1.05M
 
 var SHOW_FPS  = /[?&]fps=1/.test(location.search);
 var SAFE_MODE = /[?&]safe=1/.test(location.search);
@@ -877,23 +877,75 @@ var MODELS = {
 /* ----------------------------------------------------------- model: player */
 /* Luminance steps between adjacent parts or the figure blobs:
    trousers 0.21 -> shirt 0.47 -> skin 0.74, dark collar between the two. */
+/* The seller: dark suit, white shirt, orange tie. Luminance has to step
+   between adjacent parts or the figure reads as one blob - trousers 0.13,
+   jacket 0.18, skin 0.74, with a white shirt and an orange tie carrying the
+   focal point down the middle. */
 function playerModel(dir){
-  var skin = "#e9b98c", shirt = "#0a9fd0", trouser = "#1e2838";
+  var skin = "#e9b98c", suit = "#232f44", suitDark = "#1a2433";
   var parts = [
-    P(0.28, 0.44, 0.15, 0.16, 0,     0.055, "#141820"),
-    P(0.57, 0.44, 0.15, 0.16, 0,     0.055, "#141820"),
-    P(0.30, 0.43, 0.40, 0.18, 0.05,  0.22,  trouser),
-    P(0.22, 0.39, 0.56, 0.26, 0.27,  0.22,  shirt),
-    P(0.16, 0.43, 0.07, 0.18, 0.30,  0.17,  shade(shirt,-0.28)),
-    P(0.77, 0.43, 0.07, 0.18, 0.30,  0.17,  shade(shirt,-0.28)),
-    P(0.33, 0.39, 0.34, 0.24, 0.49,  0.045, "#07445e"),
-    P(0.35, 0.41, 0.30, 0.21, 0.535, 0.16,  skin),
-    P(0.34, 0.40, 0.32, 0.23, 0.675, 0.055, "#2e2118")
+    P(0.28, 0.44, 0.15, 0.16, 0,     0.055, "#12151a"),      // shoes
+    P(0.57, 0.44, 0.15, 0.16, 0,     0.055, "#12151a"),
+    P(0.31, 0.43, 0.38, 0.18, 0.05,  0.23,  suitDark),       // trousers
+    P(0.23, 0.39, 0.54, 0.26, 0.28,  0.22,  suit),           // jacket
+    P(0.17, 0.43, 0.08, 0.18, 0.30,  0.18,  shade(suit,-0.22)), // sleeves
+    P(0.76, 0.43, 0.08, 0.18, 0.30,  0.18,  shade(suit,-0.22)),
+    P(0.35, 0.41, 0.30, 0.21, 0.535, 0.16,  skin),           // head
+    P(0.34, 0.40, 0.32, 0.23, 0.675, 0.055, "#2e2118")       // hair
   ];
-  parts.push(P(dir > 0 ? 0.80 : 0.07, 0.44, 0.17, 0.15, 0.14, 0.15, "#1b2838"));
+  parts.push(P(dir > 0 ? 0.80 : 0.07, 0.44, 0.17, 0.15, 0.14, 0.15, "#17202c"));
   return { parts:parts, decals:[
-    { x:0.40,  y:0.39, w:0.17, z:0.33,  h:0.11, bg:"#ffffff" },
-    { x:0.445, y:0.39, w:0.07, z:0.355, h:0.05, bg:C.brand, glow:true }
+    { x:0.395, y:0.39, w:0.21, z:0.28,  h:0.22,  bg:"#f4f7fa" },   // shirt front
+    { x:0.455, y:0.39, w:0.09, z:0.28,  h:0.19,  bg:C.brand },     // tie
+    { x:0.44,  y:0.39, w:0.12, z:0.465, h:0.035, bg:"#ffffff" },   // collar
+    { x:0.30,  y:0.39, w:0.09, z:0.30,  h:0.19,  bg:shade(suit,0.10) }, // lapel
+    { x:0.61,  y:0.39, w:0.09, z:0.30,  h:0.19,  bg:shade(suit,0.10) }
+  ], shadow:false, W:1 };
+}
+
+/* TAM engaged: the suit comes off. Orange rather than red, T rather than S.
+   Two cape states - hanging when grounded, streaming straight back when
+   airborne - baked separately because the camera never rotates. */
+function heroModel(dir, flying){
+  var skin = "#e9b98c", suit = C.brand, boot = shade(C.brand, -0.34);
+  var cape = shade(C.brand, -0.42), capeIn = shade(C.brand, -0.26);
+  var parts = [];
+
+  /* Cape geometry is dictated by the projection: depth renders as up-and-right,
+     so a cape hanging straight down behind the torso occupies the same screen
+     space as the legs and is entirely hidden by them. To read at all it has to
+     be WIDER than the body, so its edges show as panels either side. */
+  if (flying){
+    // streaming: long run of depth, which reads as sweeping up and back
+    parts.push(P(0.08, 0.58, 0.84, 0.15, 0.40, 0.11, cape));
+    parts.push(P(0.12, 0.74, 0.76, 0.15, 0.42, 0.10, capeIn));
+    parts.push(P(0.18, 0.90, 0.64, 0.15, 0.44, 0.09, cape));
+    parts.push(P(0.26, 1.06, 0.48, 0.13, 0.46, 0.08, capeIn));
+    parts.push(P(0.35, 1.21, 0.30, 0.11, 0.48, 0.07, cape));
+  } else {
+    // hanging: one wide panel behind, overhanging the body on both sides
+    parts.push(P(0.03, 0.58, 0.94, 0.06, 0.11, 0.41, cape));
+    parts.push(P(0.09, 0.55, 0.82, 0.05, 0.40, 0.15, capeIn));   // shoulder yoke
+    parts.push(P(0.05, 0.60, 0.12, 0.05, 0.11, 0.33, capeIn));   // left edge fold
+    parts.push(P(0.83, 0.60, 0.12, 0.05, 0.11, 0.33, capeIn));   // right edge fold
+  }
+
+  parts.push(P(0.28, 0.44, 0.16, 0.16, 0,     0.09,  boot));       // boots
+  parts.push(P(0.56, 0.44, 0.16, 0.16, 0,     0.09,  boot));
+  parts.push(P(0.31, 0.43, 0.38, 0.18, 0.09,  0.20,  shade(suit,-0.16)));
+  parts.push(P(0.24, 0.39, 0.52, 0.26, 0.28,  0.22,  suit));       // chest
+  parts.push(P(0.18, 0.43, 0.07, 0.18, 0.30,  0.18,  shade(suit,-0.26)));
+  parts.push(P(0.75, 0.43, 0.07, 0.18, 0.30,  0.18,  shade(suit,-0.26)));
+  parts.push(P(0.35, 0.41, 0.30, 0.21, 0.535, 0.16,  skin));
+  parts.push(P(0.34, 0.40, 0.32, 0.23, 0.675, 0.055, "#2e2118"));
+  // belt
+  parts.push(P(0.30, 0.42, 0.40, 0.20, 0.27, 0.035, shade(suit,-0.45)));
+
+  return { parts:parts, decals:[
+    // the shield, and the T
+    { x:0.37, y:0.39, w:0.26, z:0.31, h:0.17, bg:"#fff3d6" },
+    { x:0.395, y:0.39, w:0.21, z:0.325, h:0.14, bg:C.brand,
+      fg:"#fff3d6", text:"T", size:17 }
   ], shadow:false, W:1 };
 }
 
@@ -1123,8 +1175,12 @@ function bakeAll(){
     S[k+"_r"] = bake(m);
     S[k+"_l"] = bake(flip(m, m.W));
   }
-  S.player_r = bake(playerModel(1));
-  S.player_l = bake(playerModel(-1));
+  S.player_r  = bake(playerModel(1));
+  S.player_l  = bake(playerModel(-1));
+  S.hero_r    = bake(heroModel(1, false));
+  S.hero_l    = bake(heroModel(-1, false));
+  S.heroFly_r = bake(heroModel(1, true));
+  S.heroFly_l = bake(heroModel(-1, true));
   for (i=0;i<POWER_KINDS.length;i++) S["pw_"+POWER_KINDS[i]] = bake(powerModel(POWER_KINDS[i]));
   S.pw_tam = bake(powerModel("tam"));
   for (i=0;i<PROP_KINDS.length;i++)  S["pr_"+PROP_KINDS[i]]  = bake(PROP_MODELS[PROP_KINDS[i]]());
@@ -2094,7 +2150,13 @@ function drawTamPickup(col, sy){
 }
 
 function drawPlayer(pp){
-  var s = G.facing > 0 ? S.player_r : S.player_l;
+  /* TAM engaged swaps the suit for the cape; airborne swaps to the streaming
+     cape. Falls back to the suit if a hero bake is somehow missing. */
+  var right = G.facing > 0, s;
+  if (G.tam) s = (G.flyA > 0.45) ? (right ? S.heroFly_r : S.heroFly_l)
+                                 : (right ? S.hero_r    : S.hero_l);
+  else       s = right ? S.player_r : S.player_l;
+  if (!s) s = right ? S.player_r : S.player_l;
   var sx = pp.col*TILE, sy = rowScreenY(pp.row);
   var fly = G.flyA, flyLift = fly * 78;
   var k = (1 - pp.sq*0.35) * (1 - fly*0.45);          // shadow shrinks with height
@@ -2256,10 +2318,54 @@ function drawEye(cx, cy, r, col, iris, lid){
 
 /* small persistent lockup, so the game is branded during play and not only on
    the menus. Drawn only - it has no hit test, so it never steals a hop. */
+/* The ThousandEyes wordmark: "Thousand" in white, "Eyes" in orange, drawn
+   glyph by glyph with tightened tracking so it reads as a logotype rather
+   than a line of text. Normal weight, not bold - logotypes are rarely heavy.
+
+   NOTE: this is a careful approximation of the real wordmark using a system
+   font. The actual logo is a drawn asset; inline it as a data URI (or redraw
+   it as paths here) to be exact, since the game loads nothing externally. */
+function drawWordmark(cx, cy, size){
+  ctx.font = size + 'px "Helvetica Neue",Helvetica,Arial,sans-serif';
+  ctx.textAlign = "left";
+  var a = "Thousand", b = "Eyes", track = -size * 0.014;
+  function wide(str){
+    var w = 0;
+    for (var i = 0; i < str.length; i++) w += ctx.measureText(str.charAt(i)).width + track;
+    return w - track;
+  }
+  var x = cx - (wide(a) + wide(b)) / 2;
+  ctx.fillStyle = "#ffffff";
+  for (var i = 0; i < a.length; i++){
+    ctx.fillText(a.charAt(i), x, cy);
+    x += ctx.measureText(a.charAt(i)).width + track;
+  }
+  ctx.fillStyle = C.brand;
+  for (var j = 0; j < b.length; j++){
+    ctx.fillText(b.charAt(j), x, cy);
+    x += ctx.measureText(b.charAt(j)).width + track;
+  }
+  ctx.textAlign = "center";
+}
+
+/* The mark at logo scale: a stroked lens with a solid iris, which holds its
+   shape far better than a filled blob when it is large. */
+function drawLogoEye(cx, cy, r){
+  ctx.lineJoin = "round"; ctx.lineCap = "round";
+  ctx.beginPath();
+  ctx.moveTo(cx - r, cy);
+  ctx.quadraticCurveTo(cx, cy - r * 0.78, cx + r, cy);
+  ctx.quadraticCurveTo(cx, cy + r * 0.78, cx - r, cy);
+  ctx.closePath();
+  ctx.lineWidth = r * 0.135; ctx.strokeStyle = C.brand; ctx.stroke();
+  ctx.beginPath(); ctx.arc(cx, cy, r * 0.30, 0, Math.PI * 2);
+  ctx.fillStyle = C.brand; ctx.fill();
+}
+
 function drawLockup(){
-  ctx.globalAlpha = 0.62;
-  drawEye(58, LOGICAL_H - 46, 15, C.brand, "#1a0a02", null);
-  txt("THOUSANDEYES", 84, LOGICAL_H - 45, 21, C.brandLight, "left");
+  ctx.globalAlpha = 0.68;
+  drawLogoEye(52, LOGICAL_H - 46, 16);
+  drawWordmark(160, LOGICAL_H - 45, 26);
   ctx.globalAlpha = 1;
 }
 
@@ -2288,45 +2394,29 @@ function drawMuteBtn(){
   txt(on ? "SOUND" : "MUTED", b.x + b.w*0.5, b.y + b.h - 13, 15, C.textDim);
 }
 
+/* Deliberately spare: logo, name, one line, and an invitation. The power-up
+   legend used to live here (five cards plus a three-line control plate), but
+   every power-up already announces itself when collected, so the title does
+   not need to teach them. The overlay is light enough to see the traffic
+   moving behind it. */
 function drawTitle(){
-  ctx.fillStyle = "rgba(8,5,3,0.78)";
+  ctx.fillStyle = "rgba(8,5,3,0.66)";
   ctx.fillRect(0, 0, LOGICAL_W, LOGICAL_H);
-  drawEye(LOGICAL_W/2, 152, 52, C.brand, "#1a0a02", C.brandLight);
-  txt("THOUSANDEYES", LOGICAL_W/2, 236, 46, C.brandLight);
-  txt("THE LAST MILE", LOGICAL_W/2, 330, 116, C.text);
-  txt("PENN 1  →  THE MEETING", LOGICAL_W/2, 404, 34, C.amber);
-  txt("Walk uptown. Mind the traffic. Make your train.", LOGICAL_W/2, 456, 28, C.textDim);
 
-  // four common power-ups on one row, then the TAM on its own, wider card
-  var kinds = POWER_KINDS, bw = 400, gap = 24;
-  var total = kinds.length*bw + (kinds.length-1)*gap;
-  var x0 = (LOGICAL_W - total)/2;
-  for (var i=0;i<kinds.length;i++){
-    var k = POWERS[kinds[i]], bx = x0 + i*(bw+gap);
-    plate(bx, 500, bw, 104, C.ink, 12);
-    plate(bx+16, 518, 56, 56, k.col, 12);
-    txt(k.letter, bx+44, 547, 32, "#1a0a02");
-    txt(k.name, bx+86, 536, 22, k.col, "left", bw-104);
-    txt(k.line, bx+86, 570, 18, C.textDim, "left", bw-104);
-  }
-  var tw2 = 1000, tx = (LOGICAL_W - tw2)/2;
-  plate(tx, 616, tw2, 96, "rgba(255,240,189,0.11)", 12);
-  ctx.fillStyle = C.pw5; ctx.fillRect(tx, 616, 7, 96);
-  plate(tx+22, 636, 56, 56, C.pw5, 12);
-  txt("T", tx+50, 665, 32, "#2a1400");
-  txt("TAM  —  RARE", tx+94, 650, 24, C.pw5, "left", 400);
-  txt("Fly for 5 seconds, then they stay engaged and keep delivering.",
-      tx+94, 682, 19, C.textDim, "left", tw2-130);
+  drawLogoEye(LOGICAL_W/2, 232, 56);
+  drawWordmark(LOGICAL_W/2, 352, 62);
 
-  plate(LOGICAL_W/2-340, 732, 680, 120, C.ink);
-  txt("TAP THE TOP OF THE SCREEN TO CROSS", LOGICAL_W/2, 766, 26, C.text, "center", 620);
-  txt("TAP THE BOTTOM LEFT / RIGHT TO STEP ALONG THE BLOCK", LOGICAL_W/2, 802, 22, C.textDim, "center", 620);
-  txt("(swipes work too)", LOGICAL_W/2, 834, 20, C.textDim, "center", 620);
-  txt("A THOUSANDEYES GAME  ·  CISCO", LOGICAL_W/2, 880, 20, C.cisco);
+  txt("THE LAST MILE", LOGICAL_W/2, 506, 124, C.text);
+  txt("Penn 1 to the meeting.", LOGICAL_W/2, 578, 32, C.textDim);
 
-  ctx.globalAlpha = 0.6 + 0.4*Math.sin(G.t*3);
-  txt("TAP TO START", LOGICAL_W/2, 936, 48, C.brand);
+  ctx.globalAlpha = 0.58 + 0.42*Math.sin(G.t*3);
+  txt("TAP TO START", LOGICAL_W/2, 726, 62, C.brand);
   ctx.globalAlpha = 1;
+
+  txt("Tap the top to cross  ·  bottom corners to step aside",
+      LOGICAL_W/2, 822, 25, C.textDim);
+  txt("A THOUSANDEYES GAME  ·  CISCO", LOGICAL_W/2, 1004, 19,
+      "rgba(253,244,238,0.36)");
 }
 
 function drawDead(){

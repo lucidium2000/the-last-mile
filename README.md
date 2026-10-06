@@ -95,6 +95,16 @@ rather than generic cars with labels stuck on them:
 Objections and rebuttals appear on the game-over screen, with coaching lines
 between milestones so the slow hazards that rarely kill you still get read.
 
+### The player
+
+A seller in a dark suit, white shirt and orange tie. Collect a TAM and the suit
+comes off: caped hero, orange rather than red, **T** rather than S, with a
+second baked cape state that streams back while airborne.
+
+Cape geometry is dictated by the projection — depth renders as up-and-right, so
+a cape hanging straight down behind the torso sits in the same screen space as
+the legs and is invisible. It has to be wider than the body to read at all.
+
 ### Power-ups
 
 Four common ThousandEyes capabilities — Endpoint Agent (absorbs one hit),
