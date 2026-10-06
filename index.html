@@ -904,8 +904,13 @@ var MODELS = {
    sort is far-edge-first, so the cape must sit at a greater y than the torso.
    The shallower the torso, the closer the cape can sit behind it, and the less
    the projection shoves the cape up the screen. */
-function playerModel(dir){
-  var skin = "#e9b98c", suit = "#232f44", suitDark = "#19222f";
+/* `shielded` is the Endpoint Agent look: blue blazer and sunglasses. Only the
+   jacket, shoulders, sleeves and lapels change colour - the trousers stay dark,
+   the way a blazer actually differs from the rest of a suit. */
+function playerModel(dir, shielded){
+  var skin = "#e9b98c";
+  var suit = shielded ? "#2f62c4" : "#232f44";
+  var suitDark = "#19222f";
   var parts = [
     P(0.28, 0.46, 0.16, 0.13, 0,     0.06,  "#12151a"),      // shoes
     P(0.56, 0.46, 0.16, 0.13, 0,     0.06,  "#12151a"),
@@ -920,13 +925,20 @@ function playerModel(dir){
     P(0.355, 0.42, 0.29, 0.17, 0.78, 0.075, "#2b1d14")       // hair
   ];
   parts.push(P(dir > 0 ? 0.82 : 0.05, 0.46, 0.15, 0.13, 0.17, 0.14, "#17202c"));
-  return { parts:parts, decals:[
+  var dec = [
     { x:0.405, y:0.42, w:0.19, z:0.33,  h:0.25,  bg:"#f4f7fa" },   // shirt
     { x:0.455, y:0.42, w:0.09, z:0.33,  h:0.21,  bg:C.brand },     // tie
     { x:0.44,  y:0.42, w:0.12, z:0.565, h:0.035, bg:"#ffffff" },   // collar
     { x:0.30,  y:0.42, w:0.10, z:0.35,  h:0.22,  bg:shade(suit,0.10) },
     { x:0.60,  y:0.42, w:0.10, z:0.35,  h:0.22,  bg:shade(suit,0.10) }
-  ], shadow:false, W:1 };
+  ];
+  if (shielded){
+    // sunglasses, sat on the head's front face
+    dec.push({ x:0.375, y:0.43, w:0.25,  z:0.712, h:0.050, bg:"#0b0e13" });
+    dec.push({ x:0.392, y:0.43, w:0.045, z:0.726, h:0.022, bg:"#5f86b4" });
+    dec.push({ x:0.372, y:0.43, w:0.256, z:0.760, h:0.012, bg:"#1b2735" });
+  }
+  return { parts:parts, decals:dec, shadow:false, W:1 };
 }
 
 /* TAM engaged: the suit comes off. Orange rather than red, T rather than S.
@@ -1299,8 +1311,10 @@ function bakeAll(){
     S[k+"_r"] = bake(m);
     S[k+"_l"] = bake(flip(m, m.W));
   }
-  S.player_r  = bake(playerModel(1));
-  S.player_l  = bake(playerModel(-1));
+  S.player_r  = bake(playerModel(1, false));
+  S.player_l  = bake(playerModel(-1, false));
+  S.playerS_r = bake(playerModel(1, true));
+  S.playerS_l = bake(playerModel(-1, true));
   S.hero_r    = bake(heroModel(1, false));
   S.hero_l    = bake(heroModel(-1, false));
   S.heroFly_r = bake(heroModel(1, true));
@@ -2866,6 +2880,7 @@ function drawPlayer(pp){
   var right = G.facing > 0, s;
   if (G.flyA > 0.45)      s = right ? S.heroFly_r : S.heroFly_l;
   else if (G.flyA > 0.02) s = right ? S.hero_r    : S.hero_l;
+  else if (G.shield)      s = right ? S.playerS_r : S.playerS_l;
   else                    s = right ? S.player_r  : S.player_l;
   if (!s) s = right ? S.player_r : S.player_l;
   var sx = pp.col*TILE, sy = rowScreenY(pp.row);
