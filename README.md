@@ -470,9 +470,9 @@ A walk uptown is tiring, and the only thing that fixes tired is lunch.
 | Every street crossed, on foot | **−3%** |
 | … below 5%, or while flying on a TAM | **−1%** |
 | … crossed by subway | **free** |
-| Pizza | **+15%** |
-| Bagel | **+10%** |
-| Hot dog | **+7%** |
+| Pizza | **+15%** · $5 · one a cart |
+| Bagel | **+10%** · $7 · one a cart |
+| Hot dog | **+7%** · $3 · **two** a cart |
 | An objection that lands | **−75%** |
 | Endpoint Agent shield | absorbs the hit completely, costs no health |
 
@@ -508,16 +508,18 @@ with. A flat rate for all three made the choice of cart meaningless. Now a pizza
 counter is worth crossing for and a hot dog is what you take because it is
 there.
 
-Measured over 40 generated worlds, the walk puts **0.794 food carts on every
-street** — 8.5% of health a street against a 3% cost — so eating about **35% of
-the carts you pass** breaks even, against 16% when everything was worth 25.
-Simulated 60 runs at each rate: eating 30%, 50%, 70% or 100% all reached the
-dinner **60 times out of 60**; eating none died at **W 70th**, two thirds of the
-way up. Tighter than it was, still comfortable if you are paying attention.
+Measured over 40 generated worlds, the walk puts **0.797 food carts on every
+street**, worth **10.8% of health a street** against a 3% cost once the second
+hot dog is counted — so eating about **28% of the carts you pass** breaks even.
+It was 16% when everything was worth a flat 25, and 35% before hot dog carts
+started serving twice. Eating none still dies around **W 70th**, two thirds of
+the way up. Average spend across a cart: **$5.80**.
 
-**One cart serves one meal.** Walking into a stand is a free move — the step was
-already refused — so without marking the cart used you could stand next to a hot
-dog stand tapping into it and never run out of health again.
+**A cart serves a fixed number of times**, then it is done. Walking into a stand
+is a free move — the step was already refused — so without counting the servings
+you could stand next to a hot dog cart tapping into it and never run out of
+health again. A hot dog cart hands over two, because they are small, the vendor
+is right there and nobody buys one hot dog; everything else is one and done.
 
 The bar sits across the **bottom middle** — the power-up chips run along the
 bottom left and the TAM badge and full-screen button sit bottom right, so the
@@ -549,9 +551,9 @@ The curve needs a step of about 3px across a 14.5px head or the three rects line
 up and read as a straight bar. The first attempt used 1.3px and did exactly
 that.
 
-**Walking into an empty cart** is its own answer now. One cart serves one meal,
-so the stand is still standing there afterwards, and without a reaction the
-refusal looked like the controls ignoring him.
+**Walking into a spent cart** is its own answer now. A cart serves a fixed number
+of times and the stand is still standing there afterwards, so without a reaction
+the refusal looked like the controls ignoring him.
 
 ### The end screen
 
