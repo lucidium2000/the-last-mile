@@ -1,12 +1,18 @@
-# The Last Mile
+# TE Last Mile
 
 A single-file browser game. You walk uptown from Penn 1 to a customer meeting,
 crossing Midtown traffic. Built to run as a web app on Cisco RoomOS devices
 (Board / Desk / Room Navigator).
 
 **Status: prototype.** Not an official Cisco or ThousandEyes product, and not
-affiliated with or endorsed by either. The ThousandEyes name and the colour
-palette here are placeholders pending brand review — see *Rebranding* below.
+affiliated with or endorsed by either.
+
+**No brand names appear in the game.** The title screen shows the eye mark and
+reads `TE Last Mile`, with `TE` in orange. The wordmark, the
+"a ThousandEyes game · Cisco" line, and the wordmark that used to sit in the
+corner during play are all gone. The eye is a motif drawn from canvas paths,
+not anyone's registered logo, and the palette is an approximation — see
+*Rebranding* below.
 
 ## Play
 
@@ -355,6 +361,17 @@ the left and `BLOCKS TO PENN 1 / 34` on the right, because a street number
 ticking down is only obvious if you watched it tick up. It lives on the right
 of the top band: put next to the street it ran straight through the departure
 board, which owns the middle.
+
+**Nothing can skip the dinner.** A ride from anywhere in the seventies used to
+jump clean over 81: the dinner never fired and the walk never turned round, it
+just kept going uptown. Eleven of eleven rides from streets 70-80 reproduced
+it. Two fixes, because two things were wrong. The ride is capped — going up it
+may not carry you past the restaurant, coming back it may not carry you past
+Penn, and a ride that wanted to go further gets out as close as it can. And
+`progress()` sweeps every street *passed* rather than testing only the one
+landed on, since a ride covers ten to twenty crossings at once and a sponsor
+carries three rows. After: **0 rides land past 81**, and a three-rows-at-a-time
+walk fires all eleven milestones and the dinner in order.
 
 **The subway used to die at the turn.** `startRide` looked for a street
 `>= from + 10`, but numbers descend after the signature, so the test could
