@@ -442,6 +442,31 @@ var AUDIO = (function(){
       }
     },
     coach: function(){ tone({ f:659.25, dur:0.10, type:"sine", g:0.11 }); },
+    /* The opening bell, for the quote card. */
+    bell: function(){
+      var f = [1046.5, 1396.9, 2093.0], i;
+      for (i = 0; i < f.length; i++){
+        tone({ f:f[i], dur:1.5 - i * 0.3, type:"sine", g:0.085 - i * 0.02 });
+        tone({ f:f[i] * 1.005, dur:1.4 - i * 0.3, type:"sine", g:0.045 });
+      }
+      hit({ f:5000, hp:true, dur:0.05, g:0.06 });
+    },
+    /* A gasp and a rising sparkle - the headline landed. */
+    wow: function(){
+      hit({ f:900, to:4200, dur:0.22, g:0.07 });
+      tone({ f:392, to:1174, dur:0.34, type:"sine", g:0.10, lp:4000 });
+      var n = [1046.5, 1318.5, 1567.98, 2093.0], i;
+      for (i = 0; i < n.length; i++)
+        tone({ f:n[i], dur:0.26, type:"sine", g:0.07, at:0.22 + i * 0.075 });
+      hit({ f:6000, hp:true, dur:0.3, g:0.04, at:0.3 });
+    },
+    /* A bright little lift - he has seen the cart. */
+    yum: function(){
+      tone({ f:587.33, dur:0.10, type:"sine", g:0.11 });
+      tone({ f:783.99, dur:0.13, type:"sine", g:0.11, at:0.09 });
+      tone({ f:1046.5, dur:0.20, type:"sine", g:0.09, at:0.20 });
+      tone({ f:1318.5, dur:0.16, type:"sine", g:0.05, at:0.26 });
+    },
     /* Two flat notes down, the sound of a turnstile not opening. */
     nope: function(){
       tone({ f:196, to:170, dur:0.17, type:"square", g:0.10, lp:1100 });
@@ -1253,6 +1278,43 @@ var POWER_POOL = ["path","path","path",
                   "metro","metro","metro","metro","metro","metro","metro","metro","metro",
                   "chuck","chuck","traffic","traffic","agent","agent","agent","insight","sponsor"];
 var CHUCK_BONUS = 250000;
+
+/* ===================== CSCO TICKER CARD ===================================
+   Chuck Bucks pays out, and the card is the celebration: a mock of the Google
+   Finance quote reporting CSCO up ten percent.
+
+   It carries no share price. The game makes no network calls - that is the
+   RoomOS constraint the whole file is built around - so a price baked in here
+   would be stale the next day and would be read as live. A round percentage
+   is plainly the game talking, and the sub-line says "simulated" outright.
+   Everything on the card is in percent for the same reason: the axis, the
+   series and the tooltip. */
+var CSCO = {
+  name:"Cisco Systems Inc", mkt:"NASDAQ: CSCO",
+  headline:"+10.00%", pill:"\u2191 TODAY", chg:"on the day",
+  asOf:"Market close  \u00B7  Simulated",
+  after:"After hours  +0.42%",
+  tipPct:"+10.00%", tipTime:"CLOSE",
+  lo:-1.6, hi:11.4, axis:[10, 5, 0],
+  tabs:["1D","5D","1M","6M","YTD","1Y","5Y","Max"],
+  /* percent off the open, climbing to ten */
+  session:[0.00,-0.30,-0.42,-0.05,0.24,0.10,0.46,0.68,0.55,0.84,
+           1.12,1.30,1.14,1.48,1.72,1.60,1.88,2.10,2.30,2.16,
+           2.46,2.70,2.56,2.82,3.06,3.30,3.14,3.44,3.68,3.54,
+           3.84,4.04,3.90,4.18,4.40,4.26,4.56,4.76,4.62,4.92,
+           5.40,5.92,6.30,6.88,7.20,7.74,8.20,8.66,9.24,10.00],
+  tail:[10.00,10.12,10.28,10.20,10.34,10.42,10.34,10.38,10.46,10.40,
+        10.36,10.42]
+};
+var TICKER_SECS = 3.4;
+/* Google's card is set in regular and medium weights; everything else in this
+   game is bold, so the card needs its own text helper or it reads as a poster
+   rather than a quote. */
+function gtxt(str, x, y, size, col, weight, align){
+  ctx.font = weight + " " + size + 'px "Helvetica Neue",Helvetica,Arial,sans-serif';
+  ctx.textAlign = align || "left"; ctx.fillStyle = col;
+  ctx.fillText(str, x, y);
+}
 var TAM_DURATION = 60;
 var FLY_SECS = 5, TAM_BONUS_SECS = 2, FLY_MAX = 9;
 var FLY_WARN = 1.4;   // last seconds of flight: ring reddens, figure blinks, beep
@@ -1693,7 +1755,7 @@ function makeRoad(r, streetNo, dir){
 
   var row = { type:"road", streetNo:streetNo, dir:dir, speed:speed, kind:kind,
               cars:cars, eff:eff, packN:packN, packGap:packGap,
-              parked:[], blocked:{}, rogue:null };
+              parked:[], blocked:{}, rogue:null, rv:1, bounce:0 };
 
   /* Double-parked box truck: a permanent blocker you route around.
      It is 2 tiles wide, so it blocks BOTH columns it covers - otherwise the
@@ -1746,10 +1808,19 @@ function makeWalk(r){
   }
   if (r >= 5){
     var n = [1,1,2,2,3][(Math.random()*5)|0];
-    var cols = placeBlockers(n, chosen);
+    var cols = placeBlockers(n, chosen), hasSub = false;
     for (var i=0;i<cols.length;i++){
       blocked[cols[i]] = true;
-      props.push({ col:cols[i], kind:PROP_KINDS[(Math.random()*PROP_KINDS.length)|0] });
+      /* One entrance per pavement. Subway is weighted twice in the pool and
+         each prop draws independently, so a three-prop sidewalk could come up
+         with three staircases to the same station - re-roll until it is
+         something else. */
+      var pk = PROP_KINDS[(Math.random()*PROP_KINDS.length)|0];
+      for (var g=0; g<8 && pk === "subway" && hasSub; g++){
+        pk = PROP_KINDS[(Math.random()*PROP_KINDS.length)|0];
+      }
+      if (pk === "subway"){ if (hasSub) pk = "newsstand"; else hasSub = true; }
+      props.push({ col:cols[i], kind:pk });
     }
   }
   var pickup = null;
@@ -1771,6 +1842,26 @@ function makeWalk(r){
     }
   }
   return { type:"safe", tone:(r%2), props:props, blocked:blocked, pickup:pickup };
+}
+
+/* whatever is standing in a cell, or null */
+function propAt(row, col){
+  if (!row || !row.props) return null;
+  for (var i = 0; i < row.props.length; i++)
+    if (row.props[i].col === col) return row.props[i].kind;
+  return null;
+}
+
+/* the kind of food cart standing in a cell, or null */
+function foodAt(row, col){
+  if (!row || !row.props) return null;
+  for (var i = 0; i < row.props.length; i++){
+    var pr = row.props[i];
+    if (pr.col !== col) continue;
+    if (pr.kind === "halal" || pr.kind === "pizza" || pr.kind === "hotdog")
+      return pr.kind;
+  }
+  return null;
 }
 
 function pushRow(row){ rows[genCursor++] = row; }
@@ -1816,6 +1907,39 @@ function ensureRows(upTo){
 }
 function pruneRows(below){ for (var k in rows) if (+k < below) delete rows[k]; }
 function carX(row, car){ return (row.dir > 0 ? car.p : SPAN - car.p) - PAD; }
+
+/* Nothing in a lane may sit inside anything else in it.
+   Every vehicle in a lane shares a speed, so left alone they hold their
+   spacing forever - but two things broke that. A bus halts on its own cycle
+   while the one behind keeps rolling, and a path trace used to spin one car
+   around inside the stream. Both drove straight through a neighbour.
+   After everything has moved, each vehicle is pushed back to at least a
+   vehicle length behind whatever is directly in front of it, which turns a
+   stopped bus into a queue instead of a collision. Spawn order is position
+   order and stays that way, so "in front" is just the next index around the
+   loop - no sorting, and two passes are enough to settle a full chain.
+   n * (eff + gap) <= SPAN by construction at spawn, so the clamp can never
+   chase its own tail. */
+function separate(row){
+  var cars = row.cars, n = cars.length;
+  if (n < 2) return;
+  var clear = (row.eff || 1) + 0.14;
+  if (n * clear >= SPAN) return;
+  var fwd = (row.rv || 1) > 0, pass, k, i, j, d;
+  for (pass = 0; pass < 2; pass++){
+    for (k = 0; k < n; k++){
+      // i is the follower, j is whatever is directly ahead of it
+      i = fwd ? (n - 2 - k + n * 2) % n : k % n;
+      j = fwd ? (i + 1) % n : (i - 1 + n) % n;
+      d = fwd ? cars[j].p - cars[i].p : cars[i].p - cars[j].p;
+      if (d < 0) d += SPAN;
+      if (d >= clear) continue;
+      cars[i].p = fwd ? cars[j].p - clear : cars[j].p + clear;
+      if (cars[i].p < 0) cars[i].p += SPAN;
+      if (cars[i].p >= SPAN) cars[i].p -= SPAN;
+    }
+  }
+}
 function rogueX(row){ return (row.dir > 0 ? SPAN - row.rogue.p : row.rogue.p) - PAD; }
 
 /* -------------------------------------------------------------- game state */
@@ -1838,8 +1962,9 @@ function reset(){
     stage:-1, coach:-1, toast:null, flash:null,
     shield:false, slowT:0, revealT:0, invulnT:0, powersUsed:0,
     flyT:0, flyA:0, flyBeep:0, tam:false, tamT:0, tamWins:0, hurtT:0, nahT:0,
+    yumT:0, yumKind:null, yumDir:0, wowT:0,
     metro:0, ride:null, trace:null, rides:0, bonus:0, tamLeft:0, riskT:0,
-    scene:null, scenesSeen:{},
+    scene:null, scenesSeen:{}, ticker:null,
     trainT:TRAIN_MAX, trainLine:tr[0], trainDest:tr[1],
     trainHH:16 + ((Math.random()*3)|0), trainMM:(Math.random()*60)|0,
     missedTrain:false,
@@ -1943,7 +2068,20 @@ function act(dir){
     }
   }
   // flying carries you over scaffolding, parked trucks, everything solid
-  if (G.flyT <= 0 && target && target.blocked && target.blocked[nc]){ AUDIO.bump(); return; }
+  if (G.flyT <= 0 && target && target.blocked && target.blocked[nc]){
+    /* Walk into a halal cart, a slice counter or a hot dog stand and he stops
+       and wants it for a moment. It costs nothing - the step was already
+       refused - and it is the only time anything on the pavement reacts. */
+    var food = foodAt(target, nc);
+    if (propAt(target, nc) === "newsstand"){
+      G.wowT = 1.3; AUDIO.wow();
+    } else if (food){
+      G.yumT = 1.2; G.yumKind = food;
+      G.yumDir = nc > G.col ? 1 : (nc < G.col ? -1 : 0);
+      AUDIO.yum();
+    } else AUDIO.bump();
+    return;
+  }
 
   if (dir === "f"){
     AUDIO.hop();
@@ -1961,7 +2099,9 @@ function act(dir){
    Board and ~16mm on a Desk Mini, both comfortably above the ~9mm minimum.
    Swipes and the invisible tap zones still work; the pad simply takes
    priority wherever it is hit. */
-var MUTE_BTN = { x:LOGICAL_W - 146, y:LOGICAL_H - 146, w:114, h:114 };
+/* Top right, not bottom right: the full-screen control is a DOM button in
+   the bottom-right corner and the two were drawn on top of each other. */
+var MUTE_BTN = { x:LOGICAL_W - 146, y:38, w:114, h:114 };
 function muteBtnActive(){ return G.state === ST_TITLE || G.state === ST_DEAD; }
 function inMuteBtn(lx, ly){
   return muteBtnActive() &&
@@ -2021,6 +2161,11 @@ function collect(){
   if (kind === "chuck"){
     G.bonus += CHUCK_BONUS;
     burst(G.col*TILE + TILE/2, rowScreenY(G.row) - 40, "#7fd49a");
+    /* The card freezes the world rather than floating over it - at the size it
+       needs to be readable it would otherwise cover the traffic you are
+       standing in. */
+    G.ticker = { t:0 };
+    AUDIO.bell();
   }
   /* Cards accumulate. Three in the wallet is three rides, which is what makes
      stacking them worth doing instead of riding the first train you find. */
@@ -2855,6 +3000,11 @@ function hitPlayer(kind, pp){
 function update(dt){
   G.t += dt;
   if (G.scene){ updateScene(dt); if (G.scene) return; }
+  if (G.ticker){
+    G.ticker.t += dt;
+    if (G.ticker.t >= TICKER_SECS) G.ticker = null;
+    if (G.ticker) return;
+  }
   if (G.ride){ updateRide(dt); if (G.ride) return; } G.sweep += dt*0.4; if (G.sweep > 1.7) G.sweep -= 1.7;
   if (G.hop < 1){
     G.hop += dt*1000 / (HOP_MS * (1 - 0.32*G.flyA));   // airborne is quicker
@@ -2864,6 +3014,8 @@ function update(dt){
   if (G.riskT > 0) G.riskT = Math.max(0, G.riskT - dt);
   if (G.hurtT > 0) G.hurtT = Math.max(0, G.hurtT - dt);
   if (G.nahT > 0)  G.nahT  = Math.max(0, G.nahT - dt);
+  if (G.yumT > 0)  G.yumT  = Math.max(0, G.yumT - dt);
+  if (G.wowT > 0)  G.wowT  = Math.max(0, G.wowT - dt);
   if (G.revealT > 0){
     G.revealT = Math.max(0, G.revealT - dt);
     if (G.revealT === 0) G.trace = null;
@@ -2967,18 +3119,24 @@ function update(dt){
            unmistakable. Guard is !(bounce > 0), not bounce <= 0: bounce starts
            undefined and `undefined <= 0` is false, which silently disabled the
            whole effect first time round. */
-        if (car.bounce > 0) car.bounce -= dt;
-        if (G.revealT > 0 && G.trace && !(car.bounce > 0) &&
+        /* The trace turns the LANE around, not one car in it. Reversing a
+           single vehicle inside a stream moving the other way guarantees a
+           head-on, and the old code simply drove it through its neighbours -
+           which is most of what "cars pass through each other" was. Flipping
+           the whole lane preserves every gap exactly. */
+        if (G.revealT > 0 && G.trace && !(row.bounce > 0) &&
             traceBlocks(r, carX(row, car), row.eff || 1)){
-          car.rv = -(car.rv || 1);
-          car.bounce = 1.4;
+          row.rv = -(row.rv || 1);
+          row.bounce = 1.4;
         }
         if (!car.stopped){
-          car.p += row.speed * slowK * dt * (car.rv || 1);
+          car.p += row.speed * slowK * dt * (row.rv || 1);
           if (car.p >= SPAN) car.p -= SPAN;
           if (car.p < 0) car.p += SPAN;
         }
       }
+      if (row.bounce > 0) row.bounce -= dt;
+      separate(row);
       if (row.rogue){
         // against the posted direction, which is the whole joke
         row.rogue.p += row.rogue.speed * slowK * dt;
@@ -3511,12 +3669,14 @@ function drawWorld(){
       for (i=0;i<row.parked.length;i++){
         blit(S.boxtruck_r, row.parked[i].col*TILE, sy);
       }
-      var sprite = S[row.kind + (row.dir > 0 ? "_r" : "_l")];
+      // a lane turned around by a trace drives, and faces, the other way
+      var faceR = (row.dir * (row.rv || 1)) > 0;
+      var sprite = S[row.kind + (faceR ? "_r" : "_l")];
       for (i=0;i<row.cars.length;i++){
         var x = carX(row, row.cars[i]);
         if (x + (row.eff||1) < -1.6 || x > COLS + 1.6) continue;
         if (row.cars[i].uber >= 0){
-          blit(S["uber" + row.cars[i].uber + (row.dir > 0 ? "_r" : "_l")], x*TILE, sy);
+          blit(S["uber" + row.cars[i].uber + (faceR ? "_r" : "_l")], x*TILE, sy);
         } else if (row.packN > 1){
           for (var q=0;q<row.packN;q++){
             blit(sprite, (x + q*(HAZ[row.kind].w + row.packGap))*TILE, sy);
@@ -3696,6 +3856,17 @@ function drawPlayer(pp){
   }
   // grows into the hero as he transforms, rather than popping
   var hk = 1 + 0.09 * G.flyA;
+  var topY = sy - pp.lift - G.flyA * 78 - s.oy * ((1 + pp.sq * 0.14) * hk);
+  if (G.yumT > 0){
+    // he leans at the cart, and the bubble goes over his head
+    sx += Math.sin(Math.min(1, G.yumT / 0.9) * Math.PI) * 7 * (G.yumDir || 1);
+    drawYum(sx + TILE * 0.5, topY);
+  }
+  if (G.wowT > 0) drawWow(sx + TILE * 0.5, topY, G.wowT);
+  if (G.nahT > 0){
+    drawSay("NO METRO CARD", sx + TILE * 0.5, topY, G.nahT);
+    drawHandsUp(sx + TILE * 0.5, topY, G.nahT);
+  }
   if (G.hurtT > 0){
     // flicker, and reel sideways
     if (Math.floor(G.hurtT * 26) % 2 === 0) return;
@@ -3734,6 +3905,269 @@ function drawPlayer(pp){
   blitScaled(s, sx, dy, kx, ky);
 }
 
+/* The Cisco mark: vertical bars rising to an arch. Approximated from paths
+   like the rest of the brand art, since the file loads no external assets. */
+function ciscoMark(x, y, w, h, col){
+  var n = 9, bw = w / (n * 2 - 1);
+  ctx.fillStyle = col;
+  for (var i = 0; i < n; i++){
+    var k = 0.42 + 0.58 * Math.sin(Math.PI * (i / (n - 1)));
+    ctx.fillRect(x + i * bw * 2, y + h * (1 - k), bw, h * k);
+  }
+}
+function drawTicker(){
+  var T = G.ticker, t = T.t;
+  var fin = Math.min(1, t / 0.28), fout = Math.min(1, (TICKER_SECS - t) / 0.3);
+  var a = Math.max(0, Math.min(fin, fout));
+  var rise = (1 - fin) * 46;                       // slides up as it fades in
+
+  ctx.globalAlpha = a * 0.72; ctx.fillStyle = "#05060a";
+  ctx.fillRect(0, 0, LOGICAL_W, LOGICAL_H);
+  ctx.globalAlpha = a;
+
+  var W = 1120, H = 730, X = (LOGICAL_W - W) / 2, Y = 176 + rise;
+  plate(X, Y, W, H, "#131314", 26);
+  rr(X, Y, W, H, 26); ctx.strokeStyle = "#35373b"; ctx.lineWidth = 2; ctx.stroke();
+
+  var L = X + 52;                                  // the card's left margin
+  // the logo tile
+  plate(L, Y + 40, 96, 96, "#f1f3f4", 14);
+  ciscoMark(L + 18, Y + 56, 60, 34, "#131314");
+  gtxt("CISCO", L + 48, Y + 118, 20, "#131314", "bold", "center");
+  // name and market
+  gtxt(CSCO.name, L + 124, Y + 86, 48, "#e8eaed", "500");
+  gtxt(CSCO.mkt, L + 126, Y + 128, 25, "#9aa0a6", "normal");
+  ctx.fillStyle = "#9aa0a6";
+  for (var d = 0; d < 3; d++) ctx.fillRect(L + 126 + 206, Y + 114 + d * 9, 4, 4);
+
+  // the Following pill, right-aligned
+  var fw = 268, fx = X + W - 52 - fw;
+  rr(fx, Y + 66, fw, 62, 31); ctx.strokeStyle = "#5f6368"; ctx.lineWidth = 2; ctx.stroke();
+  gtxt("\u2713  Following", fx + fw / 2, Y + 105, 26, "#e8eaed", "500", "center");
+
+  // the number: the move itself, in green, where the price would sit
+  gtxt(CSCO.headline, L, Y + 236, 84, "#81c995", "500");
+  var pw = ctx.measureText(CSCO.headline).width;
+  var gx = L + pw + 32;
+  ctx.font = '500 30px "Helvetica Neue",Helvetica,Arial,sans-serif';
+  var gw = ctx.measureText(CSCO.pill).width + 44;
+  plate(gx, Y + 198, gw, 54, "#1e3b29", 10);
+  gtxt(CSCO.pill, gx + gw / 2, Y + 234, 30, "#81c995", "500", "center");
+  gtxt(CSCO.chg, gx + gw + 24, Y + 234, 30, "#9aa0a6", "normal");
+
+  // timestamp, disclaimer, after hours
+  gtxt(CSCO.asOf + "  \u00B7  ", L, Y + 288, 24, "#9aa0a6", "normal");
+  var aw = ctx.measureText(CSCO.asOf + "  \u00B7  ").width;
+  gtxt("Disclaimer", L + aw, Y + 288, 24, "#8ab4f8", "normal");
+  ctx.fillRect(L + aw, Y + 294, ctx.measureText("Disclaimer").width, 1);
+  gtxt(CSCO.after, L, Y + 326, 24, "#81c995", "normal");
+
+  // the range tabs
+  var tabW = (W - 104) / CSCO.tabs.length, ty = Y + 392;
+  for (var i = 0; i < CSCO.tabs.length; i++){
+    var tx = L + tabW * i + tabW / 2;
+    gtxt(CSCO.tabs[i], tx, ty, 26, i === 0 ? "#8ab4f8" : "#9aa0a6",
+         i === 0 ? "500" : "normal", "center");
+    if (i === 0){ ctx.fillStyle = "#8ab4f8"; ctx.fillRect(tx - 24, ty + 24, 48, 4); }
+  }
+  ctx.fillStyle = "#2e3033"; ctx.fillRect(L, ty + 26, W - 104, 2);
+
+  /* The chart. The session runs green with a fill under it, the after-hours
+     tail runs flat grey, and the cursor sits on the close between them -
+     which is exactly where the real card puts it. */
+  var cx0 = L + 88, cy0 = Y + 462, cw2 = W - 104 - 88, ch = 186;
+  var n = CSCO.session.length + CSCO.tail.length;
+  function px(i){ return cx0 + (i / (n - 1)) * cw2; }
+  function py(v){ return cy0 + ch - ((v - CSCO.lo) / (CSCO.hi - CSCO.lo)) * ch; }
+
+  for (var g = 0; g < CSCO.axis.length; g++){
+    var yy = py(CSCO.axis[g]);
+    ctx.fillStyle = "#26282b"; ctx.fillRect(cx0, yy, cw2, 1);
+    gtxt((CSCO.axis[g] > 0 ? "+" : "") + CSCO.axis[g] + "%", L, yy + 8, 22,
+         "#9aa0a6", "normal");
+  }
+  // the open, the dotted baseline the real card draws at the previous close
+  ctx.setLineDash([5, 7]); ctx.strokeStyle = "#5f3f3f"; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.moveTo(cx0, py(0)); ctx.lineTo(cx0 + cw2, py(0));
+  ctx.stroke(); ctx.setLineDash([]);
+
+  var cut = CSCO.session.length - 1, j;
+  ctx.beginPath(); ctx.moveTo(px(0), py(CSCO.session[0]));
+  for (j = 1; j < CSCO.session.length; j++) ctx.lineTo(px(j), py(CSCO.session[j]));
+  ctx.strokeStyle = "#34a853"; ctx.lineWidth = 3; ctx.stroke();
+  ctx.lineTo(px(cut), cy0 + ch); ctx.lineTo(px(0), cy0 + ch); ctx.closePath();
+  ctx.globalAlpha = a * 0.16; ctx.fillStyle = "#34a853"; ctx.fill();
+  ctx.globalAlpha = a;
+
+  ctx.beginPath(); ctx.moveTo(px(cut), py(CSCO.session[cut]));
+  for (j = 0; j < CSCO.tail.length; j++)
+    ctx.lineTo(px(cut + 1 + j), py(CSCO.tail[j]));
+  ctx.strokeStyle = "#9aa0a6"; ctx.lineWidth = 3; ctx.stroke();
+
+  // the cursor, its dot, and the tooltip above it
+  var hx = px(cut), hy = py(CSCO.session[cut]);
+  ctx.setLineDash([4, 6]); ctx.strokeStyle = "#747579"; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.moveTo(hx, cy0); ctx.lineTo(hx, cy0 + ch); ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.beginPath(); ctx.arc(hx, hy, 8, 0, Math.PI * 2);
+  ctx.fillStyle = "#bdc1c6"; ctx.fill();
+
+  /* The tooltip lives INSIDE the chart, left of the cursor. Floated above the
+     frame it landed on the range tabs and swallowed "Max". */
+  ctx.font = 'bold 26px "Helvetica Neue",Helvetica,Arial,sans-serif';
+  var t1 = ctx.measureText(CSCO.tipPct).width;
+  ctx.font = 'normal 26px "Helvetica Neue",Helvetica,Arial,sans-serif';
+  var t2 = ctx.measureText(CSCO.tipTime).width, tw = t1 + t2 + 76;
+  var tx0 = Math.max(cx0 + 6, Math.min(hx - tw * 0.62, cx0 + cw2 - tw - 6));
+  var ty0 = Math.max(cy0 + 6, hy - 64);
+  plate(tx0, ty0, tw, 48, "#2a2b2e", 8);
+  gtxt(CSCO.tipPct, tx0 + 22, ty0 + 32, 26, "#81c995", "bold");
+  gtxt(CSCO.tipTime, tx0 + 22 + t1 + 32, ty0 + 32, 26, "#9aa0a6", "normal");
+
+  // the one line that is ours, not Google's
+  gtxt("CHUCK BUCKS  \u00B7  +" + cash(CHUCK_BONUS) + " ON THE NUMBER",
+       X + W / 2, Y + H - 34, 26, C.brand, "bold", "center");
+  ctx.globalAlpha = 1;
+}
+
+/* A smile and what he is smiling at, over his head. At this scale his own
+   face is twenty pixels of baked voxel, so the expression has to live in a
+   bubble to be read at all - the lean below is what the body contributes. */
+/* One bubble shape for every reaction, so the smile, the shrug and the blown
+   mind read as the same character doing three things rather than three
+   unrelated effects. Returns the box so the caller can draw into it. */
+function bubble(cx, topY, bw, bh, t, hold){
+  var a = Math.min(1, t / 0.18) * Math.min(1, (hold - t) / 0.22 + 1);
+  a = Math.max(0, Math.min(1, a));
+  var pop = 1 - Math.min(1, t / 0.16);
+  var bx = cx - bw / 2, by = topY - bh - 26 + pop * 12;
+  ctx.globalAlpha = a;
+  ctx.fillStyle = "#f6efe2";
+  ctx.beginPath(); ctx.arc(cx - 16, by + bh + 12, 7, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.arc(cx - 26, by + bh + 26, 4, 0, Math.PI * 2); ctx.fill();
+  plate(bx, by, bw, bh, "#f6efe2", 16);
+  return { x:bx, y:by, w:bw, h:bh, a:a };
+}
+
+/* "NO METRO CARD", with his hands in the air under it */
+function drawSay(str, cx, topY, t){
+  ctx.font = 'bold 27px "Helvetica Neue",Helvetica,Arial,sans-serif';
+  var bw = ctx.measureText(str).width + 52;
+  var b = bubble(cx, topY, bw, 62, t, 0.85);
+  txt(str, cx, b.y + 38, 27, "#1d1a16");
+  ctx.globalAlpha = 1;
+}
+/* Both arms thrown up. The sprite is baked with his arms down, so this is two
+   sleeves and two hands drawn over the shoulders - at this size that is the
+   whole gesture. */
+function drawHandsUp(cx, topY, t){
+  var up = Math.sin(Math.min(1, t / 0.9) * Math.PI);
+  var coat = G.shield ? shade(BLAZER, -0.24) : "#19222f";
+  var sy2 = topY + 46, len = 30 + up * 16;
+  ctx.globalAlpha = Math.min(1, t / 0.15);
+  for (var k = -1; k <= 1; k += 2){
+    var x0 = cx + k * 26, x1 = cx + k * (40 + up * 8), y1 = sy2 - len;
+    ctx.strokeStyle = coat; ctx.lineWidth = 11; ctx.lineCap = "round";
+    ctx.beginPath(); ctx.moveTo(x0, sy2); ctx.lineTo(x1, y1); ctx.stroke();
+    ctx.fillStyle = "#e9b98c";
+    ctx.beginPath(); ctx.arc(x1, y1 - 3, 7, 0, Math.PI * 2); ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+}
+/* The newsstand headline takes the top of his head off. */
+function drawWow(cx, topY, t){
+  var p = 1 - Math.min(1, t / 1.3), i;
+  ctx.globalAlpha = Math.min(1, t / 0.12) * (1 - p * p) + 0.001;
+  // rays off the top of his head
+  ctx.strokeStyle = C.brand; ctx.lineWidth = 6; ctx.lineCap = "round";
+  for (i = 0; i < 9; i++){
+    var ang = -Math.PI / 2 + (i - 4) * 0.32;
+    var r0 = 26 + p * 46, r1 = r0 + 20 + p * 26;
+    ctx.beginPath();
+    ctx.moveTo(cx + Math.cos(ang) * r0, topY + 8 + Math.sin(ang) * r0);
+    ctx.lineTo(cx + Math.cos(ang) * r1, topY + 8 + Math.sin(ang) * r1);
+    ctx.stroke();
+  }
+  // two rings going out
+  for (i = 0; i < 2; i++){
+    var rp = (p + i * 0.5) % 1;
+    ctx.globalAlpha = (1 - rp) * 0.55;
+    ctx.strokeStyle = "#ffd166"; ctx.lineWidth = 5;
+    ctx.beginPath(); ctx.arc(cx, topY + 10, 24 + rp * 104, 0, Math.PI * 2); ctx.stroke();
+  }
+  ctx.globalAlpha = 1;
+  // and the face that goes with it
+  var b = bubble(cx, topY - 56, 148, 78, t, 1.3);
+  var fx = b.x + b.w / 2, fy = b.y + b.h / 2;
+  ctx.fillStyle = "#1d1a16";
+  for (i = -1; i <= 1; i += 2){
+    ctx.beginPath(); ctx.arc(fx + i * 30, fy - 8, 10, 0, Math.PI * 2); ctx.fill();
+  }
+  ctx.fillStyle = "#f6efe2";
+  for (i = -1; i <= 1; i += 2){
+    ctx.beginPath(); ctx.arc(fx + i * 30 + 3, fy - 11, 4, 0, Math.PI * 2); ctx.fill();
+  }
+  ctx.fillStyle = "#1d1a16";                       // the open mouth
+  ctx.beginPath(); ctx.ellipse(fx, fy + 18, 11, 14, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.strokeStyle = "#1d1a16"; ctx.lineWidth = 3.4; ctx.lineCap = "round";
+  for (i = -1; i <= 1; i += 2){                    // raised brows
+    ctx.beginPath();
+    ctx.arc(fx + i * 30, fy - 6, 19, 1.15 * Math.PI, 1.85 * Math.PI);
+    ctx.stroke();
+  }
+  ctx.globalAlpha = 1;
+}
+
+function drawYum(cx, topY){
+  var t = G.yumT;
+  var b = bubble(cx, topY, 148, 76, t, 1.2), a = b.a, bx = b.x, by = b.y, bh = b.h;
+
+  // the smile
+  var fx = bx + 38, fy = by + bh / 2;
+  ctx.fillStyle = "#1d1a16";
+  ctx.beginPath(); ctx.arc(fx - 9, fy - 9, 3.6, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.arc(fx + 9, fy - 9, 3.6, 0, Math.PI * 2); ctx.fill();
+  ctx.strokeStyle = "#1d1a16"; ctx.lineWidth = 3.6; ctx.lineCap = "round";
+  ctx.beginPath(); ctx.arc(fx, fy - 1, 13, 0.25 * Math.PI, 0.75 * Math.PI);
+  ctx.stroke();
+
+  // and what he is looking at
+  var gx = bx + 96, gy = by + bh / 2;
+  if (G.yumKind === "hotdog"){
+    ctx.fillStyle = "#e0b572";
+    ctx.beginPath(); ctx.ellipse(gx, gy, 27, 11, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = "#a8432c";
+    ctx.beginPath(); ctx.ellipse(gx, gy - 2, 24, 7, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = "#f0c93c"; ctx.lineWidth = 3;
+    ctx.beginPath();
+    for (var z = 0; z < 5; z++){
+      var zx = gx - 20 + z * 10;
+      if (z === 0) ctx.moveTo(zx, gy - 5); else ctx.lineTo(zx, gy - 5 + (z % 2 ? 6 : 0));
+    }
+    ctx.stroke();
+  } else if (G.yumKind === "pizza"){
+    /* Crust at the base and a pale cheese, or the slice reads as a cone. */
+    ctx.fillStyle = "#f2c84b";
+    ctx.beginPath(); ctx.moveTo(gx, gy - 18); ctx.lineTo(gx + 21, gy + 12);
+    ctx.lineTo(gx - 21, gy + 12); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = "#b02030";
+    ctx.beginPath(); ctx.arc(gx - 7, gy + 1, 4.2, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(gx + 8, gy + 5, 4.2, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(gx + 1, gy - 8, 3.6, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = "#b5752e"; plate(gx - 22, gy + 10, 44, 9, "#b5752e", 4);
+  } else {
+    // halal: rice, meat and the white sauce, in a foil tray
+    ctx.fillStyle = "#c9ced4"; plate(gx - 24, gy - 2, 48, 18, "#c9ced4", 5);
+    ctx.fillStyle = "#e8d9a8"; ctx.fillRect(gx - 21, gy - 9, 42, 9);
+    ctx.fillStyle = "#a8742c"; ctx.fillRect(gx - 16, gy - 14, 14, 7);
+    ctx.fillStyle = "#8d5a24"; ctx.fillRect(gx + 2, gy - 13, 13, 6);
+    ctx.strokeStyle = "#f6f3ea"; ctx.lineWidth = 2.6;
+    ctx.beginPath(); ctx.moveTo(gx - 18, gy - 4); ctx.lineTo(gx + 18, gy - 7);
+    ctx.stroke();
+  }
+  ctx.globalAlpha = 1;
+}
+
 function drawHurt(){
   if (G.hurtT <= 0) return;
   var f = G.hurtT / 0.6;
@@ -3768,7 +4202,7 @@ function cellRisk(row, col){
   }
   for (i = 0; i < row.cars.length; i++){
     var c = row.cars[i];
-    consider(carX(row, c), c.stopped ? 0 : row.speed * row.dir * (c.rv || 1));
+    consider(carX(row, c), c.stopped ? 0 : row.speed * row.dir * (row.rv || 1));
   }
   for (i = 0; i < row.parked.length; i++){
     var px = row.parked[i].col;
@@ -4088,6 +4522,7 @@ function render(){
   // the arrival scenes sit over everything, HUD included - they are a
   // cutscene, not an overlay
   if (G.scene) drawScene();
+  if (G.ticker) drawTicker();
   drawMuteBtn();
   if (SHOW_FPS){
     ctx.setTransform(scale, 0, 0, scale, 0, 0);

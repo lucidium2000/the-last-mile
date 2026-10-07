@@ -17,7 +17,7 @@ Two input methods, both live at once:
 | **Tap anywhere** | Cross. Any tap that is not a swipe moves you forward. |
 | **Swipe** | Any direction, anywhere on the screen. |
 | Keyboard | Arrows / `WASD` / `Space`, for desktop testing |
-| Mute | Button in the bottom-right of the title and game-over screens, or `M` |
+| Mute | Button in the **top**-right of the title and game-over screens, or `M` |
 | Full screen | Button in the bottom-right corner, always available |
 
 The full-screen button is the only control on screen during play, and it sits
@@ -112,7 +112,51 @@ lit placard in the windscreen.
 
 Street furniture on the pavements includes halal carts, pizza counters and hot
 dog stands, newsstands, scaffolding sheds, subway entrances and ThousandEyes
-Path terminals (which act as a free Path Visualization).
+Path terminals (which act as a free Path Visualization). At most one subway
+entrance per pavement — subway is weighted twice in the prop pool and each prop
+draws independently, so a three-prop sidewalk could otherwise come up with
+three staircases to the same station.
+
+### Nothing in a lane overlaps anything else in it
+
+Every vehicle in a lane shares a speed, so left alone they hold their spacing
+forever. Two things broke that, and both looked like cars driving through each
+other:
+
+- A bus or a DSNY truck halts on its own cycle while the one behind keeps
+  rolling.
+- A path trace used to reverse a single car *inside* a stream moving the other
+  way, which guarantees a head-on.
+
+The trace now turns the whole **lane** around rather than one car in it, which
+preserves every gap exactly, and `separate()` runs after movement: each vehicle
+is pushed back to at least a vehicle length behind whatever is directly in
+front of it, so a stopped bus produces a queue instead of a collision. Spawn
+order is position order and stays that way, so "in front" is the next index
+around the loop — no sorting, and two passes settle a full chain.
+`n * (eff + gap) <= SPAN` holds by construction at spawn, so the clamp can
+never chase its own tail.
+
+Measured over 4,800 simulated frames with the camera walked across 390 rows and
+114 lanes forced into reverse: **0 overlaps in 160,974 sampled pairs**, minimum
+slack exactly the 0.14-tile clearance buffer (a bus queue). The same run with
+`separate()` disabled gives 252 overlaps and a worst case of −2.6 tiles.
+
+### Reactions
+
+The pavement reacts when you walk into it, which is the only time anything in
+the world answers you back. Each is about a second, and each costs nothing —
+the step was already refused.
+
+| Walk into | He does |
+|---|---|
+| Halal cart, pizza counter, hot dog stand | Leans at it and smiles, with what he wants in a bubble over his head |
+| Newsstand | The headline takes the top of his head off — rays, rings and a face to match |
+| Subway entrance with no MetroCard | Shakes his head, throws both hands up, and says so: **NO METRO CARD** |
+
+At this scale his own face is twenty pixels of baked voxel, so the expression
+lives in a bubble and the body supplies the gesture: a lean toward the cart, or
+two sleeves and two hands drawn over the shoulders for the shrug.
 
 Objections and rebuttals appear on the game-over screen, with coaching lines
 between milestones so the slow hazards that rarely kill you still get read.
@@ -188,6 +232,22 @@ bass under piano-ish arpeggios, four bars, synthesised at runtime like every
 other cue. **It is an original piece written for this game.** It is not a
 transcription or an arrangement of any existing song, and nothing in the repo
 reproduces copyrighted melody.
+
+### The ticker card
+
+Collecting Chuck Bucks freezes the walk and shows a mock of the Google Finance
+quote card: the Cisco mark, the name, the NASDAQ line, the Following pill, the
+range tabs, the chart with its cursor and tooltip — reporting **CSCO +10.00%**.
+
+**It carries no share price, and it is marked "Simulated" on its face.** The
+game makes no network calls — the RoomOS constraint the whole file is built
+around — and there is no public quote API behind that card anyway, so a price
+baked in here would be stale the next day and would be read as live. A round
+percentage is plainly the game talking. Everything on the card is in percent
+for the same reason: the axis, the series and the tooltip.
+
+Everything it draws comes from the `CSCO` object: `session` is the trading day
+in green, `tail` the after-hours in grey, `lo`/`hi` the axis bounds.
 
 ### Power-ups
 
