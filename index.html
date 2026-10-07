@@ -152,7 +152,7 @@ var BRAND = {
 var C = {
   sky0:"#0a0708", sky1:"#161014", sky2:"#2a1b16",
   horizon:BRAND.deep,
-  walk:"#232022", walkB:"#2a2526",          // concrete under sodium light
+  walk:"#9a999d",                           // one flat light grey, no banding
   curb:"#423630",
   road:"#0c0c0e", roadB:"#111113",          // asphalt
   lane:"#c9b24a",                            // NYC yellow lane line - stays
@@ -1714,10 +1714,13 @@ function bakeStrip(kind, alt){
   g.setTransform(BAKE, 0, 0, BAKE, 0, 0);
 
   if (kind === "walk"){
-    g.fillStyle = alt ? C.walkB : C.walk;
+    /* One tone for every pavement. The old alternating pair banded the whole
+       walk uptown into light/dark stripes, which read as a pattern in the
+       world rather than as concrete. */
+    g.fillStyle = C.walk;
     g.fillRect(0, 0, LOGICAL_W, h);
-    // concrete paver joints
-    g.strokeStyle = "rgba(255,255,255,0.045)"; g.lineWidth = 2;
+    // concrete paver joints - dark now, since white vanishes on light grey
+    g.strokeStyle = "rgba(0,0,0,0.13)"; g.lineWidth = 2;
     g.beginPath();
     for (var j=0;j<=COLS;j++){ g.moveTo(j*TILE, 0); g.lineTo(j*TILE, h); }
     g.moveTo(0, h*0.5); g.lineTo(LOGICAL_W, h*0.5);
@@ -1772,7 +1775,7 @@ function bakeAll(){
   S.pw_traffic = bake(powerModel("traffic"));
   for (i=0;i<PROP_KINDS.length;i++)  S["pr_"+PROP_KINDS[i]]  = bake(PROP_MODELS[PROP_KINDS[i]]());
   for (i=0;i<FACADE_KINDS.length;i++) S["pr_"+FACADE_KINDS[i]] = bake(facadeModel(i));
-  S.walk0 = bakeStrip("walk",0); S.walk1 = bakeStrip("walk",1);
+  S.walk0 = bakeStrip("walk",0);            // one pavement strip, not two
   S.road0 = bakeStrip("road",0); S.road1 = bakeStrip("road",1);
 }
 
@@ -1947,7 +1950,7 @@ function makeWalk(r){
       }
     }
   }
-  return { type:"safe", tone:(r%2), props:props, blocked:blocked, pickup:pickup };
+  return { type:"safe", props:props, blocked:blocked, pickup:pickup };
 }
 
 /* whatever is standing in a cell, or null */
@@ -4024,7 +4027,7 @@ function drawWorld(){
     row = rows[r]; if (!row) continue;
     sy = rowScreenY(r);
     if (sy < HORIZON || sy - ROW_H > LOGICAL_H) continue;
-    var strip = row.type === "safe" ? (row.tone ? S.walk1 : S.walk0)
+    var strip = row.type === "safe" ? S.walk0
                                     : (r % 2 ? S.road1 : S.road0);
     ctx.drawImage(strip.img, 0, sy - ROW_H, LOGICAL_W, ROW_H + 2);
 
