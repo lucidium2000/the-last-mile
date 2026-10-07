@@ -1319,7 +1319,7 @@ var MODELS = {
 /* `shielded` is the Endpoint Agent look: blue blazer and sunglasses. Only the
    jacket, shoulders, sleeves and lapels change colour - the trousers stay dark,
    the way a blazer actually differs from the rest of a suit. */
-function playerModel(dir, shielded){
+function playerModel(dir, shielded, smiling){
   var skin = "#e9b98c";
   var suit = shielded ? BLAZER : "#232f44";
   var suitDark = "#19222f";
@@ -1354,6 +1354,29 @@ function playerModel(dir, shielded){
     dec.push({ x:0.482, y:0.43, w:0.036, z:0.734, h:0.014, bg:"#39434f" });  // bridge
     dec.push({ x:0.390, y:0.43, w:0.034, z:0.726, h:0.018, bg:"#6f93bd" });  // glints
     dec.push({ x:0.530, y:0.43, w:0.034, z:0.726, h:0.018, bg:"#6f93bd" });
+  }
+  /* Eating puts a face on him rather than a bubble over his head. Baked as a
+     sprite variant instead of painted on in screen space, because then the
+     projection places the mouth on the face for free - the head sits at
+     y=0.43, the same plane the sunglasses use, and guessing at a screen offset
+     would have drifted the moment anything about the camera changed.
+
+     The curve is three rects: the middle one lower than its ends. At this size
+     that reads as a smile and an arc would not survive the voxel grid. */
+  if (smiling){
+    if (!shielded){
+      dec.push({ x:0.420, y:0.43, w:0.030, z:0.742, h:0.024, bg:"#241a12" });
+      dec.push({ x:0.552, y:0.43, w:0.030, z:0.742, h:0.024, bg:"#241a12" });
+    }
+    /* The step between the ends and the middle has to be worth about 3px on a
+       head 14.5px tall, or the three rects line up and read as a straight bar.
+       The first attempt used a 1.3px step and did exactly that. */
+    dec.push({ x:0.448, y:0.43, w:0.026, z:0.706, h:0.018, bg:"#6d3b2a" });
+    dec.push({ x:0.474, y:0.43, w:0.052, z:0.682, h:0.018, bg:"#6d3b2a" });
+    dec.push({ x:0.526, y:0.43, w:0.026, z:0.706, h:0.018, bg:"#6d3b2a" });
+    // a little colour in the cheeks, so it is not only the mouth that moved
+    dec.push({ x:0.386, y:0.43, w:0.028, z:0.706, h:0.022, bg:"#e09a7e" });
+    dec.push({ x:0.586, y:0.43, w:0.028, z:0.706, h:0.022, bg:"#e09a7e" });
   }
   return { parts:parts, decals:dec, shadow:false, W:1 };
 }
@@ -1430,7 +1453,7 @@ var BLAZER = "#2f62c4";   // the Endpoint blue: blazer, pickup and ring all matc
 var POWERS = {
   agent:  { col:BLAZER, letter:"E", name:"ENDPOINT",
             line:"A shield. Absorbs the next objection.", secs:0 },
-  insight:{ col:"#2bff88", letter:"I", name:"INTERNET INSIGHTS",
+  insight:{ col:C.pw2, letter:"I", name:"INTERNET INSIGHTS",
             line:"The whole grid drops into slow motion.", secs:11 },
   traffic:{ col:"#8fd3e8", letter:"TI", name:"TRAFFIC INSIGHTS",
             line:"Every lane risk-scored — and it turns away from you.", secs:15 },
@@ -1941,6 +1964,10 @@ function bakeAll(){
   S.player_l  = bake(playerModel(-1, false));
   S.playerS_r = bake(playerModel(1, true));
   S.playerS_l = bake(playerModel(-1, true));
+  S.playerY_r  = bake(playerModel(1, false, true));
+  S.playerY_l  = bake(playerModel(-1, false, true));
+  S.playerSY_r = bake(playerModel(1, true, true));
+  S.playerSY_l = bake(playerModel(-1, true, true));
   S.hero_r    = bake(heroModel(1, false));
   S.hero_l    = bake(heroModel(-1, false));
   S.heroFly_r = bake(heroModel(1, true));
@@ -1955,8 +1982,6 @@ function bakeAll(){
   S.walk0 = bakeStrip("walk",0);            // one pavement strip, not two
   S.road0 = bakeStrip("road",0); S.road1 = bakeStrip("road",1);
   S.grass = bakeStrip("grass",0); S.parkPath = bakeStrip("parkPath",0);
-  RAIN_A = bakeRain(0x5eed01, 48, "#2bff88");
-  RAIN_B = bakeRain(0xc0ffee, 30, "#149b4e");
 }
 
 /* ------------------------------------------------------------- world build */
@@ -4088,9 +4113,10 @@ function update(dt){
   if (G.tam && G.state === ST_PLAY){
     G.tamT -= dt;
     if (G.tamT <= 0){
-      // 8-14s, so an engaged TAM delivers 2-4 times in a typical run and the
-      // win lines actually get read - they are the point of the power-up
-      G.tamT = 8 + Math.random()*6;
+      /* 16-28s. It was 8-14, which paid out so often that the banner was
+         more or less permanent and stopped reading as an event at all. Half
+         the rate, same payouts, each one actually noticed. */
+      G.tamT = 16 + Math.random()*12;
       G.tamWins++;
       /* No more flight after the opening five seconds. An engaged TAM is not
          a movement power-up, it is a revenue one: every payout is an outcome
@@ -4948,8 +4974,10 @@ function drawPlayer(pp){
   var right = G.facing > 0, s;
   if (G.flyA > 0.45)      s = right ? S.heroFly_r : S.heroFly_l;
   else if (G.flyA > 0.02) s = right ? S.hero_r    : S.hero_l;
-  else if (G.shield)      s = right ? S.playerS_r : S.playerS_l;
-  else                    s = right ? S.player_r  : S.player_l;
+  else if (G.shield)      s = right ? (G.yumT > 0 ? S.playerSY_r : S.playerS_r)
+                                   : (G.yumT > 0 ? S.playerSY_l : S.playerS_l);
+  else                    s = right ? (G.yumT > 0 ? S.playerY_r : S.player_r)
+                                   : (G.yumT > 0 ? S.playerY_l : S.player_l);
   if (!s) s = right ? S.player_r : S.player_l;
   var sx = pp.col*TILE, sy = rowScreenY(pp.row);
   var fly = G.flyA, flyLift = fly * 78;
@@ -5412,18 +5440,9 @@ function drawEat(cx, topY){
       ctx.fillRect(cx - 14 + c * 9, fy + 6 + cp * 30, 3, 3);
     }
     ctx.globalAlpha = Math.min(1, G.yumT / 0.25);
-    if (remain <= 0.001){
-      // done: a short satisfied beat
-      var sx2 = cx, sy2 = fy - 6;
-      ctx.fillStyle = "#f6efe2";
-      ctx.beginPath(); ctx.arc(sx2, sy2, 17, 0, Math.PI * 2); ctx.fill();
-      ctx.fillStyle = "#1d1a16";
-      ctx.beginPath(); ctx.arc(sx2 - 6, sy2 - 4, 2.6, 0, Math.PI * 2); ctx.fill();
-      ctx.beginPath(); ctx.arc(sx2 + 6, sy2 - 4, 2.6, 0, Math.PI * 2); ctx.fill();
-      ctx.strokeStyle = "#1d1a16"; ctx.lineWidth = 2.6; ctx.lineCap = "round";
-      ctx.beginPath(); ctx.arc(sx2, sy2, 9, 0.22 * Math.PI, 0.78 * Math.PI);
-      ctx.stroke();
-    }
+    /* The satisfied beat used to be an emoji bubble floating over his head.
+       He smiles himself now - see the `smiling` variant in playerModel - so
+       there is nothing to draw here. */
   }
   ctx.globalAlpha = 1;
 }
@@ -5472,84 +5491,40 @@ function cellRisk(row, col){
   return best;
 }
 /* ------------------------------------------------- INTERNET INSIGHTS ------
-   Slow motion wants to LOOK like slow motion, so the overlay is the obvious
-   reference: green rain falling down the screen while everything else crawls.
+   The world drops to 0.28x and the screen has to say so without getting in
+   the way of the thing you are trying to read. A cool wash, scanlines, a
+   frame and one bright band sweeping down at normal speed - the band is what
+   sells it, because it is the only thing still moving at the old rate.
 
-   It is baked, not drawn. Glyph by glyph it would be ~700 fillText calls a
-   frame, which is exactly the kind of thing that turns a RoomOS panel into a
-   slideshow. Instead two sheets are rendered once at startup and scrolled -
-   four drawImage calls a frame, no text layout at all, and because every
-   glyph is wrapped modulo the sheet height the seam never shows. Two sheets
-   at different speeds give it depth. */
-var RAIN_H = 1600;
-function bakeRain(seed, cols, bright){
-  var off = document.createElement("canvas");
-  off.width = LOGICAL_W; off.height = RAIN_H;
-  var g = off.getContext("2d");
-  /* ASCII and a handful of symbols only. Katakana is the real thing, but a
-     missing glyph on a conference panel renders as a tofu box, and a screen
-     of tofu boxes is worse than no effect at all. */
-  var GLY = "01ABCDEFHKLMNPRSTVXZ<>*#$%&+=/|{}[]?!";
-  var st = seed >>> 0;
-  function rnd(){ st = (st * 1664525 + 1013904223) >>> 0; return st / 4294967296; }
-  var step = LOGICAL_W / cols, size = Math.round(step * 1.02), lead = Math.round(size * 1.12);
-  g.font = size + "px \"Courier New\",Consolas,monospace";
-  g.textAlign = "center"; g.textBaseline = "middle";
-  for (var c = 0; c < cols; c++){
-    var x = c * step + step / 2;
-    var streams = 1 + ((rnd() * 2) | 0);
-    for (var sIdx = 0; sIdx < streams; sIdx++){
-      var y0 = rnd() * RAIN_H, len = 9 + ((rnd() * 18) | 0);
-      for (var i = 0; i < len; i++){
-        var f = 1 - i / len;                       // 1 at the head, 0 at the tail
-        var y = ((y0 - i * lead) % RAIN_H + RAIN_H) % RAIN_H;
-        g.globalAlpha = Math.pow(f, 1.5) * 0.92;
-        g.fillStyle = i === 0 ? "#d8ffe8" : (i < 3 ? "#7dffb4" : bright);
-        g.fillText(GLY.charAt((rnd() * GLY.length) | 0), x, y);
-      }
-    }
-  }
-  g.globalAlpha = 1;
-  return off;
-}
-var RAIN_A = null, RAIN_B = null;
+   An earlier version put Matrix-style glyph rain over all of this. It looked
+   the part and it was distracting, which for an overlay you play underneath
+   is the only verdict that matters. */
 function drawSlowTint(){
   if (G.slowT <= 0) return;
   var a = Math.min(1, G.slowT, (POWERS.insight.secs - G.slowT) * 3);
   if (a <= 0) return;
 
-  // the wash: everything behind it goes cold and green
-  ctx.globalAlpha = 0.30 * a;
-  ctx.fillStyle = "#04170c"; ctx.fillRect(0, 0, LOGICAL_W, LOGICAL_H);
-
-  // two sheets, different speeds, each drawn twice so the wrap is seamless
-  if (RAIN_A){
-    var sheets = [[RAIN_A, 150, 0.52], [RAIN_B, 86, 0.34]];
-    for (var i = 0; i < 2; i++){
-      var sh = sheets[i], off = (G.t * sh[1]) % RAIN_H;
-      ctx.globalAlpha = sh[2] * a;
-      ctx.drawImage(sh[0], 0, off - RAIN_H, LOGICAL_W, RAIN_H);
-      ctx.drawImage(sh[0], 0, off,          LOGICAL_W, RAIN_H);
-    }
-  }
+  // a cool wash, enough to say the world changed, not enough to hide it
+  ctx.globalAlpha = 0.20 * a;
+  ctx.fillStyle = "#050a14"; ctx.fillRect(0, 0, LOGICAL_W, LOGICAL_H);
 
   /* Scanlines, and a slow bright band sweeping down. The band is what sells
      the slowness: it is the only thing on screen moving at a normal rate. */
-  ctx.globalAlpha = 0.10 * a; ctx.fillStyle = "#000";
+  ctx.globalAlpha = 0.09 * a; ctx.fillStyle = "#000";
   for (var y = 0; y < LOGICAL_H; y += 4) ctx.fillRect(0, y, LOGICAL_W, 2);
   var band = ((G.t * 0.22) % 1) * (LOGICAL_H + 300) - 150;
   for (var b = 0; b < 26; b++){
-    ctx.globalAlpha = a * 0.05 * (1 - b / 26);
-    ctx.fillStyle = "#2bff88";
+    ctx.globalAlpha = a * 0.045 * (1 - b / 26);
+    ctx.fillStyle = "#cfe6ff";
     ctx.fillRect(0, band + b * 5, LOGICAL_W, 5);
     ctx.fillRect(0, band - b * 5, LOGICAL_W, 5);
   }
 
   // and a frame, so it reads as a mode rather than a filter
-  ctx.globalAlpha = 0.5 * a; ctx.strokeStyle = "#2bff88"; ctx.lineWidth = 3;
+  ctx.globalAlpha = 0.45 * a; ctx.strokeStyle = POWERS.insight.col; ctx.lineWidth = 3;
   ctx.strokeRect(10, 10, LOGICAL_W - 20, LOGICAL_H - 20);
   ctx.globalAlpha = 0.85 * a;
-  txt("SLOW MOTION", LOGICAL_W / 2, LOGICAL_H - 36, 22, "#2bff88");
+  txt("SLOW MOTION", LOGICAL_W / 2, LOGICAL_H - 36, 22, POWERS.insight.col);
   ctx.globalAlpha = 1;
 }
 function drawRisk(){
@@ -5715,6 +5690,11 @@ function drawHud(){
         (G.tamWins === 1 ? " win" : " wins"), bx+60, by+44, 17,
         G.tamLeft < 12 ? C.danger : C.textDim, "left", 230);
   }
+
+  /* Nothing shouts over the train. drawHud runs on top of drawRide, so a
+     banner raised just before the turnstile - or on the single frame a ride
+     ends - sat across the carriage. The ride is its own scene; let it be one. */
+  if (G.ride) return;
 
   /* Both message bands sit ABOVE the horizon, over the skyline rather than
      over the road. They used to sit at y=380, in the clear part of the
@@ -6100,7 +6080,7 @@ function render(){
   // cutscene, not an overlay
   if (G.scene) drawScene();
   if (G.ticker) drawTicker();
-  if (G.notice) drawNotice();
+  if (G.notice && !G.ride) drawNotice();
   drawMuteBtn();
   if (SHOW_FPS){
     ctx.setTransform(scale, 0, 0, scale, 0, 0);

@@ -498,6 +498,18 @@ The bar sits under the pipeline, ticked every 25% so you can read how many
 lunches you are down without doing arithmetic mid-crossing. It turns amber below
 half, red below 25%, and flashes.
 
+### He smiles
+
+Finishing a meal used to pop an emoji bubble over his head. He smiles himself
+now: eyes, a curved mouth and a bit of colour in the cheeks, **baked as a sprite
+variant** rather than painted on in screen space, so the projection places the
+mouth on his face for free. Guessing at a screen offset would have drifted the
+moment anything about the camera changed.
+
+The curve is three rects with the middle one lower than its ends — an arc would
+not survive the voxel grid. The first attempt used a 1.3px step across a 14.5px
+head, which lined all three up into a straight bar; it is 3px now and reads.
+
 ### Arrival scenes
 
 Reaching a landmark crossing stops the walk for a beat and shows you where you
@@ -595,15 +607,13 @@ tier:
 crossing-safety predictor, because a predictor running at a different rate from
 the thing it predicts will tell you a lane is clear when it is not.
 
-The look is the obvious reference: green glyph rain falling down the screen,
-a cold green wash, scanlines, a slow bright band sweeping down and a frame
-around the whole playfield. It is **baked, not drawn** — glyph by glyph it would
-be ~700 `fillText` calls a frame, which is how you turn a conference panel into
-a slideshow. Two sheets are rendered once at startup and scrolled at different
-speeds, four `drawImage` calls a frame, every glyph wrapped modulo the sheet
-height so the seam never shows. ASCII and symbols only: a missing glyph renders
-as a tofu box on an unfamiliar font stack, and a screen of tofu boxes is worse
-than no effect at all.
+The look is a cool wash, scanlines, a frame and one bright band sweeping down
+at normal speed. The band is what sells it: it is the only thing on screen still
+moving at the old rate.
+
+An earlier version put Matrix-style green glyph rain over all of this. It looked
+the part and it was distracting, and for an overlay you have to play *underneath*
+that is the only verdict that matters. The rain is gone; the slow motion stays.
 
 **Traffic Insights** runs 15 seconds, colours every lane by live risk — *and
 now answers it.* While it is up, whatever is bearing down on the lane he is
@@ -637,6 +647,17 @@ traffic taking more than one way to the same place; about 9% are perfectly
 straight, which is only ever claimed when the player's own column is clear the
 whole way. You cannot be hit anywhere on the route and traffic turns around on
 contact with it.
+
+**TAM payouts run every 16–28 seconds** once engaged — about 2.7 a minute. They
+used to run every 8–14, which was so often that the banner was more or less
+permanent and stopped reading as an event at all. Measured over 30 minutes of
+game time: 81 payouts, mean gap 22.38s, ratio to the old rate **0.492**.
+
+**Nothing shouts over the train.** `drawHud` draws on top of `drawRide`, so a
+banner raised just before the turnstile — or on the single frame a ride ends —
+sat across the carriage. All four message bands (TAM payout, flash, milestone
+toast and the centre-screen notice) are suppressed for the length of a ride.
+The pipeline, stamina and departure board stay up.
 
 **TAM.** The headline SKU, and the only power-up that pays twice in different
 currencies.
