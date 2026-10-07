@@ -11,20 +11,46 @@
    The game talks to it only if BOARD_API in index.html is set. Leave that
    empty and the game never opens a socket.
 
-   ---- Deploying it -------------------------------------------------------
+   ---- Deploying it: command line (surest) --------------------------------
 
-   1. https://dash.cloudflare.com -> Workers & Pages -> Create -> Worker.
-      Name it something like `last-mile`. Deploy the placeholder.
-   2. Edit code, paste this whole file over what is there, Deploy.
-   3. Storage & Databases -> KV -> Create namespace, call it `LASTMILE`.
-   4. Back in the Worker -> Settings -> Bindings -> Add -> KV namespace.
-      Variable name: BOARD      Namespace: LASTMILE
-   5. Settings -> Variables -> add a plain text variable (optional but
-      recommended):
-         ALLOW_ORIGIN = https://lucidium2000.github.io
-      Leave it out and any origin may read and post.
-   6. Copy the worker URL (https://last-mile.<your-subdomain>.workers.dev)
-      into BOARD_API in index.html, commit, push.
+   Needs Node. Nothing to install globally, npx fetches wrangler.
+
+     mkdir last-mile && cd last-mile
+     # put this file in as src/index.js, then:
+     npx wrangler kv namespace create LASTMILE     # prints an id - copy it
+
+   wrangler.toml, with that id pasted in:
+
+     name = "last-mile"
+     main = "src/index.js"
+     compatibility_date = "2026-01-01"
+     [[kv_namespaces]]
+     binding = "BOARD"
+     id = "<the id wrangler printed>"
+     [vars]
+     ALLOW_ORIGIN = "https://lucidium2000.github.io"
+
+   then:
+
+     npx wrangler deploy        # first run opens a browser to log in
+
+   It prints the URL - https://last-mile.<your-subdomain>.workers.dev.
+
+   ---- Or in the dashboard ------------------------------------------------
+
+   dash.cloudflare.com -> Workers & Pages -> create a Worker -> paste this
+   file over the placeholder -> deploy. Then create a KV namespace, and bind
+   it to the Worker with the variable name BOARD. Optionally add a plain text
+   variable ALLOW_ORIGIN set to your Pages origin; leave it out and any origin
+   may read and post. Menu labels move around, but it is always: a Worker, a
+   KV namespace, and a binding called BOARD.
+
+   ---- Then ---------------------------------------------------------------
+
+   Send the URL over and it goes into BOARD_API in index.html. Sanity check
+   first - this should return {"rows":[],"stats":{...}}:
+
+     curl https://last-mile.<your-subdomain>.workers.dev/top
 
    ---- What it stores -----------------------------------------------------
 
