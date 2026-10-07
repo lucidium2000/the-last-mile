@@ -1,84 +1,139 @@
 # Leaderboard
 
-The game works without any of this. Leave `BOARD_API` empty in `index.html`
-and the board is per-device and the game opens no socket at all. This makes it
-shared, so a score set on the panel in one office shows up in the next.
+The shared board. A score set on the panel in one office shows up in the next.
 
-GitHub Pages only serves files, so the shared board has to live somewhere else.
-There are two ways to put it there. Both end with a URL that goes into
-`BOARD_API`.
-
----
-
-## The short way — Val Town (no terminal, ~2 minutes)
-
-1. **val.town** → sign in with GitHub
-2. **New → HTTP val**
-3. Paste [`valtown.ts`](valtown.ts) over the placeholder and save
-4. Copy the URL it shows: `https://<you>-<name>.web.val.run`
-
-That is the URL. Check it before using it — this should return
-`{"rows":[],"stats":{...}}`:
-
-```bash
-curl https://YOU-NAME.web.val.run/top
+```
+the game  ──►  https://lucidium2000--be403ca8c25711f194891607ee4eb77e.web.val.run
+                 │
+                 ├─ code  ── valtown.ts  (this repo is the authoritative copy)
+                 └─ data  ── Val Town blob storage  (backed up into backups/)
 ```
 
-Storage is built in, nothing to create or bind. The free tier allows 10 MB;
-this board is a few kilobytes.
+The game works without any of it. Emptying `BOARD_API` in `index.html` puts it
+back to a per-device board and zero network calls, which is the RoomOS-safe
+default.
 
-**The trade:** blob storage has no transactions, so two runs ending in the same
-instant can race and one loses its row. On office panels that is a rounding
-error. Val Town is also a much smaller company than Cloudflare — if it ever
-went away the game would carry on, the board would just fall back to
-per-device.
+## The files
 
----
+| | |
+|---|---|
+| [`valtown.ts`](valtown.ts) | the whole server. **The only copy that counts.** |
+| [`val.json`](val.json) | which val it is, which file inside it, and the URL |
+| [`lb.mjs`](lb.mjs) | the one command for everything below |
+| `backups/` | dated snapshots of the live data, committed |
 
-## The durable way — Cloudflare Worker
+## Setup, once
 
-Three commands from inside this folder. Needs Node; `npx` fetches wrangler, so
-there is nothing to install globally.
-
-```bash
-npx wrangler kv namespace create LASTMILE
-```
-
-Paste the `id` it prints into [`wrangler.toml`](wrangler.toml) over
-`PASTE_THE_KV_ID_HERE`, then:
+One credential does everything. Make it at **val.town → Settings → API Tokens**
+with **val read + write**, then:
 
 ```bash
-npx wrangler deploy
+setx VAL_TOWN_API_KEY "vt_your_token_here"
 ```
 
-The first run opens a browser to log in (a free Cloudflare account is well
-inside the free tier). It prints
-`https://last-mile.<your-subdomain>.workers.dev`.
+Open a new terminal afterwards — `setx` only affects new ones. The token is
+read from the environment and never written to a file here, so it cannot end up
+in a commit.
 
-**Without a terminal:** dash.cloudflare.com → Workers & Pages → create a Worker
-→ paste [`src/index.js`](src/index.js) over the placeholder → Deploy. Then
-Storage & Databases → KV → create a namespace, and on the Worker,
-Settings → Bindings → Add → KV Namespace, variable name **`BOARD`** → Deploy.
-That binding name matters; the code reads `env.BOARD`. Optionally add a text
-variable `ALLOW_ORIGIN` set to `https://lucidium2000.github.io`.
+## Editing it
 
----
+Edit [`valtown.ts`](valtown.ts), then:
 
-## Then
+```bash
+node leaderboard/lb.mjs push
+```
 
-Set `BOARD_API` in `index.html` to the URL, no trailing slash, and push.
+That is live immediately; the URL never changes, so nothing in the game needs
+touching. Commit the file and the repo and the server agree again.
 
-## What either one stores
+**If you edit in the Val Town web editor instead** — which is fine, it is often
+quicker — pull it back down so the repo stops being a lie:
+
+```bash
+node leaderboard/lb.mjs pull
+```
+
+Either direction works. What breaks things is editing both and guessing, and
+that is what `check` is for:
+
+```bash
+node leaderboard/lb.mjs check
+```
+
+Exit 0 if the live code matches `valtown.ts`, exit 1 if it has drifted. It
+ignores line endings, because this repo checks out CRLF on Windows and Val Town
+stores LF, and a check that always cries wolf is a check nobody runs.
+
+## Backing it up
+
+Git covers the code. It cannot cover the **data** — the rows and the counters
+live in Val Town's blob store, not in any file here. So:
+
+```bash
+node leaderboard/lb.mjs backup
+```
+
+Writes `backups/board-<date>.json` with every row and every counter. Commit it
+and the data is version controlled too. To put one back:
+
+```bash
+node leaderboard/lb.mjs restore leaderboard/backups/board-2026-10-07-14-30-00.json
+```
+
+It shows you how many rows you are replacing and how many you are replacing
+them with, and does nothing unless you type `yes`.
+
+## Everything the command does
+
+```bash
+node leaderboard/lb.mjs status          # what is live, and is the code in sync
+node leaderboard/lb.mjs check           # exit 1 on drift, for a script
+node leaderboard/lb.mjs push            # repo code  -> Val Town
+node leaderboard/lb.mjs pull            # Val Town   -> repo code
+node leaderboard/lb.mjs backup          # live data  -> backups/<date>.json
+node leaderboard/lb.mjs restore <file>  # a backup   -> live data
+node leaderboard/lb.mjs prune ZZZ       # drop one name, leave everyone else
+node leaderboard/lb.mjs reset           # empty the board and the counters
+```
+
+`status` is the only one that works without a token — it reads the public
+endpoint, so it always tells you something. `restore`, `prune` and `reset` all
+ask before they touch anything.
+
+## What it stores
 
 Three initials, the run's own numbers, and a random id the browser made up for
-itself so repeat plays can be counted without counting a person twice. The set
-of ids never leaves the server — the game only receives the count. No IP
-address is read or written anywhere in either file.
+itself so repeat plays can be counted without counting a person twice. **The set
+of ids never leaves the server** — the game only ever receives the count. No IP
+address is read or written anywhere in `valtown.ts`.
+
+Deliberately *not* collected: user agent, screen size, language, timezone,
+location. Those need no permission, which is exactly what makes them a
+fingerprint.
+
+## Why there are no admin routes
+
+`backup`, `restore`, `prune` and `reset` all go through Val Town's own API with
+your token. None of them is a route on the public endpoint. That endpoint has
+exactly two routes — `GET /top` and `POST /score` — so there is nothing on it to
+find, and no second secret to manage.
 
 ## Abuse
 
-Both are open endpoints on a public page, so treat the board as decorative, not
+It is an open endpoint on a public page, so treat the board as decorative, not
 as a record. Everything is clamped to sane ranges, initials are stripped to
 A–Z0–9, and one id may post at most once every ten seconds. Someone determined
-with the URL can still write nonsense. If that happens, clear the stored board
-and it starts clean.
+with the URL can still write nonsense. If that happens: `backup`, then `prune`
+or `reset`.
+
+## The Cloudflare version
+
+There used to be a second implementation of the same two routes for Cloudflare
+Workers, plus a duplicate of it, plus a `wrangler.toml`. Three copies of one
+contract, two of them unused and already going stale — which is the drift
+problem this whole folder exists to stop. They were removed; the last commit
+that has them is **2006600**:
+
+```bash
+git show 2006600:leaderboard-worker.js > worker.js
+```
