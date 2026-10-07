@@ -70,7 +70,7 @@ td.ini{font-weight:800;letter-spacing:1.5px}
 tr.top1 td.ini{color:var(--amber)}
 td.won{color:var(--good)}
 td.died{color:var(--dim)}
-.scroll{max-height:620px;overflow:auto;border:1px solid var(--line);border-radius:12px;
+.scroll{max-height:470px;overflow:auto;border:1px solid var(--line);border-radius:12px;
   background:var(--panel)}
 
 .note{color:var(--dim);font-size:13px;line-height:1.65}
@@ -106,6 +106,18 @@ footer{margin-top:44px;color:var(--faint);font-size:12px;text-align:center}
 
 <div id="error" class="panel err" style="display:none"></div>
 
+<h2>Leaderboard — top <span id="nrows">100</span></h2>
+<div class="scroll">
+  <table id="board">
+    <thead><tr>
+      <th class="l">#</th><th class="l">Initials</th><th>Score</th><th>Blocks</th>
+      <th>Rows</th><th>Steps</th><th>Rides</th><th>TAM wins</th><th>Time</th>
+      <th class="l">Outcome</th><th class="l">When</th>
+    </tr></thead>
+    <tbody></tbody>
+  </table>
+</div>
+
 <h2>Totals — every run ever finished</h2>
 <div class="cards" id="totals"></div>
 
@@ -121,18 +133,6 @@ footer{margin-top:44px;color:var(--faint);font-size:12px;text-align:center}
     <h2>Power-ups collected</h2>
     <div class="panel"><div class="bars" id="powers"></div></div>
   </div>
-</div>
-
-<h2>The board — top <span id="nrows">100</span></h2>
-<div class="scroll">
-  <table id="board">
-    <thead><tr>
-      <th class="l">#</th><th class="l">Initials</th><th>Score</th><th>Blocks</th>
-      <th>Rows</th><th>Steps</th><th>Rides</th><th>TAM wins</th><th>Time</th>
-      <th class="l">Outcome</th><th class="l">When</th>
-    </tr></thead>
-    <tbody></tbody>
-  </table>
 </div>
 
 <h2>What is recorded, and what is not</h2>
@@ -267,7 +267,7 @@ function render(){
     ["Made it back",     num(s.wins),         pct(s.wins, s.plays) + " of runs", "win"],
     ["Didn't",           num(s.deaths),       pct(s.deaths, s.plays) + " of runs"],
     ["Best score",       money(s.bestScore),  "pipeline", "hi"],
-    ["Furthest",         num(bestStreets) + " blocks", "best on the board", "hi"],
+    ["Furthest",         num(bestStreets), "blocks, best on the board", "hi"],
     ["Blocks walked",    num(s.rows),         "rows crossed, all runs"],
     ["Steps taken",      num(s.steps),        "all runs"],
     ["Subway rides",     num(s.rides),        "all runs"],
@@ -307,8 +307,8 @@ function render(){
   $("scope").innerHTML = "<strong>Scope:</strong> the headline totals and the " +
     "power-ups count <em>every finished run</em> — those are counters the " +
     "server keeps. “What stops people”, “Furthest” and the " +
-    "average score are read off the board instead, so they describe the top " +
-    rows.length + " runs rather than all of them.";
+    "average score are read off the leaderboard above instead, so they describe " +
+    "the top " + rows.length + " runs rather than all of them.";
 
   bars("powers", POWER_ORDER.map(function(k){
     return { lab:POWER_NAME[k], v:(s.powers && s.powers[k]) || 0, col:POWER_COL[k] };
