@@ -231,6 +231,31 @@ horn, the brakes and the doors opening. Every cue is scheduled up front off the
 audio clock, so a dropped frame cannot knock the sound out of time with the
 picture.
 
+### Inside the car
+
+The car is **five standing positions** wide and you can walk it. Any tap or
+swipe moves him one position: right/forward toward the front, left/back toward
+the rear, and he bumps at either end. Two slots are rolled per ride:
+
+| | |
+|---|---|
+| **A shady character**, ~45% of rides | Hood up, collar up, hands in, sunglasses, and a slow sway that is not the train's. Walk into him once and he tells you he is watching your bag. He does not block and he does not cost you anything. |
+| **Chuck Bucks**, ~55% of rides | Left on a seat. Walk into it and you get the identical payout to the pavement pickup — the money, the CSCO card, the voice line. |
+
+Neither ever lands on his starting position or on top of the other, so there is
+always somewhere to walk to. Verified over 4,000 rolled rides: 0 collisions, 0
+on the start slot, 45.9% / 56.0% appearance rates.
+
+The ride also now **owns the input** while it is running. It did not before:
+taps fell through to world movement and quietly walked the player across
+streets he could not see. Verified that a full walk up and down the car leaves
+`G.row`/`G.col` untouched.
+
+Collecting on the train raises the ticker card, which freezes the world — and
+the ride with it. Measured: the ride clock advances **1 frame out of the 205**
+the card is up, on the tick where the card expires and falls through. That is
+correct, not a leak.
+
 The exit is found or planted on a pavement row at the destination, and the exit
 cell is unblocked — which can never create a pin, since removing a blocker only
 ever widens a gap.
