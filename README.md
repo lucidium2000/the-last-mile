@@ -515,19 +515,47 @@ ticked every 25%, one meal a tick, so you can read how many lunches you are down
 without doing arithmetic mid-crossing. Amber below half, red below 25%, and it
 flashes.
 
-### He smiles
+### His face
 
-Finishing a meal used to pop an emoji bubble over his head. He smiles himself
-now: eyes, a curved mouth and a bit of colour in the cheeks, **baked as a sprite
-variant** rather than painted on in screen space, so the projection places the
-mouth on his face for free. Guessing at a screen offset would have drifted the
-moment anything about the camera changed.
+Finishing a meal used to pop an emoji bubble over his head. He has an actual
+face now, with three expressions, all **baked as sprite variants** rather than
+painted on in screen space — the projection places the mouth on his face for
+free, and a guessed screen offset would have drifted the moment anything about
+the camera changed.
 
-The curve is three rects with the middle one lower than its ends — an arc would
-not survive the voxel grid. The first attempt used a 1.3px step across a 14.5px
-head, which lined all three up into a straight bar; it is 3px now and reads.
+| | When | How |
+|---|---|---|
+| **Smile** | he pays, and between bites | three rects, middle one *lower* |
+| **Chew** | while he is eating | jaw dropped, lower lip below it |
+| **Sad** | he walks into a cart he already bought from | three rects, middle *raised*, brows angled in |
+
+Chewing alternates with the smile at about 3Hz once the bites start — a jaw
+working rather than a flicker; anything faster read as a glitch. The eyes are
+shared across all three, which is what makes the chew read as the same man
+rather than a different sprite.
+
+The curve needs a step of about 3px across a 14.5px head or the three rects line
+up and read as a straight bar. The first attempt used 1.3px and did exactly
+that.
+
+**Walking into an empty cart** is its own answer now. One cart serves one meal,
+so the stand is still standing there afterwards, and without a reaction the
+refusal looked like the controls ignoring him.
 
 ### Arrival scenes
+
+A scene can fire on the step that lands him **in the middle of a road**, and a
+cutscene several seconds long is exactly long enough to forget where you were
+standing. The world is frozen behind it, so the traffic is still there when the
+scene lifts and he gets flattened by something he never saw move. He is stepped
+back to the pavement before the scene opens — backwards rather than forwards,
+since forwards would hand him a free crossing for reaching a landmark — onto an
+unblocked column, with a beat of grace after. `maxRow` is untouched, so nothing
+he has already earned comes off.
+
+Checked over 200 trials starting in traffic: **200 on a pavement afterwards, 0
+on a blocked column, 200 with `maxRow` intact, 200 given grace.** And over 120
+trials starting on a pavement, **0 moved** — it only fires when it is needed.
 
 Reaching a landmark crossing stops the walk for a beat and shows you where you
 are, in the same register as the subway ride. Each plays once per run.

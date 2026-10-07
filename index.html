@@ -1319,7 +1319,8 @@ var MODELS = {
 /* `shielded` is the Endpoint Agent look: blue blazer and sunglasses. Only the
    jacket, shoulders, sleeves and lapels change colour - the trousers stay dark,
    the way a blazer actually differs from the rest of a suit. */
-function playerModel(dir, shielded, smiling){
+var FACE_SMILE = 1, FACE_CHEW = 2, FACE_SAD = 3;
+function playerModel(dir, shielded, face){
   var skin = "#e9b98c";
   var suit = shielded ? BLAZER : "#232f44";
   var suitDark = "#19222f";
@@ -1363,20 +1364,45 @@ function playerModel(dir, shielded, smiling){
 
      The curve is three rects: the middle one lower than its ends. At this size
      that reads as a smile and an arc would not survive the voxel grid. */
-  if (smiling){
+  /* Three expressions, all drawn on the same plane as the sunglasses (y=0.43),
+     all baked as sprite variants so the projection places them for free. The
+     eyes are shared; only the mouth changes, which is what makes the chew read
+     as the same man rather than a different sprite.
+
+     The step between the ends and the middle of a curved mouth has to be worth
+     about 3px on a head 14.5px tall, or the three rects line up and read as a
+     straight bar. The first attempt used a 1.3px step and did exactly that. */
+  if (face){
     if (!shielded){
-      dec.push({ x:0.420, y:0.43, w:0.030, z:0.742, h:0.024, bg:"#241a12" });
-      dec.push({ x:0.552, y:0.43, w:0.030, z:0.742, h:0.024, bg:"#241a12" });
+      var eyeZ = face === FACE_SAD ? 0.738 : 0.742;
+      dec.push({ x:0.420, y:0.43, w:0.030, z:eyeZ, h:0.024, bg:"#241a12" });
+      dec.push({ x:0.552, y:0.43, w:0.030, z:eyeZ, h:0.024, bg:"#241a12" });
+      if (face === FACE_SAD){
+        // brows angled in, the only thing that stops a frown reading as a pout
+        dec.push({ x:0.414, y:0.43, w:0.034, z:0.772, h:0.013, bg:"#2b1f16" });
+        dec.push({ x:0.554, y:0.43, w:0.034, z:0.766, h:0.013, bg:"#2b1f16" });
+      }
     }
-    /* The step between the ends and the middle has to be worth about 3px on a
-       head 14.5px tall, or the three rects line up and read as a straight bar.
-       The first attempt used a 1.3px step and did exactly that. */
-    dec.push({ x:0.448, y:0.43, w:0.026, z:0.706, h:0.018, bg:"#6d3b2a" });
-    dec.push({ x:0.474, y:0.43, w:0.052, z:0.682, h:0.018, bg:"#6d3b2a" });
-    dec.push({ x:0.526, y:0.43, w:0.026, z:0.706, h:0.018, bg:"#6d3b2a" });
-    // a little colour in the cheeks, so it is not only the mouth that moved
-    dec.push({ x:0.386, y:0.43, w:0.028, z:0.706, h:0.022, bg:"#e09a7e" });
-    dec.push({ x:0.586, y:0.43, w:0.028, z:0.706, h:0.022, bg:"#e09a7e" });
+    if (face === FACE_SMILE){
+      dec.push({ x:0.448, y:0.43, w:0.026, z:0.706, h:0.018, bg:"#6d3b2a" });
+      dec.push({ x:0.474, y:0.43, w:0.052, z:0.682, h:0.018, bg:"#6d3b2a" });
+      dec.push({ x:0.526, y:0.43, w:0.026, z:0.706, h:0.018, bg:"#6d3b2a" });
+    } else if (face === FACE_CHEW){
+      // jaw down: a taller, narrower mouth, with the lower lip below it
+      dec.push({ x:0.462, y:0.43, w:0.076, z:0.676, h:0.042, bg:"#5a2c1e" });
+      dec.push({ x:0.470, y:0.43, w:0.060, z:0.680, h:0.024, bg:"#3d1b12" });
+      dec.push({ x:0.462, y:0.43, w:0.076, z:0.668, h:0.010, bg:"#b8745c" });
+    } else {
+      // the frown: the same three rects with the middle RAISED instead
+      dec.push({ x:0.448, y:0.43, w:0.026, z:0.684, h:0.018, bg:"#6d3b2a" });
+      dec.push({ x:0.474, y:0.43, w:0.052, z:0.706, h:0.018, bg:"#6d3b2a" });
+      dec.push({ x:0.526, y:0.43, w:0.026, z:0.684, h:0.018, bg:"#6d3b2a" });
+    }
+    if (face !== FACE_SAD){
+      // a little colour in the cheeks, so it is not only the mouth that moved
+      dec.push({ x:0.386, y:0.43, w:0.028, z:0.706, h:0.022, bg:"#e09a7e" });
+      dec.push({ x:0.586, y:0.43, w:0.028, z:0.706, h:0.022, bg:"#e09a7e" });
+    }
   }
   return { parts:parts, decals:dec, shadow:false, W:1 };
 }
@@ -1965,10 +1991,12 @@ function bakeAll(){
   S.player_l  = bake(playerModel(-1, false));
   S.playerS_r = bake(playerModel(1, true));
   S.playerS_l = bake(playerModel(-1, true));
-  S.playerY_r  = bake(playerModel(1, false, true));
-  S.playerY_l  = bake(playerModel(-1, false, true));
-  S.playerSY_r = bake(playerModel(1, true, true));
-  S.playerSY_l = bake(playerModel(-1, true, true));
+  for (var fc = 1; fc <= 3; fc++){
+    S["pf" + fc + "_r"]  = bake(playerModel(1, false, fc));
+    S["pf" + fc + "_l"]  = bake(playerModel(-1, false, fc));
+    S["pf" + fc + "S_r"] = bake(playerModel(1, true, fc));
+    S["pf" + fc + "S_l"] = bake(playerModel(-1, true, fc));
+  }
   S.hero_r    = bake(heroModel(1, false));
   S.hero_l    = bake(heroModel(-1, false));
   S.heroFly_r = bake(heroModel(1, true));
@@ -2187,6 +2215,17 @@ function propAt(row, col){
    it eaten. One cart, one meal: walking into a stand is a free move - the step
    was already refused - so without this you could stand next to a hot dog cart
    tapping into it and never run out of stamina again. */
+/* A cart that has already served him. Distinguished from "not food at all"
+   because walking into the two should not feel the same. */
+function eatenFoodAt(row, col){
+  if (!row || !row.props) return false;
+  for (var i = 0; i < row.props.length; i++){
+    var pr = row.props[i];
+    if (pr.col !== col || !pr.eaten) continue;
+    if (pr.kind === "bagel" || pr.kind === "pizza" || pr.kind === "hotdog") return true;
+  }
+  return false;
+}
 function foodPropAt(row, col){
   if (!row || !row.props) return null;
   for (var i = 0; i < row.props.length; i++){
@@ -2327,7 +2366,7 @@ function reset(){
     hop:1, facing:1, maxRow:0, camRow:0, street:START_ST,
     stage:-1, coach:-1, toast:null, flash:null,
     shield:false, slowT:0, revealT:0, invulnT:0, powersUsed:0,
-    hp:HP_MAX, hpGain:null, meals:0,
+    hp:HP_MAX, hpGain:null, meals:0, sadT:0,
     flyT:0, flyA:0, flyBeep:0, tam:false, tamT:0, tamWins:0, tamWin:null, hurtT:0, nahT:0,
     yumT:0, yumKind:null, yumDir:0, yumBite:0, wowT:0, cheerT:0,
     metro:0, ride:null, trace:null, rides:0, bonus:0, tamLeft:0, riskT:0,
@@ -2671,6 +2710,10 @@ function act(dir){
     var foodPr = foodPropAt(target, nc);
     if (propAt(target, nc) === "newsstand"){
       G.wowT = 1.3; AUDIO.wow();
+    } else if (eatenFoodAt(target, nc)){
+      /* He already bought from this one. The cart is still there, so without
+         saying something the refusal looks like the controls ignoring him. */
+      G.sadT = 1.1; AUDIO.nope();
     } else if (foodPr){
       foodPr.eaten = true;                       // that cart has served you
       G.yumT = EAT_SECS; G.yumKind = foodPr.kind; G.yumBite = 0;
@@ -3992,7 +4035,41 @@ var SCENES_BACK = {
         secs:5.2, music:true, win:true }
 };
 
+/* A scene can fire on the step that lands him in the middle of a road, and a
+   cutscene several seconds long is exactly long enough to forget where you
+   were standing. The world is frozen behind it, so the traffic he is standing
+   in is still there when the scene lifts and he gets flattened by something he
+   never saw move. Step him back to the pavement first.
+
+   Backwards rather than forwards: forwards would hand him a free crossing for
+   reaching a landmark. maxRow is untouched either way, so nothing he has
+   already earned is taken off him. */
+function sceneStepBack(){
+  var cur = rows[G.row];
+  if (!cur || cur.type === "safe") return;
+  var to = null, i;
+  for (i = G.row - 1; i >= Math.max(0, G.row - 8); i--)
+    if (rows[i] && rows[i].type === "safe"){ to = i; break; }
+  if (to === null)
+    for (i = G.row + 1; i <= G.row + 8; i++)
+      if (rows[i] && rows[i].type === "safe"){ to = i; break; }
+  if (to === null) return;
+
+  var row = rows[to], col = G.col;
+  if (row.blocked && row.blocked[col]){
+    for (var d = 1; d < COLS; d++){
+      if (col - d >= 0    && !row.blocked[col - d]){ col -= d; break; }
+      if (col + d < COLS  && !row.blocked[col + d]){ col += d; break; }
+    }
+  }
+  G.row = G.fromRow = to; G.col = G.fromCol = col; G.hop = 1;
+  G.camRow = to;
+  // and a beat of grace, because the lane he was in is moving again
+  G.invulnT = Math.max(G.invulnT, 1.2);
+}
+
 function startScene(st){
+  sceneStepBack();
   var sc = (G.leg > 0 ? SCENES : SCENES_BACK)[st];
   /* The scene carries its own definition, because the leg can flip while it is
      still on screen - looking it up again on the way out would find the wrong
@@ -4206,6 +4283,7 @@ function update(dt){
     while (G.yumBite < want){ G.yumBite++; AUDIO.chomp(); }
   }
   if (G.wowT > 0)  G.wowT  = Math.max(0, G.wowT - dt);
+  if (G.sadT > 0)  G.sadT  = Math.max(0, G.sadT - dt);
   if (G.cheerT > 0) G.cheerT = Math.max(0, G.cheerT - dt);
   if (G.revealT > 0){
     G.revealT = Math.max(0, G.revealT - dt);
@@ -5102,10 +5180,21 @@ function drawPlayer(pp){
   var right = G.facing > 0, s;
   if (G.flyA > 0.45)      s = right ? S.heroFly_r : S.heroFly_l;
   else if (G.flyA > 0.02) s = right ? S.hero_r    : S.hero_l;
-  else if (G.shield)      s = right ? (G.yumT > 0 ? S.playerSY_r : S.playerS_r)
-                                   : (G.yumT > 0 ? S.playerSY_l : S.playerS_l);
-  else                    s = right ? (G.yumT > 0 ? S.playerY_r : S.player_r)
-                                   : (G.yumT > 0 ? S.playerY_l : S.player_l);
+  else {
+    /* Which face he is wearing. Chewing alternates with the smile at about
+       3Hz once the bites start, which is a jaw working rather than a flicker;
+       anything faster read as a glitch. */
+    var face = 0;
+    if (G.sadT > 0) face = FACE_SAD;
+    else if (G.yumT > 0){
+      var eage = EAT_SECS - G.yumT;
+      face = (eage >= EAT_BITE0 && Math.sin(eage * 19) > 0) ? FACE_CHEW : FACE_SMILE;
+    }
+    var suffix = (G.shield ? "S" : "") + (right ? "_r" : "_l");
+    s = face ? S["pf" + face + suffix]
+             : (G.shield ? (right ? S.playerS_r : S.playerS_l)
+                         : (right ? S.player_r  : S.player_l));
+  }
   if (!s) s = right ? S.player_r : S.player_l;
   var sx = pp.col*TILE, sy = rowScreenY(pp.row);
   var fly = G.flyA, flyLift = fly * 78;
