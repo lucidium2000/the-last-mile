@@ -470,7 +470,9 @@ A walk uptown is tiring, and the only thing that fixes tired is lunch.
 | Every street crossed, on foot | **−3%** |
 | … below 5%, or while flying on a TAM | **−1%** |
 | … crossed by subway | **free** |
-| Food — bagel, slice, hot dog | **+25%**, capped at 100 |
+| Pizza | **+15%** |
+| Bagel | **+10%** |
+| Hot dog | **+7%** |
 | An objection that lands | **−75%** |
 | Endpoint Agent shield | absorbs the hit completely, costs no health |
 
@@ -497,12 +499,16 @@ attached.
 
 The drain is deliberately more than you start with: 47 blocks to the restaurant
 costs 141%, and the round trip 282%. You cannot finish on the tank you begin
-with. Measured over 40 generated worlds, the walk puts **0.765 food carts on
-every street**, which is 19.1% of health a street against a 3% cost — so
-eating roughly **one cart in six** breaks even, and the margin above that is
-wide. Simulated 60 runs at each rate: eating 40%, 70% or 100% of the carts
-reached the dinner **60 times out of 60**; eating none died at **W 68th**, two
-thirds of the way up.
+with. A flat rate for all three made the choice of cart meaningless. Now a pizza
+counter is worth crossing for and a hot dog is what you take because it is
+there.
+
+Measured over 40 generated worlds, the walk puts **0.794 food carts on every
+street** — 8.5% of health a street against a 3% cost — so eating about **35% of
+the carts you pass** breaks even, against 16% when everything was worth 25.
+Simulated 60 runs at each rate: eating 30%, 50%, 70% or 100% all reached the
+dinner **60 times out of 60**; eating none died at **W 70th**, two thirds of the
+way up. Tighter than it was, still comfortable if you are paying attention.
 
 **One cart serves one meal.** Walking into a stand is a free move — the step was
 already refused — so without marking the cart used you could stand next to a hot
@@ -564,6 +570,7 @@ are, in the same register as the subway ride. Each plays once per run.
 |---|---|
 | 42nd | Times Square — eight billboards each running their own loop, the ticker, Broadway traffic behind the red steps, steam off a grate, a crowd three ranks deep |
 | 50th | Rockefeller Center — 30 Rock itself, the sunken plaza, Prometheus, the flags and the rink |
+| 59th | Central Park South — the Midtown skyline over the treeline, the Pond with it reflected, Gapstow Bridge, the drive and a carriage |
 | 59th | Central Park South — the canopy, the pond, a carriage |
 | 81st | Steak dinner — the customer, two glasses, and a handshake on a verbal |
 
@@ -584,6 +591,20 @@ that reads Art Deco instead of curtain wall. The first attempt stepped
 330→268→214→168 and came out a ziggurat; it is 232→216→202→188 now, 464px wide
 at the base against 376 at the top, a 19% taper over the whole height.
 
+**Central Park South** was a row of ellipses, a blue rectangle and a carriage.
+The view anyone actually photographs there is not trees — it is the **Pond**,
+with Midtown standing over the treeline behind it and the little stone arch at
+the south end. It is built in planes back to front now: skyline, three ranks of
+trees, water with the skyline upside down in it, Gapstow Bridge, then the drive.
+
+The reflection is the skyline chopped into slats that wobble independently.
+Flat colour reads as a floor; a broken reflection is the only thing that reads
+as water without a blur filter to lean on. The bridge is a solid deck with the
+arch **cut out** of it — an arch is the hole, not the stone, and drawing it the
+other way round left a rainbow sitting on the water. And the first pass left the
+middle of the skyline empty, meaning to show the park opening up; it read as a
+hole punched in the city, so it is a continuous wall of towers now.
+
 The message afterwards is a **centre-screen notice**, not a corner toast: the
 world dims, a bordered panel takes the middle of the screen for seven and a
 half seconds, and it says in 56px that a signature is not a booking. A corner
@@ -595,11 +616,21 @@ in.*
 
 ### Music
 
-Times Square, Central Park South and the steak dinner play a short theme: a walking
-bass under piano-ish arpeggios, four bars, synthesised at runtime like every
-other cue. **It is an original piece written for this game.** It is not a
-transcription or an arrangement of any existing song, and nothing in the repo
-reproduces copyrighted melody.
+**A theme a place.** They were all playing the same four bars, which made four
+different arrivals feel like one arrival. Each is original, written for this
+game, and each is scheduled against the audio clock in a single pass — so it
+costs nothing per frame and cannot drift if the renderer stutters.
+
+| Scene | Theme |
+|---|---|
+| Times Square, and Penn 1 on the way home | the anthemic one: walking bass, piano-ish arpeggios |
+| Rockefeller Center | a slow **waltz** for the rink — three beats to the bar, a bell on the one, wide stately voicings |
+| Central Park South | **pastoral** — slower, open fifths instead of stacked thirds, a soft low pad, two birds, nothing percussive |
+| The steak dinner | a lounge **ii–V–I** — walking bass on every beat, brushed hat, close voicings, the only one with a swing to it |
+
+All four are synthesised at runtime like every other cue. **They are original
+pieces written for this game** — not transcriptions or arrangements of any
+existing song, and nothing in the repo reproduces copyrighted melody.
 
 ### The ticker card
 

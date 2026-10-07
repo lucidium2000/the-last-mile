@@ -452,6 +452,100 @@ var AUDIO = (function(){
        for this game - deliberately not a transcription of any existing song.
        Scheduled all at once off the audio clock, so it costs nothing per
        frame and cannot drift if the renderer stutters. */
+    /* One theme a place. They were all playing the same four bars, which made
+       four different arrivals feel like the same arrival. Each is written for
+       this game - deliberately not a transcription of anything.
+
+       All of them are scheduled against the audio clock in one go, so they cost
+       nothing per frame and cannot drift if the renderer stutters. */
+
+    /* ROCKEFELLER - a slow waltz for the rink. Three beats to the bar, a bell
+       on the one, and a wide stately voicing: Art Deco, not Broadway. */
+    rockTheme: function(){
+      var prog = [
+        [146.83, [293.66, 349.23, 440.00]],
+        [174.61, [349.23, 440.00, 523.25]],
+        [196.00, [293.66, 392.00, 493.88]],
+        [130.81, [261.63, 329.63, 392.00]]
+      ];
+      var bar = 0.96;
+      for (var b = 0; b < prog.length; b++){
+        var t0 = b * bar, ch = prog[b][1];
+        // the bass on beat one, the chord on two and three: a waltz
+        tone({ f:prog[b][0], dur:bar * 0.40, type:"triangle", g:0.095, at:t0, lp:420 });
+        for (var beat = 1; beat <= 2; beat++){
+          for (var c = 0; c < ch.length; c++){
+            tone({ f:ch[c], dur:0.26, type:"sine", g:0.042,
+                   at:t0 + beat * (bar / 3) });
+          }
+        }
+        // a bell on the downbeat, two octaves up, for the skating-rink glitter
+        tone({ f:ch[0] * 4, dur:0.9, type:"sine", g:0.030, at:t0 });
+        tone({ f:ch[0] * 6, dur:0.6, type:"sine", g:0.014, at:t0 + 0.01 });
+        hit({ f:7000, hp:true, dur:0.22, g:0.016, at:t0 });
+      }
+    },
+
+    /* CENTRAL PARK - pastoral. Slower, open fifths instead of stacked thirds,
+       a soft low pad, and two birds. Nothing percussive: the whole point of the
+       park is that the city noise stops. */
+    parkTheme: function(){
+      var prog = [
+        [98.00,  [196.00, 293.66, 392.00]],
+        [110.00, [220.00, 329.63, 440.00]],
+        [87.31,  [174.61, 261.63, 349.23]],
+        [98.00,  [196.00, 293.66, 493.88]]
+      ];
+      var bar = 1.15;
+      for (var b = 0; b < prog.length; b++){
+        var t0 = b * bar, ch = prog[b][1];
+        tone({ f:prog[b][0], dur:bar * 1.02, type:"sine", g:0.075, at:t0, lp:300 });
+        for (var c = 0; c < ch.length; c++){
+          tone({ f:ch[c], dur:bar * 0.86, type:"sine", g:0.038,
+                 at:t0 + c * 0.075, lp:1400 });
+        }
+        // a melody note drifting over the top, one a bar
+        tone({ f:ch[2] * (b % 2 ? 1.5 : 1.25), dur:0.72, type:"sine",
+               g:0.034, at:t0 + 0.42, lp:2200 });
+      }
+      // two birds, high and short, off the beat so they sound incidental
+      var birds = [0.55, 0.70, 1.9, 2.05, 2.16, 3.6, 4.3, 4.45];
+      for (var i = 0; i < birds.length; i++){
+        tone({ f:2300 + (i % 3) * 420, to:3100 + (i % 2) * 300,
+               dur:0.09, type:"sine", g:0.022, at:birds[i] });
+      }
+    },
+
+    /* THE STEAK DINNER - a lounge ii-V-I. Walking bass on every beat, brushed
+       hat, close voicings. The only one of the four with a swing to it. */
+    dinnerTheme: function(){
+      var walk = [110.00, 130.81, 146.83, 164.81,
+                  146.83, 123.47, 110.00, 98.00,
+                  130.81, 146.83, 164.81, 174.61,
+                  164.81, 146.83, 130.81, 123.47];
+      var step = 0.30;
+      for (var i = 0; i < walk.length; i++){
+        tone({ f:walk[i], dur:step * 0.88, type:"triangle", g:0.090,
+               at:i * step, lp:380 });
+        // brushes, swung: the off-beat sits late
+        hit({ f:6200, hp:true, dur:0.07, g:0.016, at:i * step });
+        hit({ f:5200, hp:true, dur:0.05, g:0.010, at:i * step + step * 0.64 });
+      }
+      var chords = [
+        [0,  [293.66, 349.23, 440.00, 523.25]],
+        [4,  [246.94, 311.13, 392.00, 466.16]],
+        [8,  [261.63, 329.63, 392.00, 493.88]],
+        [12, [261.63, 329.63, 440.00, 587.33]]
+      ];
+      for (var k = 0; k < chords.length; k++){
+        var at = chords[k][0] * step, v = chords[k][1];
+        for (var n = 0; n < v.length; n++){
+          tone({ f:v[n], dur:step * 3.4, type:"sine", g:0.034,
+                 at:at + n * 0.035, lp:1700 });
+        }
+      }
+    },
+
     cityTheme: function(){
       var bars = [
         [130.81, [261.63, 329.63, 392.00, 523.25]],
@@ -1531,7 +1625,12 @@ var DETER_TILES = 3.2;     // how close it gets before it thinks better of it
    All four numbers are here and nowhere else, so the balance is one line to
    change. */
 var HP_MAX = 100;
-var HP_FOOD = 25;          // a bagel, a slice, a hot dog
+/* A slice is a meal, a bagel is breakfast, a hot dog is not really either.
+   One flat rate for all three made the choice of cart meaningless; now a pizza
+   counter is worth crossing for and a hot dog is what you take because it is
+   there. */
+var HP_FOOD = { pizza:15, bagel:10, hotdog:7 };
+function foodValue(kind){ return HP_FOOD[kind] || 0; }
 var HP_HIT = 75;           // an objection you did not see coming
 var HP_PER_STREET = 3;     // the walk itself
 var HP_LOW = 25;           // below this the bar starts shouting
@@ -2269,7 +2368,13 @@ function ensureRows(upTo){
     if (r < 3){ pushRow(makeWalk(r, false)); safeRun++; prevWasSafe = true; continue; }
 
     var d = difficulty(r), wantRoad;
-    if (roadRun >= d.group)  wantRoad = false;
+    /* Which street the next road row would belong to: the one being crossed if
+       we are mid-crossing, otherwise the one about to start. The park drives
+       are two lanes, never the four-lane canyons of Midtown, so the cap has to
+       know where the NEXT row lands rather than where the last one did. */
+    var upcoming = prevWasSafe ? nextStreet : curStreet;
+    var cap = inPark(upcoming) ? 2 : d.group;
+    if (roadRun >= cap)      wantRoad = false;
     else if (safeRun >= 3)   wantRoad = true;
     else                     wantRoad = Math.random() < 0.62;
 
@@ -2718,9 +2823,9 @@ function act(dir){
       foodPr.eaten = true;                       // that cart has served you
       G.yumT = EAT_SECS; G.yumKind = foodPr.kind; G.yumBite = 0;
       G.yumDir = nc > G.col ? 1 : (nc < G.col ? -1 : 0);
-      // the only thing in the game that puts stamina back
+      // the only thing in the game that puts health back
       var was = G.hp;
-      G.hp = Math.min(HP_MAX, G.hp + HP_FOOD);
+      G.hp = Math.min(HP_MAX, G.hp + foodValue(foodPr.kind));
       G.meals = (G.meals || 0) + 1;
       G.hpGain = { life:1.5, amt:Math.round(G.hp - was) };
       AUDIO.pay();
@@ -3684,29 +3789,172 @@ function sceneRock(t, a){
     ctx.globalAlpha = a;
   }
 }
-/* Central Park South: trees, the pond, a carriage */
+/* Central Park South. The view everybody actually photographs is not trees -
+   it is the POND, with Midtown standing over the treeline behind it and the
+   little stone arch at the south end. So the scene is built in planes, back to
+   front: skyline, treeline, water with the skyline upside down in it, the
+   bridge, then the drive with the carriage on it. */
 function scenePark(t, a){
-  ctx.fillStyle = "#12261a"; ctx.fillRect(0, 430, LOGICAL_W, 390);
-  for (var i = 0; i < 16; i++){                       // canopy
-    var cx = 50 + i*126 + Math.sin(t + i)*4;
-    ctx.fillStyle = i % 2 ? "#17301f" : "#1d3f28";
-    ctx.beginPath(); ctx.ellipse(cx, 430 + (i%3)*26, 92, 62, 0, 0, Math.PI*2); ctx.fill();
-    ctx.fillStyle = "#2f2217"; ctx.fillRect(cx-9, 470 + (i%3)*26, 18, 70);
+  var TREE = 430, WATER = 596, BANK = 742;
+
+  // ---- Midtown over the treeline, lit -------------------------------------
+  /* A continuous wall of towers. The first pass left the middle empty, which
+     was meant to be the park opening up and instead read as a hole punched in
+     the skyline - from the Pond looking south it is buildings the whole way
+     across. */
+  var sk = [[0,116,250],[112,84,318],[192,104,214],[292,70,286],[358,96,232],
+            [450,124,294],[570,78,206],[644,108,262],[748,90,340],[834,132,228],
+            [962,86,288],[1044,110,206],[1150,74,264],[1220,120,330],
+            [1336,92,224],[1424,104,286],[1524,80,246],[1600,128,196],
+            [1724,96,272],[1816,110,236]];
+  for (var k = 0; k < sk.length; k++){
+    var bx = sk[k][0], bw = sk[k][1], bh = sk[k][2], by = TREE - bh;
+    ctx.fillStyle = k % 2 ? "#191317" : "#1e171b";
+    ctx.fillRect(bx, by, bw, bh);
+    ctx.fillStyle = "#241c21"; ctx.fillRect(bx, by, bw, 5);
+    for (var wy = by + 16; wy < TREE - 20; wy += 26){
+      for (var wx = bx + 9; wx < bx + bw - 12; wx += 22){
+        var on = ((wx * 7 + wy * 13 + k * 5) % 17) < 6;
+        ctx.globalAlpha = a * (on ? 0.55 : 0.07);
+        ctx.fillStyle = on ? "#ffc478" : "#7d7a76";
+        ctx.fillRect(wx, wy, 11, 13);
+      }
+    }
+    ctx.globalAlpha = a;
   }
-  ctx.fillStyle = "#1b3a4a"; ctx.fillRect(420, 640, 1100, 130);   // pond
-  ctx.globalAlpha = a*0.4; ctx.fillStyle = "#9fd3e8";
-  for (var w = 0; w < 5; w++) ctx.fillRect(460 + w*200, 660 + Math.sin(t*2+w)*7, 160, 5);
+
+  // ---- the treeline: three ranks, darkest at the back ---------------------
+  var RANKS = [[TREE - 34, "#13271a", 86, 150, 0],
+               [TREE - 8,  "#17311f", 98, 132, 42],
+               [TREE + 22, "#1d3f28", 112, 118, 86]];
+  for (var rk = 0; rk < RANKS.length; rk++){
+    var ry = RANKS[rk][0], rc = RANKS[rk][1], rr = RANKS[rk][2],
+        pitch = RANKS[rk][3], off = RANKS[rk][4];
+    for (var i = -1; i * pitch + off < LOGICAL_W + pitch; i++){
+      var cx = i * pitch + off + Math.sin(t * 0.7 + i + rk) * 3;
+      ctx.fillStyle = "#2a1e15";
+      ctx.fillRect(cx - 8, ry, 16, 90);
+      ctx.fillStyle = rc;
+      ctx.beginPath(); ctx.ellipse(cx, ry - 6, rr*0.62, rr*0.46, 0, 0, Math.PI*2); ctx.fill();
+      ctx.beginPath(); ctx.ellipse(cx - rr*0.28, ry + 14, rr*0.40, rr*0.32, 0, 0, Math.PI*2); ctx.fill();
+      ctx.beginPath(); ctx.ellipse(cx + rr*0.30, ry + 10, rr*0.42, rr*0.33, 0, 0, Math.PI*2); ctx.fill();
+      ctx.fillStyle = shade(rc, 0.16);
+      ctx.beginPath(); ctx.ellipse(cx + rr*0.10, ry - 20, rr*0.34, rr*0.24, 0, 0, Math.PI*2); ctx.fill();
+    }
+  }
+
+  // ---- the pond -----------------------------------------------------------
+  ctx.fillStyle = "#14303d"; ctx.fillRect(0, WATER, LOGICAL_W, BANK - WATER);
+  /* The skyline again, upside down and chopped into slats that wobble. Flat
+     colour reads as a floor; a broken reflection is the only thing that reads
+     as water without a blur filter to lean on. */
+  ctx.globalAlpha = a * 0.26; ctx.fillStyle = "#ffbd6a";
+  for (var k2 = 0; k2 < sk.length; k2++){
+    var rx = sk[k2][0], rw = sk[k2][1];
+    for (var ry2 = WATER + 6; ry2 < BANK - 8; ry2 += 9){
+      var wob = Math.sin(t * 1.6 + ry2 * 0.09 + k2) * 7;
+      ctx.fillRect(rx + 12 + wob, ry2, rw - 24, 4);
+    }
+  }
+  ctx.globalAlpha = a * 0.30; ctx.fillStyle = "#9fd3e8";
+  for (var w = 0; w < 9; w++)
+    ctx.fillRect(40 + w * 220, WATER + 16 + Math.sin(t*1.9 + w) * 8, 150, 4);
   ctx.globalAlpha = a;
-  var hx = 180 + ((t*120) % (LOGICAL_W + 300));                   // carriage
-  ctx.fillStyle = "#6b4a33"; ctx.fillRect(hx, 700, 96, 48);
-  ctx.fillRect(hx+86, 680, 34, 34);
-  ctx.fillStyle = "#7d2230"; ctx.fillRect(hx-110, 696, 104, 46);
-  ctx.fillStyle = "#2b2118";
-  ctx.fillRect(hx-96, 740, 24, 24); ctx.fillRect(hx-28, 742, 20, 20);
-  // skyline behind
-  ctx.fillStyle = "#1a1316";
-  var sk = [[120,110,170],[300,80,230],[460,140,140],[1180,100,200],[1380,130,160],[1600,90,240]];
-  for (var k = 0; k < sk.length; k++) ctx.fillRect(sk[k][0], 430 - sk[k][2], sk[k][1], sk[k][2]);
+  for (var dk = 0; dk < 4; dk++){                      // ducks
+    var dx = 300 + dk * 260 + Math.sin(t * 0.5 + dk * 2) * 40;
+    var dy = WATER + 56 + (dk % 2) * 26;
+    ctx.fillStyle = "#2c2622";
+    ctx.fillRect(dx, dy, 26, 12); ctx.fillRect(dx + 20, dy - 11, 8, 12);
+    ctx.globalAlpha = a * 0.35; ctx.fillStyle = "#9fd3e8";
+    ctx.fillRect(dx - 10, dy + 13, 48, 3);
+    ctx.globalAlpha = a;
+  }
+
+  /* ---- Gapstow Bridge. Drawn as a solid deck with the arch CUT OUT of it,
+     because an arch is the hole and not the stone - outlining it the other way
+     round left a rainbow sitting on the water. */
+  var BX = 1180, BW = 560, BTOP = WATER - 56, BBOT = BANK - 4;
+  ctx.fillStyle = "#4a4138";
+  ctx.beginPath();
+  ctx.moveTo(BX, BBOT); ctx.lineTo(BX, BTOP + 30);
+  ctx.quadraticCurveTo(BX + BW/2, BTOP - 24, BX + BW, BTOP + 30);
+  ctx.lineTo(BX + BW, BBOT); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = "#5b5147";                           // coping along the top
+  ctx.beginPath();
+  ctx.moveTo(BX, BTOP + 30);
+  ctx.quadraticCurveTo(BX + BW/2, BTOP - 24, BX + BW, BTOP + 30);
+  ctx.lineTo(BX + BW, BTOP + 44);
+  ctx.quadraticCurveTo(BX + BW/2, BTOP - 10, BX, BTOP + 44);
+  ctx.closePath(); ctx.fill();
+  ctx.fillStyle = "#0e2029";                           // the arch, cut through
+  ctx.beginPath();
+  ctx.moveTo(BX + 168, BBOT);
+  ctx.quadraticCurveTo(BX + BW/2, BTOP + 6, BX + BW - 168, BBOT);
+  ctx.closePath(); ctx.fill();
+  ctx.globalAlpha = a * 0.22; ctx.fillStyle = "#9fd3e8";
+  ctx.fillRect(BX + 200, BBOT - 26, BW - 400, 22);     // daylight under it
+  ctx.globalAlpha = a;
+  for (var st2 = 0; st2 < 9; st2++){                   // stone courses
+    ctx.fillStyle = st2 % 2 ? "#443c34" : "#4e453b";
+    ctx.fillRect(BX + 14 + st2 * 62, BTOP + 46, 54, 10);
+  }
+
+  // ---- the near bank and the drive ---------------------------------------
+  ctx.fillStyle = "#1b3322"; ctx.fillRect(0, BANK, LOGICAL_W, LOGICAL_H - BANK);
+  ctx.fillStyle = "#172c1d"; ctx.fillRect(0, BANK, LOGICAL_W, 8);
+  ctx.fillStyle = "#3b3a37"; ctx.fillRect(0, BANK + 56, LOGICAL_W, 96);
+  ctx.fillStyle = "#57544d"; ctx.fillRect(0, BANK + 56, LOGICAL_W, 5);
+  ctx.globalAlpha = a * 0.5; ctx.fillStyle = "#6a665e";
+  for (var g2 = 0; g2 < 90; g2++)
+    ctx.fillRect((g2 * 137) % LOGICAL_W, BANK + 66 + (g2 * 29) % 80, 4, 3);
+  ctx.globalAlpha = a;
+
+  for (var lp = 0; lp < 7; lp++){                      // the cast-iron lamps
+    var lx = 90 + lp * 290;
+    ctx.fillStyle = "#15181c"; ctx.fillRect(lx, BANK - 94, 9, 152);
+    ctx.fillRect(lx - 9, BANK + 52, 27, 8);
+    ctx.fillStyle = "#1d2127"; ctx.fillRect(lx - 11, BANK - 112, 33, 22);
+    ctx.globalAlpha = a * (0.72 + 0.1 * Math.sin(t * 3 + lp));
+    ctx.fillStyle = "#ffd98f"; ctx.fillRect(lx - 7, BANK - 108, 25, 15);
+    ctx.globalAlpha = a * 0.13;
+    ctx.beginPath(); ctx.ellipse(lx + 5, BANK - 96, 64, 46, 0, 0, Math.PI*2); ctx.fill();
+    ctx.globalAlpha = a;
+  }
+
+  ctx.fillStyle = "#3b2c1e";                           // a bench, occupied
+  ctx.fillRect(250, BANK + 16, 150, 11); ctx.fillRect(250, BANK - 2, 150, 9);
+  ctx.fillStyle = "#15181c";
+  ctx.fillRect(256, BANK + 25, 9, 30); ctx.fillRect(386, BANK + 25, 9, 30);
+  ctx.fillStyle = "#2c3340"; ctx.fillRect(300, BANK - 36, 30, 52);
+  ctx.fillStyle = "#c79a74"; ctx.fillRect(305, BANK - 56, 20, 22);
+
+  // ---- the carriage on the drive -----------------------------------------
+  var hx = -260 + ((t * 130) % (LOGICAL_W + 520)), hy = BANK + 60;
+  ctx.globalAlpha = a * 0.3; ctx.fillStyle = "#101a12";
+  ctx.beginPath(); ctx.ellipse(hx + 40, hy + 86, 170, 13, 0, 0, Math.PI*2); ctx.fill();
+  ctx.globalAlpha = a;
+  var gait = Math.sin(t * 7) * 5;
+  ctx.fillStyle = "#6b4a33";                           // the horse
+  ctx.fillRect(hx + 118, hy + 10, 104, 46);
+  ctx.fillRect(hx + 210, hy - 14, 32, 34);
+  ctx.fillStyle = "#583b28";
+  ctx.fillRect(hx + 234, hy - 10, 22, 14);
+  ctx.fillRect(hx + 126, hy + 54, 13, 32 + gait);
+  ctx.fillRect(hx + 200, hy + 54, 13, 32 - gait);
+  ctx.fillStyle = "#2a1c12"; ctx.fillRect(hx + 206, hy - 24, 10, 16);
+  ctx.fillStyle = "#7d2230";                           // the cab
+  ctx.fillRect(hx, hy + 2, 116, 54);
+  ctx.fillStyle = "#95303e"; ctx.fillRect(hx + 8, hy + 10, 100, 18);
+  ctx.fillStyle = "#e8dcc2"; ctx.fillRect(hx - 6, hy - 10, 128, 11);
+  ctx.fillStyle = "#2b2118";                           // wheels
+  ctx.beginPath(); ctx.arc(hx + 22, hy + 68, 24, 0, Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.arc(hx + 96, hy + 68, 24, 0, Math.PI*2); ctx.fill();
+  ctx.fillStyle = "#6b6257";
+  ctx.beginPath(); ctx.arc(hx + 22, hy + 68, 8, 0, Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.arc(hx + 96, hy + 68, 8, 0, Math.PI*2); ctx.fill();
+  ctx.fillStyle = "#2c3340"; ctx.fillRect(hx + 46, hy - 32, 26, 40);  // the driver
+  ctx.fillStyle = "#c79a74"; ctx.fillRect(hx + 51, hy - 50, 17, 19);
+  ctx.fillStyle = "#1b1f26"; ctx.fillRect(hx + 47, hy - 56, 25, 8);
 }
 
 /* ===================== STEAK DINNER, 81st ==================================
@@ -4015,14 +4263,14 @@ function scenePenn(t, a){
 
 var SCENES = {
   42: { title:"TIMES SQUARE",        sub:"Arrived in Times Square for a happy hour",
-        draw:sceneTimes, music:true },
+        draw:sceneTimes, music:"city" },
   50: { title:"ROCKEFELLER CENTER",  sub:"Meeting a partner at The Top of the Rock",
-        draw:sceneRock },
+        draw:sceneRock, music:"rock" },
   59: { title:"CENTRAL PARK SOUTH",  sub:"Arriving at Central Park for a quick stroll",
-        draw:scenePark, music:true },
+        draw:scenePark, music:"park" },
   81: { title:"STEAK DINNER",        sub:"Taking the customer to a steak dinner to finalize the deal",
         draw:sceneBar,
-        secs:11.4, music:true, turn:true,
+        secs:11.4, music:"dinner", turn:true,
         beats:[[2.0,"paper"], [4.4,"pen"], [7.6,"deal"], [9.9,"stamp"], [10.1,"cheer"]],
         after:["SIGNED \u2014 PURCHASE ORDER", "TAKE IT BACK TO PENN 1",
                "Nothing is booked until the paper is on the desk. Forty-seven blocks downtown."] }
@@ -4032,7 +4280,7 @@ var SCENES = {
    opposite order, because both are keyed on the street number. */
 var SCENES_BACK = {
   34: { title:"PENN 1",             sub:"Thirty-fourth and Seventh",  draw:scenePenn,
-        secs:5.2, music:true, win:true }
+        secs:5.2, music:"city", win:true }
 };
 
 /* A scene can fire on the step that lands him in the middle of a road, and a
@@ -4077,7 +4325,11 @@ function startScene(st){
   G.scene = { st:st, t:0, len:(sc && sc.secs) || SCENE_SECS, sc:sc, fired:{} };
   G.scenesSeen["L" + G.leg + "_" + st] = true;
   if (sc && sc.sound === "deal") AUDIO.deal(); else AUDIO.stage();
-  if (sc && sc.music) AUDIO.cityTheme();
+  if (sc && sc.music){
+    var tune = { city:AUDIO.cityTheme, rock:AUDIO.rockTheme,
+                 park:AUDIO.parkTheme, dinner:AUDIO.dinnerTheme }[sc.music];
+    (tune || AUDIO.cityTheme)();
+  }
 }
 function updateScene(dt){
   G.scene.t += dt;
