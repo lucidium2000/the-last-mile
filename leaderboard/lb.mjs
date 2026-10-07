@@ -31,6 +31,7 @@
      node leaderboard/lb.mjs backup          live data  -> backups/<date>.json
      node leaderboard/lb.mjs restore <file>  a backup   -> live data
      node leaderboard/lb.mjs prune ZZZ       drop one name, leave the rest
+     node leaderboard/lb.mjs blobs           what this token can actually see
      node leaderboard/lb.mjs reset           empty the board and the counters
    ========================================================================= */
 
@@ -99,8 +100,41 @@ function repoCode() {
    is a check nobody runs. */
 function norm(s) { return s.replace(/\r\n/g, "\n").replace(/\s+$/, ""); }
 
-async function blobList() {
-  return api("GET", "/v2/blob?prefix=" + encodeURIComponent("lastmile_"));
+async function blobList(prefix) {
+  const r = await api("GET", "/v2/blob" +
+    (prefix === undefined ? "" : "?prefix=" + encodeURIComponent(prefix)));
+  return Array.isArray(r) ? r : (r && r.data) || [];
+}
+
+/* Reading the board through the API, with the one check that matters: if the
+   public endpoint is serving rows and the API cannot find them, the key or the
+   namespace is wrong and the honest answer is to say so. Reporting "nothing to
+   do" in that situation is how a prune silently does nothing. */
+async function readBoard() {
+  const mine = await blobGet(CFG.blobKeys[0]);
+  if (Array.isArray(mine) && mine.length) return mine;
+  let live = null;
+  try {
+    const r = await fetch(CFG.url + "/top?n=100");
+    if (r.ok) live = (await r.json()).rows || [];
+  } catch (e) { /* offline: fall through to whatever the API said */ }
+  if (live && live.length) {
+    const keys = await blobList();
+    die([
+      "The board has " + live.length + " row" + (live.length === 1 ? "" : "s") +
+        " on it, but this token cannot see them in blob storage.",
+      "  Looked for:        " + CFG.blobKeys.join(", "),
+      "  The token can see: " +
+        (keys.length ? keys.map(function (k) { return k.key; }).join(", ")
+                     : "(no blobs at all)"),
+      "",
+      "  Either the token belongs to a different Val Town account than the val,",
+      "  or the val stores its data under different keys. Run",
+      "      node leaderboard/lb.mjs blobs",
+      "  and set blobKeys in leaderboard/val.json to what it lists.",
+    ].join("\n"));
+  }
+  return mine || [];
 }
 async function blobGet(key) {
   const res = await fetch(API + "/v2/blob/" + encodeURIComponent(key),
@@ -201,8 +235,8 @@ const CMD = {
 
   async backup() {
     needToken();
-    const found = await blobList();
-    const list = Array.isArray(found) ? found : (found && found.data) || [];
+    await readBoard();                       // fails loudly if the keys are wrong
+    const list = await blobList("lastmile_");
     const keys = list.map(function (b) { return b.key; }).filter(Boolean);
     const use = keys.length ? keys : CFG.blobKeys;
     const data = {};
@@ -214,6 +248,30 @@ const CMD = {
     console.log("backed up " + rowsIn(data) + " rows and the counters ->\n  " +
                 path.relative(process.cwd(), out) +
                 "\n  commit it and the data is version controlled too");
+  },
+
+  /* What this token can actually see. The one command to run when something
+     says it did nothing and you do not believe it. */
+  async blobs() {
+    needToken();
+    const all = await blobList();
+    if (!all.length) {
+      console.log("\n  This token sees no blobs at all. It is most likely on a" +
+                  "\n  different Val Town account than the val.\n");
+      return;
+    }
+    console.log("\n  " + all.length + " blob" + (all.length === 1 ? "" : "s") +
+                " visible to this token:");
+    all.forEach(function (b) {
+      console.log("    " + b.key + (b.size != null ? "   " + b.size + " bytes" : ""));
+    });
+    console.log("\n  val.json expects: " + CFG.blobKeys.join(", "));
+    const missing = CFG.blobKeys.filter(function (k) {
+      return !all.some(function (b) { return b.key === k; });
+    });
+    console.log(missing.length
+      ? "  MISSING: " + missing.join(", ") + " - set blobKeys in val.json to match\n"
+      : "  Both are there.\n");
   },
 
   async restore(file) {
@@ -243,7 +301,7 @@ const CMD = {
     needToken();
     if (!ini) die("prune needs initials: node leaderboard/lb.mjs prune ZZZ");
     const want = String(ini).toUpperCase();
-    const rows = (await blobGet(CFG.blobKeys[0])) || [];
+    const rows = await readBoard();
     const keep = rows.filter(function (r) { return (r.ini || "").toUpperCase() !== want; });
     const gone = rows.length - keep.length;
     if (!gone) {
@@ -262,7 +320,7 @@ const CMD = {
 
   async reset() {
     needToken();
-    const live = await blobGet(CFG.blobKeys[0]);
+    const live = await readBoard();
     console.log("\n  about to DELETE the board and the counters (" +
                 ((live || []).length) + " rows live right now)");
     console.log("  run `backup` first if you want them back");
@@ -278,7 +336,7 @@ const CMD = {
 const argv = process.argv.slice(2);
 const cmd = argv[0];
 if (!cmd || !CMD[cmd]) {
-  console.log("\n  node leaderboard/lb.mjs <status|check|push|pull|backup|restore <file>|prune <ini>|reset>\n");
+  console.log("\n  node leaderboard/lb.mjs <status|check|push|pull|backup|restore <file>|prune <ini>|reset|blobs>\n");
   process.exit(cmd ? 1 : 0);
 }
 await CMD[cmd].apply(null, argv.slice(1));

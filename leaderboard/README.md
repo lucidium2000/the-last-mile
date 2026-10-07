@@ -95,7 +95,17 @@ node leaderboard/lb.mjs backup          # live data  -> backups/<date>.json
 node leaderboard/lb.mjs restore <file>  # a backup   -> live data
 node leaderboard/lb.mjs prune ZZZ       # drop one name, leave everyone else
 node leaderboard/lb.mjs reset           # empty the board and the counters
+node leaderboard/lb.mjs blobs           # what this token can actually see
 ```
+
+`restore`, `prune` and `reset` all print what they are about to do and then wait
+for you to type **`yes`**. Anything else and they change nothing — so if one of
+them looks like it did nothing, check that first.
+
+`blobs` is the command for when something says it did nothing and you do not
+believe it. `backup`, `prune` and `reset` also cross-check themselves now: if
+the public board is serving rows that the token cannot find in blob storage,
+they stop and say so rather than reporting an empty board.
 
 `status` is the only one that works without a token — it reads the public
 endpoint, so it always tells you something. `restore`, `prune` and `reset` all
