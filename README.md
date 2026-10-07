@@ -658,7 +658,9 @@ toast was there before and was missable, which is the one thing it must not be.
 
 81st is the end of the walk: the handshake lands, and the message that follows
 says what a verbal is actually worth — *now get back to the office and lock it
-in.*
+in.* **It also puts health back to 100%.** He has just sat down to a steak, and
+forty-seven blocks back to Penn 1 is a second run in all but name; starting it
+on whatever was left of the first one was a tax on having got there at all.
 
 ### Music
 
@@ -809,6 +811,17 @@ straight, which is only ever claimed when the player's own column is clear the
 whole way. You cannot be hit anywhere on the route and traffic turns around on
 contact with it.
 
+**TAMs are a fifth rarer** — the drop chance is 0.416, down from 0.52
+(×0.800 exactly). A run that opens with a TAM is a different game from one
+that does not, and it was opening with one too often.
+
+**Shields are a fifth more common** — 12% of drops, up from 10% (×1.200
+exactly), with the three slots taken off metrocards, still by far the most
+common pickup at 51%. The pool is built from a **weight table** now rather than
+a hand-written list of thirty strings: thirty slots could only be tuned in
+whole thirtieths, 3.3% a step, too coarse to move one drop by a fifth without
+shoving every other share around. At 150 the step is 0.67%.
+
 **TAM payouts run every 16–28 seconds** once engaged — about 2.7 a minute. They
 used to run every 8–14, which was so often that the banner was more or less
 permanent and stopped reading as an event at all. Measured over 30 minutes of
@@ -819,6 +832,20 @@ banner raised just before the turnstile — or on the single frame a ride ends �
 sat across the carriage. All four message bands (TAM payout, flash, milestone
 toast and the centre-screen notice) are suppressed for the length of a ride.
 The pipeline, health and departure board stay up.
+
+**The TAM arrives in a phone booth.** He does not simply take off — he gets
+changed first. A booth drops over him with a bang, the glass lights up while
+two bands of blue sweep round the inside, and at **1.06s** the panels blow off
+and he comes out flying. It is the one power-up that visibly changes who he is,
+so it is the one that gets a transformation rather than a pickup noise.
+
+The booth is drawn **over** him, not instead of him: seeing the silhouette
+turning behind the glass is the whole gag, and a solid box with somebody's word
+that he is in there is just a box. Two sweeping bands rather than one, because
+one reads as a stripe and two read as rotation. Input is refused for the length
+of it — nobody takes a call mid-change — and the flight, the engagement clock
+and the first payout are all handed over when the doors come off, not when the
+pickup is touched.
 
 **TAM.** The headline SKU, and the only power-up that pays twice in different
 currencies.
