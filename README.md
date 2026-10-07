@@ -555,6 +555,34 @@ that.
 of times and the stand is still standing there afterwards, so without a reaction
 the refusal looked like the controls ignoring him.
 
+### The man at the end of the car
+
+He shows up on 45% of rides, and he is no longer scenery. He **closes on you**,
+smoothly, at 0.52 slots a second — off the grid the player moves on, because a
+mugger who hops between the same five positions you do looks like another
+commuter.
+
+Inside **0.95 slots** the knife comes out, and a bar under him shows how long
+you have. A reaction test with an invisible clock is just a trap.
+
+| What you do | What happens |
+|---|---|
+| **Nothing**, for 1.7s | He takes the bag. **−30% health**, and the roll on the seat goes with him. Then he backs off to where he started. |
+| **Step away** | The clock restarts. He closes again. |
+| **Step into him** | Briefcase, full swing. He is out for the rest of the ride and drops a roll of Chuck Bucks. |
+
+The swing is checked **before** the bounds test, because it is not a step: he
+can have you cornered against the end of the car with nowhere to retreat, and
+that is exactly when it needs to work.
+
+Measured: closes at 0.52 slots/s with sub-slot positions throughout; knife at
+5.87s from slot 4 against a player at 0, which is `(4 − 0.95) / 0.52`; robbed
+exactly 1.70s later at −30 health; a step away resets the clock to zero without
+a robbery; a step toward him knocks him out, pays $250,000 and leaves the player
+where he was; the wrong direction just walks; cornered at slot 0 the retreat
+bumps and the swing still lands; and once robbed he retreats to his spawn and
+never draws again.
+
 ### The end screen
 
 The end of a run used to print one number and stop. A run is twenty minutes of
