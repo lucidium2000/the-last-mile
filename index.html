@@ -1637,6 +1637,13 @@ var HP_MAX = 100;
    there. */
 var HP_FOOD = { pizza:15, bagel:10, hotdog:7 };
 function foodValue(kind){ return HP_FOOD[kind] || 0; }
+/* What it costs, and how many times the same stand will serve you. A hot dog
+   cart hands over two - they are small, the vendor is right there, and nobody
+   buys one hot dog. Everything else is one and done. */
+var FOOD_PRICE = { pizza:5, hotdog:3, bagel:7 };
+var FOOD_SERVES = { pizza:1, hotdog:2, bagel:1 };
+function foodPrice(kind){ return FOOD_PRICE[kind] || 0; }
+function foodSpent(pr){ return (pr.served || 0) >= (FOOD_SERVES[pr.kind] || 1); }
 var HP_HIT = 75;           // an objection you did not see coming
 var HP_PER_STREET = 3;     // the walk itself
 var HP_LOW = 25;           // below this the bar starts shouting
@@ -2326,8 +2333,9 @@ function eatenFoodAt(row, col){
   if (!row || !row.props) return false;
   for (var i = 0; i < row.props.length; i++){
     var pr = row.props[i];
-    if (pr.col !== col || !pr.eaten) continue;
-    if (pr.kind === "bagel" || pr.kind === "pizza" || pr.kind === "hotdog") return true;
+    if (pr.col !== col) continue;
+    if ((pr.kind === "bagel" || pr.kind === "pizza" || pr.kind === "hotdog") &&
+        foodSpent(pr)) return true;
   }
   return false;
 }
@@ -2335,7 +2343,7 @@ function foodPropAt(row, col){
   if (!row || !row.props) return null;
   for (var i = 0; i < row.props.length; i++){
     var pr = row.props[i];
-    if (pr.col !== col || pr.eaten) continue;
+    if (pr.col !== col || foodSpent(pr)) continue;
     if (pr.kind === "bagel" || pr.kind === "pizza" || pr.kind === "hotdog") return pr;
   }
   return null;
@@ -2833,7 +2841,7 @@ function act(dir){
          saying something the refusal looks like the controls ignoring him. */
       G.sadT = 1.1; AUDIO.nope();
     } else if (foodPr){
-      foodPr.eaten = true;                       // that cart has served you
+      foodPr.served = (foodPr.served || 0) + 1;  // that is one off the cart
       G.yumT = EAT_SECS; G.yumKind = foodPr.kind; G.yumBite = 0;
       G.yumDir = nc > G.col ? 1 : (nc < G.col ? -1 : 0);
       // the only thing in the game that puts health back
@@ -6002,13 +6010,13 @@ function drawEat(cx, topY){
     ctx.save(); ctx.translate(bx, by); ctx.rotate(Math.sin(age * 16) * 0.18);
     plate(-21, -13, 42, 26, "#3f8f5a", 3);
     plate(-17, -9, 34, 18, "#57a76f", 2);
-    txt("$5", 0, 5, 17, "#eaf6ee");
+    txt("$" + foodPrice(G.yumKind), 0, 5, 17, "#eaf6ee");
     ctx.restore();
   } else if (age < EAT_BACK){
     // vendor has it: the amount floats off
     var r = (age - EAT_TAKEN) / (EAT_BACK - EAT_TAKEN);
     ctx.globalAlpha = (1 - r) * Math.min(1, G.yumT / 0.25);
-    txt("-$5", cart, fy - r * 34, 24, "#7fd49a");
+    txt("-$" + foodPrice(G.yumKind), cart, fy - r * 34, 24, "#7fd49a");
     ctx.globalAlpha = Math.min(1, G.yumT / 0.25);
     // and the food starts back
     var fk = Math.max(0, (age - EAT_TAKEN - 0.12) / (EAT_BACK - EAT_TAKEN - 0.12));
