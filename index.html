@@ -153,6 +153,8 @@ var C = {
   sky0:"#0a0708", sky1:"#161014", sky2:"#2a1b16",
   horizon:BRAND.deep,
   walk:"#9a999d",                           // one flat light grey, no banding
+  grass:"#3c7a46", grassB:"#346b3e",        // the park, ten blocks of it
+  parkPath:"#3b3a37", parkEdge:"#57544d",
   curb:"#423630",
   road:"#0c0c0e", roadB:"#111113",          // asphalt
   lane:"#c9b24a",                            // NYC yellow lane line - stays
@@ -801,7 +803,7 @@ var HAZ = {
     safeLines:[['A route changed mid-session.','Path visualisation shows the hop that moved.']]
   },
   bus: {
-    w:2.60, spd:0.72, stops:true, name:"M34 SELECT BUS",
+    w:2.60, spd:0.72, stops:true, name:"SELECT BUS",
     lines:[
       ['"It is sitting in procurement."',
        '"Who actually signs it? Let us go help them."'],
@@ -836,8 +838,8 @@ var HAZ = {
     ],
     safeLines:[['Jitter spiked on the voice path.','Per-hop timing finds the wobbling link.']]
   },
-  citi: {
-    w:0.85, spd:1.14, pack:3, name:"CITI BIKE",
+  parcel: {
+    w:1.35, spd:0.86, pack:2, name:"PARCEL VAN",
     lines:[
       ['"I need to run it past the team."',
        '"Who is on the team? Let us get them in one room, once."'],
@@ -871,6 +873,18 @@ var HAZ = {
        '"And the internet changed last Tuesday."']
     ],
     safeLines:[['Legacy probe, five minute resolution.','A five minute average hides a five minute outage.']]
+  },
+  rickshaw: {
+    w:1.55, spd:0.62, name:"",
+    lines:[
+      ['"We have someone doing this in-house."',
+       '"Then give them the tool instead of the ticket queue."'],
+      ['"We built something ourselves."',
+       '"What happens to it the week the person who wrote it leaves?"'],
+      ['"A script already pings the endpoints."',
+       '"A ping says up. It never says why it was slow."']
+    ],
+    safeLines:[['Homegrown check, no history kept.','You cannot prove a trend you never recorded.']]
   },
   crowd: {
     w:2.90, spd:0.36, name:"",
@@ -909,15 +923,15 @@ var HAZ = {
     safeLines:[['Emergency maintenance window.','Correlate the dip with the scheduled change.']]
   }
 };
-var FLEETS = ["cab","bus","dsny","ebike","citi","suv","carriage","crowd"];
+var FLEETS = ["cab","bus","dsny","ebike","parcel","suv","carriage","crowd","rickshaw"];
 var ALL_HAZ = FLEETS.concat(["boxtruck","motorcade"]);
 
 /* `name` above is the signage painted on the vehicle - a real SUV, carriage or
    crowd carries none, so it is blank. These are the death-screen labels. */
 var LABELS = {
-  cab:"A YELLOW CAB", bus:"THE M34", dsny:"A SANITATION TRUCK",
-  ebike:"A DELIVERY E-BIKE", citi:"A CITI BIKE PACK", suv:"A BLACK SUV",
-  carriage:"A HORSE CARRIAGE", crowd:"A TOURIST CROWD",
+  cab:"A YELLOW CAB", bus:"A CITY BUS", dsny:"A SANITATION TRUCK",
+  ebike:"A DELIVERY E-BIKE", parcel:"A PARCEL VAN", suv:"A BLACK SUV",
+  carriage:"A HORSE CARRIAGE", crowd:"A TOURIST CROWD", rickshaw:"A PEDICAB",
   boxtruck:"A DOUBLE-PARKED TRUCK", motorcade:"A MOTORCADE"
 };
 function lineOf(k){
@@ -928,7 +942,12 @@ function hazName(k){ return LABELS[k] || k.toUpperCase(); }
 
 /* ------------------------------------------------------------- street grid */
 var START_ST = 34;
-var TURN_ST = 81;   // the bar, and the far end of the walk
+var TURN_ST = 81;   // the restaurant, and the far end of the walk
+/* Ten blocks of park above Central Park South. Grass instead of pavement,
+   gravel path instead of asphalt, nothing on wheels that has an engine, and
+   no subway - you are inside the park, the stations are around the edge. */
+var PARK_FROM = 60, PARK_TO = 69;
+function inPark(no){ return no >= PARK_FROM && no <= PARK_TO; }
 /* Real Midtown one-way rule: even cross streets run eastbound, odd westbound.
    34 / 42 / 57 are two-way and generate as paired rows. */
 function streetDir(no){ return (no % 2 === 0) ? 1 : -1; }
@@ -1026,8 +1045,25 @@ function uberModel(variant){
   ], W:1.45 };
 }
 
-/* M34 Select Bus - enormous, and it STOPS at every block. Procurement. */
-function busModel(){
+/* The routes that actually run through this walk. Every bus wearing M34 was
+   right for the first ten blocks and wrong for the rest of the island, so the
+   route is picked per row. Only M34 and M79 are Select Bus Service in real
+   life; the others are locals and get the blue band instead of the amber. */
+var BUS_ROUTES = [
+  ["M34 SELECT BUS SERVICE", "34 ST",  1],
+  ["M42 CROSSTOWN",          "42 ST",  0],
+  ["M50 CROSSTOWN",          "50 ST",  0],
+  ["M57 CROSSTOWN",          "57 ST",  0],
+  ["M66 CROSSTOWN",          "66 ST",  0],
+  ["M79 SELECT BUS SERVICE", "79 ST",  1],
+  ["M104 BROADWAY",          "B'WAY",  0],
+  ["M7 COLUMBUS AV",         "7 AV",   0],
+  ["M20 EIGHTH AV",          "8 AV",   0]
+];
+
+/* The bus - enormous, and it STOPS at every block. Procurement. */
+function busModel(v){
+  var rt = BUS_ROUTES[(v || 0) % BUS_ROUTES.length];
   var shell = "#e9eef2", mta = "#0a39a0";
   var parts = [
     P(0.05, 0.14, 2.50, 0.72, 0.11, 0.17, mta),             // skirt
@@ -1042,10 +1078,10 @@ function busModel(){
   wheels(parts, [0.26, 1.90], 0.26, 0.15);
   return { parts:parts, decals:[
     { x:0.30, y:0.14, w:1.30, z:0.31, h:0.12, bg:"#0a39a0", fg:"#ffffff",
-      text:"M34 SELECT BUS SERVICE", size:13 },
+      text:rt[0], size:13 },
     { x:1.90, y:0.13, w:0.48, z:0.455, h:0.15, bg:"#0c1118", fg:"#ffb02e",
-      text:"34 ST", size:17 },
-    { x:0.05, y:0.14, w:2.50, z:0.275, h:0.025, bg:"#ffb02e" }
+      text:rt[1], size:17 },
+    { x:0.05, y:0.14, w:2.50, z:0.275, h:0.025, bg:rt[2] ? "#ffb02e" : "#2f7fd4" }
   ], W:2.60 };
 }
 
@@ -1089,21 +1125,35 @@ function ebikeModel(){
   ], W:0.80 };
 }
 
-/* Citi Bike - arrives as a PACK, one rider after another. The committee. */
-function citiModel(){
-  var blue = "#1a63a8";
+/* Brown parcel van - double-parked in a row, hazards on, nobody in charge of
+   the line. The committee. It replaced a Citi Bike pack: three bikes at this
+   size collapsed into one blue smear, and the whole point of a hazard is that
+   you know what hit you before it does. A brown box reads at any distance. */
+function parcelModel(){
+  /* Proportions matter more than detail here. The first pass was as long and
+     as low as the SUV and read as a shipping container on wheels; a step van
+     is SHORT and TALL, with the cab dropping away at the front. The roof is
+     deliberately the darkest face: the projection lights top faces hardest,
+     and a pale roof slab was all anyone could see. */
+  var brown = "#4a3524", gold = "#c8972f";
   var parts = [
-    P(0.10, 0.34, 0.66, 0.32, 0.12, 0.07, blue),
-    P(0.46, 0.35, 0.22, 0.30, 0.19, 0.12, shade(blue,0.12)), // front basket
-    P(0.20, 0.34, 0.20, 0.32, 0.19, 0.17, "#31405a"),
-    P(0.18, 0.33, 0.24, 0.34, 0.36, 0.19, "#d8dfe6"),
-    P(0.21, 0.35, 0.17, 0.30, 0.55, 0.12, "#c98d63"),
-    P(0.20, 0.34, 0.19, 0.32, 0.67, 0.05, "#1b2834")
+    P(0.10, 0.17, 1.10, 0.66, 0.07, 0.13, "#15191e"),         // chassis
+    P(0.04, 0.15, 0.96, 0.70, 0.19, 0.52, brown),             // cargo box
+    P(1.00, 0.18, 0.30, 0.64, 0.19, 0.38, shade(brown, 0.06)),// cab, lower
+    P(1.27, 0.20, 0.06, 0.60, 0.34, 0.21, "#141c24"),         // windscreen
+    P(1.00, 0.15, 0.05, 0.03, 0.34, 0.21, "#141c24"),         // door glass
+    P(0.05, 0.17, 0.94, 0.66, 0.71, 0.05, shade(brown, -0.32)),// roof
+    P(0.02, 0.17, 0.04, 0.66, 0.19, 0.50, shade(brown, -0.26)),// roll-up door
+    E(1.32, 0.21, 0.05, 0.11, 0.17, 0.09, "#ffe9a6"),
+    E(1.32, 0.62, 0.05, 0.11, 0.17, 0.09, "#ffe9a6"),
+    E(0.00, 0.20, 0.04, 0.10, 0.21, 0.09, "#ff6a6a")
   ];
-  wheels(parts, [0.08, 0.62], 0.16, 0.12);
+  wheels(parts, [0.18, 1.00], 0.19, 0.13);
   return { parts:parts, decals:[
-    { x:0.12, y:0.34, w:0.30, z:0.135, h:0.045, bg:"#f0f4f8", fg:blue, text:"CITI", size:10 }
-  ], W:0.85 };
+    { x:0.04, y:0.15, w:0.96, z:0.33, h:0.08, bg:gold },
+    { x:0.16, y:0.15, w:0.68, z:0.45, h:0.20, bg:gold, fg:"#3a2a18",
+      text:"PARCEL", size:15 }
+  ], W:1.35 };
 }
 
 /* Black SUV, tinted - fast, and you cannot see who is inside. */
@@ -1153,6 +1203,31 @@ function carriageModel(){
   parts.push(P(0.86, 0.22, 0.12, 0.12, 0, 0.38, "#2b2118"));
   parts.push(P(0.86, 0.68, 0.12, 0.12, 0, 0.38, "#2b2118"));
   return { parts:parts, decals:[], W:2.10 };
+}
+
+/* A pedicab. Two up on the bench under a canopy, one pedalling. The only
+   thing in the park with wheels and no engine. */
+function rickshawModel(){
+  var frame = "#2f7a58", seat = "#204a3a", skin = "#e9b98c";
+  var parts = [
+    P(0.10, 0.26, 0.74, 0.48, 0.20, 0.26, seat),
+    P(0.10, 0.26, 0.11, 0.48, 0.46, 0.26, shade(seat, -0.20)),   // backrest
+    P(0.30, 0.30, 0.16, 0.16, 0.46, 0.22, "#55404a"),            // passengers
+    P(0.31, 0.31, 0.13, 0.13, 0.68, 0.13, skin),
+    P(0.54, 0.30, 0.16, 0.16, 0.46, 0.22, "#3b4a56"),
+    P(0.55, 0.31, 0.13, 0.13, 0.68, 0.13, "#a87f5f"),
+    P(0.06, 0.24, 0.84, 0.52, 0.84, 0.06, frame),                // canopy
+    P(0.09, 0.25, 0.05, 0.05, 0.72, 0.14, shade(frame, -0.28)),
+    P(0.80, 0.25, 0.05, 0.05, 0.72, 0.14, shade(frame, -0.28)),
+    P(0.92, 0.40, 0.38, 0.20, 0.24, 0.09, frame),                // boom
+    P(1.13, 0.38, 0.10, 0.24, 0.33, 0.30, "#2a2f36"),            // the one pedalling
+    P(1.14, 0.40, 0.09, 0.20, 0.63, 0.12, skin),
+    E(1.44, 0.42, 0.05, 0.10, 0.22, 0.07, "#ffe9a6"),
+    E(0.04, 0.42, 0.04, 0.10, 0.22, 0.06, "#ff6a6a")
+  ];
+  wheels(parts, [0.22, 0.72], 0.17, 0.19);
+  parts.push(P(1.24, 0.42, 0.11, 0.11, 0, 0.25, TYRE));
+  return { parts:parts, decals:[], W:1.55 };
 }
 
 /* Tourist crowd - a slow wide blob that spreads. Nobody owns it. */
@@ -1223,8 +1298,8 @@ function cruiserModel(){
 }
 
 var MODELS = {
-  cab:cabModel, bus:busModel, dsny:dsnyModel, ebike:ebikeModel, citi:citiModel,
-  suv:suvModel, carriage:carriageModel, crowd:crowdModel,
+  cab:cabModel, bus:busModel, dsny:dsnyModel, ebike:ebikeModel, parcel:parcelModel,
+  suv:suvModel, carriage:carriageModel, crowd:crowdModel, rickshaw:rickshawModel,
   boxtruck:boxtruckModel, motorcade:cruiserModel
 };
 
@@ -1355,10 +1430,10 @@ var BLAZER = "#2f62c4";   // the Endpoint blue: blazer, pickup and ring all matc
 var POWERS = {
   agent:  { col:BLAZER, letter:"E", name:"ENDPOINT",
             line:"A shield. Absorbs the next objection.", secs:0 },
-  insight:{ col:C.pw2, letter:"I", name:"INTERNET INSIGHTS",
-            line:"The whole grid slows while you read it.", secs:6 },
+  insight:{ col:"#2bff88", letter:"I", name:"INTERNET INSIGHTS",
+            line:"The whole grid drops into slow motion.", secs:11 },
   traffic:{ col:"#8fd3e8", letter:"TI", name:"TRAFFIC INSIGHTS",
-            line:"Every lane coloured by live risk.", secs:10 },
+            line:"Every lane risk-scored — and it turns away from you.", secs:15 },
   chuck:  { col:"#4f9c62", letter:"$", name:"CHUCK BUCKS",
             line:"Straight onto the number.", secs:0 },
   path:   { col:C.pw3,   letter:"P", name:"PATH VISUALIZATION",
@@ -1390,6 +1465,12 @@ var POWER_POOL = ["path","path","path",
                   "metro","metro","metro","metro","metro","metro","metro","metro",
                   "chuck","chuck","chuck","chuck",
                   "traffic","traffic","agent","agent","agent","insight","sponsor"];
+/* How far the world is throttled while Internet Insights is up. One constant,
+   because the mover and the crossing test both read it and they must agree -
+   a predictor running at a different rate than the thing it predicts will tell
+   you a lane is clear when it is not. */
+var SLOW_K = 0.28;
+var DETER_TILES = 3.2;     // how close it gets before it thinks better of it
 var CHUCK_BONUS = 250000;
 
 /* ===================== CSCO TICKER CARD ===================================
@@ -1684,6 +1765,21 @@ function citiDockModel(){
    anything else in the world and poking up into the sky band - it is there to
    give the street a sense of scale, so it has to break the skyline. Only ever
    at column 0 or the last column, where it never eats playable width. */
+/* What lines the edge of the park instead of a building. Same job as the
+   frontage - something tall at the extreme column to hold the sense of scale -
+   but a tree does not have windows. */
+function treeModel(v){
+  var bark = v ? "#3a2a1c" : "#33251a", leaf = v ? "#2f6b3a" : "#356f3f";
+  return { parts:[
+    P(0.42, 0.44, 0.16, 0.14, 0,    0.64, bark),
+    P(0.38, 0.42, 0.24, 0.18, 0.40, 0.10, shade(bark, 0.12)),
+    P(0.18, 0.26, 0.64, 0.50, 0.58, 0.26, shade(leaf, -0.12)),
+    P(0.09, 0.19, 0.82, 0.62, 0.80, 0.30, leaf),
+    P(0.20, 0.28, 0.60, 0.46, 1.08, 0.24, shade(leaf, 0.10)),
+    P(0.32, 0.36, 0.36, 0.30, 1.30, 0.16, shade(leaf, 0.20))
+  ], decals:[], W:1 };
+}
+
 function facadeModel(kind){
   var tone = kind === 0 ? "#3a2b26" : (kind === 1 ? "#2b3340" : "#38302a");
   var trim = shade(tone, 0.18), glass = kind === 1 ? "#1d3647" : "#241c1a";
@@ -1722,6 +1818,10 @@ function kioskModel(){
 /* "subway" twice, so entrances turn up about twice as often - there is no
    point carrying a card if there is nowhere to swipe in. */
 var FACADE_KINDS = ["facadeA","facadeB","facadeC"];
+/* What stands in the park: planters and bins and the carts that really are
+   parked along the drives. No scaffolding, no newsstand, no station. */
+var PARK_PROPS = ["planter","planter","planter","trash","trash",
+                  "hotdog","pizza","bagel","citidock","kiosk"];
 var PROP_KINDS = ["shed","bagel","pizza","pizza","hotdog","hotdog","newsstand","subway","subway","trash",
                   "planter","citidock","kiosk"];
 var PROP_MODELS = {
@@ -1756,6 +1856,38 @@ function bakeStrip(kind, alt){
     g.fillStyle = "rgba(255,255,255,0.10)"; g.fillRect(0, h-9, LOGICAL_W, 2);
     g.fillStyle = "rgba(0,0,0,0.45)";  g.fillRect(0, h-3, LOGICAL_W, 3);
     glowRect(g, 0, 0, LOGICAL_W, 2, C.gridGlow, C.gridCore);
+  } else if (kind === "grass"){
+    g.fillStyle = C.grass; g.fillRect(0, 0, LOGICAL_W, h);
+    // mown patchwork, then tufts, so it is not a flat green bar
+    for (var m = 0; m < 26; m++){
+      g.fillStyle = (m % 2) ? C.grassB : shade(C.grass, 0.06);
+      g.fillRect((m * 149) % LOGICAL_W, (m % 3) * (h / 3), 96, h / 3);
+    }
+    g.fillStyle = "rgba(0,0,0,0.16)";
+    for (var t = 0; t < 120; t++){
+      g.fillRect((t * 97 + (t % 5) * 13) % LOGICAL_W, (t * 29) % h, 3, 7);
+    }
+    g.fillStyle = "rgba(255,255,255,0.05)";
+    for (var t2 = 0; t2 < 90; t2++){
+      g.fillRect((t2 * 131 + 40) % LOGICAL_W, (t2 * 37 + 9) % h, 2, 5);
+    }
+    // soft kerb where the grass meets the path, not a concrete lip
+    g.fillStyle = shade(C.grass, -0.30); g.fillRect(0, h-7, LOGICAL_W, 5);
+    g.fillStyle = "rgba(0,0,0,0.35)";    g.fillRect(0, h-3, LOGICAL_W, 3);
+  } else if (kind === "parkPath"){
+    g.fillStyle = C.parkPath; g.fillRect(0, 0, LOGICAL_W, h);
+    // gravel, and pale edging instead of painted lanes
+    g.fillStyle = "rgba(255,255,255,0.055)";
+    for (var v = 0; v < 240; v++){
+      g.fillRect((v * 83 + (v % 7) * 11) % LOGICAL_W, (v * 53) % h, 3, 3);
+    }
+    g.fillStyle = "rgba(0,0,0,0.22)";
+    for (var v2 = 0; v2 < 140; v2++){
+      g.fillRect((v2 * 109 + 31) % LOGICAL_W, (v2 * 67 + 5) % h, 4, 2);
+    }
+    g.fillStyle = C.parkEdge; g.fillRect(0, 2, LOGICAL_W, 4);
+    g.fillRect(0, h - 8, LOGICAL_W, 4);
+    g.fillStyle = "rgba(0,0,0,0.40)"; g.fillRect(0, h - 4, LOGICAL_W, 4);
   } else {
     g.fillStyle = alt ? C.roadB : C.road;
     g.fillRect(0, 0, LOGICAL_W, h);
@@ -1781,6 +1913,10 @@ function bakeAll(){
     S[k+"_r"] = bake(m);
     S[k+"_l"] = bake(flip(m, m.W));
   }
+  for (i = 0; i < BUS_ROUTES.length; i++){
+    S["bus"+i+"_r"] = bake(busModel(i));
+    S["bus"+i+"_l"] = bake(flip(busModel(i), 2.60));
+  }
   for (i = 0; i < 4; i++){
     S["uber"+i+"_r"] = bake(uberModel(i));
     S["uber"+i+"_l"] = bake(flip(uberModel(i), 1.45));
@@ -1799,8 +1935,12 @@ function bakeAll(){
   S.pw_traffic = bake(powerModel("traffic"));
   for (i=0;i<PROP_KINDS.length;i++)  S["pr_"+PROP_KINDS[i]]  = bake(PROP_MODELS[PROP_KINDS[i]]());
   for (i=0;i<FACADE_KINDS.length;i++) S["pr_"+FACADE_KINDS[i]] = bake(facadeModel(i));
+  S.pr_tree = bake(treeModel(0)); S.pr_tree2 = bake(treeModel(1));
   S.walk0 = bakeStrip("walk",0);            // one pavement strip, not two
   S.road0 = bakeStrip("road",0); S.road1 = bakeStrip("road",1);
+  S.grass = bakeStrip("grass",0); S.parkPath = bakeStrip("parkPath",0);
+  RAIN_A = bakeRain(0x5eed01, 48, "#2bff88");
+  RAIN_B = bakeRain(0xc0ffee, 30, "#149b4e");
 }
 
 /* ------------------------------------------------------------- world build */
@@ -1852,9 +1992,11 @@ function placeBlockers(n, seed){
   return chosen.slice(taken);        // only the ones added here
 }
 
-function pickFleet(r){
+function pickFleet(r, park){
+  /* Inside the park nothing has an engine: a carriage, a pedicab, or people. */
+  if (park) return ["carriage","rickshaw","rickshaw","crowd","crowd"][(Math.random()*5)|0];
   if (r < 8) return "cab";                           // tutorial: one type, slow
-  var pool = ["cab","cab","citi"];
+  var pool = ["cab","cab","parcel"];
   if (r > 14) pool.push("bus","suv");
   if (r > 26) pool.push("dsny","ebike","cab");
   if (r > 40) pool.push("carriage","crowd","bus");
@@ -1863,7 +2005,8 @@ function pickFleet(r){
 }
 
 function makeRoad(r, streetNo, dir){
-  var d = difficulty(r), kind = pickFleet(r), spec = HAZ[kind];
+  var park = inPark(streetNo);
+  var d = difficulty(r), kind = pickFleet(r, park), spec = HAZ[kind];
   var speed = Math.min(MAX_SPEED, d.speed * spec.spd * (0.85 + Math.random()*0.3));
 
   /* A pack is placed as one super-vehicle so the minimum-gap guarantee still
@@ -1888,7 +2031,11 @@ function makeRoad(r, streetNo, dir){
 
   var row = { type:"road", streetNo:streetNo, dir:dir, speed:speed, kind:kind,
               cars:cars, eff:eff, packN:packN, packGap:packGap,
-              parked:[], blocked:{}, rogue:null, rv:1, bounce:0 };
+              parked:[], blocked:{}, rogue:null, rv:1, bounce:0, park:park,
+              /* Which livery this row wears. Only buses differ; everything
+                 else falls back to the one sprite for its kind. */
+              skin: kind === "bus"
+                    ? ("bus" + ((Math.random()*BUS_ROUTES.length)|0)) : null };
 
   /* Double-parked box truck: a permanent blocker you route around.
      It is 2 tiles wide, so it blocks BOTH columns it covers - otherwise the
@@ -1924,19 +2071,23 @@ function makeSweep(r, streetNo, dir){
            cars:[], parked:[], blocked:{}, rogue:null, speed:SWEEP_SPEED };
 }
 
-function makeWalk(r){
+function makeWalk(r, park){
   var props = [], blocked = {}, chosen = [];
   /* Frontage goes down first and is seeded into the separation list, because a
      building at column 0 plus a prop at column 2 would strand column 1 between
      two blockers - exactly the pin the placement rules exist to prevent. */
-  if (r >= 6 && Math.random() < 0.34){
+  /* Trees at the park edge, buildings everywhere else. A tower in the middle
+     of Central Park reads as a bug, which is what it was. */
+  var edge = park ? ["tree","tree2"] : FACADE_KINDS;
+  var edgeOdds = park ? 0.62 : 0.34;
+  if (r >= 6 && Math.random() < edgeOdds){
     var side = Math.random() < 0.5 ? 0 : COLS-1;
     blocked[side] = true; chosen.push(side);
-    props.push({ col:side, kind:FACADE_KINDS[(Math.random()*FACADE_KINDS.length)|0] });
-    if (Math.random() < 0.28){
+    props.push({ col:side, kind:edge[(Math.random()*edge.length)|0] });
+    if (Math.random() < (park ? 0.55 : 0.28)){
       var other = side === 0 ? COLS-1 : 0;
       blocked[other] = true; chosen.push(other);
-      props.push({ col:other, kind:FACADE_KINDS[(Math.random()*FACADE_KINDS.length)|0] });
+      props.push({ col:other, kind:edge[(Math.random()*edge.length)|0] });
     }
   }
   if (r >= 5){
@@ -1948,9 +2099,12 @@ function makeWalk(r){
          each prop draws independently, so a three-prop sidewalk could come up
          with three staircases to the same station - re-roll until it is
          something else. */
-      var pk = PROP_KINDS[(Math.random()*PROP_KINDS.length)|0];
+      /* No station entrances in the park - you are inside it, they are all
+         around the edge. */
+      var kinds = park ? PARK_PROPS : PROP_KINDS;
+      var pk = kinds[(Math.random()*kinds.length)|0];
       for (var g=0; g<8 && pk === "subway" && hasSub; g++){
-        pk = PROP_KINDS[(Math.random()*PROP_KINDS.length)|0];
+        pk = kinds[(Math.random()*kinds.length)|0];
       }
       if (pk === "subway"){ if (hasSub) pk = "newsstand"; else hasSub = true; }
       props.push({ col:cols[i], kind:pk });
@@ -1975,7 +2129,7 @@ function makeWalk(r){
       }
     }
   }
-  return { type:"safe", props:props, blocked:blocked, pickup:pickup };
+  return { type:"safe", park:!!park, props:props, blocked:blocked, pickup:pickup };
 }
 
 /* whatever is standing in a cell, or null */
@@ -2028,7 +2182,7 @@ function pushRow(row){ rows[genCursor++] = row; }
 function ensureRows(upTo){
   while (genCursor <= upTo){
     var r = genCursor;
-    if (r < 3){ pushRow(makeWalk(r)); safeRun++; prevWasSafe = true; continue; }
+    if (r < 3){ pushRow(makeWalk(r, false)); safeRun++; prevWasSafe = true; continue; }
 
     var d = difficulty(r), wantRoad;
     if (roadRun >= d.group)  wantRoad = false;
@@ -2036,7 +2190,7 @@ function ensureRows(upTo){
     else                     wantRoad = Math.random() < 0.62;
 
     if (!wantRoad){
-      pushRow(makeWalk(r));
+      pushRow(makeWalk(r, inPark(curStreet)));
       safeRun++; roadRun = 0; prevWasSafe = true;
       continue;
     }
@@ -2058,7 +2212,7 @@ function ensureRows(upTo){
 
     // motorcade only on bigger streets, never back to back, and only with a
     // sidewalk behind it so stepping back is always possible
-    if (no >= 40 && prevWasSafe && (no - lastSweep) >= 6 && Math.random() < 0.15){
+    if (no >= 40 && !inPark(no) && prevWasSafe && (no - lastSweep) >= 6 && Math.random() < 0.15){
       pushRow(makeSweep(r, no, laneDir(no)));
       lastSweep = no; roadRun = 99; safeRun = 0; prevWasSafe = false;
       continue;
@@ -2822,7 +2976,7 @@ function colSafeFor(r, col, secs){
   if (row.type === "sweep") return row.phase === "idle";
   if (row.type !== "road") return true;
   var p0 = col+0.12, p1 = col+0.88;
-  var k = (G.slowT > 0) ? 0.45 : 1;
+  var k = (G.slowT > 0) ? SLOW_K : 1;
   var spec = HAZ[row.kind], i;
   for (i=0;i<row.cars.length;i++){
     var x = carX(row, row.cars[i]);
@@ -2914,7 +3068,7 @@ function startRide(enterRow, enterCol){
   var dest = null, cap = null, r, w, sn;
   for (r = enterRow + 3; r < enterRow + 200; r++){
     w = rows[r];
-    if (!w || w.type !== "safe") continue;
+    if (!w || w.type !== "safe" || w.park) continue;   // no station inside the park
     sn = streetAt(r);
     if (legDir > 0 && sn > TURN_ST) break;     // past the restaurant: stop looking
     if (legDir > 0) cap = r;                   // furthest row still short of it
@@ -3905,7 +4059,14 @@ function update(dt){
   if (G.hurtT > 0.46){ G.camRow += (pp.row - G.camRow) * Math.min(1, dt*11); return; }
 
   var lo = Math.floor(G.camRow) - ROWS_BEHIND, hi = Math.floor(G.camRow) + ROWS_AHEAD, r, i;
-  var slowK = (G.slowT > 0) ? 0.45 : 1;   // Internet Insights slows the grid
+  /* Traffic Insights does not just colour the risk, it answers it: while it is
+     up, whatever is bearing down on the lane he is STANDING IN turns around
+     rather than run him over. It flips the whole lane, the same way the path
+     trace does, because reversing one vehicle inside a moving stream is what
+     used to drive cars through each other. */
+  var pRow = (G.hop < 0.5) ? G.fromRow : G.row;
+  var deter = G.riskT > 0 && G.state === ST_PLAY && G.flyT <= 0;
+  var slowK = (G.slowT > 0) ? SLOW_K : 1;  // Internet Insights slows the grid
 
   if (G.state !== ST_DEAD){
     for (r = lo; r <= hi; r++){
@@ -3960,6 +4121,19 @@ function update(dt){
           row.rv = -(row.rv || 1);
           row.bounce = 1.4;
         }
+        if (deter && r === pRow && !(row.bounce > 0) && !car.stopped){
+          var cx0 = carX(row, car), go = row.dir * (row.rv || 1);
+          // leading edge, and how far it still has to come
+          var lead = go > 0 ? cx0 + (row.eff || 1) : cx0;
+          var away = go > 0 ? (pp.col - lead) : (lead - (pp.col + 1));
+          if (away > -0.2 && away < DETER_TILES){
+            row.rv = -(row.rv || 1);
+            row.bounce = 1.4;
+            row.flinch = 0.55;
+            burst(pp.col*TILE + TILE/2, rowScreenY(r) - 26, POWERS.traffic.col);
+            AUDIO.hiss();
+          }
+        }
         if (!car.stopped){
           car.p += row.speed * slowK * dt * (row.rv || 1);
           if (car.p >= SPAN) car.p -= SPAN;
@@ -3967,6 +4141,7 @@ function update(dt){
         }
       }
       if (row.bounce > 0) row.bounce -= dt;
+      if (row.flinch > 0) row.flinch -= dt;
       separate(row);
       if (row.rogue){
         // against the posted direction, which is the whole joke
@@ -4460,8 +4635,9 @@ function drawWorld(){
     row = rows[r]; if (!row) continue;
     sy = rowScreenY(r);
     if (sy < HORIZON || sy - ROW_H > LOGICAL_H) continue;
-    var strip = row.type === "safe" ? S.walk0
-                                    : (r % 2 ? S.road1 : S.road0);
+    var strip = row.park ? (row.type === "safe" ? S.grass : S.parkPath)
+                         : (row.type === "safe" ? S.walk0
+                                                : (r % 2 ? S.road1 : S.road0));
     ctx.drawImage(strip.img, 0, sy - ROW_H, LOGICAL_W, ROW_H + 2);
 
     // motorcade warning: the whole street flashes before it clears
@@ -4507,7 +4683,7 @@ function drawWorld(){
       }
       // a lane turned around by a trace drives, and faces, the other way
       var faceR = (row.dir * (row.rv || 1)) > 0;
-      var sprite = S[row.kind + (faceR ? "_r" : "_l")];
+      var sprite = S[(row.skin || row.kind) + (faceR ? "_r" : "_l")];
       for (i=0;i<row.cars.length;i++){
         var x = carX(row, row.cars[i]);
         if (x + (row.eff||1) < -1.6 || x > COLS + 1.6) continue;
@@ -5237,11 +5413,85 @@ function cellRisk(row, col){
   if (row.rogue) consider(rogueX(row), -row.speed * row.dir);
   return best;
 }
-/* Internet Insights slows the grid; a faint tint says it is on. */
+/* ------------------------------------------------- INTERNET INSIGHTS ------
+   Slow motion wants to LOOK like slow motion, so the overlay is the obvious
+   reference: green rain falling down the screen while everything else crawls.
+
+   It is baked, not drawn. Glyph by glyph it would be ~700 fillText calls a
+   frame, which is exactly the kind of thing that turns a RoomOS panel into a
+   slideshow. Instead two sheets are rendered once at startup and scrolled -
+   four drawImage calls a frame, no text layout at all, and because every
+   glyph is wrapped modulo the sheet height the seam never shows. Two sheets
+   at different speeds give it depth. */
+var RAIN_H = 1600;
+function bakeRain(seed, cols, bright){
+  var off = document.createElement("canvas");
+  off.width = LOGICAL_W; off.height = RAIN_H;
+  var g = off.getContext("2d");
+  /* ASCII and a handful of symbols only. Katakana is the real thing, but a
+     missing glyph on a conference panel renders as a tofu box, and a screen
+     of tofu boxes is worse than no effect at all. */
+  var GLY = "01ABCDEFHKLMNPRSTVXZ<>*#$%&+=/|{}[]?!";
+  var st = seed >>> 0;
+  function rnd(){ st = (st * 1664525 + 1013904223) >>> 0; return st / 4294967296; }
+  var step = LOGICAL_W / cols, size = Math.round(step * 1.02), lead = Math.round(size * 1.12);
+  g.font = size + "px \"Courier New\",Consolas,monospace";
+  g.textAlign = "center"; g.textBaseline = "middle";
+  for (var c = 0; c < cols; c++){
+    var x = c * step + step / 2;
+    var streams = 1 + ((rnd() * 2) | 0);
+    for (var sIdx = 0; sIdx < streams; sIdx++){
+      var y0 = rnd() * RAIN_H, len = 9 + ((rnd() * 18) | 0);
+      for (var i = 0; i < len; i++){
+        var f = 1 - i / len;                       // 1 at the head, 0 at the tail
+        var y = ((y0 - i * lead) % RAIN_H + RAIN_H) % RAIN_H;
+        g.globalAlpha = Math.pow(f, 1.5) * 0.92;
+        g.fillStyle = i === 0 ? "#d8ffe8" : (i < 3 ? "#7dffb4" : bright);
+        g.fillText(GLY.charAt((rnd() * GLY.length) | 0), x, y);
+      }
+    }
+  }
+  g.globalAlpha = 1;
+  return off;
+}
+var RAIN_A = null, RAIN_B = null;
 function drawSlowTint(){
   if (G.slowT <= 0) return;
-  ctx.globalAlpha = 0.07 * Math.min(1, G.slowT);
-  ctx.fillStyle = C.pw2; ctx.fillRect(0, 0, LOGICAL_W, LOGICAL_H);
+  var a = Math.min(1, G.slowT, (POWERS.insight.secs - G.slowT) * 3);
+  if (a <= 0) return;
+
+  // the wash: everything behind it goes cold and green
+  ctx.globalAlpha = 0.30 * a;
+  ctx.fillStyle = "#04170c"; ctx.fillRect(0, 0, LOGICAL_W, LOGICAL_H);
+
+  // two sheets, different speeds, each drawn twice so the wrap is seamless
+  if (RAIN_A){
+    var sheets = [[RAIN_A, 150, 0.52], [RAIN_B, 86, 0.34]];
+    for (var i = 0; i < 2; i++){
+      var sh = sheets[i], off = (G.t * sh[1]) % RAIN_H;
+      ctx.globalAlpha = sh[2] * a;
+      ctx.drawImage(sh[0], 0, off - RAIN_H, LOGICAL_W, RAIN_H);
+      ctx.drawImage(sh[0], 0, off,          LOGICAL_W, RAIN_H);
+    }
+  }
+
+  /* Scanlines, and a slow bright band sweeping down. The band is what sells
+     the slowness: it is the only thing on screen moving at a normal rate. */
+  ctx.globalAlpha = 0.10 * a; ctx.fillStyle = "#000";
+  for (var y = 0; y < LOGICAL_H; y += 4) ctx.fillRect(0, y, LOGICAL_W, 2);
+  var band = ((G.t * 0.22) % 1) * (LOGICAL_H + 300) - 150;
+  for (var b = 0; b < 26; b++){
+    ctx.globalAlpha = a * 0.05 * (1 - b / 26);
+    ctx.fillStyle = "#2bff88";
+    ctx.fillRect(0, band + b * 5, LOGICAL_W, 5);
+    ctx.fillRect(0, band - b * 5, LOGICAL_W, 5);
+  }
+
+  // and a frame, so it reads as a mode rather than a filter
+  ctx.globalAlpha = 0.5 * a; ctx.strokeStyle = "#2bff88"; ctx.lineWidth = 3;
+  ctx.strokeRect(10, 10, LOGICAL_W - 20, LOGICAL_H - 20);
+  ctx.globalAlpha = 0.85 * a;
+  txt("SLOW MOTION", LOGICAL_W / 2, LOGICAL_H - 36, 22, "#2bff88");
   ctx.globalAlpha = 1;
 }
 function drawRisk(){
@@ -5264,6 +5514,17 @@ function drawRisk(){
       else             { col2 = "#2fd47a"; a = 0.05; }
       ctx.globalAlpha = a * fade; ctx.fillStyle = col2;
       ctx.fillRect(c*TILE + 3, sy - ROW_H + 3, TILE - 6, ROW_H - 6);
+    }
+    /* A lane that just turned away gets a band and an arrow pair, so the
+       player sees the cause and not only the result. Without it the traffic
+       simply appears to change its mind for no reason. */
+    if (row.flinch > 0){
+      var f = Math.min(1, row.flinch / 0.55);
+      ctx.globalAlpha = f * 0.55 * fade; ctx.fillStyle = POWERS.traffic.col;
+      ctx.fillRect(0, sy - ROW_H, LOGICAL_W, ROW_H);
+      ctx.globalAlpha = f * 0.9 * fade;
+      var ar = (row.dir * (row.rv || 1)) > 0 ? "»" : "«";
+      txt(ar + " " + ar + " " + ar, LOGICAL_W/2, sy - ROW_H*0.34, 46, "#eafcff");
     }
   }
   ctx.globalAlpha = 1;

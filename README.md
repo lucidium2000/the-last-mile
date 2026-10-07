@@ -146,7 +146,7 @@ The eye mark is drawn from canvas paths, not an image asset — the real logo
 would need to be inlined as a data URI or redrawn as paths, since the game
 loads nothing externally.
 
-Real-world vehicle liveries (MTA blue, Citi Bike blue, NYPD blue, cab yellow,
+Real-world vehicle liveries (MTA blue, parcel brown, NYPD blue, cab yellow,
 street-sign green) are deliberately left authentic and are not part of the
 brand palette.
 
@@ -157,11 +157,11 @@ rather than generic cars with labels stuck on them:
 
 | Hazard | Behaviour | Stands in for |
 |---|---|---|
-| M34 Select Bus | Huge, stops every few seconds | Procurement |
+| City bus | Huge, stops every few seconds | Procurement |
 | DSNY truck | Slowest mover, also stops | No budget |
 | Yellow cab | Fast, aggressive | Competitor undercut |
 | Delivery e-bike | Fastest, narrow, rides against the one-way | Unplanned urgency |
-| Citi Bikes | Arrive as a staggered pack | The buying committee |
+| Parcel vans | Arrive two abreast, nobody leading | The buying committee |
 | Black SUV | Fast, tinted | The unreachable exec |
 | Horse carriage | Ancient, plodding, still legal | The incumbent |
 | Tourist crowd | Slow, wide, spreads | Nobody owns it |
@@ -171,6 +171,22 @@ rather than generic cars with labels stuck on them:
 About a third of the cabs are rideshare cars instead — same footprint and speed
 so the lane maths is untouched, but plain paint, no checker, no roof light and a
 lit placard in the windscreen.
+
+**Buses run nine routes, not one.** Every bus used to wear `M34 SELECT BUS
+SERVICE`, which is right for the first ten blocks and wrong for the rest of the
+island. Each row now draws one of nine liveries — M34, M42, M50, M57, M66, M79,
+M104, M7, M20 — with its own side banner and front headsign. Only M34 and M79
+are Select Bus Service in real life, so only those two get the amber band; the
+locals get blue. The nine are baked once at startup and the row stores which it
+wears, so the variety costs nothing per frame.
+
+**The parcel van replaced a Citi Bike pack.** Three bikes at road scale
+collapsed into one blue smear with a tan dot on top, and a hazard you cannot
+identify before it hits you is a bug wearing a costume. A brown step van reads
+at any distance from its colour and silhouette alone. The first attempt at it
+was as long and as low as the SUV and looked like a shipping container; a step
+van is short and tall, and its roof is drawn as the *darkest* face because the
+projection lights top faces hardest and a pale roof slab was all you could see.
 
 Street furniture on the pavements includes bagel carts, pizza counters and hot
 dog stands, newsstands, scaffolding sheds, subway entrances and TE-ADDON
@@ -407,6 +423,25 @@ the ink stay married.
 Long scenes are scored rather than stung: `beats` on a scene names a cue and a
 time, and `updateScene` fires each one once as the clock passes it.
 
+### Through the park
+
+Streets **60 to 69** are inside Central Park, and the whole board changes for
+ten blocks:
+
+- **Grass instead of pavement.** A mown patchwork with tufts and a soft kerb,
+  not a flat green bar.
+- **Gravel drives instead of asphalt.** Pale edging, no painted lane markings.
+- **Nothing with an engine.** Only horse carriages, pedicabs and tourist
+  crowds spawn here; no motorcade sweeps through.
+- **No subway.** You are inside the park — the stations are around the edge, so
+  no entrance is placed on a park pavement and no ride surfaces on one.
+- **Trees at the edges, not buildings.** The frontage slots that hold a façade
+  everywhere else hold a tree here, and more often, because the edge of the
+  park is denser than a block front. The first pass put twelve towers inside
+  Central Park, which is how that was caught.
+
+Everything resumes at 70th.
+
 ### Arrival scenes
 
 Reaching a landmark crossing stops the walk for a beat and shows you where you
@@ -494,8 +529,46 @@ top of this file applies.
 ### Power-ups
 
 Four common ThousandEyes capabilities — Endpoint Agent (absorbs one hit),
-Internet Insights (slows traffic), Path Visualization (lights up safe
-crossings), Executive Sponsor (carries you three rows) — plus one rare tier:
+Internet Insights (drops the world into slow motion), Path Visualization (lights
+up safe crossings), Executive Sponsor (carries you three rows) — plus one rare
+tier:
+
+**Internet Insights** runs 11 seconds and throttles everything that moves to
+**0.28×** — measured on one car in one lane: 2.598 tiles a second normally,
+0.728 with it up. One constant, `SLOW_K`, drives both the mover and the
+crossing-safety predictor, because a predictor running at a different rate from
+the thing it predicts will tell you a lane is clear when it is not.
+
+The look is the obvious reference: green glyph rain falling down the screen,
+a cold green wash, scanlines, a slow bright band sweeping down and a frame
+around the whole playfield. It is **baked, not drawn** — glyph by glyph it would
+be ~700 `fillText` calls a frame, which is how you turn a conference panel into
+a slideshow. Two sheets are rendered once at startup and scrolled at different
+speeds, four `drawImage` calls a frame, every glyph wrapped modulo the sheet
+height so the seam never shows. ASCII and symbols only: a missing glyph renders
+as a tofu box on an unfamiliar font stack, and a screen of tofu boxes is worse
+than no effect at all.
+
+**Traffic Insights** runs 15 seconds, colours every lane by live risk — *and
+now answers it.* While it is up, whatever is bearing down on the lane he is
+**standing in** turns around rather than run him over, within 3.2 tiles, with a
+band across the lane and a trio of arrows showing which way it went. It flips
+the **whole lane**, the same way the path trace does, because reversing one
+vehicle inside a moving stream is most of what "cars pass through each other"
+used to be.
+
+Measured, four lanes, thirty seconds each, standing still at the same column:
+
+| Lane | Without Traffic Insights | With it |
+|---|---|---|
+| cab | run over on 492 of 1800 frames | **0**, 22 turn-arounds |
+| parcel van | run over on 522 frames | **0**, 22 turn-arounds |
+| cab | run over on 504 frames | **0**, 22 turn-arounds |
+| SUV | run over on 511 frames | **0**, 18 turn-arounds |
+
+A full-world sweep with both power-ups held open — 452,000 sampled car pairs —
+found **0 overlaps**, so neither the flips nor the slow motion break the
+separation invariant.
 
 The trace is **green end to end** — line, hop ticks, nodes, destination and the
 packet halo, all from the `TRACE` block, which is a single swap point the way
