@@ -334,13 +334,27 @@ straight, which is only ever claimed when the player's own column is clear the
 whole way. You cannot be hit anywhere on the route and traffic turns around on
 contact with it.
 
-**TAM.** The headline SKU. Five seconds of flight, which ignores both traffic
-and solid props, hops 32% faster, and renders above the whole world. Unlike
-every other power-up it does not expire: once engaged it stays for the rest of
-the run and delivers another two seconds every 8-14s, announcing something a
-ThousandEyes TAM actually does (22 lines). The first payout lands 3-6s after
-pickup, as the opening flight runs out, so the SKU is seen working immediately.
-Total flight is capped at 9s so it cannot be hoarded.
+**TAM.** The headline SKU, and the only power-up that pays twice in different
+currencies.
+
+*On pickup:* five seconds of flight, which ignores both traffic and solid
+props, hops 32% faster, and renders above the whole world.
+
+*After that, no more flight.* Every 8-14s for the next minute the engaged TAM
+delivers an **outcome** instead: a full-width banner naming what the TAM did,
+what it led to, and what it is worth — "TAM INCREASED ADOPTION / Customer wants
+to buy 80k more / +$80,000" — and that amount goes straight onto the pipeline.
+There are 22 of them, each a thing a real ThousandEyes TAM actually does, each
+with a number attached (35k-250k).
+
+The banner is deliberately not the ordinary flash: 1280 wide, 174 tall, 40px
+headline, the amount set large on its own side of a rule, and it holds for
+4.4s. At 26px in an 880-wide plate nobody was reading these.
+
+The first payout lands 3-6s after pickup, as the opening flight runs out, so
+the SKU is seen delivering immediately. Measured over 60 simulated seconds with
+a TAM engaged: 5 wins, $295,000 added to pipeline, and flight never rose above
+its opening 5s.
 
 Uncommon rather than rare: ~38% of pickups, one every ~37 rows, 16-row
 cooldown, and it can appear as early as row 10. Measured over 90 bot runs:
@@ -358,9 +372,9 @@ handled explicitly in `landFromFlight()` — on expiry the player slides out of
 any solid cell to the nearest free column and gets a moment of grace, since
 flight can otherwise end inside a scaffold or on top of a bus.
 
-Tuning dials: `FLY_SECS`, `TAM_BONUS_SECS`, `FLY_MAX`, `TAM_COOLDOWN_ROWS`,
-the `0.52` spawn roll in `makeWalk`, and the payout intervals in `collect`
-(first win) and `update` (subsequent).
+Tuning dials: `FLY_SECS`, `FLY_MAX`, `TAM_DURATION`, `TAM_COOLDOWN_ROWS`, the
+`0.52` spawn roll in `makeWalk`, the amounts in `TAM_WINS`, and the payout
+intervals in `collect` (first win) and `update` (subsequent).
 
 Cross streets are generated from the real grid: direction follows the
 even-eastbound one-way rule, and 34th / 42nd / 57th generate as paired two-way

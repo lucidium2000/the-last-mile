@@ -1402,36 +1402,41 @@ function gtxt(str, x, y, size, col, weight, align){
   ctx.fillText(str, x, y);
 }
 var TAM_DURATION = 60;
-var FLY_SECS = 5, TAM_BONUS_SECS = 2, FLY_MAX = 9;
+var FLY_SECS = 5, FLY_MAX = 9;
 var FLY_WARN = 1.4;   // last seconds of flight: ring reddens, figure blinks, beep
 var TAM_COOLDOWN_ROWS = 16;   // uncommon, not rare - it is the headline SKU
 
 /* Things a ThousandEyes TAM actually does. One fires on a timer for as long as
    the TAM is engaged, each worth another two seconds of flight. */
+/* What an engaged TAM actually delivers. The first pickup buys five seconds
+   of flight; after that the TAM stops handing out flight and starts handing
+   out business, which is what a real one does. Each line is an action, the
+   consequence of that action, and the number that consequence is worth. */
 var TAM_WINS = [
-  "TAM has increased agent adoption 40%",
-  "TAM has uncovered a potential Webex opportunity",
-  "TAM has deployed the endpoint agents you were not using",
-  "TAM has tuned your alert rules — noise down 60%",
-  "TAM has run a health check across every test",
-  "TAM has built the executive dashboard you asked for",
-  "TAM has cut MTTR on the last three incidents",
-  "TAM has enabled Internet Insights across the estate",
-  "TAM has found 200 unused test units",
-  "TAM has delivered an enablement workshop to the NOC",
-  "TAM has walked your QBR deck to the CIO",
-  "TAM has set up BGP monitoring on your prefixes",
-  "TAM has piped alerts into ServiceNow",
-  "TAM has documented proof of value for the renewal",
-  "TAM has escalated and closed your TAC case",
-  "TAM has carried your feature request to engineering",
-  "TAM has benchmarked you against peers in your sector",
-  "TAM has written the incident runbook",
-  "TAM has mapped your SD-WAN monitoring gaps",
-  "TAM has spotted a Catalyst refresh opportunity",
-  "TAM has onboarded three new regions",
-  "TAM has proved the outage was not your network"
+  ["TAM INCREASED ADOPTION",            "Customer wants to buy 80k more.",                 80000],
+  ["TAM UNCOVERED A WEBEX OPPORTUNITY", "Collaboration team is asking for a quote.",      120000],
+  ["TAM DEPLOYED YOUR UNUSED AGENTS",   "2,500 endpoint seats live. Renewal just got easier.", 60000],
+  ["TAM TUNED YOUR ALERT RULES",        "Noise down 60%. The NOC is asking for more tests.",   45000],
+  ["TAM RAN A HEALTH CHECK",            "Found 200 unused units. They want 500 more.",     95000],
+  ["TAM BUILT THE EXEC DASHBOARD",      "The CIO has seen it. She wants it everywhere.",  150000],
+  ["TAM CUT MTTR ON THREE INCIDENTS",   "Ops just put you in the standard build.",        110000],
+  ["TAM ENABLED INTERNET INSIGHTS",     "Two more business units want in.",               140000],
+  ["TAM RAN AN ENABLEMENT WORKSHOP",    "Thirty engineers trained. Usage is climbing.",    35000],
+  ["TAM WALKED YOUR QBR TO THE CIO",    "Budget conversation moved to this quarter.",     200000],
+  ["TAM SET UP BGP MONITORING",         "Network team wants the same for peering.",        70000],
+  ["TAM PIPED ALERTS INTO SERVICENOW",  "Now it is in the workflow. And in the renewal.",  55000],
+  ["TAM DOCUMENTED PROOF OF VALUE",     "Procurement stopped asking for discounts.",       90000],
+  ["TAM CLOSED YOUR TAC CASE",          "The blocker is gone. So is the objection.",       40000],
+  ["TAM CARRIED YOUR FEATURE REQUEST",  "It shipped. The customer noticed.",               65000],
+  ["TAM BENCHMARKED YOUR SECTOR",       "They are behind their peers. They hate that.",   130000],
+  ["TAM MAPPED YOUR SD-WAN GAPS",       "Nine sites uncovered. They want all nine.",       85000],
+  ["TAM SPOTTED A CATALYST REFRESH",    "That is a hardware number, not a software one.", 250000],
+  ["TAM ONBOARDED THREE REGIONS",       "APJC wants the same rollout.",                   100000],
+  ["TAM PROVED IT WAS NOT YOUR NETWORK","You are the trusted vendor in the room now.",     75000],
+  ["TAM WROTE THE INCIDENT RUNBOOK",    "It is in their operations handbook. Permanently.", 50000],
+  ["TAM FOUND THE SHADOW SaaS",         "Security wants tests of their own.",             115000]
 ];
+
 function powerModel(kind){
   var k = POWERS[kind];
   if (kind === "agent"){
@@ -2082,7 +2087,7 @@ function reset(){
     hop:1, facing:1, maxRow:0, camRow:0, street:START_ST,
     stage:-1, coach:-1, toast:null, flash:null,
     shield:false, slowT:0, revealT:0, invulnT:0, powersUsed:0,
-    flyT:0, flyA:0, flyBeep:0, tam:false, tamT:0, tamWins:0, hurtT:0, nahT:0,
+    flyT:0, flyA:0, flyBeep:0, tam:false, tamT:0, tamWins:0, tamWin:null, hurtT:0, nahT:0,
     yumT:0, yumKind:null, yumDir:0, wowT:0,
     metro:0, ride:null, trace:null, rides:0, bonus:0, tamLeft:0, riskT:0,
     scene:null, scenesSeen:{}, ticker:null, leg:1, po:false, won:false,
@@ -3438,10 +3443,14 @@ function update(dt){
       // win lines actually get read - they are the point of the power-up
       G.tamT = 8 + Math.random()*6;
       G.tamWins++;
-      G.flyT = Math.min(FLY_MAX, G.flyT + TAM_BONUS_SECS);
+      /* No more flight after the opening five seconds. An engaged TAM is not
+         a movement power-up, it is a revenue one: every payout is an outcome
+         with a number on it, and the number goes on the board. */
+      var win = TAM_WINS[(Math.random()*TAM_WINS.length)|0];
+      G.bonus += win[2];
+      G.tamWin = { life:4.4, max:4.4, name:win[0], line:win[1], amt:win[2] };
+      G.flash = null;                      // the banner replaces it
       AUDIO.tamWin();
-      flash(TAM_WINS[(Math.random()*TAM_WINS.length)|0],
-            "+" + TAM_BONUS_SECS + "s of flight.", C.pw5);
     }
   }
 
@@ -3563,6 +3572,7 @@ function update(dt){
     if (G.toast.life < -0.4) G.toast = null;
   }
   if (G.flash){ G.flash.life -= dt; if (G.flash.life <= 0) G.flash = null; }
+  if (G.tamWin){ G.tamWin.life -= dt; if (G.tamWin.life <= 0) G.tamWin = null; }
 
   for (i=0;i<G.parts.length;i++){
     var pt = G.parts[i];
@@ -4773,7 +4783,7 @@ function drawHud(){
      over the road. They used to sit at y=380, in the clear part of the
      playfield, which hid the traffic you were about to cross. A flash
      suppresses the milestone banner rather than stacking on top of it. */
-  if (G.toast && G.toast.a > 0.01 && !G.flash){
+  if (G.toast && G.toast.a > 0.01 && !G.flash && !G.tamWin){
     ctx.globalAlpha = G.toast.a;
     var w = 820, x = (LOGICAL_W-w)/2;
     plate(x, MSG_Y, w, 118, "rgba(255,106,19,0.16)");
@@ -4784,7 +4794,30 @@ function drawHud(){
     ctx.globalAlpha = 1;
   }
 
-  if (G.flash){
+  /* The TAM payout gets its own banner rather than the ordinary flash: it is
+     the headline event of the power-up, it carries a number, and at 26px in a
+     880-wide plate nobody was reading it. Wider, taller, slower, and the
+     amount is set large on its own side of a rule. */
+  if (G.tamWin){
+    var W = G.tamWin, age = W.max - W.life;
+    ctx.globalAlpha = Math.max(0, Math.min(1, age/0.22, W.life/0.5));
+    var tw = 1280, tx = (LOGICAL_W - tw)/2, ty = MSG_Y - 14 - (1 - Math.min(1, age/0.22)) * 26;
+    plate(tx, ty, tw, 174, "rgba(10,6,4,0.90)", 18);
+    ctx.fillStyle = C.brand; ctx.fillRect(tx, ty, 10, 174);
+    // the TAM chip
+    plate(tx + 36, ty + 30, 104, 50, C.brand, 10);
+    txt("TAM", tx + 88, ty + 58, 30, "#1a0a02");
+    txt(W.name, tx + 172, ty + 56, 40, C.pw5, "left", 700);
+    txt(W.line, tx + 172, ty + 104, 26, C.text, "left", 760);
+    txt("ENGAGED  \u00B7  WIN #" + G.tamWins, tx + 172, ty + 142, 20, C.textDim, "left");
+    // the number, on its own side of a rule
+    ctx.fillStyle = "rgba(255,255,255,0.14)";
+    ctx.fillRect(tx + tw - 332, ty + 28, 2, 118);
+    txt("ADDED TO PIPELINE", tx + tw - 166, ty + 56, 20, C.textDim);
+    txt("+" + cash(W.amt), tx + tw - 166, ty + 108, 48, C.good);
+    ctx.globalAlpha = 1;
+  }
+  if (G.flash && !G.tamWin){
     ctx.globalAlpha = Math.min(1, G.flash.life/0.4);
     var fw = 880, fx = (LOGICAL_W-fw)/2;
     plate(fx, MSG_Y, fw, 96, C.ink);
