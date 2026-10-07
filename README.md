@@ -209,6 +209,56 @@ The exit is found or planted on a pavement row at the destination, and the exit
 cell is unblocked — which can never create a pin, since removing a blocker only
 ever widens a gap.
 
+### The shape of a run
+
+The game is two legs and an ending, not an endless climb.
+
+1. **Uptown, 34th to 81st.** Penn 1 to the meeting. Street numbers count up.
+2. **Happy Hour at 81st.** The signing (below). The city turns round.
+3. **Downtown, 81st back to 34th.** Carrying the signed order home. Street
+   numbers count down, and every landmark comes back in the opposite order.
+4. **Penn 1.** The paper goes on the desk and the game is won.
+
+The player always walks *up* the screen; what reverses is the city around him.
+Street numbers and landmarks are both keyed on the street number rather than on
+distance travelled, so counting down gets the landmarks in reverse for free, and
+`laneDir()` negates the one-way rule so a street that ran left-to-right on the
+way up runs right-to-left on the way back. Verified: streets run
+34→81→34, landmarks reverse exactly, and 41 of 43 sampled lanes mirror — the
+two that do not are 34th/42nd/57th, which alternate lane by lane because they
+are two-way.
+
+`turnBack()` throws away every row the player has not reached and regenerates
+it counting down. Only unreached rows are dropped, and the scene has the world
+frozen while it runs.
+
+Dying on the return leg has its own death screen — **SO CLOSE**, with the
+signed order still in your hand.
+
+### The signing
+
+Eighty-first is what the whole walk is for, so it is staged over eleven
+seconds rather than shown:
+
+| Beat | |
+|---|---|
+| 0.0s | Wide. Talking, nodding, glasses up |
+| 2.0s | The order slides across the bar |
+| 3.8s | **Cut in.** The purchase order, full frame |
+| 4.4s | The pen starts writing, a point of the stroke at a time |
+| 7.6s | Back wide. The handshake |
+| 9.4s | He holds it up, and SIGNED comes down on it |
+
+The cut is the point. A signature at the scale of two 110-pixel figures at a
+bar is a smudge, and the one thing the player has to actually see is the pen
+moving. The signature is built once as a path — a leaning capital loop, a run
+of cursive humps, a flourish that sweeps back under the name — and revealed a
+point at a time with the nib sitting on the head of the stroke, so the hand and
+the ink stay married.
+
+Long scenes are scored rather than stung: `beats` on a scene names a cue and a
+time, and `updateScene` fires each one once as the clock passes it.
+
 ### Arrival scenes
 
 Reaching a landmark crossing stops the walk for a beat and shows you where you
@@ -246,8 +296,29 @@ baked in here would be stale the next day and would be read as live. A round
 percentage is plainly the game talking. Everything on the card is in percent
 for the same reason: the axis, the series and the tooltip.
 
-Everything it draws comes from the `CSCO` object: `session` is the trading day
-in green, `tail` the after-hours in grey, `lo`/`hi` the axis bounds.
+Each pickup **rolls its own move, between 0 and 10 percent**, and the whole
+series is scaled to it, so the chart, the axis, the headline and the tooltip
+always agree. `CSCO.session` is the shape of the trading day normalised to a
+close of 10; `CSCO.tail` is the after-hours in grey.
+
+### Chuck
+
+He pops up out of the bottom-right corner, holds, and drops back out — the
+Mortal Kombat *Toasty* beat, which only works if it is fast, in the corner, and
+gone before you can look straight at it. It runs over the ticker card, with the
+voice line.
+
+That voice line is the **one recorded sound in the game**, inlined as base64 so
+the file still loads nothing over the network. Everything else is synthesised.
+It is decoded the moment the AudioContext exists rather than on first use, so
+the first Chuck Bucks of a session is not silent; every failure path leaves the
+buffer null and the call becomes a no-op, like the rest of the engine.
+
+To use a photograph, base64-encode it and paste it into `CHUCK_SRC` as a
+complete `data:` URI. Nothing else changes — left empty, the pop-in draws its
+own placard, so the effect works either way. **A photograph of a real person on
+a publicly reachable page is worth a deliberate decision**; the site is
+`noindex, nofollow` and the disclaimer at the top of this file applies.
 
 ### Power-ups
 
