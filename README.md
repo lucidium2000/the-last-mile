@@ -460,6 +460,44 @@ ten blocks:
 
 Everything resumes at 70th.
 
+### Stamina
+
+A walk uptown is tiring, and the only thing that fixes tired is lunch.
+
+| | |
+|---|---|
+| Start | 100% |
+| Every street crossed | **−3%** |
+| Food — bagel, slice, hot dog | **+25%**, capped at 100 |
+| An objection that lands | **−75%** |
+| Endpoint Agent shield | absorbs the hit completely, costs no stamina |
+
+All four numbers live together near `CHUCK_BONUS`, so the balance is one line
+to change.
+
+Being hit no longer ends the run outright — it takes a bite out of him and he
+carries on, once. Two hits from full is still death, so the shield keeps its
+value by being the only thing that absorbs one for free. Running the tank to
+zero is its own ending, `EXHAUSTION`, the one death in the game with no hazard
+attached.
+
+The drain is deliberately more than you start with: 47 blocks to the restaurant
+costs 141%, and the round trip 282%. You cannot finish on the tank you begin
+with. Measured over 40 generated worlds, the walk puts **0.765 food carts on
+every street**, which is 19.1% of stamina a street against a 3% cost — so
+eating roughly **one cart in six** breaks even, and the margin above that is
+wide. Simulated 60 runs at each rate: eating 40%, 70% or 100% of the carts
+reached the dinner **60 times out of 60**; eating none died at **W 68th**, two
+thirds of the way up.
+
+**One cart serves one meal.** Walking into a stand is a free move — the step was
+already refused — so without marking the cart used you could stand next to a hot
+dog stand tapping into it and never run out of stamina again.
+
+The bar sits under the pipeline, ticked every 25% so you can read how many
+lunches you are down without doing arithmetic mid-crossing. It turns amber below
+half, red below 25%, and flashes.
+
 ### Arrival scenes
 
 Reaching a landmark crossing stops the walk for a beat and shows you where you

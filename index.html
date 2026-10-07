@@ -1471,6 +1471,22 @@ var POWER_POOL = ["path","path","path",
    you a lane is clear when it is not. */
 var SLOW_K = 0.28;
 var DETER_TILES = 3.2;     // how close it gets before it thinks better of it
+/* ------------------------------------------------------------- STAMINA ---
+   A walk uptown is tiring, and the only thing that fixes tired is lunch.
+
+   Every crossing costs 3%, so the 47 blocks from Penn to the restaurant cost
+   141% and the round trip 282% - you cannot finish on the tank you start
+   with, by design. Food is the only refill at 25% a go, and an objection that
+   lands takes 75%, which is survivable exactly once from full.
+
+   All four numbers are here and nowhere else, so the balance is one line to
+   change. */
+var HP_MAX = 100;
+var HP_FOOD = 25;          // a bagel, a slice, a hot dog
+var HP_HIT = 75;           // an objection you did not see coming
+var HP_PER_STREET = 3;     // the walk itself
+var HP_LOW = 25;           // below this the bar starts shouting
+
 var CHUCK_BONUS = 250000;
 
 /* ===================== CSCO TICKER CARD ===================================
@@ -2141,13 +2157,16 @@ function propAt(row, col){
 }
 
 /* the kind of food cart standing in a cell, or null */
-function foodAt(row, col){
+/* Returns the PROP, not the kind, because the caller has to be able to mark
+   it eaten. One cart, one meal: walking into a stand is a free move - the step
+   was already refused - so without this you could stand next to a hot dog cart
+   tapping into it and never run out of stamina again. */
+function foodPropAt(row, col){
   if (!row || !row.props) return null;
   for (var i = 0; i < row.props.length; i++){
     var pr = row.props[i];
-    if (pr.col !== col) continue;
-    if (pr.kind === "bagel" || pr.kind === "pizza" || pr.kind === "hotdog")
-      return pr.kind;
+    if (pr.col !== col || pr.eaten) continue;
+    if (pr.kind === "bagel" || pr.kind === "pizza" || pr.kind === "hotdog") return pr;
   }
   return null;
 }
@@ -2282,6 +2301,7 @@ function reset(){
     hop:1, facing:1, maxRow:0, camRow:0, street:START_ST,
     stage:-1, coach:-1, toast:null, flash:null,
     shield:false, slowT:0, revealT:0, invulnT:0, powersUsed:0,
+    hp:HP_MAX, hpGain:null, meals:0,
     flyT:0, flyA:0, flyBeep:0, tam:false, tamT:0, tamWins:0, tamWin:null, hurtT:0, nahT:0,
     yumT:0, yumKind:null, yumDir:0, yumBite:0, wowT:0, cheerT:0,
     metro:0, ride:null, trace:null, rides:0, bonus:0, tamLeft:0, riskT:0,
@@ -2515,6 +2535,12 @@ function progress(){
        its own coaching - the uptown ones are all about getting the meeting,
        which has already happened. */
     for (n = prev + step; ; n += step){
+      /* Three percent a crossing, counted per street PASSED so a subway ride
+         costs what the walk would have. It is the only drain in the game. */
+      if (G.state === ST_PLAY){
+        G.hp -= HP_PER_STREET;
+        if (G.hp <= 0){ G.hp = 0; dieTired(); return; }
+      }
       var table = G.leg > 0 ? SCENES : SCENES_BACK;
       if (table[n] && !G.scenesSeen["L" + G.leg + "_" + n] &&
           G.state === ST_PLAY && !G.scene) startScene(n);
@@ -2607,12 +2633,18 @@ function act(dir){
     /* Walk into a bagel cart, a slice counter or a hot dog stand and he stops,
        pays and eats. It costs nothing - the step was already refused - and it
        is the only time anything on the pavement answers back. */
-    var food = foodAt(target, nc);
+    var foodPr = foodPropAt(target, nc);
     if (propAt(target, nc) === "newsstand"){
       G.wowT = 1.3; AUDIO.wow();
-    } else if (food){
-      G.yumT = EAT_SECS; G.yumKind = food; G.yumBite = 0;
+    } else if (foodPr){
+      foodPr.eaten = true;                       // that cart has served you
+      G.yumT = EAT_SECS; G.yumKind = foodPr.kind; G.yumBite = 0;
       G.yumDir = nc > G.col ? 1 : (nc < G.col ? -1 : 0);
+      // the only thing in the game that puts stamina back
+      var was = G.hp;
+      G.hp = Math.min(HP_MAX, G.hp + HP_FOOD);
+      G.meals = (G.meals || 0) + 1;
+      G.hpGain = { life:1.5, amt:Math.round(G.hp - was) };
       AUDIO.pay();
     } else AUDIO.bump();
     return;
@@ -3019,6 +3051,18 @@ function die(kind){
   G.deathObj = pair[0]; G.deathFix = pair[1];
   var pp = playerPos();
   burst(pp.col*TILE + TILE/2, rowScreenY(pp.row) - 36);
+  saveBest(pipeline()); endRun();
+}
+/* Not hit by anything - just out of road. The one death with no hazard
+   attached, so it gets its own copy rather than a hazard's objection pair. */
+function dieTired(){
+  AUDIO.die();
+  G.state = ST_DEAD; G.deadFor = 0; G.shake = 14;
+  G.deathName = "EXHAUSTION";
+  G.deathObj = "You worked the whole block list on an empty stomach.";
+  G.deathFix = "Eat something. Long deals are won by the people still standing.";
+  var pp = playerPos();
+  burst(pp.col*TILE + TILE/2, rowScreenY(pp.row) - 36, "#ff8c2b");
   saveBest(pipeline()); endRun();
 }
 function missTrain(){
@@ -3968,7 +4012,18 @@ function hitPlayer(kind, pp){
     AUDIO.hurt();
     flash("OBJECTION ABSORBED", "That one cost you the shield.", BLAZER);
     burst(pp.col*TILE + TILE/2, rowScreenY(pp.row) - 40, "#ff5e6e");
-  } else die(kind);
+  } else {
+    /* An objection used to end the run outright. Now it takes a bite out of
+       him and he can carry on - once. The shield still absorbs completely,
+       which is what keeps it worth having. */
+    G.hp -= HP_HIT;
+    if (G.hp <= 0){ G.hp = 0; die(kind); return; }
+    G.invulnT = 1.6; G.shake = 34; G.hurtT = 0.7;
+    AUDIO.hurt();
+    flash("THAT ONE LANDED", hazName(kind) + " — " + Math.round(G.hp) +
+          "% left. Find something to eat.", C.danger);
+    burst(pp.col*TILE + TILE/2, rowScreenY(pp.row) - 40, "#ff5e6e");
+  }
 }
 
 function update(dt){
@@ -4189,6 +4244,7 @@ function update(dt){
   if (G.flash){ G.flash.life -= dt; if (G.flash.life <= 0) G.flash = null; }
   if (G.tamWin){ G.tamWin.life -= dt; if (G.tamWin.life <= 0) G.tamWin = null; }
   if (G.notice){ G.notice.life -= dt; if (G.notice.life <= 0) G.notice = null; }
+  if (G.hpGain){ G.hpGain.life -= dt; if (G.hpGain.life <= 0) G.hpGain = null; }
 
   for (i=0;i<G.parts.length;i++){
     var pt = G.parts[i];
@@ -5547,10 +5603,44 @@ function txt(s,x,y,size,col,align,maxW){
   if (maxW) ctx.fillText(s,x,y,maxW); else ctx.fillText(s,x,y);
 }
 
+function drawStamina(x, y, w, h){
+  var f = Math.max(0, Math.min(1, G.hp / HP_MAX));
+  var low = G.hp <= HP_LOW;
+  var col = G.hp > 50 ? C.good : (low ? C.danger : C.amber);
+  if (low && Math.sin(G.t * 9) < 0) col = C.text;
+
+  plate(x, y, w, h, C.ink, 12);
+  txt("STAMINA", x + 20, y + 34, 24, C.textDim, "left");
+
+  var bx = x + 150, bw = w - 150 - 92, by = y + 13, bh = h - 26;
+  ctx.fillStyle = "rgba(255,255,255,0.10)";
+  ctx.fillRect(bx, by, bw, bh);
+  ctx.fillStyle = col;
+  ctx.fillRect(bx, by, bw * f, bh);
+  /* Ticks every 25% - one meal - so you can read how many lunches you are
+     down without doing arithmetic mid-crossing. */
+  ctx.fillStyle = "rgba(10,6,4,0.55)";
+  for (var m = 1; m < 4; m++) ctx.fillRect(bx + bw * (m / 4) - 1, by, 2, bh);
+  txt(Math.round(G.hp) + "%", x + w - 20, y + 36, 28, col, "right");
+
+  // what the last meal was worth, floating off the bar
+  if (G.hpGain){
+    var a = Math.min(1, G.hpGain.life / 0.4), rise = (1.5 - G.hpGain.life) * 30;
+    ctx.globalAlpha = a;
+    txt("+" + G.hpGain.amt + "%", bx + bw * f, y - 6 - rise, 30, C.good);
+    ctx.globalAlpha = 1;
+  }
+}
+
 function drawHud(){
   plate(28, 26, 470, 104, C.ink);
   txt("PIPELINE", 52, 58, 26, C.textDim, "left");
   txt(cash(pipeline()), 52, 98, 56, C.text, "left");
+
+  /* Stamina, under the pipeline and clear of the message band, which starts
+     at x=550. It is the one number that decides whether the walk ends, so it
+     gets a bar rather than a chip. */
+  drawStamina(28, 142, 470, 52);
 
   // where you are, in blocks
   plate(514, 26, 250, 104, C.ink);
