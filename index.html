@@ -4173,7 +4173,7 @@ function barClose(t, a){
   txt("PURCHASE ORDER", -600, -240, 46, "#1d1a16", "left");
   txt("ThousandEyes  \u00B7  Enterprise Agreement  \u00B7  36 months",
       -600, -194, 25, "#6b655c", "left");
-  txt("PO-2026-0081", 600, -240, 28, "#6b655c", "right");
+  txt(poNumber(), 600, -240, 28, "#6b655c", "right");
 
   ctx.fillStyle = "#cfc7b6"; ctx.fillRect(-600, -160, 1200, 2);
   var items = [["Cloud & Enterprise Agents", "480"],
@@ -4187,14 +4187,17 @@ function barClose(t, a){
   }
   ctx.fillStyle = "#1d1a16"; ctx.fillRect(-600, 84, 1200, 3);
   txt("TOTAL", -600, 124, 30, "#1d1a16", "left");
-  txt("$1,000,000", 600, 126, 40, "#1d1a16", "right");
+  /* The number on the paper is the number he actually built. A flat million
+     made the whole walk decorative: it said the same thing whether he had
+     crossed twenty blocks or two hundred. */
+  txt(cash(pipeline()), 600, 126, 40, "#1d1a16", "right");
 
   // the signature line
   ctx.fillStyle = "#1d1a16"; ctx.fillRect(-600, 268, 620, 3);
   txt("AUTHORISED SIGNATURE", -600, 296, 22, "#6b655c", "left");
   txt("DATE", 180, 296, 22, "#6b655c", "left");
   ctx.fillStyle = "#1d1a16"; ctx.fillRect(180, 268, 420, 3);
-  if (ct > 2.9) txt("6 OCT", 250, 250, 30, "#1a3a7a", "left");
+  if (ct > 2.9) txt(poDate(), 250, 250, 30, "#1a3a7a", "left");
 
   /* The pen writes. The stroke is revealed a point at a time and the nib sits
      on the head of it, so the hand and the ink stay married. */
@@ -4231,6 +4234,21 @@ function barClose(t, a){
     ctx.fillStyle = "#f6efe2"; ctx.fillRect(0, 150, LOGICAL_W, 740);
     ctx.globalAlpha = a;
   }
+}
+
+/* Today, off the device clock. Both of these were frozen strings - a paper
+   dated the 6th of October and numbered 0081 was going to look stale on a
+   panel the following week, and the walk is meant to be happening now. */
+var PO_MONTHS = ["JAN","FEB","MAR","APR","MAY","JUN",
+                 "JUL","AUG","SEP","OCT","NOV","DEC"];
+function poDate(){
+  var d = new Date();
+  return d.getDate() + " " + PO_MONTHS[d.getMonth()];
+}
+function poNumber(){
+  var d = new Date();
+  return "PO-" + d.getFullYear() + "-" +
+         pad2(d.getMonth() + 1) + pad2(d.getDate());
 }
 
 function sceneBar(t, a){

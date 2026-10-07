@@ -656,6 +656,16 @@ world dims, a bordered panel takes the middle of the screen for seven and a
 half seconds, and it says in 56px that a signature is not a booking. A corner
 toast was there before and was missable, which is the one thing it must not be.
 
+**The paper carries the real number.** The purchase order used to read a flat
+`$1,000,000` whatever had happened, which made the whole walk decorative — it
+said the same thing after twenty blocks as after two hundred. It is
+`pipeline()` now, so the signature is on what he actually built. Checked at
+three run sizes against what the scene draws: $330,000, $1,940,000, $5,580,000.
+
+The date and the PO number come off the device clock for the same reason. A
+paper frozen at *6 OCT* and numbered *0081* was going to look stale on a panel
+the following week, and the walk is meant to be happening today.
+
 81st is the end of the walk: the handshake lands, and the message that follows
 says what a verbal is actually worth — *now get back to the office and lock it
 in.* **It also puts health back to 100%.** He has just sat down to a steak, and
