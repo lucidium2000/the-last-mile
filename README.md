@@ -110,9 +110,9 @@ About a third of the cabs are rideshare cars instead — same footprint and spee
 so the lane maths is untouched, but plain paint, no checker, no roof light and a
 lit placard in the windscreen.
 
-Street furniture on the pavements includes halal carts, pizza counters and hot
-dog stands, newsstands, scaffolding sheds, subway entrances and ThousandEyes
-Path terminals (which act as a free Path Visualization). At most one subway
+Street furniture on the pavements includes bagel carts, pizza counters and hot
+dog stands, newsstands, scaffolding sheds, subway entrances and TE-ADDON Pack
+terminals (which act as a free Path Visualization). At most one subway
 entrance per pavement — subway is weighted twice in the prop pool and each prop
 draws independently, so a three-prop sidewalk could otherwise come up with
 three staircases to the same station.
@@ -150,13 +150,39 @@ the step was already refused.
 
 | Walk into | He does |
 |---|---|
-| Halal cart, pizza counter, hot dog stand | Leans at it and smiles, with what he wants in a bubble over his head |
+| Bagel cart, pizza counter, hot dog stand | Pays and eats — see below |
 | Newsstand | The headline takes the top of his head off — rays, rings and a face to match |
 | Subway entrance with no MetroCard | Shakes his head, throws both hands up, and says so: **NO METRO CARD** |
 
 At this scale his own face is twenty pixels of baked voxel, so the expression
-lives in a bubble and the body supplies the gesture: a lean toward the cart, or
-two sleeves and two hands drawn over the shoulders for the shrug.
+lives in a bubble and the body supplies the gesture: two sleeves and two hands
+drawn over the shoulders for the shrug.
+
+### Buying lunch
+
+Walk into a food cart and the whole transaction plays, over 1.95s on one clock:
+
+| | |
+|---|---|
+| 0.00s | He leans out and a five-dollar bill travels across to the vendor |
+| 0.55s | The vendor has it; **-$5** floats up and fades |
+| 0.80s | The food comes back, growing as it arrives |
+| 1.15s | Three bites, 0.2s apart, eaten from the side he is facing, with crumbs |
+| 1.55s | A short satisfied beat, then it fades |
+
+The bites are counted off the **clock**, not the renderer — the drawing code runs
+every frame and would have chomped sixty times a second. Verified: 3 bites, 3
+sounds, sequence 0→1→2→3.
+
+The food is drawn by the *caller* of `drawPlayer`, not inside it. `drawPlayer`
+blits the sprite part-way through and returns early in three places (hurt
+flicker, flight blink, head shake), so anything drawn in there ends up behind
+him or not at all. `drawPlayer` records an anchor, `drawEatOverlay()` paints it
+afterwards. Verified: call order is `sprite` then `eat`, and the overlay still
+draws through all three early-return paths.
+
+A bagel has to be *stroked* rather than filled — a filled circle with a hole
+punched in it would need to know what is behind it.
 
 Objections and rebuttals appear on the game-over screen, with coaching lines
 between milestones so the slow hazards that rarely kill you still get read.
@@ -343,6 +369,10 @@ top of this file applies.
 Four common ThousandEyes capabilities — Endpoint Agent (absorbs one hit),
 Internet Insights (slows traffic), Path Visualization (lights up safe
 crossings), Executive Sponsor (carries you three rows) — plus one rare tier:
+
+The trace is **green end to end** — line, hop ticks, nodes, destination and the
+packet halo, all from the `TRACE` block, which is a single swap point the way
+`BRAND` is.
 
 **Path Visualization** traces a route of six to eight crossings, drawn as nodes
 joined by links with a packet running it. Roughly 45% of routes carry one or two

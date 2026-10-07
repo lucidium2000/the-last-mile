@@ -530,12 +530,17 @@ var AUDIO = (function(){
         tone({ f:n[i], dur:0.26, type:"sine", g:0.07, at:0.22 + i * 0.075 });
       hit({ f:6000, hp:true, dur:0.3, g:0.04, at:0.3 });
     },
-    /* A bright little lift - he has seen the cart. */
-    yum: function(){
-      tone({ f:587.33, dur:0.10, type:"sine", g:0.11 });
-      tone({ f:783.99, dur:0.13, type:"sine", g:0.11, at:0.09 });
-      tone({ f:1046.5, dur:0.20, type:"sine", g:0.09, at:0.20 });
-      tone({ f:1318.5, dur:0.16, type:"sine", g:0.05, at:0.26 });
+    /* A note of paper, then the till. */
+    pay: function(){
+      hit({ f:3400, hp:true, dur:0.13, g:0.05 });
+      hit({ f:2600, hp:true, dur:0.09, g:0.04, at:0.14 });
+      tone({ f:1046.5, dur:0.16, type:"sine", g:0.09, at:0.52 });
+      tone({ f:1396.9, dur:0.22, type:"sine", g:0.08, at:0.60 });
+    },
+    /* One bite. */
+    chomp: function(){
+      hit({ f:520, to:150, dur:0.10, g:0.14 });
+      tone({ f:120, to:70, dur:0.11, type:"triangle", g:0.09, lp:420 });
     },
     /* Two flat notes down, the sound of a turnstile not opening. */
     nope: function(){
@@ -1550,18 +1555,23 @@ function shedModel(){                        // sidewalk shed / scaffolding
     { x:0.14, y:0.16, w:0.72, z:0.40, h:0.035, bg:"#ffd166", glow:true }
   ], W:1 };
 }
-function halalModel(){                       // halal cart, umbrella up
+/* The bagel cart. Steel body, cream and blue awning, and the coffee urn that
+   is always on the corner of one. */
+function bagelModel(){
   return { parts:[
-    P(0.22, 0.34, 0.56, 0.32, 0.12, 0.26, "#c9ced4"),
+    P(0.22, 0.34, 0.56, 0.32, 0.12, 0.26, "#c3c8ce"),
     P(0.22, 0.34, 0.56, 0.32, 0.38, 0.05, "#8d969e"),
     P(0.48, 0.48, 0.05, 0.05, 0.43, 0.30, "#5a6268"),
-    P(0.14, 0.26, 0.72, 0.50, 0.73, 0.07, "#d93f4a"),
+    P(0.14, 0.26, 0.72, 0.50, 0.73, 0.07, "#efe3c8"),
+    P(0.14, 0.26, 0.72, 0.50, 0.80, 0.04, "#2b5fa8"),
+    P(0.66, 0.38, 0.16, 0.16, 0.43, 0.22, "#b9bec6"),   // the coffee urn
+    P(0.66, 0.38, 0.16, 0.16, 0.56, 0.03, "#5a6268"),
     P(0.26, 0.33, 0.10, 0.10, 0,    0.13, "#2b3038"),
     P(0.66, 0.33, 0.10, 0.10, 0,    0.13, "#2b3038")
   ], decals:[
-    { x:0.26, y:0.34, w:0.48, z:0.18, h:0.13, bg:"#f6d84a", fg:"#3a2d08",
-      text:"HALAL", size:14 },
-    { x:0.30, y:0.34, w:0.40, z:0.395, h:0.03, bg:"#ffd166", glow:true }
+    { x:0.25, y:0.34, w:0.50, z:0.18, h:0.13, bg:"#efe3c8", fg:"#2b2318",
+      text:"BAGELS", size:13 },
+    { x:0.29, y:0.34, w:0.42, z:0.395, h:0.03, bg:"#ffd166", glow:true }
   ], W:1 };
 }
 /* The slice place. Red-and-green awning, slice out on the counter. */
@@ -1650,7 +1660,7 @@ function citiDockModel(){
   }
   return { parts:parts, decals:[], W:1 };
 }
-/* A ThousandEyes Path terminal on the pavement. Walk into one and it runs a
+/* A TE-ADDON Pack terminal on the pavement. Walk into one and it runs a
    trace for you - the same power-up the pickup grants. The screen carries the
    wordmark in the real two-tone, which needed the slab widened: the old
    display was 20px across and could not hold a word. */
@@ -1698,10 +1708,10 @@ function kioskModel(){
 /* "subway" twice, so entrances turn up about twice as often - there is no
    point carrying a card if there is nowhere to swipe in. */
 var FACADE_KINDS = ["facadeA","facadeB","facadeC"];
-var PROP_KINDS = ["shed","halal","pizza","pizza","hotdog","hotdog","newsstand","subway","subway","trash",
+var PROP_KINDS = ["shed","bagel","pizza","pizza","hotdog","hotdog","newsstand","subway","subway","trash",
                   "planter","citidock","kiosk"];
 var PROP_MODELS = {
-  shed:shedModel, halal:halalModel, pizza:pizzaModel, hotdog:hotdogModel, newsstand:newsstandModel, subway:subwayModel,
+  shed:shedModel, bagel:bagelModel, pizza:pizzaModel, hotdog:hotdogModel, newsstand:newsstandModel, subway:subwayModel,
   trash:trashModel, planter:planterModel, citidock:citiDockModel, kiosk:kioskModel
 };
 
@@ -1967,7 +1977,7 @@ function foodAt(row, col){
   for (var i = 0; i < row.props.length; i++){
     var pr = row.props[i];
     if (pr.col !== col) continue;
-    if (pr.kind === "halal" || pr.kind === "pizza" || pr.kind === "hotdog")
+    if (pr.kind === "bagel" || pr.kind === "pizza" || pr.kind === "hotdog")
       return pr.kind;
   }
   return null;
@@ -2097,7 +2107,7 @@ function reset(){
     stage:-1, coach:-1, toast:null, flash:null,
     shield:false, slowT:0, revealT:0, invulnT:0, powersUsed:0,
     flyT:0, flyA:0, flyBeep:0, tam:false, tamT:0, tamWins:0, tamWin:null, hurtT:0, nahT:0,
-    yumT:0, yumKind:null, yumDir:0, wowT:0,
+    yumT:0, yumKind:null, yumDir:0, yumBite:0, wowT:0,
     metro:0, ride:null, trace:null, rides:0, bonus:0, tamLeft:0, riskT:0,
     scene:null, scenesSeen:{}, ticker:null, leg:1, po:false, won:false,
     trainT:TRAIN_MAX, trainLine:tr[0], trainDest:tr[1],
@@ -2174,7 +2184,7 @@ function act(dir){
   if (nc < 0 || nc > COLS-1){ AUDIO.bump(); return; }
   if (nr < 0 || nr < G.maxRow - 6){ AUDIO.bump(); return; }
   var target = rows[nr];
-  /* A ThousandEyes Path terminal runs a trace for you. You do not step into
+  /* A TE-ADDON Pack terminal runs a trace for you. You do not step into
      it - you use it from where you stand - so the kiosk stays solid and is
      spent afterwards. */
   if (target && target.props){
@@ -2185,7 +2195,7 @@ function act(dir){
         G.revealT = Math.max(G.revealT, POWERS.path.secs);
         G.trace = buildTrace();
         AUDIO.power("path");
-        flash("THOUSANDEYES PATH", POWERS.path.line, POWERS.path.col);
+        flash("TE-ADDON Pack", POWERS.path.line, POWERS.path.col);
         burst(nc*TILE + TILE/2, rowScreenY(nr) - 40, POWERS.path.col);
         return;
       }
@@ -2209,16 +2219,16 @@ function act(dir){
   }
   // flying carries you over scaffolding, parked trucks, everything solid
   if (G.flyT <= 0 && target && target.blocked && target.blocked[nc]){
-    /* Walk into a halal cart, a slice counter or a hot dog stand and he stops
-       and wants it for a moment. It costs nothing - the step was already
-       refused - and it is the only time anything on the pavement reacts. */
+    /* Walk into a bagel cart, a slice counter or a hot dog stand and he stops,
+       pays and eats. It costs nothing - the step was already refused - and it
+       is the only time anything on the pavement answers back. */
     var food = foodAt(target, nc);
     if (propAt(target, nc) === "newsstand"){
       G.wowT = 1.3; AUDIO.wow();
     } else if (food){
-      G.yumT = 1.2; G.yumKind = food;
+      G.yumT = EAT_SECS; G.yumKind = food; G.yumBite = 0;
       G.yumDir = nc > G.col ? 1 : (nc < G.col ? -1 : 0);
-      AUDIO.yum();
+      AUDIO.pay();
     } else AUDIO.bump();
     return;
   }
@@ -3412,7 +3422,15 @@ function update(dt){
   if (G.riskT > 0) G.riskT = Math.max(0, G.riskT - dt);
   if (G.hurtT > 0) G.hurtT = Math.max(0, G.hurtT - dt);
   if (G.nahT > 0)  G.nahT  = Math.max(0, G.nahT - dt);
-  if (G.yumT > 0)  G.yumT  = Math.max(0, G.yumT - dt);
+  if (G.yumT > 0){
+    G.yumT = Math.max(0, G.yumT - dt);
+    /* Bite sounds fire from the clock, not from the renderer: the drawing code
+       runs every frame and would chomp sixty times a second. */
+    var ea = EAT_SECS - G.yumT;
+    var want = (ea <= EAT_BITE0) ? 0 :
+               Math.min(EAT_BITES, Math.floor((ea - EAT_BITE0) / EAT_BITE_EV) + 1);
+    while (G.yumBite < want){ G.yumBite++; AUDIO.chomp(); }
+  }
   if (G.wowT > 0)  G.wowT  = Math.max(0, G.wowT - dt);
   if (G.revealT > 0){
     G.revealT = Math.max(0, G.revealT - dt);
@@ -3931,6 +3949,9 @@ function traceScreenPts(path){
   }
   return pts;
 }
+/* The trace is green end to end - line, hop ticks, nodes, destination and the
+   packet halo. One block so it is a single swap point, the way BRAND is. */
+var TRACE = { line:"#35d07f", pale:"#bff3d4", dest:"#19b35f", node:"#0d1a12" };
 function drawTrace(){
   if (G.revealT <= 0 || !G.trace || !G.trace.paths.length) return;
   var fade = Math.min(1, G.revealT / 1.2);
@@ -3945,14 +3966,14 @@ function drawTrace(){
     var w = main ? 1 : 0.62, i;
 
     ctx.globalAlpha = fade * (main ? 0.20 : 0.12);
-    ctx.strokeStyle = C.pw3; ctx.lineWidth = 16*w;
+    ctx.strokeStyle = TRACE.line; ctx.lineWidth = 16*w;
     ctx.beginPath(); ctx.moveTo(pts[0][0], pts[0][1]);
     for (i = 1; i < pts.length; i++) ctx.lineTo(pts[i][0], pts[i][1]);
     ctx.stroke();
     ctx.globalAlpha = fade * (main ? 0.85 : 0.45); ctx.lineWidth = 3*w;
     ctx.stroke();
 
-    ctx.globalAlpha = fade * (main ? 0.5 : 0.28); ctx.fillStyle = C.brandPale;
+    ctx.globalAlpha = fade * (main ? 0.5 : 0.28); ctx.fillStyle = TRACE.pale;
     for (i = 1; i < pts.length; i++){
       for (var k = 1; k <= 2; k++){
         var f = k/3;
@@ -3966,8 +3987,8 @@ function drawTrace(){
       var rad = (last ? 15 : 10) * w;
       ctx.globalAlpha = fade * (main ? 0.9 : 0.55);
       ctx.beginPath(); ctx.arc(pts[i][0], pts[i][1], rad, 0, Math.PI*2);
-      ctx.fillStyle = last ? C.brand : "#0d1a12"; ctx.fill();
-      ctx.lineWidth = 3*w; ctx.strokeStyle = last ? C.brandPale : C.pw3; ctx.stroke();
+      ctx.fillStyle = last ? TRACE.dest : TRACE.node; ctx.fill();
+      ctx.lineWidth = 3*w; ctx.strokeStyle = last ? TRACE.pale : TRACE.line; ctx.stroke();
       if (last){
         ctx.globalAlpha = fade * (0.35 + 0.35*pulse);
         ctx.beginPath(); ctx.arc(pts[i][0], pts[i][1], rad + 8 + 5*pulse, 0, Math.PI*2);
@@ -3984,7 +4005,7 @@ function drawTrace(){
     var seg = Math.min(span - 1, Math.floor(pos)), f2 = pos - seg;
     var px = mp[seg][0] + (mp[seg+1][0]-mp[seg][0])*f2;
     var py = mp[seg][1] + (mp[seg+1][1]-mp[seg][1])*f2;
-    ctx.globalAlpha = fade * 0.30; ctx.fillStyle = C.brandPale;
+    ctx.globalAlpha = fade * 0.30; ctx.fillStyle = TRACE.pale;
     ctx.beginPath(); ctx.arc(px, py, 13, 0, Math.PI*2); ctx.fill();
     ctx.globalAlpha = fade; ctx.fillStyle = "#ffffff";
     ctx.beginPath(); ctx.arc(px, py, 5, 0, Math.PI*2); ctx.fill();
@@ -4099,11 +4120,13 @@ function drawWorld(){
       if (!beyond || beyond.type === "safe") drawStreetSign(row, sy);
     }
 
-    if (meRow === r && G.state !== ST_DEAD && G.flyA < 0.15) drawPlayer(pp);
+    if (meRow === r && G.state !== ST_DEAD && G.flyA < 0.15){
+      drawPlayer(pp); drawEatOverlay();
+    }
   }
 
   // while airborne the player is above everything, not tucked into its row
-  if (G.state !== ST_DEAD && G.flyA >= 0.15) drawPlayer(pp);
+  if (G.state !== ST_DEAD && G.flyA >= 0.15){ drawPlayer(pp); drawEatOverlay(); }
 
   if (G.state === ST_DEAD){
     for (i=0;i<G.parts.length;i++){
@@ -4132,11 +4155,11 @@ function drawKioskLabel(col, sy){
   if (y < HORIZON + 10 || y > LOGICAL_H - 30) return;
   var pulse = 0.72 + 0.28*Math.sin(G.t*3 + col);
   ctx.font = 'bold 15px "Helvetica Neue",Helvetica,Arial,sans-serif';
-  var w = ctx.measureText("THOUSANDEYES PATH").width + 28;
+  var w = ctx.measureText("TE-ADDON Pack").width + 28;
   ctx.globalAlpha = pulse;
   plate(cx - w/2, y - 15, w, 28, "rgba(8,5,3,0.86)", 7);
   ctx.fillStyle = C.pw3; ctx.fillRect(cx - w/2, y - 15, 4, 28);
-  txt("THOUSANDEYES PATH", cx + 2, y, 15, C.pw3);
+  txt("TE-ADDON Pack", cx + 2, y, 15, C.pw3);
   ctx.globalAlpha = 1;
 }
 
@@ -4212,6 +4235,11 @@ function drawTamPickup(col, sy){
   txt("TAM", cx, eyeY - 46, 22, C.pw5);
 }
 
+var EAT_AT = null;
+function drawEatOverlay(){
+  if (G.yumT > 0 && EAT_AT) drawEat(EAT_AT.x, EAT_AT.y);
+  EAT_AT = null;
+}
 function drawPlayer(pp){
   /* The cape follows FLIGHT, not the TAM. He suits back up the moment the
      initial five seconds lapse, and only transforms again when a TAM win hands
@@ -4261,9 +4289,14 @@ function drawPlayer(pp){
   var hk = 1 + 0.09 * G.flyA;
   var topY = sy - pp.lift - G.flyA * 78 - s.oy * ((1 + pp.sq * 0.14) * hk);
   if (G.yumT > 0){
-    // he leans at the cart, and the bubble goes over his head
-    sx += Math.sin(Math.min(1, G.yumT / 0.9) * Math.PI) * 7 * (G.yumDir || 1);
-    drawYum(sx + TILE * 0.5, topY);
+    /* He leans out to hand the money over, then settles back to eat. The food
+       itself is NOT drawn here: drawPlayer blits the sprite after this point
+       and returns early in three places (hurt flicker, flight blink, head
+       shake), so anything drawn here ends up behind him or not at all. The
+       anchor is recorded and the caller paints it once the sprite is down. */
+    var reach = Math.max(0, 1 - (EAT_SECS - G.yumT) / EAT_TAKEN);
+    sx += Math.sin(reach * Math.PI) * 9 * (G.yumDir || 1);
+    EAT_AT = { x: sx + TILE * 0.5, y: topY };
   }
   if (G.wowT > 0) drawWow(sx + TILE * 0.5, topY, G.wowT);
   if (G.nahT > 0){
@@ -4584,52 +4617,113 @@ function drawWow(cx, topY, t){
   ctx.globalAlpha = 1;
 }
 
-function drawYum(cx, topY){
-  var t = G.yumT;
-  var b = bubble(cx, topY, 148, 76, t, 1.2), a = b.a, bx = b.x, by = b.y, bh = b.h;
+/* ---------------------------------------------------------------- EATING --
+   Walk into a cart and the whole transaction plays out: a five-dollar bill
+   goes across to the vendor, the food comes back, and he eats it in three
+   bites. The beats are driven off one clock so the sound and the picture
+   cannot drift apart. */
+var EAT_SECS = 1.95;
+var EAT_PAY = 0.55, EAT_TAKEN = 0.80, EAT_BACK = 1.15;
+var EAT_BITE0 = 1.15, EAT_BITES = 3, EAT_BITE_EV = 0.20;
 
-  // the smile
-  var fx = bx + 38, fy = by + bh / 2;
-  ctx.fillStyle = "#1d1a16";
-  ctx.beginPath(); ctx.arc(fx - 9, fy - 9, 3.6, 0, Math.PI * 2); ctx.fill();
-  ctx.beginPath(); ctx.arc(fx + 9, fy - 9, 3.6, 0, Math.PI * 2); ctx.fill();
-  ctx.strokeStyle = "#1d1a16"; ctx.lineWidth = 3.6; ctx.lineCap = "round";
-  ctx.beginPath(); ctx.arc(fx, fy - 1, 13, 0.25 * Math.PI, 0.75 * Math.PI);
-  ctx.stroke();
-
-  // and what he is looking at
-  var gx = bx + 96, gy = by + bh / 2;
-  if (G.yumKind === "hotdog"){
+/* The food itself, centred on (fx, fy) and drawn at scale k. */
+function foodGlyph(kind, fx, fy, k){
+  ctx.save(); ctx.translate(fx, fy); ctx.scale(k, k);
+  if (kind === "hotdog"){
     ctx.fillStyle = "#e0b572";
-    ctx.beginPath(); ctx.ellipse(gx, gy, 27, 11, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(0, 0, 27, 11, 0, 0, Math.PI * 2); ctx.fill();
     ctx.fillStyle = "#a8432c";
-    ctx.beginPath(); ctx.ellipse(gx, gy - 2, 24, 7, 0, 0, Math.PI * 2); ctx.fill();
-    ctx.strokeStyle = "#f0c93c"; ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.ellipse(0, -2, 24, 7, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = "#f0c93c"; ctx.lineWidth = 3; ctx.lineCap = "round";
     ctx.beginPath();
     for (var z = 0; z < 5; z++){
-      var zx = gx - 20 + z * 10;
-      if (z === 0) ctx.moveTo(zx, gy - 5); else ctx.lineTo(zx, gy - 5 + (z % 2 ? 6 : 0));
+      var zx = -20 + z * 10;
+      if (z === 0) ctx.moveTo(zx, -5); else ctx.lineTo(zx, -5 + (z % 2 ? 6 : 0));
     }
     ctx.stroke();
-  } else if (G.yumKind === "pizza"){
-    /* Crust at the base and a pale cheese, or the slice reads as a cone. */
+  } else if (kind === "pizza"){
     ctx.fillStyle = "#f2c84b";
-    ctx.beginPath(); ctx.moveTo(gx, gy - 18); ctx.lineTo(gx + 21, gy + 12);
-    ctx.lineTo(gx - 21, gy + 12); ctx.closePath(); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(0, -18); ctx.lineTo(21, 12);
+    ctx.lineTo(-21, 12); ctx.closePath(); ctx.fill();
     ctx.fillStyle = "#b02030";
-    ctx.beginPath(); ctx.arc(gx - 7, gy + 1, 4.2, 0, Math.PI * 2); ctx.fill();
-    ctx.beginPath(); ctx.arc(gx + 8, gy + 5, 4.2, 0, Math.PI * 2); ctx.fill();
-    ctx.beginPath(); ctx.arc(gx + 1, gy - 8, 3.6, 0, Math.PI * 2); ctx.fill();
-    ctx.fillStyle = "#b5752e"; plate(gx - 22, gy + 10, 44, 9, "#b5752e", 4);
+    ctx.beginPath(); ctx.arc(-7, 1, 4.2, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(8, 5, 4.2, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(1, -8, 3.6, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = "#b5752e"; plate(-22, 10, 44, 9, "#b5752e", 4);
   } else {
-    // halal: rice, meat and the white sauce, in a foil tray
-    ctx.fillStyle = "#c9ced4"; plate(gx - 24, gy - 2, 48, 18, "#c9ced4", 5);
-    ctx.fillStyle = "#e8d9a8"; ctx.fillRect(gx - 21, gy - 9, 42, 9);
-    ctx.fillStyle = "#a8742c"; ctx.fillRect(gx - 16, gy - 14, 14, 7);
-    ctx.fillStyle = "#8d5a24"; ctx.fillRect(gx + 2, gy - 13, 13, 6);
-    ctx.strokeStyle = "#f6f3ea"; ctx.lineWidth = 2.6;
-    ctx.beginPath(); ctx.moveTo(gx - 18, gy - 4); ctx.lineTo(gx + 18, gy - 7);
-    ctx.stroke();
+    /* A bagel is a ring, and a ring has to be stroked - a filled circle with a
+       hole would need to know what is behind it. */
+    ctx.strokeStyle = "#d9a85e"; ctx.lineWidth = 13;
+    ctx.beginPath(); ctx.arc(0, 0, 15, 0, Math.PI * 2); ctx.stroke();
+    ctx.strokeStyle = "#c08f45"; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(0, 0, 21.5, 0, Math.PI * 2); ctx.stroke();
+    ctx.fillStyle = "#6b5330";
+    for (var q = 0; q < 7; q++){
+      var an = q * 0.9;
+      ctx.beginPath();
+      ctx.arc(Math.cos(an) * 15, Math.sin(an) * 15, 1.7, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+  ctx.restore();
+}
+
+function drawEat(cx, topY){
+  var age = EAT_SECS - G.yumT, dir = G.yumDir || 1;
+  var cart = cx + dir * TILE * 0.9, fy = topY - 10;
+  ctx.globalAlpha = Math.min(1, G.yumT / 0.25);
+
+  if (age < EAT_TAKEN){
+    // the five goes across
+    var k = Math.min(1, age / EAT_PAY);
+    var bx = cx + (cart - cx) * k, by = fy + 16 - Math.sin(k * Math.PI) * 18;
+    ctx.save(); ctx.translate(bx, by); ctx.rotate(Math.sin(age * 16) * 0.18);
+    plate(-21, -13, 42, 26, "#3f8f5a", 3);
+    plate(-17, -9, 34, 18, "#57a76f", 2);
+    txt("$5", 0, 5, 17, "#eaf6ee");
+    ctx.restore();
+  } else if (age < EAT_BACK){
+    // vendor has it: the amount floats off
+    var r = (age - EAT_TAKEN) / (EAT_BACK - EAT_TAKEN);
+    ctx.globalAlpha = (1 - r) * Math.min(1, G.yumT / 0.25);
+    txt("-$5", cart, fy - r * 34, 24, "#7fd49a");
+    ctx.globalAlpha = Math.min(1, G.yumT / 0.25);
+    // and the food starts back
+    var fk = Math.max(0, (age - EAT_TAKEN - 0.12) / (EAT_BACK - EAT_TAKEN - 0.12));
+    if (fk > 0) foodGlyph(G.yumKind, cart + (cx - cart) * fk, fy, 0.6 + fk * 0.4);
+  } else {
+    // three bites, from the side he is facing
+    var eaten = G.yumBite / EAT_BITES, remain = 1 - eaten;
+    var chew = Math.sin(age * 26) * 2.5;
+    if (remain > 0.001){
+      var half = 34;
+      ctx.save(); ctx.beginPath();
+      if (dir > 0) ctx.rect(cx - half, fy - half, half * 2 * remain, half * 2);
+      else         ctx.rect(cx + half - half * 2 * remain, fy - half, half * 2 * remain, half * 2);
+      ctx.clip();
+      foodGlyph(G.yumKind, cx, fy + chew, 1);
+      ctx.restore();
+    }
+    // crumbs off the last bite
+    for (var c = 0; c < 4; c++){
+      var cp = ((age - EAT_BITE0) * 1.6 + c * 0.25) % 1;
+      ctx.globalAlpha = (1 - cp) * 0.7 * Math.min(1, G.yumT / 0.25);
+      ctx.fillStyle = "#c9a36a";
+      ctx.fillRect(cx - 14 + c * 9, fy + 6 + cp * 30, 3, 3);
+    }
+    ctx.globalAlpha = Math.min(1, G.yumT / 0.25);
+    if (remain <= 0.001){
+      // done: a short satisfied beat
+      var sx2 = cx, sy2 = fy - 6;
+      ctx.fillStyle = "#f6efe2";
+      ctx.beginPath(); ctx.arc(sx2, sy2, 17, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = "#1d1a16";
+      ctx.beginPath(); ctx.arc(sx2 - 6, sy2 - 4, 2.6, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.arc(sx2 + 6, sy2 - 4, 2.6, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = "#1d1a16"; ctx.lineWidth = 2.6; ctx.lineCap = "round";
+      ctx.beginPath(); ctx.arc(sx2, sy2, 9, 0.22 * Math.PI, 0.78 * Math.PI);
+      ctx.stroke();
+    }
   }
   ctx.globalAlpha = 1;
 }
