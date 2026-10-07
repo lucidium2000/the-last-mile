@@ -111,7 +111,7 @@ so the lane maths is untouched, but plain paint, no checker, no roof light and a
 lit placard in the windscreen.
 
 Street furniture on the pavements includes bagel carts, pizza counters and hot
-dog stands, newsstands, scaffolding sheds, subway entrances and TE-ADDON Pack
+dog stands, newsstands, scaffolding sheds, subway entrances and TE-ADDON
 terminals (which act as a free Path Visualization). At most one subway
 entrance per pavement — subway is weighted twice in the prop pool and each prop
 draws independently, so a three-prop sidewalk could otherwise come up with

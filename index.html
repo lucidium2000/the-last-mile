@@ -1660,7 +1660,7 @@ function citiDockModel(){
   }
   return { parts:parts, decals:[], W:1 };
 }
-/* A TE-ADDON Pack terminal on the pavement. Walk into one and it runs a
+/* A TE-ADDON terminal on the pavement. Walk into one and it runs a
    trace for you - the same power-up the pickup grants. The screen carries the
    wordmark in the real two-tone, which needed the slab widened: the old
    display was 20px across and could not hold a word. */
@@ -1697,12 +1697,10 @@ function kioskModel(){
     E(0.295, 0.405, 0.43, 0.03, 0.85, 0.045, C.brand)
   ], decals:[
     { x:0.325, y:0.41, w:0.37, z:0.26, h:0.54, bg:"#06212e", core:"#0a3348", glow:true },
-    { x:0.335, y:0.41, w:0.35, z:0.62, h:0.10, bg:"#06212e", fg:"#ffffff",
-      text:"TE-ADDON", size:11 },
-    { x:0.335, y:0.41, w:0.35, z:0.52, h:0.10, bg:"#06212e", fg:C.brand,
-      text:"Pack", size:11 },
-    { x:0.345, y:0.41, w:0.33, z:0.33, h:0.14, bg:C.brand, core:shade(C.brand,0.35),
-      glow:true, fg:"#1a0a02", text:"PATH", size:13 }
+    { x:0.335, y:0.41, w:0.35, z:0.58, h:0.12, bg:"#06212e", fg:"#ffffff",
+      text:"TE-ADD", size:13 },
+    { x:0.345, y:0.41, w:0.33, z:0.33, h:0.16, bg:C.brand, core:shade(C.brand,0.35),
+      glow:true, fg:"#1a0a02", text:"PACK", size:14 }
   ], W:1 };
 }
 /* "subway" twice, so entrances turn up about twice as often - there is no
@@ -2185,7 +2183,7 @@ function act(dir){
   if (nc < 0 || nc > COLS-1){ AUDIO.bump(); return; }
   if (nr < 0 || nr < G.maxRow - 6){ AUDIO.bump(); return; }
   var target = rows[nr];
-  /* A TE-ADDON Pack terminal runs a trace for you. You do not step into
+  /* A TE-ADDON terminal runs a trace for you. You do not step into
      it - you use it from where you stand - so the kiosk stays solid and is
      spent afterwards. */
   if (target && target.props){
@@ -2196,7 +2194,7 @@ function act(dir){
         G.revealT = Math.max(G.revealT, POWERS.path.secs);
         G.trace = buildTrace();
         AUDIO.power("path");
-        flash("TE-ADDON Pack", POWERS.path.line, POWERS.path.col);
+        flash("TE-ADDON", POWERS.path.line, POWERS.path.col);
         burst(nc*TILE + TILE/2, rowScreenY(nr) - 40, POWERS.path.col);
         return;
       }
@@ -4231,11 +4229,11 @@ function drawKioskLabel(col, sy){
   if (y < HORIZON + 10 || y > LOGICAL_H - 30) return;
   var pulse = 0.72 + 0.28*Math.sin(G.t*3 + col);
   ctx.font = 'bold 15px "Helvetica Neue",Helvetica,Arial,sans-serif';
-  var w = ctx.measureText("TE-ADDON Pack").width + 28;
+  var w = ctx.measureText("TE-ADDON").width + 28;
   ctx.globalAlpha = pulse;
   plate(cx - w/2, y - 15, w, 28, "rgba(8,5,3,0.86)", 7);
   ctx.fillStyle = C.pw3; ctx.fillRect(cx - w/2, y - 15, 4, 28);
-  txt("TE-ADDON Pack", cx + 2, y, 15, C.pw3);
+  txt("TE-ADDON", cx + 2, y, 15, C.pw3);
   ctx.globalAlpha = 1;
 }
 
