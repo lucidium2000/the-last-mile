@@ -45,7 +45,6 @@ would eat playable columns.
 | `?mute=1` | Forces silence for a whole deployment, overriding the local toggle. |
 | `?fps=1` | Perf overlay: FPS, backing-store size, device pixel ratio, bake scale. |
 | `?offline=1` | Never contacts the leaderboard server, even if one is configured. |
-| `?site=penn1` | Tags every score from this device with an office, for the readout. Letters, digits and hyphens, 24 max. Nothing is sniffed — this is the only way a score gets a location. |
 
 Parameters combine, e.g. `?safe=1&mute=1`.
 
@@ -101,10 +100,12 @@ open endpoint on a public page, so the board is decorative, not a record.
 [`report.html`](report.html) sits beside the game at
 `…/the-last-mile/report.html` and reads the same public route — no token, no
 setup. Headline totals, per-run averages, what stops people, power-up usage,
-a breakdown by office, and the full sortable board with CSV and JSON download.
+and the full sortable board with CSV and JSON download.
 
 It reads `BOARD_API` out of `index.html` instead of repeating the URL, so there
-is still exactly one place that address is written down.
+is still exactly one place that address is written down. It also asks the server
+for nothing the server does not already send, so there is nothing to deploy and
+nothing to keep in step — open it and it works.
 
 ### What is collected
 
@@ -114,10 +115,6 @@ what ended it, and how long it took. Plus a random id generated on the device,
 so repeat plays can be counted without counting a person twice — and the set of
 those ids never leaves the server, the game and the readout only ever receive
 the count.
-
-One optional extra: an office label, and only because a human typed it into the
-device's URL as `?site=penn1`. It is the single reason a score ever carries a
-location.
 
 Deliberately **not** collected: no name beyond the three typed initials, no user
 agent, no screen size, no language, no timezone, no location. All of those are

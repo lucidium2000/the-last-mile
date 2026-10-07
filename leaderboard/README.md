@@ -110,19 +110,13 @@ ask before they touch anything.
 https://lucidium2000.github.io/the-last-mile/report.html
 ```
 
-Headline totals, per-run averages, what stops people, power-up usage, a
-breakdown by office, and the full sortable board, with CSV and JSON download
-and a print stylesheet. It reads the endpoint out of `index.html` rather than
-repeating it, so there is still only one place the URL is written.
+Headline totals, per-run averages, what stops people, power-up usage and the
+full sortable board, with CSV and JSON download and a print stylesheet. It reads
+the endpoint out of `index.html` rather than repeating it, so there is still
+only one place the URL is written.
 
-### Labelling a panel
-
-Open the game on a device as `…/the-last-mile/?site=penn1` and every score from
-it is tagged `penn1`. Set it once per device — it is in the URL, so a bookmark
-or a RoomOS web-app entry carries it. Anything unlabelled is counted as
-`unlabelled` and nothing breaks.
-
-Nothing is sniffed to work this out. See below.
+It asks the server for nothing the server does not already send, so there is
+nothing to deploy for it and nothing that can fall out of step.
 
 ## What it stores
 
@@ -133,9 +127,8 @@ address is read or written anywhere in `valtown.ts`.
 
 Deliberately *not* collected: user agent, screen size, language, timezone,
 location. Those need no permission, which is exactly what makes them a
-fingerprint. So there are no device statistics in the readout, because there is
-nothing to report — and the office breakdown comes from the URL a human typed,
-not from an IP lookup or a geolocation prompt.
+fingerprint. So there are no device or location statistics in the readout,
+because there is nothing to report.
 
 ## Why there are no admin routes
 

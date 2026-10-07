@@ -123,16 +123,13 @@ footer{margin-top:44px;color:var(--faint);font-size:12px;text-align:center}
   </div>
 </div>
 
-<h2>By office</h2>
-<div class="panel"><div class="bars" id="sites"></div></div>
-
 <h2>The board — top <span id="nrows">100</span></h2>
 <div class="scroll">
   <table id="board">
     <thead><tr>
       <th class="l">#</th><th class="l">Initials</th><th>Score</th><th>Blocks</th>
       <th>Rows</th><th>Steps</th><th>Rides</th><th>TAM wins</th><th>Time</th>
-      <th class="l">Outcome</th><th class="l">Office</th><th class="l">When</th>
+      <th class="l">Outcome</th><th class="l">When</th>
     </tr></thead>
     <tbody></tbody>
   </table>
@@ -147,16 +144,14 @@ footer{margin-top:44px;color:var(--faint);font-size:12px;text-align:center}
   leaves the server — this page only ever receives the count.</p>
 
   <div class="flag">
-    <p><strong>There are no device or browser statistics here, on purpose.</strong>
-    User agent, screen size, language and timezone are all readable without asking
-    anyone's permission — which is exactly what makes them a fingerprint. The game
-    does not read them, so there is nothing to report. Same for location: no IP
-    lookup, no geolocation prompt.</p>
-    <p>The <em>By office</em> figures above are not sniffed. A panel reports where it
-    is only if its URL says so — open the game as
-    <code>…/the-last-mile/?site=penn1</code> on the Penn 1 panel and every score from
-    it carries that label. Set it once per device. Anything unlabelled is counted as
-    <code>unlabelled</code>, and nothing breaks.</p>
+    <p><strong>There are no device, browser or location statistics here, on purpose.</strong>
+    User agent, screen size, language, timezone and IP address are all readable without
+    asking anyone's permission — which is exactly what makes them a fingerprint. The
+    game reads none of them, so there is nothing to report. No IP lookup, no
+    geolocation prompt, nothing inferred from either.</p>
+    <p>That is a decision rather than a limitation. If this ever does need breaking
+    down by office, the way to do it without a fingerprint is to let each panel say
+    where it is in its own URL — typed once per device, never sniffed.</p>
   </div>
 
   <p id="scope"></p>
@@ -185,6 +180,11 @@ var POWER_COL = {
 };
 
 var DATA = null, SORT = { key:"score", dir:-1 };
+/* Press Refresh while a slow request is still in flight and two loads overlap.
+   Whichever finishes last used to win, so a request that had already failed
+   could stamp its error banner over data that had since arrived. Each load
+   takes a ticket and a stale one keeps its mouth shut. */
+var LOAD = 0;
 
 function $(id){ return document.getElementById(id); }
 function el(tag, cls, txt){
@@ -222,21 +222,25 @@ async function apiBase(){
 }
 
 async function load(){
+  var mine = ++LOAD;
   $("error").style.display = "none";
   $("sub").textContent = "loading…";
-  var base;
+  var base, data;
   try {
     base = await apiBase();
     var res = await fetch(base + "/top?n=100", { cache:"no-store" });
     if (!res.ok) throw new Error("the board returned " + res.status);
-    DATA = await res.json();
+    data = await res.json();
   } catch (e) {
+    if (mine !== LOAD) return;                      // a newer load is in charge
     $("error").style.display = "";
     $("error").textContent = "Could not reach the board: " + e.message +
       ". The game itself is unaffected — it keeps a local board when the endpoint is down.";
     $("sub").textContent = "";
     return;
   }
+  if (mine !== LOAD) return;
+  DATA = data;
   var s = DATA.stats || {};
   $("sub").innerHTML = "read just now · first run " +
     (s.first ? when(s.first) : "—") + " · latest " + (s.last ? when(s.last) : "—") +
@@ -248,6 +252,12 @@ function render(){
   var s = DATA.stats || {}, rows = DATA.rows || [];
   $("nrows").textContent = rows.length;
 
+  /* The server counts plays but not distance, so this is the best on the board
+     rather than the best ever, and the card says so. It has to be worked out
+     BEFORE the totals are rendered - `var` hoists the declaration but not the
+     value, and reading it early printed a confident nought. */
+  var bestStreets = rows.reduce(function(m, r){ return Math.max(m, r.streets || 0); }, 0);
+
   /* Totals come from the server's counters, which see every finished run. The
      rows are only the top hundred, so anything derived from them is labelled
      as such rather than quietly passed off as the whole picture. */
@@ -257,7 +267,7 @@ function render(){
     ["Made it back",     num(s.wins),         pct(s.wins, s.plays) + " of runs", "win"],
     ["Didn't",           num(s.deaths),       pct(s.deaths, s.plays) + " of runs"],
     ["Best score",       money(s.bestScore),  "pipeline", "hi"],
-    ["Furthest",         num(s.bestStreets) + " blocks", "in one run", "hi"],
+    ["Furthest",         num(bestStreets) + " blocks", "best on the board", "hi"],
     ["Blocks walked",    num(s.rows),         "rows crossed, all runs"],
     ["Steps taken",      num(s.steps),        "all runs"],
     ["Subway rides",     num(s.rides),        "all runs"],
@@ -283,38 +293,26 @@ function render(){
   ]);
 
   // what stops people - true totals when the server has them, else the board
-  var causes = s.causes, scope = "every finished run";
-  if (!causes || !Object.keys(causes).length){
-    causes = {};
-    rows.forEach(function(r){
-      var k = r.won ? "MADE IT BACK" : (r.cause || "UNKNOWN");
-      causes[k] = (causes[k] || 0) + 1;
-    });
-    scope = "the top " + rows.length + " rows only";
-  }
+  /* The server counts plays, not what ended them, so this comes off the board:
+     the top hundred runs, not all of them. */
+  var causes = {};
+  rows.forEach(function(r){
+    var k = r.won ? "MADE IT BACK" : (r.cause || "UNKNOWN");
+    causes[k] = (causes[k] || 0) + 1;
+  });
   bars("causes", Object.keys(causes).map(function(k){
     return { lab:k, v:causes[k],
              col:k === "MADE IT BACK" ? "#8fe388" : (k === "MISSED TRAIN" ? "#ffc23d" : "#ff4f7e") };
   }), true);
   $("scope").innerHTML = "<strong>Scope:</strong> the headline totals and the " +
-    "power-up and office figures count <em>every finished run</em>. " +
-    "“What stops people” counts " + scope + ". The table below is the " +
-    "top " + rows.length + " scores, which is everything the server keeps.";
+    "power-ups count <em>every finished run</em> — those are counters the " +
+    "server keeps. “What stops people”, “Furthest” and the " +
+    "average score are read off the board instead, so they describe the top " +
+    rows.length + " runs rather than all of them.";
 
   bars("powers", POWER_ORDER.map(function(k){
     return { lab:POWER_NAME[k], v:(s.powers && s.powers[k]) || 0, col:POWER_COL[k] };
   }), true);
-
-  var sites = s.sites || {};
-  if (!Object.keys(sites).length){
-    $("sites").innerHTML = '<div class="empty">No panel has been labelled yet. ' +
-      'Open the game as <code>…/the-last-mile/?site=penn1</code> on a device and ' +
-      'its scores will appear here.</div>';
-  } else {
-    bars("sites", Object.keys(sites).map(function(k){
-      return { lab:k, v:sites[k], col:k === "unlabelled" ? "#6b625c" : "#00bceb" };
-    }), true);
-  }
 
   table();
 }
@@ -353,7 +351,7 @@ function bars(id, list, withPct){
   });
 }
 
-var COLS = ["rank","ini","score","streets","rows","steps","rides","tamWins","secs","won","site","at"];
+var COLS = ["rank","ini","score","streets","rows","steps","rides","tamWins","secs","won","at"];
 function table(){
   var rows = (DATA.rows || []).slice();
   var k = SORT.key;
@@ -378,7 +376,6 @@ function table(){
     td(num(r.tamWins));
     td(dur(r.secs));
     td(r.won ? "Made it back" : (r.cause || "—"), "l " + (r.won ? "won" : "died"));
-    td(r.site || "—", "l");
     td(when(r.at), "l");
     tb.appendChild(tr);
   });
@@ -403,13 +400,13 @@ function save(name, text, type){
 $("csv").addEventListener("click", function(){
   if (!DATA) return;
   var head = ["rank","initials","score","blocks","rows","steps","rides","tamWins",
-              "seconds","outcome","cause","office","when"];
+              "seconds","outcome","cause","when"];
   POWER_ORDER.forEach(function(p){ head.push("got_" + p); });
   var lines = [head.join(",")];
   (DATA.rows||[]).forEach(function(r, i){
     var cells = [i+1, r.ini, r.score, r.streets, r.rows, r.steps, r.rides, r.tamWins,
                  r.secs, r.won ? "won" : "died", '"' + (r.cause||"") + '"',
-                 r.site || "", new Date(r.at).toISOString()];
+                 new Date(r.at).toISOString()];
     POWER_ORDER.forEach(function(p){ cells.push((r.powers && r.powers[p]) || 0); });
     lines.push(cells.join(","));
   });
