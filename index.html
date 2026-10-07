@@ -3488,7 +3488,8 @@ function startRide(enterRow, enterCol){
   G.ride = { t:0, phase:"down", fromRow:enterRow, fromCol:enterCol,
              toRow:dest, toCol:exitCol, camFrom:G.camRow,
              streets:Math.abs(streetAt(dest) - fromSt),
-             rock:0, slot:2, face:1, shady:shady, cash:cash, cashGot:false, met:false,
+             rock:0, slot:2, slotX:2, slotFrom:2, stepT:1,
+             face:1, shady:shady, cash:cash, cashGot:false, met:false,
              shadyX:shady, knife:0, knifeSide:0, ko:0, koT:0, swing:0, robbed:0 };
   G.col = enterCol; G.fromCol = enterCol;
   G.row = enterRow; G.fromRow = enterRow; G.hop = 1;
@@ -3509,6 +3510,7 @@ var RIDE_SLOTS = 5;
    his own pace rather than in slot-sized hops - he is not playing the same
    game you are, and a mugger who moves on your grid looks like another
    commuter. Everything else here is the window you get once he is close. */
+var RIDE_STEP = 0.20;      // how long he takes to cross from one slot to the next
 var SHADY_SPEED = 0.52;    // slots a second
 var KNIFE_NEAR  = 0.95;    // how close before the blade comes out
 var KNIFE_GRACE = 1.70;    // how long you have to do something about it
@@ -3519,7 +3521,12 @@ var TRAIN_ROB   = 30;      // what standing still costs you
    card, same voice line - it is the identical event, just somewhere else. */
 function chuckPayout(where){
   G.bonus += CHUCK_BONUS; G.bonusChuck += CHUCK_BONUS;
-  G.ticker = { t:0, pct: 0.1 + Math.random() * 9.9 };
+  /* Not on the train. The ticker card takes the whole screen and freezes the
+     world behind it, and the ride is already a scene - stacking a second one
+     on top threw the player out of the carriage mid-stride, which is exactly
+     when the man at the other end is walking towards him. The money, the
+     sound and the flash all still land. */
+  if (!G.ride) G.ticker = { t:0, pct: 0.1 + Math.random() * 9.9 };
   AUDIO.dig();
   flash("CHUCK BUCKS", where, POWERS.chuck.col);
 }
@@ -3539,7 +3546,7 @@ function rideAct(dir){
      cornered against the end of the car with nowhere to retreat and that is
      exactly when you need this to work. */
   if (R.shady >= 0 && !R.ko && R.knife > 0 && d === (R.knifeSide || 1) &&
-      Math.abs(R.shadyX - R.slot) <= SWING_REACH){
+      Math.abs(R.shadyX - rideManX(R)) <= SWING_REACH){
     R.ko = 1; R.koT = 0; R.swing = 0.42; R.knife = 0;
     R.face = d;
     AUDIO.swing();
@@ -3550,7 +3557,11 @@ function rideAct(dir){
 
   var ns = R.slot + d;
   if (ns < 0 || ns > RIDE_SLOTS - 1){ AUDIO.bump(); return; }
-  R.slot = ns; R.face = d;
+  /* The stride is a tween, not a jump. R.slot is where he is going and is
+     what the logic uses; R.slotX is where he is, and is what gets drawn and
+     what the man with the knife measures against. */
+  R.slotFrom = rideManX(R);
+  R.slot = ns; R.stepT = 0; R.face = d;
   // any step at all buys a moment: the grace clock restarts from here
   if (R.knife > 0) R.knife = 0.0001;
   AUDIO.step();
@@ -3564,6 +3575,11 @@ function rideAct(dir){
     AUDIO.nope();
   }
 }
+
+/* His drawn position, which is not his logical one while he is mid-stride.
+   Everything that asks "how close is he" reads this rather than R.slot, so the
+   man with the knife is measuring the same gap the player can see. */
+function rideManX(R){ return R.slotX == null ? R.slot : R.slotX; }
 
 /* Where a slot sits on screen. One place, so the man and the people standing
    in the slots cannot disagree about it. */
@@ -3579,17 +3595,17 @@ function updateShady(dt){
   if (R.swing > 0) R.swing = Math.max(0, R.swing - dt);
 
   /* Robbed once, he has what he came for and backs off to where he started. */
-  var to = R.robbed ? R.shady : R.slot;
+  var to = R.robbed ? R.shady : rideManX(R);
   var dx = to - R.shadyX, step = SHADY_SPEED * dt;
   if (Math.abs(dx) <= step) R.shadyX = to;
   else R.shadyX += (dx > 0 ? step : -step);
   if (R.robbed) return;
 
-  var gap = Math.abs(R.shadyX - R.slot);
+  var gap = Math.abs(R.shadyX - rideManX(R));
   if (gap < KNIFE_NEAR){
     if (!R.knife){
       R.knife = 0.0001;
-      R.knifeSide = R.shadyX >= R.slot ? 1 : -1;
+      R.knifeSide = R.shadyX >= rideManX(R) ? 1 : -1;
       AUDIO.knife();
       flash("HE HAS A KNIFE", "Move. Either way.", C.danger);
     } else {
@@ -3618,6 +3634,15 @@ function updateRide(dt){
   var R = G.ride;
   R.t += dt;
   R.rock = (R.rock || 0) + dt;
+  /* Ease out, so he leans off and settles rather than sliding at a constant
+     rate - a figure crossing a train floor at a fixed speed looks towed. */
+  if (R.stepT != null && R.stepT < 1){
+    R.stepT = Math.min(1, R.stepT + dt / RIDE_STEP);
+    var e = 1 - Math.pow(1 - R.stepT, 3);
+    R.slotX = R.slotFrom + (R.slot - R.slotFrom) * e;
+  } else if (R.slotX == null){
+    R.slotX = R.slot;
+  }
   updateShady(dt);
   if (R.phase === "down"){
     if (R.t >= RIDE_PHASES.down){ R.phase = "platform"; R.t = 0; AUDIO.trainIn(); }
@@ -3679,6 +3704,19 @@ function drawSwing(px, cy, R){
   ctx.fillStyle = "#5d442d"; ctx.fillRect(-28, -20, 56, 7);
   ctx.fillStyle = "#c9a227"; ctx.fillRect(-7, -4, 14, 9);
   ctx.restore();
+}
+
+/* The player, between slots. A step is a fifth of a second of easing out plus
+   a small lift, so it reads as a stride across a moving floor rather than a
+   sprite being dragged from one window to the next. */
+function drawRider(cx0, cw, cy){
+  var R = G.ride;
+  if (!R) return;
+  var mx = rideSlotX(rideManX(R), cx0, cw);
+  var lift = (R.stepT != null && R.stepT < 1) ? Math.sin(R.stepT * Math.PI) * 7 : 0;
+  var sp = G.shield ? (R.face < 0 ? S.playerS_l : S.playerS_r)
+                    : (R.face < 0 ? S.player_l  : S.player_r);
+  ctx.drawImage(sp.img, mx - sp.w*0.46, cy + 78 - lift, sp.w*0.92, sp.h*0.92);
 }
 
 /* The man at the far end of the car. Drawn at his own floating position
@@ -3774,17 +3812,18 @@ function drawCar(ox, rock, lit){
   txt("1", cx0+cw-62, cy+41, 26, "#1a0a02");
 
   var R2 = G.ride || {}, wn = RIDE_SLOTS, ww = (cw - 90) / wn;
-  if (R2.swing > 0) drawSwing(rideSlotX(R2.slot, cx0, cw), cy, R2);
+  if (R2.swing > 0) drawSwing(rideSlotX(rideManX(R2), cx0, cw), cy, R2);
   for (var i = 0; i < wn; i++){
     var wx = cx0 + 45 + i*ww, mx = wx + (ww-30)/2;
     plate(wx, cy+66, ww-30, 132, "#0b0f14", 10);
     plate(wx+5, cy+71, ww-40, 122, lit ? "#1d3d4e" : "#121c24", 8);
     // grab pole
     ctx.fillStyle = "#8e969e"; ctx.fillRect(mx - 3, cy+66, 6, 132);
-    if (i === R2.slot){
-      var sp = G.shield ? (R2.face < 0 ? S.playerS_l : S.playerS_r)
-                        : (R2.face < 0 ? S.player_l  : S.player_r);
-      ctx.drawImage(sp.img, mx - sp.w*0.46, cy+78, sp.w*0.92, sp.h*0.92);
+    /* Both the slot he is heading for and the one he is leaving stay empty
+       while he is mid-stride, or he walks straight through a stranger on the
+       way. He is drawn after the loop, at his real position. */
+    if (i === R2.slot || (R2.stepT < 1 && i === Math.round(R2.slotFrom))){
+      // his, and nobody else's
     } else if (i === R2.cash && !R2.cashGot){
       // a roll of Chuck Bucks nobody has noticed yet
       var bob = Math.sin(G.t * 3.4) * 5, pul = 0.5 + 0.5*Math.sin(G.t * 5);
@@ -3817,6 +3856,7 @@ function drawCar(ox, rock, lit){
   }
   /* Him last, so he passes in FRONT of the people standing in the slots. He
      is not standing in one - he is walking down the car. */
+  drawRider(cx0, cw, cy);
   drawShady(cx0, cw, cy);
 
   // doors between windows

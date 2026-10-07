@@ -555,6 +555,25 @@ that.
 of times and the stand is still standing there afterwards, so without a reaction
 the refusal looked like the controls ignoring him.
 
+### Moving about the car
+
+A step is a **tween, not a jump**: a fifth of a second of easing out plus a
+small lift, so it reads as a stride across a moving floor rather than a sprite
+being dragged from one window to the next. `R.slot` is where he is going and is
+what the logic uses; `R.slotX` is where he *is*, and is what gets drawn.
+
+Both the slot he is heading for and the one he is leaving stay empty while he
+is mid-stride, or he walks straight through a stranger on the way.
+
+**The man with the knife measures against the drawn position, not the logical
+one**, so the gap he is judging is the gap the player can see.
+
+Collecting Chuck Bucks on the train **does not raise the ticker card**. It takes
+the whole screen and freezes the world behind it, and the ride is already a
+scene — stacking a second one on top threw the player out of the carriage
+mid-stride, which is exactly when the man at the other end is walking towards
+him. The money, the sound and the flash all still land.
+
 ### The man at the end of the car
 
 He shows up on 45% of rides, and he is no longer scenery. He **closes on you**,
