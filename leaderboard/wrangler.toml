@@ -1,0 +1,12 @@
+name = "last-mile"
+main = "src/index.js"
+compatibility_date = "2026-01-01"
+
+# Paste the id that `npx wrangler kv namespace create LASTMILE` prints.
+[[kv_namespaces]]
+binding = "BOARD"
+id = "PASTE_THE_KV_ID_HERE"
+
+# Only this origin may read or post. Remove the block to allow any origin.
+[vars]
+ALLOW_ORIGIN = "https://lucidium2000.github.io"
