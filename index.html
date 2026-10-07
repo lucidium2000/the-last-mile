@@ -2478,6 +2478,7 @@ function reset(){
     stage:-1, coach:-1, toast:null, flash:null,
     shield:false, slowT:0, revealT:0, invulnT:0, powersUsed:0,
     hp:HP_MAX, hpGain:null, meals:0, sadT:0,
+    bonusChuck:0, bonusTam:0, tally:null,
     flyT:0, flyA:0, flyBeep:0, tam:false, tamT:0, tamWins:0, tamWin:null, hurtT:0, nahT:0,
     yumT:0, yumKind:null, yumDir:0, yumBite:0, wowT:0, cheerT:0,
     metro:0, ride:null, trace:null, rides:0, bonus:0, tamLeft:0, riskT:0,
@@ -2754,7 +2755,13 @@ function progress(){
 function act(dir){
   if (G.state === ST_TITLE){ G.state = ST_PLAY; AUDIO.ui(); return; }
   if (G.state === ST_DEAD){
-    if (G.deadFor > 0.45){ G.state = ST_NAME; G.iniAt = 0; AUDIO.ui(); }
+    if (G.deadFor > 0.45){
+      /* First tap runs the tally out, second one moves on. Making the player
+         sit through four seconds of counting every single death would turn the
+         best part of the screen into the worst. */
+      if (G.tally && !tallyOver()){ G.tally.rush = true; AUDIO.ui(); }
+      else { G.state = ST_NAME; G.iniAt = 0; AUDIO.ui(); }
+    }
     return;
   }
   if (G.state === ST_NAME){
@@ -2866,10 +2873,85 @@ function muteBtnActive(){
 /* The run is over: count it once, then go and get three letters for it. A run
    worth nothing still counts as a play - the counter is of games started and
    finished, not of games that went well. */
+/* ------------------------------------------------------------- THE TALLY ---
+   The end screen used to print one number and stop. A run is twenty minutes of
+   decisions and it deserves to be read back: where the money came from, line by
+   line, counting up, with the total landing last.
+
+   Built once here rather than in the draw, so the figures cannot drift between
+   frames and the audio and the rendering are reading the same object. */
+var TALLY_T0 = 1.15, TALLY_GAP = 0.80, TALLY_RUN = 0.66, TALLY_TOTAL = 1.15;
+function buildTally(){
+  var base = G.maxRow * DOLLARS_PER_ROW;
+  var rows = [
+    { label:"GROUND COVERED", note:G.maxRow + (G.maxRow === 1 ? " block" : " blocks"),
+      amt:base, col:C.text },
+    { label:"CHUCK BUCKS", note:(G.got.chuck || 0) + " collected",
+      amt:G.bonusChuck, col:"#7fd49a" },
+    { label:"TAM PAYOUTS", note:G.tamWins + (G.tamWins === 1 ? " win" : " wins"),
+      amt:G.bonusTam, col:C.pw5 }
+  ];
+  var powers = 0;
+  for (var k in G.got) powers += G.got[k];
+  G.tally = {
+    t:0, rush:false, tick:0, done:{},
+    rows:rows, total:pipeline(),
+    stats:[
+      ["STEPS", G.steps],
+      ["SUBWAY", G.rides],
+      ["MEALS", G.meals],
+      ["POWER-UPS", powers],
+      ["FURTHEST", "W " + Math.max(START_ST, G.street) + " ST"]
+    ],
+    was:best()
+  };
+}
+/* How far through a row's count we are, 0..1. `rush` is a tap landing before
+   the tally has finished: it should not be a wall the player has to wait out. */
+function tallyAt(i){
+  var T = G.tally;
+  if (!T) return 0;
+  if (T.rush) return 1;
+  var start = TALLY_T0 + i * TALLY_GAP;
+  return Math.max(0, Math.min(1, (T.t - start) / TALLY_RUN));
+}
+function tallyTotalAt(){
+  var T = G.tally;
+  if (!T) return 0;
+  if (T.rush) return 1;
+  var start = TALLY_T0 + T.rows.length * TALLY_GAP + 0.25;
+  return Math.max(0, Math.min(1, (T.t - start) / TALLY_TOTAL));
+}
+function tallyOver(){
+  var T = G.tally;
+  return !T || T.rush || tallyTotalAt() >= 1;
+}
+/* The counting noise, scheduled from update so the renderer stays silent. One
+   tick every 55ms while anything is still climbing, and a cue as each line
+   lands - a run of ticks with nothing at the end of it is a stuck machine. */
+function tallyAudio(dt){
+  var T = G.tally;
+  if (!T) return;
+  var i, climbing = false;
+  for (i = 0; i < T.rows.length; i++){
+    var k = tallyAt(i);
+    if (T.rows[i].amt > 0 && k > 0 && k < 1) climbing = true;
+    if (k >= 1 && !T.done["r" + i]){ T.done["r" + i] = 1; if (T.rows[i].amt > 0) AUDIO.stage(); }
+  }
+  var tk = tallyTotalAt();
+  if (tk > 0 && tk < 1) climbing = true;
+  if (tk >= 1 && !T.done.total){ T.done.total = 1; AUDIO.tamWin(); }
+  if (climbing){
+    T.tick -= dt;
+    if (T.tick <= 0){ T.tick = 0.055; AUDIO.coach(); }
+  }
+}
+
 function endRun(){
   if (G.logged) return;
   G.logged = true;
   G.rec = runRecord(lastInitials() || "---");
+  buildTally();
   statsBump(G.rec);
   var seed = lastInitials(), i;
   for (i = 0; i < 3; i++){
@@ -2982,7 +3064,7 @@ function collect(){
   burst(G.col*TILE + TILE/2, rowScreenY(G.row) - 40, k.col);
 
   if (kind === "chuck"){
-    G.bonus += CHUCK_BONUS;
+    G.bonus += CHUCK_BONUS; G.bonusChuck += CHUCK_BONUS;
     burst(G.col*TILE + TILE/2, rowScreenY(G.row) - 40, "#7fd49a");
     /* The card freezes the world rather than floating over it - at the size it
        needs to be readable it would otherwise cover the traffic you are
@@ -3358,7 +3440,7 @@ var RIDE_SLOTS = 5;
 /* Chuck Bucks found on the train. Same payout as the pavement pickup, same
    card, same voice line - it is the identical event, just somewhere else. */
 function chuckPayout(where){
-  G.bonus += CHUCK_BONUS;
+  G.bonus += CHUCK_BONUS; G.bonusChuck += CHUCK_BONUS;
   G.ticker = { t:0, pct: 0.1 + Math.random() * 9.9 };
   AUDIO.dig();
   flash("CHUCK BUCKS", where, POWERS.chuck.col);
@@ -4586,7 +4668,7 @@ function update(dt){
          a movement power-up, it is a revenue one: every payout is an outcome
          with a number on it, and the number goes on the board. */
       var win = TAM_WINS[(Math.random()*TAM_WINS.length)|0];
-      G.bonus += win[2];
+      G.bonus += win[2]; G.bonusTam += win[2];
       G.tamWin = { life:4.4, max:4.4, name:win[0], line:win[1], amt:win[2] };
       G.flash = null;                      // the banner replaces it
       AUDIO.tamWin();
@@ -4755,6 +4837,7 @@ function update(dt){
   }
 
   if (G.state === ST_DEAD || G.state === ST_BOARD) G.deadFor += dt;
+  if (G.state === ST_DEAD && G.tally){ G.tally.t += dt; tallyAudio(dt); }
   if (G.shake > 0) G.shake = Math.max(0, G.shake - dt*46);
 
   if (G.toast){
@@ -5230,10 +5313,8 @@ function drawWorld(){
   }
 
   drawRisk();
-  drawTrace();
 
   var pp = playerPos();
-  var meRow = Math.round(pp.row);
   for (r = hi; r >= lo; r--){
     row = rows[r]; if (!row) continue;
     sy = rowScreenY(r);
@@ -5288,13 +5369,19 @@ function drawWorld(){
       if (!beyond || beyond.type === "safe") drawStreetSign(row, sy);
     }
 
-    if (meRow === r && G.state !== ST_DEAD && G.flyA < 0.15){
-      drawPlayer(pp); drawEatOverlay();
-    }
   }
 
-  // while airborne the player is above everything, not tucked into its row
-  if (G.state !== ST_DEAD && G.flyA >= 0.15){ drawPlayer(pp); drawEatOverlay(); }
+  /* The route and the man who is walking it go on top of the traffic, not
+     into it. Both used to be painted in depth order: the trace went down
+     before any vehicle, so the line you are being told is safe was buried
+     under the cars crossing it, and the player was tucked into his own row,
+     so a car in the lane he had just left was drawn over him and he looked
+     like he was wading through it.
+
+     Strict depth is the more correct answer and the worse one. These two are
+     the things the player is actually reading. */
+  drawTrace();
+  if (G.state !== ST_DEAD){ drawPlayer(pp); drawEatOverlay(); }
 
   if (G.state === ST_DEAD){
     for (i=0;i<G.parts.length;i++){
@@ -6381,17 +6468,77 @@ function drawDead(){
   txt(G.missedTrain ? "REMEMBER" : "TRY THIS", LOGICAL_W/2, 428, 20, C.good);
   txt(G.deathFix, LOGICAL_W/2, 462, 30, C.text, "center", 1080);
 
-  plate(LOGICAL_W/2-400, 518, 800, 198, C.ink);
-  txt("PIPELINE BUILT", LOGICAL_W/2, 564, 28, C.textDim);
-  txt(cash(pipeline()), LOGICAL_W/2, 626, 82, C.text);
-  txt(rankFor(G.maxRow), LOGICAL_W/2, 688, 34, C.brand);
+  drawTally(510, C.danger);
+}
 
-  if (G.deadFor > 0.45){
-    ctx.globalAlpha = 0.55 + 0.45*Math.sin(G.t*3);
-    txt("TAP ANYWHERE TO PURSUE A NEW PROSPECT", LOGICAL_W/2, 798, 42, C.brand);
+/* The readout. Lines slide in one at a time and count up, the total lands last
+   and large, then the stats and the rank. Everything is driven off one clock
+   (G.tally.t) so a tap can run the whole thing out at once. */
+function drawTally(top, accent){
+  var T = G.tally;
+  if (!T){ return; }
+  var W = 1080, X = (LOGICAL_W - W) / 2, y = top;
+
+  plate(X, y, W, 58 + T.rows.length * 52 + 112, "rgba(10,6,4,0.84)", 16);
+  ctx.fillStyle = accent; ctx.fillRect(X, y, 7, 58 + T.rows.length * 52 + 112);
+  txt("THE TALLY", X + 34, y + 40, 22, C.textDim, "left");
+
+  var ry = y + 74, i;
+  for (i = 0; i < T.rows.length; i++){
+    var R = T.rows[i], k = tallyAt(i);
+    if (k <= 0) continue;
+    /* Slide in from the left as it appears - a number that simply materialises
+       at full opacity reads as a glitch rather than an arrival. */
+    var slide = (1 - Math.min(1, k * 4)) * 40;
+    ctx.globalAlpha = Math.min(1, k * 4);
+    txt(R.label, X + 34 - slide, ry + i * 52, 29, C.textDim, "left");
+    txt(R.note,  X + 430 - slide, ry + i * 52, 25, "rgba(253,244,238,0.40)", "left");
+    var shown = Math.round(R.amt * ease(k));
+    txt(cash(shown), X + W - 34, ry + i * 52, 34, k >= 1 ? R.col : C.textDim, "right");
+    ctx.globalAlpha = 1;
+  }
+
+  var ly = ry + T.rows.length * 52 + 4;
+  var tk = tallyTotalAt();
+  if (tk > 0){
+    ctx.globalAlpha = Math.min(1, tk * 5);
+    ctx.fillStyle = "rgba(255,255,255,0.16)";
+    ctx.fillRect(X + 34, ly, (W - 68) * Math.min(1, tk * 2.2), 2);
+    txt(G.won ? "PIPELINE BOOKED" : "PIPELINE BUILT", X + 34, ly + 56, 28, C.textDim, "left");
+    /* The total overshoots its size on landing. It is the one number anybody
+       repeats afterwards, so it gets the only piece of animation on the page
+       that is purely for effect. */
+    var pop = tk >= 1 ? 1 + 0.10 * Math.max(0, 1 - (T.t - (TALLY_T0 + T.rows.length*TALLY_GAP + 0.25 + TALLY_TOTAL)) * 5) : 1;
+    var big = Math.round(76 * pop);
+    txt(cash(Math.round(T.total * ease(tk))), X + W - 34, ly + 66, big,
+        tk >= 1 ? (G.won ? C.good : C.text) : C.textDim, "right");
+    ctx.globalAlpha = 1;
+  }
+
+  // the things that are not money
+  if (tallyOver()){
+    var sy2 = ly + 112, line = "";
+    for (i = 0; i < T.stats.length; i++)
+      line += (i ? "   \u00B7   " : "") + T.stats[i][0] + " " + T.stats[i][1];
+    txt(line, LOGICAL_W/2, sy2, 24, "rgba(253,244,238,0.52)", "center", W - 40);
+    txt(rankFor(G.maxRow), LOGICAL_W/2, sy2 + 54, 38, C.brand);
+    if (T.total > T.was && T.was > 0){
+      ctx.globalAlpha = 0.6 + 0.4 * Math.sin(G.t * 6);
+      txt("NEW PERSONAL BEST", LOGICAL_W/2, sy2 + 96, 26, C.good);
+      ctx.globalAlpha = 1;
+    }
+    ctx.globalAlpha = 0.55 + 0.45 * Math.sin(G.t * 3);
+    txt("TAP ANYWHERE TO PURSUE A NEW PROSPECT", LOGICAL_W/2, sy2 + 148, 34, C.brand);
+    ctx.globalAlpha = 1;
+  } else if (G.deadFor > 0.8){
+    ctx.globalAlpha = 0.34;
+    txt("TAP TO SKIP", LOGICAL_W/2, ly + 170, 22, C.textDim);
     ctx.globalAlpha = 1;
   }
 }
+/* Fast at first, settling at the end - a counter that climbs linearly and stops
+   dead feels like a progress bar, not a till. */
+function ease(k){ return 1 - Math.pow(1 - k, 3); }
 
 /* The only way this screen appears is a signed order carried the whole way
    back to Penn 1, so it reads as an ending rather than a score card. */
@@ -6414,17 +6561,7 @@ function drawWon(){
       LOGICAL_W/2, 390, 30, C.textDim, "center", 1080);
   txt("Nobody books a deal from a desk.", LOGICAL_W/2, 440, 30, C.text, "center", 1080);
 
-  plate(LOGICAL_W/2-400, 502, 800, 198, C.ink);
-  txt("PIPELINE BOOKED", LOGICAL_W/2, 548, 28, C.textDim);
-  txt(cash(pipeline()), LOGICAL_W/2, 610, 82, C.good);
-  txt(rankFor(G.maxRow) + " \u00B7 " + G.rides + " SUBWAY RIDES",
-      LOGICAL_W/2, 672, 30, C.brand);
-
-  if (G.deadFor > 0.45){
-    ctx.globalAlpha = 0.55 + 0.45*Math.sin(G.t*3);
-    txt("TAP ANYWHERE TO PURSUE A NEW PROSPECT", LOGICAL_W/2, 786, 42, C.brand);
-    ctx.globalAlpha = 1;
-  }
+  drawTally(496, C.good);
 }
 
 /* Dead centre, big, and it holds for seven and a half seconds, because the one

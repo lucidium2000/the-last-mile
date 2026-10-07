@@ -548,6 +548,45 @@ that.
 so the stand is still standing there afterwards, and without a reaction the
 refusal looked like the controls ignoring him.
 
+### The end screen
+
+The end of a run used to print one number and stop. A run is twenty minutes of
+decisions, so it is read back instead: **the tally**, line by line, counting up,
+with the total landing last.
+
+```
+THE TALLY
+GROUND COVERED   174 blocks        $2,610,000
+CHUCK BUCKS      3 collected         $750,000
+TAM PAYOUTS      5 wins              $640,000
+────────────────────────────────────────────
+PIPELINE BUILT                     $4,000,000
+
+STEPS 431 · SUBWAY 4 · MEALS 9 · POWER-UPS 22 · FURTHEST W 81 ST
+MIDTOWN LEGEND
+```
+
+Each line slides in from the left and counts up over two thirds of a second, the
+counter easing out rather than stopping dead — a figure that climbs linearly and
+halts feels like a progress bar, not a till. The total gets a wider rule, a
+bigger size and the only piece of animation on the page that is purely for
+effect. Below it, the things that are not money, the rank, and `NEW PERSONAL
+BEST` when it has been beaten.
+
+The two bonus streams are tracked separately as they accrue (`bonusChuck`,
+`bonusTam`) so the tally can name where the money came from rather than
+reporting one lump. The whole thing is built **once**, when the run ends, so the
+figures cannot drift between frames and the audio and the rendering read the
+same object.
+
+**It can be skipped.** The first tap runs the tally out at once, the second
+moves on to the initials. Making a player sit through four seconds of counting
+after every death would turn the best part of the screen into the worst.
+
+The counting noise is scheduled from `update`, not the renderer: a tick every
+55ms while anything is still climbing, and a cue as each line lands — a run of
+ticks with nothing at the end of it is a stuck machine.
+
 ### Arrival scenes
 
 A scene can fire on the step that lands him **in the middle of a road**, and a
@@ -746,6 +785,14 @@ swerves, the flips nor the slow motion break the separation invariant.
 The trace is **green end to end** — line, hop ticks, nodes, destination and the
 packet halo, all from the `TRACE` block, which is a single swap point the way
 `BRAND` is.
+
+**The route and the player are drawn over the traffic**, not into it. Both used
+to be painted in strict depth order, and both were wrong for it: the trace went
+down before any vehicle, so the line telling you where it is safe to walk was
+buried under the cars crossing it, and the player was tucked into his own row,
+so a car in the lane he had just left was drawn over him and he looked like he
+was wading through it. Strict depth is the more correct answer and the worse
+one — these two are the things the player is actually reading.
 
 **Path Visualization** traces a route of six to eight crossings, drawn as nodes
 joined by links with a packet running it. Roughly 45% of routes carry one or two
