@@ -265,7 +265,7 @@ ever widens a gap.
 The game is two legs and an ending, not an endless climb.
 
 1. **Uptown, 34th to 81st.** Penn 1 to the meeting. Street numbers count up.
-2. **Happy Hour at 81st.** The signing (below). The city turns round.
+2. **Steak dinner at 81st.** The signing (below). The city turns round.
 3. **Downtown, 81st back to 34th.** Carrying the signed order home. Street
    numbers count down, and every landmark comes back in the opposite order.
 4. **Penn 1.** The paper goes on the desk and the game is won.
@@ -320,7 +320,7 @@ are, in the same register as the subway ride. Each plays once per run.
 | 42nd | Times Square — eight billboards each running their own loop, the ticker, Broadway traffic behind the red steps, steam off a grate, a crowd three ranks deep |
 | 50th | Rockefeller Center — the slab, the rink, the flags, the fountains |
 | 59th | Central Park South — the canopy, the pond, a carriage |
-| 81st | Happy Hour — the client, two glasses, and a handshake on a verbal |
+| 81st | Steak dinner — the customer, two glasses, and a handshake on a verbal |
 
 81st is the end of the walk: the handshake lands, and the message that follows
 says what a verbal is actually worth — *now get back to the office and lock it
@@ -328,7 +328,7 @@ in.*
 
 ### Music
 
-Times Square, Central Park South and Happy Hour play a short theme: a walking
+Times Square, Central Park South and the steak dinner play a short theme: a walking
 bass under piano-ish arpeggios, four bars, synthesised at runtime like every
 other cue. **It is an original piece written for this game.** It is not a
 transcription or an arrangement of any existing song, and nothing in the repo

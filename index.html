@@ -929,7 +929,7 @@ var MILESTONES = {
   65:["LENOX HILL",         "RENEWAL",        "The quarter never ends."],
   72:["UPPER EAST SIDE",    "EXPANSION",      "One site proved it. Now do ninety."],
   79:["THE MET",            "REFERENCE",      "Your customer is now your best slide."],
-  81:["HAPPY HOUR",        "THE MEETING",    "This is what the whole walk was for."],
+  81:["STEAK DINNER",      "THE MEETING",    "This is what the whole walk was for."],
   86:["CARL SCHURZ",        "LEGEND",         "Nobody walks this far."]
 };
 
@@ -2987,7 +2987,7 @@ function scenePark(t, a){
   for (var k = 0; k < sk.length; k++) ctx.fillRect(sk[k][0], 430 - sk[k][2], sk[k][1], sk[k][2]);
 }
 
-/* ===================== HAPPY HOUR, 81st ===================================
+/* ===================== STEAK DINNER, 81st ==================================
    The whole walk is for this, so it is staged rather than shown: they talk,
    the paper comes out, the game CUTS IN to the signature being written, and
    then back out for the handshake and the stamp. The cut is the point - a
@@ -3292,10 +3292,14 @@ function scenePenn(t, a){
 }
 
 var SCENES = {
-  42: { title:"TIMES SQUARE",        sub:"Forty-second and Broadway", draw:sceneTimes, music:true },
-  50: { title:"ROCKEFELLER CENTER",  sub:"The plaza and the rink",    draw:sceneRock },
-  59: { title:"CENTRAL PARK SOUTH",  sub:"You made it uptown",        draw:scenePark, music:true },
-  81: { title:"HAPPY HOUR",          sub:"Eighty-first, and the end of it", draw:sceneBar,
+  42: { title:"TIMES SQUARE",        sub:"Arrived in Times Square for a happy hour",
+        draw:sceneTimes, music:true },
+  50: { title:"ROCKEFELLER CENTER",  sub:"Meeting a partner at The Top of the Rock",
+        draw:sceneRock },
+  59: { title:"CENTRAL PARK SOUTH",  sub:"Arriving at Central Park for a quick stroll",
+        draw:scenePark, music:true },
+  81: { title:"STEAK DINNER",        sub:"Taking the customer to a steak dinner to finalize the deal",
+        draw:sceneBar,
         secs:11.4, music:true, turn:true,
         beats:[[2.0,"paper"], [4.4,"pen"], [7.6,"deal"], [9.9,"stamp"], [10.1,"cheer"]],
         after:["SIGNED \u2014 PURCHASE ORDER", "TAKE IT BACK TO PENN 1",
