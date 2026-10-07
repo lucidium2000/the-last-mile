@@ -314,11 +314,22 @@ It is decoded the moment the AudioContext exists rather than on first use, so
 the first Chuck Bucks of a session is not silent; every failure path leaves the
 buffer null and the call becomes a no-op, like the rest of the engine.
 
-To use a photograph, base64-encode it and paste it into `CHUCK_SRC` as a
-complete `data:` URI. Nothing else changes — left empty, the pop-in draws its
-own placard, so the effect works either way. **A photograph of a real person on
-a publicly reachable page is worth a deliberate decision**; the site is
-`noindex, nofollow` and the disclaimer at the top of this file applies.
+The portrait is a halftone photograph inlined as a `data:` URI in `CHUCK_SRC`.
+It arrived as a 268 KB 8-bit RGBA PNG with 32,504 unique colours and a fully
+opaque alpha channel — on an image that is, visually, two tones carried by a
+dither pattern. Re-encoded to an 8-colour palette with no re-dithering it is
+**23.7 KB**, which is 31.7 KB of base64 instead of 358 KB, and the difference is
+not visible at the size it is drawn. `index.html` grew 349 KB → 381 KB rather
+than 707 KB.
+
+Replacing it: encode any PNG, set `CHUCK_SRC` to the whole `data:` URI. Left
+empty, the pop-in draws its own placard instead, so the effect still works. The
+brand wash over the panel is applied *only* to the placard — over a photograph
+it just turns a face orange.
+
+**A photograph of a real person on a publicly reachable page is worth a
+deliberate decision**; the site is `noindex, nofollow` and the disclaimer at the
+top of this file applies.
 
 ### Power-ups
 
