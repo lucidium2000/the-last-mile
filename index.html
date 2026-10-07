@@ -1612,8 +1612,14 @@ var POWER_POOL = ["path","path","path",
    because the mover and the crossing test both read it and they must agree -
    a predictor running at a different rate than the thing it predicts will tell
    you a lane is clear when it is not. */
-var SLOW_K = 0.28;
-var DETER_TILES = 3.2;     // how close it gets before it thinks better of it
+/* Half speed. It was 0.28, which is nearer a quarter and made the whole board
+   feel stuck rather than slowed. */
+var SLOW_K = 0.5;
+var DETER_TILES = 3.2;     // how close it gets before it turns round entirely
+/* Before it gets that close it tries to go ROUND him. SWERVE_FROM is where a
+   driver starts easing over, SWERVE_PX how far off the lane centre he ends up,
+   and SWERVE_CLEAR how far out counts as having actually missed. */
+var SWERVE_FROM = 5.5, SWERVE_PX = 26, SWERVE_CLEAR = 11;
 /* ------------------------------------------------------------- HEALTH ----
    A walk uptown is tiring, and the only thing that fixes tired is lunch.
 
@@ -4662,12 +4668,34 @@ function update(dt){
           row.rv = -(row.rv || 1);
           row.bounce = 1.4;
         }
-        if (deter && r === pRow && !(row.bounce > 0) && !car.stopped){
+        /* Traffic Insights, two behaviours in order of preference. A driver
+           who sees him in time steers round him; one who is already on top of
+           him has no room for that and turns the lane around instead. Trying
+           to swerve at two tiles would just be a sprite sliding through him. */
+        var want = 0, overlap = false;
+        if (deter && r === pRow && !car.stopped){
           var cx0 = carX(row, car), go = row.dir * (row.rv || 1);
-          // leading edge, and how far it still has to come
-          var lead = go > 0 ? cx0 + (row.eff || 1) : cx0;
-          var away = go > 0 ? (pp.col - lead) : (lead - (pp.col + 1));
-          if (away > -0.2 && away < DETER_TILES){
+          var carA = cx0, carB = cx0 + (row.eff || 1);
+          var manA = pp.col, manB = pp.col + 1;
+          overlap = carA < manB && carB > manA;
+          /* How much road is left before the two spans meet, measured on the
+             LEADING edge. It has to be the whole body and not just that edge:
+             measuring the front of a bus meant the swerve collapsed the moment
+             the nose was past him while nine feet of bus was still over his
+             head, and he was run down on the way out. */
+          var approach = go > 0 ? (manA - carB) : (carA - manB);
+          var near = overlap ? 1
+                   : (approach > 0 && approach < SWERVE_FROM
+                      ? Math.min(1, (SWERVE_FROM - approach) / 1.9) : 0);
+          want = -SWERVE_PX * near * (go > 0 ? 1 : -1);
+
+          /* The turn-around is the fallback, not the first answer: a driver who
+             has already pulled clear just goes past. Without this guard the
+             flip fired at 3.2 tiles, before any swerve had developed, and the
+             avoidance was decoration. */
+          var clear = Math.abs(car.sw || 0) >= SWERVE_CLEAR;
+          if (!clear && !(row.bounce > 0) &&
+              (overlap || (approach > -0.2 && approach < DETER_TILES))){
             row.rv = -(row.rv || 1);
             row.bounce = 1.4;
             row.flinch = 0.55;
@@ -4675,6 +4703,13 @@ function update(dt){
             AUDIO.hiss();
           }
         }
+        /* Fast out, slow back: a driver commits to the swerve and drifts back
+           afterwards. Snapping out on an overlap is what covers the case of
+           him stepping off the kerb straight into a moving lane. */
+        var cur = car.sw || 0;
+        if (overlap && Math.abs(want) > Math.abs(cur)) cur = want;
+        else cur += (want - cur) * Math.min(1, dt * (Math.abs(want) > Math.abs(cur) ? 16 : 5));
+        car.sw = Math.abs(cur) < 0.4 ? 0 : cur;
         if (!car.stopped){
           car.p += row.speed * slowK * dt * (row.rv || 1);
           if (car.p >= SPAN) car.p -= SPAN;
@@ -4698,6 +4733,8 @@ function update(dt){
     if (crow && (crow.type === "road" || crow.type === "sweep")){
       var p0 = pp.col+0.14, p1 = pp.col+0.86, hitKind = null;
       for (i=0;i<crow.cars.length;i++){
+        // a car far enough off the lane centre has gone round him, not through
+        if (Math.abs(crow.cars[i].sw || 0) >= SWERVE_CLEAR) continue;
         var cx = carX(crow, crow.cars[i]);
         if (cx < p1 && cx + (crow.eff || HAZ[crow.kind].w) > p0){ hitKind = crow.kind; break; }
       }
@@ -5229,13 +5266,14 @@ function drawWorld(){
       for (i=0;i<row.cars.length;i++){
         var x = carX(row, row.cars[i]);
         if (x + (row.eff||1) < -1.6 || x > COLS + 1.6) continue;
+        var ysw = sy + (row.cars[i].sw || 0);      // steering round the player
         if (row.cars[i].uber >= 0){
-          blit(S["uber" + row.cars[i].uber + (faceR ? "_r" : "_l")], x*TILE, sy);
+          blit(S["uber" + row.cars[i].uber + (faceR ? "_r" : "_l")], x*TILE, ysw);
         } else if (row.packN > 1){
           for (var q=0;q<row.packN;q++){
-            blit(sprite, (x + q*(HAZ[row.kind].w + row.packGap))*TILE, sy);
+            blit(sprite, (x + q*(HAZ[row.kind].w + row.packGap))*TILE, ysw);
           }
-        } else blit(sprite, x*TILE, sy);
+        } else blit(sprite, x*TILE, ysw);
       }
       if (row.rogue){
         var rx = rogueX(row);

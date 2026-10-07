@@ -695,10 +695,11 @@ up safe crossings), Executive Sponsor (carries you three rows) — plus one rare
 tier:
 
 **Internet Insights** runs 11 seconds and throttles everything that moves to
-**0.28×** — measured on one car in one lane: 2.598 tiles a second normally,
-0.728 with it up. One constant, `SLOW_K`, drives both the mover and the
-crossing-safety predictor, because a predictor running at a different rate from
-the thing it predicts will tell you a lane is clear when it is not.
+**half speed** — measured on one car in one lane, ratio 0.5000 exactly. It was
+0.28, which is nearer a quarter and made the board feel stuck rather than
+slowed. One constant, `SLOW_K`, drives both the mover and the crossing-safety
+predictor, because a predictor running at a different rate from the thing it
+predicts will tell you a lane is clear when it is not.
 
 The look is a cool wash, scanlines, a frame and one bright band sweeping down
 at normal speed. The band is what sells it: it is the only thing on screen still
@@ -709,25 +710,38 @@ the part and it was distracting, and for an overlay you have to play *underneath
 that is the only verdict that matters. The rain is gone; the slow motion stays.
 
 **Traffic Insights** runs 15 seconds, colours every lane by live risk — *and
-now answers it.* While it is up, whatever is bearing down on the lane he is
-**standing in** turns around rather than run him over, within 3.2 tiles, with a
-band across the lane and a trio of arrows showing which way it went. It flips
-the **whole lane**, the same way the path trace does, because reversing one
-vehicle inside a moving stream is most of what "cars pass through each other"
-used to be.
+now answers it,* in two stages:
+
+1. **Drivers steer round him.** A car approaching the lane he is standing in
+   eases off the lane centre, holds the swerve while it passes, and drifts back
+   after. A car far enough out has gone round him, not through him, and the
+   collision check skips it.
+2. **If there is no room, the lane turns around.** The same whole-lane flip the
+   path trace uses — reversing one vehicle inside a moving stream is most of
+   what "cars pass through each other" used to be. This is the fallback now,
+   not the first answer.
+
+Two things had to be got right. The swerve is measured against the **whole
+body**, not the leading edge: measuring the nose of a bus collapsed the swerve
+the moment the front was past him while nine feet of bus was still over his
+head, and he was run down on the way out. And the turn-around is suppressed for
+a car that has already pulled clear — without that it fired at 3.2 tiles before
+any swerve had developed, and the avoidance was decoration.
 
 Measured, four lanes, thirty seconds each, standing still at the same column:
 
-| Lane | Without Traffic Insights | With it |
+| Lane | Without it | With it |
 |---|---|---|
-| cab | run over on 492 of 1800 frames | **0**, 22 turn-arounds |
-| parcel van | run over on 522 frames | **0**, 22 turn-arounds |
-| cab | run over on 504 frames | **0**, 22 turn-arounds |
-| SUV | run over on 511 frames | **0**, 18 turn-arounds |
+| cab | run over on 510 of 1800 frames | **0** — 464 frames passing round him, 1 turn-around |
+| cab | run over on 480 frames | **0** — 290 frames round him, 6 turn-arounds |
+| parcel van | run over on 537 frames | **0** — 484 frames round him, 1 turn-around |
+| cab | run over on 488 frames | **0** — 490 frames round him, 1 turn-around |
 
-A full-world sweep with both power-ups held open — 452,000 sampled car pairs —
-found **0 overlaps**, so neither the flips nor the slow motion break the
-separation invariant.
+Turn-arounds dropped from 11–22 a run to 0–6, which is the avoidance doing the
+work instead of the flip. Every swerving car was confirmed **drawn at its
+offset** rather than the lane centre. A full-world sweep with both power-ups
+held open — 452,000 sampled car pairs — found **0 overlaps**, so neither the
+swerves, the flips nor the slow motion break the separation invariant.
 
 The trace is **green end to end** — line, hop ticks, nodes, destination and the
 packet halo, all from the `TRACE` block, which is a single swap point the way
