@@ -1646,9 +1646,9 @@ var POWER_POOL = (function(){
    because the mover and the crossing test both read it and they must agree -
    a predictor running at a different rate than the thing it predicts will tell
    you a lane is clear when it is not. */
-/* Half speed. It was 0.28, which is nearer a quarter and made the whole board
-   feel stuck rather than slowed. */
-var SLOW_K = 0.5;
+/* A quarter speed: everything that moves - cars, crowds, the wrong-way bike,
+   the motorcade - runs at 25% of normal while Internet Insights is up. */
+var SLOW_K = 0.25;
 var DETER_TILES = 3.2;     // how close it gets before it turns round entirely
 /* Before it gets that close it tries to go ROUND him. SWERVE_FROM is where a
    driver starts easing over, SWERVE_PX how far off the lane centre he ends up,
@@ -4797,8 +4797,12 @@ function update(dt){
       for (i=0;i<row.cars.length;i++){
         var car = row.cars[i];
         if (spec.stops){
-          // moves 3.6s, halts 1.6s - the M34 rhythm
-          car.stop += dt;
+          /* Moves 3.6s, halts 1.6s - the bus rhythm. The CYCLE is slowed too,
+             not just the rolling: a bus that crawls at a quarter speed and
+             still slams to a halt on the normal beat is not in slow motion,
+             it is broken. It also meant the two stopping vehicles were the
+             only ones in the game not actually running at SLOW_K. */
+          car.stop += dt * slowK;
           var cyc = car.stop % 5.2;
           var wasStopped = car.stopped;
           car.stopped = (cyc > 3.6);

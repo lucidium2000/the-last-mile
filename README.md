@@ -742,12 +742,33 @@ Internet Insights (drops the world into slow motion), Path Visualization (lights
 up safe crossings), Executive Sponsor (carries you three rows) — plus one rare
 tier:
 
-**Internet Insights** runs 11 seconds and throttles everything that moves to
-**half speed** — measured on one car in one lane, ratio 0.5000 exactly. It was
-0.28, which is nearer a quarter and made the board feel stuck rather than
-slowed. One constant, `SLOW_K`, drives both the mover and the crossing-safety
-predictor, because a predictor running at a different rate from the thing it
-predicts will tell you a lane is clear when it is not.
+**Internet Insights** runs 11 seconds and throttles **everything that moves to
+25% of normal.** One constant, `SLOW_K`, drives the mover, the motorcade sweep,
+the wrong-way bike, the bus and sanitation halt cycle, and the crossing-safety
+predictor — a predictor running at a different rate from the thing it predicts
+will tell you a lane is clear when it is not.
+
+Measured over 20.8 seconds of wall clock, which is four whole bus/DSNY stop
+cycles at full speed and exactly one at a quarter, so neither pass can be caught
+mid-halt. Per-frame deltas, wrap-corrected:
+
+| | full | slowed | ratio |
+|---|---|---|---|
+| cab | 49.01 | 12.25 | 0.2500 |
+| bus | 21.98 | 5.50 | 0.2500 |
+| DSNY | 30.69 | 7.67 | 0.2500 |
+| delivery e-bike | 87.91 | 21.98 | 0.2500 |
+| parcel van | 34.32 | 8.58 | 0.2500 |
+| black SUV | 69.44 | 17.36 | 0.2500 |
+| horse carriage | 16.63 | 4.16 | 0.2500 |
+| tourist crowd | 21.49 | 5.37 | 0.2500 |
+| pedicab | 49.68 | 12.42 | 0.2500 |
+| wrong-way bike | 96.72 | 24.18 | 0.2500 |
+
+The two stopping vehicles were the only things in the game *not* running at
+`SLOW_K`: their halt cycle ran on real time, so a bus would crawl at a quarter
+speed and still slam to a halt on the normal beat. That is not slow motion, it
+is broken, and the cycle is scaled now too.
 
 The look is a cool wash, scanlines, a frame and one bright band sweeping down
 at normal speed. The band is what sells it: it is the only thing on screen still
