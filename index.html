@@ -1494,7 +1494,7 @@ var POWER_POOL = ["path","path","path",
    you a lane is clear when it is not. */
 var SLOW_K = 0.28;
 var DETER_TILES = 3.2;     // how close it gets before it thinks better of it
-/* ------------------------------------------------------------- STAMINA ---
+/* ------------------------------------------------------------- HEALTH ----
    A walk uptown is tiring, and the only thing that fixes tired is lunch.
 
    Every crossing costs 3%, so the 47 blocks from Penn to the restaurant cost
@@ -1509,6 +1509,7 @@ var HP_FOOD = 25;          // a bagel, a slice, a hot dog
 var HP_HIT = 75;           // an objection you did not see coming
 var HP_PER_STREET = 3;     // the walk itself
 var HP_LOW = 25;           // below this the bar starts shouting
+var HP_CRAWL = 5;          // and below this it only costs a point a street
 
 var CHUCK_BONUS = 250000;
 
@@ -2560,10 +2561,19 @@ function progress(){
        its own coaching - the uptown ones are all about getting the meeting,
        which has already happened. */
     for (n = prev + step; ; n += step){
-      /* Three percent a crossing, counted per street PASSED so a subway ride
-         costs what the walk would have. It is the only drain in the game. */
-      if (G.state === ST_PLAY){
-        G.hp -= HP_PER_STREET;
+      /* Three percent a crossing - but only for crossings he actually walked.
+         A subway ride covers ten to twenty streets sitting down, which is the
+         opposite of tiring, and charging him for them made the ride a trap.
+         progress() is called from the ride while G.ride is still set, so that
+         is the test. */
+      if (G.state === ST_PLAY && !G.ride){
+        /* A point a street instead of three in two cases. Below 5%, because
+           the last few blocks are where a run is lost and a hard floor of two
+           crossings turned "nearly out" into "already out" with no chance of
+           reaching the next cart. And while he is in the air on a TAM, because
+           being carried over the traffic is not walking. */
+        var tiring = !(G.hp < HP_CRAWL || G.flyT > 0);
+        G.hp -= tiring ? HP_PER_STREET : 1;
         if (G.hp <= 0){ G.hp = 0; dieTired(); return; }
       }
       var table = G.leg > 0 ? SCENES : SCENES_BACK;
@@ -3438,16 +3448,54 @@ function sceneTimes(t, a){
     ctx.fillRect(cx + 52, 476, 34, 11);
   }
 
-  // the red steps, people sitting on every other one
-  for (var st = 0; st < 8; st++){
-    ctx.fillStyle = st % 2 ? "#b8202f" : "#cf2838";
-    ctx.fillRect(600 + st * 20, 536 + st * 21, 740 - st * 40, 21);
+  /* The red steps.
+
+     They used to be a symmetric trapezoid that was WIDER at the top than the
+     bottom, which is perspective backwards: the top of a flight is further
+     away, so it is the end that should be narrower. Now there is one vanishing
+     point straight ahead and the flight widens as it comes towards you, and
+     each step is drawn as two faces - the tread you can see the top of and the
+     riser below it - instead of one flat bar. That is what makes it read as
+     stairs rather than as stripes. */
+  var STN = 9, stTop = 520, stRow = 30, stMid = 960;
+  var hwFar = 250, hwNear = 430;                 // half-widths, far and near
+  function stepHW(i){ return hwFar + (hwNear - hwFar) * (i / STN); }
+  // the booth at the top of the flight, where the steps start
+  ctx.fillStyle = "#7d1420";
+  ctx.fillRect(stMid - hwFar - 14, stTop - 46, (hwFar + 14) * 2, 46);
+  ctx.fillStyle = "#e8333f";
+  ctx.fillRect(stMid - hwFar - 14, stTop - 10, (hwFar + 14) * 2, 10);
+  ctx.fillStyle = "#2a1013";
+  ctx.fillRect(stMid - 150, stTop - 38, 300, 24);
+  txt("TKTS", stMid, stTop - 19, 21, "#ff6b74");
+
+  for (var st = 0; st < STN; st++){
+    var hwT = stepHW(st), hwB = stepHW(st + 1);
+    var yT = stTop + st * stRow, yTread = yT + 11, yB = yT + stRow;
+
+    // the tread: a trapezoid, because its near edge is closer than its far one
+    ctx.fillStyle = st % 2 ? "#e2323f" : "#d82b38";
+    ctx.beginPath();
+    ctx.moveTo(stMid - hwT, yT);      ctx.lineTo(stMid + hwT, yT);
+    ctx.lineTo(stMid + hwB, yTread);  ctx.lineTo(stMid - hwB, yTread);
+    ctx.closePath(); ctx.fill();
+
+    // the riser below it, in shadow
+    ctx.fillStyle = st % 2 ? "#9d1a26" : "#8e141f";
+    ctx.fillRect(stMid - hwB, yTread, hwB * 2, yB - yTread);
+    // the lit nosing the real steps have along every edge
+    ctx.fillStyle = "#ff5a66";
+    ctx.fillRect(stMid - hwB, yTread - 3, hwB * 2, 3);
+
+    // people, bigger the nearer the step - back rows first so near ones overlap
     if (st % 2 === 0){
-      for (var pz = 0; pz < 4; pz++){
-        var px = 650 + st * 20 + pz * 160;
-        ctx.fillStyle = ["#2a3038", "#39302c", "#2c3340"][pz % 3];
-        ctx.fillRect(px, 508 + st * 21, 26, 29);
-        ctx.fillStyle = "#c79a74"; ctx.fillRect(px + 5, 492 + st * 21, 16, 17);
+      var sc = 0.74 + st * 0.045, n = 4 + (st >> 1);
+      for (var pz = 0; pz < n; pz++){
+        var px = stMid - hwT + 26 + pz * ((hwT * 2 - 52) / Math.max(1, n - 1));
+        ctx.fillStyle = ["#2a3038", "#39302c", "#2c3340", "#332b36"][pz % 4];
+        ctx.fillRect(px, yT - 30 * sc, 26 * sc, 32 * sc);
+        ctx.fillStyle = ["#c79a74", "#a87f5f", "#8d6243"][pz % 3];
+        ctx.fillRect(px + 5 * sc, yT - 48 * sc, 17 * sc, 19 * sc);
       }
     }
   }
@@ -3483,35 +3531,115 @@ function sceneTimes(t, a){
 }
 
 /* Rockefeller: the sunken plaza, the fountains, the flags */
+/* The slab was a flat wall of window rects filling the top of the frame, which
+   could have been any office block in any city. 30 Rock is recognised by its
+   SHAPE: a narrow limestone tower with symmetric setbacks stepping in as it
+   rises, and unbroken vertical piers running the whole height. So it is built
+   as a silhouette first - setbacks, then the piers, then the lit windows
+   between them - and the plaza furniture is staged in front of it. */
 function sceneRock(t, a){
-  ctx.fillStyle = "#241b1e"; ctx.fillRect(0, 150, LOGICAL_W, 420);
-  for (var w = 0; w < 7; w++){                       // slab windows
-    for (var h = 0; h < 5; h++){
-      ctx.globalAlpha = a * (((w*7+h*13)%11) < 6 ? 0.5 : 0.12);
-      ctx.fillStyle = "#ffae55";
-      ctx.fillRect(300 + w*180, 190 + h*70, 110, 44);
+  var MID = 960;
+  // the lower blocks either side, so the tower has something to be taller than
+  ctx.fillStyle = "#17120f";
+  ctx.fillRect(0, 388, 560, 260);
+  ctx.fillRect(1360, 388, 560, 260);
+  ctx.fillStyle = "#1d1714";
+  ctx.fillRect(0, 436, 360, 212);
+  ctx.fillRect(1560, 436, 360, 212);
+  for (var lw = 0; lw < 26; lw++){
+    ctx.globalAlpha = a * (((lw * 7) % 5) < 2 ? 0.35 : 0.08);
+    ctx.fillStyle = "#ffbd6a";
+    ctx.fillRect(22 + (lw % 13) * 40, 414 + ((lw / 13) | 0) * 110, 20, 68);
+    ctx.fillRect(1382 + (lw % 13) * 40, 414 + ((lw / 13) | 0) * 110, 20, 68);
+  }
+  ctx.globalAlpha = a;
+
+  /* The tower, bottom tier first. Each tier is half-width and the y it rises
+     to; stepping in on the way up is the whole silhouette. */
+  /* First attempt stepped 330 -> 268 -> 214 -> 168 over four tiers and read as
+     a ziggurat. 30 Rock is a SLAB: far taller than it is wide, and the
+     setbacks are slight notches near the top, not a pyramid. Narrower, much
+     taller, and the steps are a few per cent each. */
+  var TIERS = [[232, 648, 392], [216, 392, 268], [202, 268, 168], [188, 168, 58]];
+  for (var tr = 0; tr < TIERS.length; tr++){
+    var hw = TIERS[tr][0], yB = TIERS[tr][1], yT = TIERS[tr][2];
+    // limestone, a shade paler as it goes up and catches more sky
+    ctx.fillStyle = ["#3b352c", "#423b31", "#484036", "#4e463b"][tr];
+    ctx.fillRect(MID - hw, yT, hw * 2, yB - yT);
+    // the shadowed return on the left, which is what gives it a corner
+    ctx.fillStyle = ["#2c271f", "#312b23", "#363028", "#3b342b"][tr];
+    ctx.fillRect(MID - hw, yT, 34, yB - yT);
+    // the coping line on top of each setback
+    ctx.fillStyle = "#5e5649";
+    ctx.fillRect(MID - hw, yT, hw * 2, 7);
+
+    /* Vertical piers and the window ribbons between them, run the full height
+       of the tier. This is the detail that says Art Deco rather than curtain
+       wall: the glass is recessed in continuous strips, never a grid. */
+    var pitch = 36, x0 = MID - hw + 40, x1 = MID + hw - 12;
+    for (var px = x0; px < x1; px += pitch){
+      ctx.fillStyle = "#231f19";
+      ctx.fillRect(px, yT + 12, 20, yB - yT - 16);
+      // lit floors inside the ribbon
+      for (var fy = yT + 20; fy < yB - 14; fy += 26){
+        var on = ((px * 3 + fy * 5) % 11) < 5;
+        ctx.globalAlpha = a * (on ? 0.62 : 0.10);
+        ctx.fillStyle = on ? "#ffc478" : "#6d6a63";
+        ctx.fillRect(px + 2, fy, 16, 15);
+      }
+      ctx.globalAlpha = a;
     }
   }
+  // the mast light at the top, blinking
+  ctx.globalAlpha = a * (0.45 + 0.55 * Math.abs(Math.sin(t * 2)));
+  ctx.fillStyle = "#ff6a6a"; ctx.fillRect(MID - 5, 48, 10, 12);
   ctx.globalAlpha = a;
-  ctx.fillStyle = "#1b2a33"; ctx.fillRect(260, 600, 1400, 190);   // the rink
-  ctx.globalAlpha = a*0.45; ctx.fillStyle = "#8fc6de"; ctx.fillRect(260, 600, 1400, 20);
+
+  // the granite wall of the sunken plaza, and the flags along its parapet
+  ctx.fillStyle = "#211c19"; ctx.fillRect(0, 630, LOGICAL_W, 52);
+  ctx.fillStyle = "#2b2521"; ctx.fillRect(0, 630, LOGICAL_W, 6);
+  for (var f = 0; f < 11; f++){
+    var fx = 120 + f * 168;
+    ctx.fillStyle = "#6b6257"; ctx.fillRect(fx, 520, 5, 112);
+    ctx.fillStyle = ["#d8431f", "#e8c12a", "#2f6fc4"][f % 3];
+    var fl = Math.sin(t * 2.4 + f) * 4;
+    ctx.fillRect(fx + 5, 522 + fl, 40, 26);
+  }
+
+  // Prometheus, gilded, against the wall - the thing everyone photographs
+  ctx.fillStyle = "#8a6a14";
+  ctx.beginPath(); ctx.ellipse(MID, 690, 128, 26, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = "#c9a227";
+  ctx.fillRect(MID - 34, 600, 66, 86);                       // body
+  ctx.fillRect(MID - 16, 566, 30, 36);                       // head and shoulders
+  ctx.fillRect(MID + 26, 572, 58, 13);                       // the outflung arm
+  ctx.fillStyle = "#e8c558";
+  ctx.fillRect(MID + 78, 556, 17, 32);                       // the flame
+  ctx.fillRect(MID - 72, 614, 42, 12);                       // trailing arm
+  ctx.fillStyle = "#a07f18";
+  ctx.fillRect(MID - 34, 672, 66, 14);
+
+  // the rink below, and skaters going round on it
+  ctx.fillStyle = "#1b2a33"; ctx.fillRect(200, 700, 1520, 150);
+  ctx.globalAlpha = a * 0.45; ctx.fillStyle = "#8fc6de";
+  ctx.fillRect(200, 700, 1520, 16);
+  ctx.globalAlpha = a * 0.22;
+  for (var sl = 0; sl < 7; sl++)
+    ctx.fillRect(240 + sl * 210, 724 + (sl % 3) * 34, 150, 4);
   ctx.globalAlpha = a;
-  for (var f = 0; f < 9; f++){                       // flags
-    ctx.fillStyle = "#6b6257"; ctx.fillRect(300 + f*160, 480, 5, 120);
-    ctx.fillStyle = f % 2 ? "#d8431f" : "#e8c12a";
-    ctx.fillRect(305 + f*160, 480, 36, 24);
+  for (var sk = 0; sk < 9; sk++){
+    var ph = t * 0.42 + sk * 0.7;
+    var sx3 = MID + Math.cos(ph) * (560 - (sk % 3) * 130);
+    var sy3 = 772 + Math.sin(ph) * (46 - (sk % 3) * 11);
+    var ss = 0.78 + Math.sin(ph) * 0.12;
+    ctx.fillStyle = ["#d8431f", "#2f6fc4", "#e8c12a", "#d7dbe0"][sk % 4];
+    ctx.fillRect(sx3, sy3 - 44 * ss, 20 * ss, 32 * ss);
+    ctx.fillStyle = "#c79a74";
+    ctx.fillRect(sx3 + 4 * ss, sy3 - 60 * ss, 13 * ss, 17 * ss);
+    ctx.globalAlpha = a * 0.3; ctx.fillStyle = "#cfe8f4";
+    ctx.fillRect(sx3 - 6, sy3 - 6 * ss, 32 * ss, 4);
+    ctx.globalAlpha = a;
   }
-  for (var j = 0; j < 5; j++){                       // fountain jets
-    var jx = 520 + j*220, hgt = 70 + Math.abs(Math.sin(t*3 + j))*110;
-    ctx.globalAlpha = a*0.75; ctx.fillStyle = "#bfe4f2";
-    ctx.fillRect(jx, 600 - hgt, 9, hgt);
-    ctx.globalAlpha = a*0.35;
-    ctx.fillRect(jx-16, 600 - hgt*0.6, 41, hgt*0.6);
-    ctx.globalAlpha = a*0.5;
-    ctx.beginPath(); ctx.ellipse(jx+4, 604, 46, 11, 0, 0, Math.PI*2); ctx.fill();
-  }
-  ctx.globalAlpha = a; ctx.fillStyle = "#c9a227";     // the gilded figure
-  ctx.fillRect(930, 520, 60, 80); ctx.fillRect(946, 486, 28, 34);
 }
 /* Central Park South: trees, the pond, a carriage */
 function scenePark(t, a){
@@ -5578,16 +5706,16 @@ function txt(s,x,y,size,col,align,maxW){
   if (maxW) ctx.fillText(s,x,y,maxW); else ctx.fillText(s,x,y);
 }
 
-function drawStamina(x, y, w, h){
+function drawHealth(x, y, w, h){
   var f = Math.max(0, Math.min(1, G.hp / HP_MAX));
   var low = G.hp <= HP_LOW;
   var col = G.hp > 50 ? C.good : (low ? C.danger : C.amber);
   if (low && Math.sin(G.t * 9) < 0) col = C.text;
 
   plate(x, y, w, h, C.ink, 12);
-  txt("STAMINA", x + 20, y + 34, 24, C.textDim, "left");
+  txt("HEALTH", x + 22, y + 39, 25, C.textDim, "left");
 
-  var bx = x + 150, bw = w - 150 - 92, by = y + 13, bh = h - 26;
+  var bx = x + 136, bw = w - 136 - 104, by = y + 16, bh = h - 32;
   ctx.fillStyle = "rgba(255,255,255,0.10)";
   ctx.fillRect(bx, by, bw, bh);
   ctx.fillStyle = col;
@@ -5596,7 +5724,7 @@ function drawStamina(x, y, w, h){
      down without doing arithmetic mid-crossing. */
   ctx.fillStyle = "rgba(10,6,4,0.55)";
   for (var m = 1; m < 4; m++) ctx.fillRect(bx + bw * (m / 4) - 1, by, 2, bh);
-  txt(Math.round(G.hp) + "%", x + w - 20, y + 36, 28, col, "right");
+  txt(Math.round(G.hp) + "%", x + w - 22, y + 41, 30, col, "right");
 
   // what the last meal was worth, floating off the bar
   if (G.hpGain){
@@ -5611,11 +5739,6 @@ function drawHud(){
   plate(28, 26, 470, 104, C.ink);
   txt("PIPELINE", 52, 58, 26, C.textDim, "left");
   txt(cash(pipeline()), 52, 98, 56, C.text, "left");
-
-  /* Stamina, under the pipeline and clear of the message band, which starts
-     at x=550. It is the one number that decides whether the walk ends, so it
-     gets a bar rather than a chip. */
-  drawStamina(28, 142, 470, 52);
 
   // where you are, in blocks
   plate(514, 26, 250, 104, C.ink);
@@ -5677,6 +5800,13 @@ function drawHud(){
       }
     }
   }
+
+  /* Health, across the bottom middle. The power-up chips run along the
+     bottom left and the TAM badge and the full-screen button sit bottom
+     right, so the centre of that row is the one piece of furniture-free
+     space on the board - and it is the number that decides whether the walk
+     ends, so it gets a bar of its own rather than a chip. */
+  drawHealth((LOGICAL_W - 560) / 2, 986, 560, 62);
 
   /* Once engaged the TAM never lapses, so it gets a standing badge rather
      than a timed chip. The counter is the point: it keeps delivering. */

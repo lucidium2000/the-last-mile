@@ -460,20 +460,34 @@ ten blocks:
 
 Everything resumes at 70th.
 
-### Stamina
+### Health
 
 A walk uptown is tiring, and the only thing that fixes tired is lunch.
 
 | | |
 |---|---|
 | Start | 100% |
-| Every street crossed | **−3%** |
+| Every street crossed, on foot | **−3%** |
+| … below 5%, or while flying on a TAM | **−1%** |
+| … crossed by subway | **free** |
 | Food — bagel, slice, hot dog | **+25%**, capped at 100 |
 | An objection that lands | **−75%** |
-| Endpoint Agent shield | absorbs the hit completely, costs no stamina |
+| Endpoint Agent shield | absorbs the hit completely, costs no health |
 
-All four numbers live together near `CHUCK_BONUS`, so the balance is one line
-to change.
+All of them live together near `CHUCK_BONUS`, so the balance is one line to
+change.
+
+Three exemptions, each for a reason:
+
+- **The subway is free.** A ride covers ten to twenty streets sitting down,
+  which is the opposite of tiring, and charging for them turned the best
+  power-up in the game into a trap. `progress()` is called from inside the ride
+  while `G.ride` is still set, so that is the test.
+- **Below 5% it costs a point a street.** The last few blocks are where a run
+  is lost, and a hard floor of two crossings turned "nearly out" into "already
+  out" with no chance of reaching the next cart.
+- **Flying costs a point too.** Being carried over the traffic on a TAM is not
+  walking.
 
 Being hit no longer ends the run outright — it takes a bite out of him and he
 carries on, once. Two hits from full is still death, so the shield keeps its
@@ -484,7 +498,7 @@ attached.
 The drain is deliberately more than you start with: 47 blocks to the restaurant
 costs 141%, and the round trip 282%. You cannot finish on the tank you begin
 with. Measured over 40 generated worlds, the walk puts **0.765 food carts on
-every street**, which is 19.1% of stamina a street against a 3% cost — so
+every street**, which is 19.1% of health a street against a 3% cost — so
 eating roughly **one cart in six** breaks even, and the margin above that is
 wide. Simulated 60 runs at each rate: eating 40%, 70% or 100% of the carts
 reached the dinner **60 times out of 60**; eating none died at **W 68th**, two
@@ -492,11 +506,14 @@ thirds of the way up.
 
 **One cart serves one meal.** Walking into a stand is a free move — the step was
 already refused — so without marking the cart used you could stand next to a hot
-dog stand tapping into it and never run out of stamina again.
+dog stand tapping into it and never run out of health again.
 
-The bar sits under the pipeline, ticked every 25% so you can read how many
-lunches you are down without doing arithmetic mid-crossing. It turns amber below
-half, red below 25%, and flashes.
+The bar sits across the **bottom middle** — the power-up chips run along the
+bottom left and the TAM badge and full-screen button sit bottom right, so the
+centre of that row is the one piece of furniture-free space on the board. It is
+ticked every 25%, one meal a tick, so you can read how many lunches you are down
+without doing arithmetic mid-crossing. Amber below half, red below 25%, and it
+flashes.
 
 ### He smiles
 
@@ -518,9 +535,26 @@ are, in the same register as the subway ride. Each plays once per run.
 | Street | Scene |
 |---|---|
 | 42nd | Times Square — eight billboards each running their own loop, the ticker, Broadway traffic behind the red steps, steam off a grate, a crowd three ranks deep |
-| 50th | Rockefeller Center — the slab, the rink, the flags, the fountains |
+| 50th | Rockefeller Center — 30 Rock itself, the sunken plaza, Prometheus, the flags and the rink |
 | 59th | Central Park South — the canopy, the pond, a carriage |
 | 81st | Steak dinner — the customer, two glasses, and a handshake on a verbal |
+
+**The red steps** were a symmetric trapezoid that was *wider at the top than the
+bottom*, which is perspective backwards — the top of a flight is further away,
+so that is the end that should be narrower. They now run to one vanishing point
+straight ahead and widen as they come towards you, and each step is drawn as two
+faces, the tread you see the top of and the riser below it, instead of one flat
+bar. Measured down the flight: 520, 544, 600, 624, 680, 704, 760, 784, 795 px
+wide, every row wider than the one above it.
+
+**30 Rock** was a flat wall of window rectangles that could have been any office
+block in any city. It is recognised by its *shape*, so it is built as a
+silhouette first: a slender limestone slab with slight setbacks stepping in as
+it rises, unbroken vertical piers the full height of each tier, and the window
+glass recessed in continuous ribbons rather than a grid — which is the detail
+that reads Art Deco instead of curtain wall. The first attempt stepped
+330→268→214→168 and came out a ziggurat; it is 232→216→202→188 now, 464px wide
+at the base against 376 at the top, a 19% taper over the whole height.
 
 The message afterwards is a **centre-screen notice**, not a corner toast: the
 world dims, a bordered panel takes the middle of the screen for seven and a
@@ -657,7 +691,7 @@ game time: 81 payouts, mean gap 22.38s, ratio to the old rate **0.492**.
 banner raised just before the turnstile — or on the single frame a ride ends —
 sat across the carriage. All four message bands (TAM payout, flash, milestone
 toast and the centre-screen notice) are suppressed for the length of a ride.
-The pipeline, stamina and departure board stay up.
+The pipeline, health and departure board stay up.
 
 **TAM.** The headline SKU, and the only power-up that pays twice in different
 currencies.
