@@ -2316,7 +2316,9 @@ function reset(){
    offline fallback. See leaderboard-worker.js for a server that implements the
    four-line contract. */
 
-var BOARD_API = "";                 // e.g. "https://last-mile.<you>.workers.dev"
+/* The shared board. An HTTP val (leaderboard/valtown.ts); empty this string
+   and the game never opens a socket, which is the RoomOS-safe default. */
+var BOARD_API = "https://lucidium2000--be403ca8c25711f194891607ee4eb77e.web.val.run";
 var BOARD_MAX = 25;                 // rows kept locally
 var BOARD_SHOW = 10;                // rows on screen
 var LS_BOARD = "lastmile.board.v1", LS_STATS = "lastmile.stats.v1",
