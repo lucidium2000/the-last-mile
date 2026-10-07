@@ -287,6 +287,12 @@ var AUDIO = (function(){
       hit({ f:5200, hp:true, dur:0.16, g:0.12, at:0.02 });
       tone({ f:300, to:190, dur:0.5, type:"triangle", g:0.10, at:0.12, lp:900 });
     },
+    /* flight lapsing: a short blip that climbs as the seconds go */
+    flyWarn: function(f){
+      var base = 860 + (1 - f) * 540;
+      tone({ f:base, dur:0.07, type:"square", g:0.12, lp:3200 });
+      tone({ f:base*1.5, dur:0.05, type:"sine", g:0.055, at:0.03 });
+    },
     shield: function(){
       tone({ f:880,  to:1320, dur:0.18, type:"sine", g:0.22 });
       tone({ f:1324,          dur:0.22, type:"sine", g:0.12, at:0.02 });
@@ -1073,6 +1079,7 @@ var POWER_POOL = ["path","path","path",
 var CHUCK_BONUS = 250000;
 var TAM_DURATION = 60;
 var FLY_SECS = 5, TAM_BONUS_SECS = 2, FLY_MAX = 9;
+var FLY_WARN = 1.4;   // last seconds of flight: ring reddens, figure blinks, beep
 var TAM_COOLDOWN_ROWS = 16;   // uncommon, not rare - it is the headline SKU
 
 /* Things a ThousandEyes TAM actually does. One fires on a timer for as long as
@@ -1614,7 +1621,7 @@ function reset(){
     hop:1, facing:1, maxRow:0, camRow:0, street:START_ST,
     stage:-1, coach:-1, toast:null, flash:null,
     shield:false, slowT:0, revealT:0, invulnT:0, powersUsed:0,
-    flyT:0, flyA:0, tam:false, tamT:0, tamWins:0, hurtT:0,
+    flyT:0, flyA:0, flyBeep:0, tam:false, tamT:0, tamWins:0, hurtT:0,
     metro:false, ride:null, trace:null, rides:0, bonus:0, tamLeft:0, riskT:0,
     scene:null, scenesSeen:{},
     trainT:TRAIN_MAX, trainLine:tr[0], trainDest:tr[1],
@@ -2484,6 +2491,15 @@ function update(dt){
 
   /* Flight. The ascent and descent are eased off a single 0..1 value, so the
      lift, the faster hop and the shadow all stay in sync. */
+  /* and a beep that quickens and rises with it */
+  if (G.flyT > 0 && G.flyT < FLY_WARN && G.state === ST_PLAY){
+    G.flyBeep -= dt;
+    if (G.flyBeep <= 0){
+      AUDIO.flyWarn(G.flyT / FLY_WARN);
+      G.flyBeep = 0.11 + (G.flyT / FLY_WARN) * 0.25;
+    }
+  } else G.flyBeep = 0;
+
   var wasFlying = G.flyT > 0;
   if (G.flyT > 0) G.flyT = Math.max(0, G.flyT - dt);
   if (wasFlying && G.flyT <= 0) landFromFlight();
@@ -3270,7 +3286,7 @@ function drawPlayer(pp){
 
   if (fly > 0.02){
     // pulsing lift ring under the feet, and a warning flicker as it runs out
-    var low = G.flyT > 0 && G.flyT < 1.4;
+    var low = G.flyT > 0 && G.flyT < FLY_WARN;
     var pul = 0.5 + 0.5*Math.sin(G.t * (low ? 20 : 7));
     ctx.globalAlpha = fly * (0.30 + 0.35*pul);
     ctx.strokeStyle = low ? C.danger : C.pw5; ctx.lineWidth = 5;
@@ -3297,6 +3313,13 @@ function drawPlayer(pp){
     // flicker, and reel sideways
     if (Math.floor(G.hurtT * 26) % 2 === 0) return;
     sx += Math.sin(G.hurtT * 46) * 9;
+  }
+  /* Flight about to lapse: blink, quickening as it runs down. The shadow and
+     the lift ring stay drawn, so you can still see where you are while the
+     figure itself cuts in and out. */
+  if (G.flyT > 0 && G.flyT < FLY_WARN){
+    var blink = 9 + (1 - G.flyT/FLY_WARN) * 17;
+    if (Math.floor(G.t * blink) % 2 === 0) return;
   }
   blitScaled(s, sx, sy - pp.lift - flyLift,
              (1 - pp.sq*0.10) * hk, (1 + pp.sq*0.14) * hk);
@@ -3435,7 +3458,7 @@ function drawHud(){
     plate(cx+8, cy+8, 60, 60, chips[i][2], 11);
     txt(chips[i][0], cx+38, cy+41, chips[i][0].length > 1 ? 24 : 32, "#1a0a02");
     if (chips[i][3] > 0){
-      var low = (chips[i][1] === "FLYING" && G.flyT < 1.4);
+      var low = (chips[i][1] === "FLYING" && G.flyT < FLY_WARN);
       ctx.fillStyle = "rgba(255,255,255,0.16)"; ctx.fillRect(cx+8, cy+62, 60, 6);
       ctx.fillStyle = low && Math.sin(G.t*20) < 0 ? C.danger : chips[i][2];
       ctx.fillRect(cx+8, cy+62, 60*chips[i][3], 6);
