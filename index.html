@@ -16,12 +16,34 @@
     -webkit-tap-highlight-color:transparent;
     font-family:"Helvetica Neue",Helvetica,Arial,sans-serif;
   }
-  #wrap{position:fixed;inset:0;display:block;}
+  #wrap{position:fixed;inset:0;display:block;overflow:hidden;}
   canvas{position:absolute;left:0;top:0;display:block;}
+  /* The full-screen control. Bottom right, in the strip under the TAM badge,
+     which is the only part of that corner the HUD never draws into. Hidden
+     outright where the Fullscreen API is missing - some RoomOS builds run the
+     page full-screen already and expose no way to ask. */
+  #fs{
+    position:absolute;right:18px;bottom:16px;z-index:5;display:none;
+    align-items:center;gap:10px;margin:0;padding:11px 16px;
+    border:2px solid #ff6a13;border-radius:9px;
+    background:rgba(10,8,13,0.68);color:#ffd9b8;
+    font-family:"Helvetica Neue",Helvetica,Arial,sans-serif;
+    font-weight:700;font-size:16px;font-size:clamp(14px,1.05vw,24px);
+    letter-spacing:.13em;line-height:1;cursor:pointer;opacity:0.62;
+    -webkit-appearance:none;appearance:none;touch-action:manipulation;
+  }
+  #fs.on{display:flex;}
+  #fs:hover,#fs:active{opacity:1;background:rgba(255,106,19,0.20);}
+  #fs i{
+    display:inline-block;width:1em;height:0.75em;
+    border:2px solid currentColor;border-radius:2px;
+  }
 </style>
 </head>
 <body>
-<div id="wrap"><canvas id="c"></canvas></div>
+<div id="wrap"><canvas id="c"></canvas>
+<button id="fs" type="button" aria-label="Toggle full screen"><i></i><b>FULL SCREEN</b></button>
+</div>
 <script>
 "use strict";
 /* ============================================================================
@@ -322,15 +344,58 @@ var AUDIO = (function(){
       hit({ f:260, to:900, dur:0.9, g:0.10 });
       tone({ f:1400, to:2300, dur:0.22, type:"sine", g:0.05, at:0.6, lp:4000 });
     },
-    /* running: long rolling rumble with rail joints and a squeal */
-    trainRun: function(){
-      tone({ f:64, to:58, dur:3.4, type:"sawtooth", g:0.17, lp:280 });
-      tone({ f:96, to:88, dur:3.4, type:"triangle", g:0.08, lp:420 });
-      hit({ f:1100, to:420, dur:3.3, g:0.09 });
-      for (var i = 0; i < 7; i++){
-        hit({ f:3000, hp:true, dur:0.05, g:0.06, at:0.25 + i*0.45 });
+    /* the swipe and the bar going round */
+    turnstile: function(){
+      hit({ f:4200, hp:true, dur:0.07, g:0.08 });
+      hit({ f:700, to:260, dur:0.11, g:0.13, at:0.10 });
+      hit({ f:420, to:180, dur:0.09, g:0.10, at:0.19 });
+    },
+    /* the platform: a two-note PA chime, a muffled announcement, a crowd */
+    platformPA: function(){
+      tone({ f:880,    dur:0.26, type:"sine", g:0.12 });
+      tone({ f:659.25, dur:0.34, type:"sine", g:0.11, at:0.26 });
+      // the announcement itself - unintelligible, which is the authentic part
+      for (var i = 0; i < 6; i++){
+        tone({ f:200 + (i % 3) * 70, dur:0.10, type:"square", g:0.035,
+               at:0.68 + i * 0.13, lp:900 });
       }
-      tone({ f:1500, to:2200, dur:0.3, type:"sine", g:0.045, at:1.5, lp:4000 });
+      hit({ f:420, to:300, dur:1.4, g:0.022 });          // the crowd under it
+    },
+    /* doors: the chime, then the thump of them meeting */
+    doorsClose: function(){
+      tone({ f:784, dur:0.16, type:"sine", g:0.14 });
+      tone({ f:587, dur:0.22, type:"sine", g:0.13, at:0.17 });
+      hit({ f:300, to:120, dur:0.16, g:0.15, at:0.44 });
+      tone({ f:120, to:70, dur:0.2, type:"triangle", g:0.10, at:0.46, lp:300 });
+    },
+    doorsOpen: function(){
+      hit({ f:260, to:520, dur:0.18, g:0.12 });
+      tone({ f:200, to:420, dur:0.22, type:"triangle", g:0.09, lp:700 });
+      hit({ f:3200, hp:true, dur:0.06, g:0.05, at:0.22 });
+    },
+    /* running: five and a half seconds of rolling rumble, rail joints beaten
+       out underneath it, a curve squeal halfway and a horn near the end. The
+       whole thing is scheduled up front off the audio clock, so a dropped
+       frame cannot knock it out of time with the animation. */
+    trainRun: function(){
+      tone({ f:64, to:56, dur:5.4, type:"sawtooth", g:0.17, lp:280 });
+      tone({ f:96, to:86, dur:5.4, type:"triangle", g:0.08, lp:420 });
+      tone({ f:48, to:44, dur:5.4, type:"sine", g:0.11, lp:200 });
+      hit({ f:1100, to:420, dur:5.3, g:0.085 });
+      var i;
+      for (i = 0; i < 20; i++){                          // rail joints, in pairs
+        hit({ f:3000, hp:true, dur:0.05, g:0.055, at:0.20 + i * 0.26 });
+        hit({ f:2400, hp:true, dur:0.04, g:0.038, at:0.28 + i * 0.26 });
+      }
+      for (i = 0; i < 3; i++){                           // the motor working
+        tone({ f:150 + i * 40, to:190 + i * 40, dur:0.8, type:"sawtooth",
+               g:0.045, at:0.3 + i * 1.6, lp:600 });
+      }
+      tone({ f:1500, to:2400, dur:0.45, type:"sine", g:0.05, at:2.1, lp:4000 });
+      tone({ f:2300, to:1700, dur:0.35, type:"sine", g:0.04, at:2.6, lp:4000 });
+      hit({ f:5200, hp:true, dur:0.5, g:0.035, at:2.2 });  // the curve
+      tone({ f:330, dur:0.30, type:"square", g:0.07, at:4.3, lp:1400 });
+      tone({ f:262, dur:0.36, type:"square", g:0.07, at:4.4, lp:1400 });
     },
     /* arriving: brakes, then the two-tone door chime */
     trainStop: function(){
@@ -341,7 +406,47 @@ var AUDIO = (function(){
       tone({ f:587, dur:0.24, type:"sine", g:0.14, at:0.58 });
     },
     stage: function(){ arp([523.25, 783.99, 1046.50], "triangle", 0.20, 0); },
+    /* Glasses, then a warm chord that resolves - the handshake at 81st. */
+    deal: function(){
+      hit({ f:2600, hp:true, dur:0.09, g:0.07 });
+      tone({ f:1318.51, dur:0.5,  type:"sine", g:0.07, at:0.02 });
+      tone({ f:1760.00, dur:0.45, type:"sine", g:0.05, at:0.08 });
+      tone({ f:174.61,  dur:1.3,  type:"triangle", g:0.12, at:0.30, lp:600 });
+      tone({ f:261.63,  dur:1.2,  type:"sine", g:0.09, at:0.34 });
+      tone({ f:349.23,  dur:1.1,  type:"sine", g:0.08, at:0.40 });
+      tone({ f:523.25,  dur:1.0,  type:"sine", g:0.07, at:0.46 });
+    },
+    /* An ORIGINAL four-bar loop for the arrival scenes: a walking bass under
+       piano-ish arpeggios, in the anthemic register the moment wants. Written
+       for this game - deliberately not a transcription of any existing song.
+       Scheduled all at once off the audio clock, so it costs nothing per
+       frame and cannot drift if the renderer stutters. */
+    cityTheme: function(){
+      var bars = [
+        [130.81, [261.63, 329.63, 392.00, 523.25]],
+        [196.00, [293.66, 392.00, 493.88, 587.33]],
+        [220.00, [261.63, 329.63, 440.00, 523.25]],
+        [174.61, [261.63, 349.23, 440.00, 523.25]]
+      ];
+      var barLen = 0.72;
+      for (var b = 0; b < bars.length; b++){
+        var t0 = b * barLen, notes = bars[b][1];
+        tone({ f:bars[b][0],   dur:barLen * 0.92, type:"triangle", g:0.085, at:t0, lp:520 });
+        tone({ f:bars[b][0]*2, dur:barLen * 0.45, type:"sine",     g:0.035, at:t0, lp:900 });
+        hit({ f:1800, hp:true, dur:0.04, g:0.035, at:t0 + barLen * 0.5 });
+        for (var n = 0; n < 6; n++){
+          var f = notes[n % notes.length] * (n >= 4 ? 2 : 1);
+          tone({ f:f,     dur:0.26, type:"sine", g:0.070, at:t0 + n * 0.118 });
+          tone({ f:f * 2, dur:0.11, type:"sine", g:0.020, at:t0 + n * 0.118 });
+        }
+      }
+    },
     coach: function(){ tone({ f:659.25, dur:0.10, type:"sine", g:0.11 }); },
+    /* Two flat notes down, the sound of a turnstile not opening. */
+    nope: function(){
+      tone({ f:196, to:170, dur:0.17, type:"square", g:0.10, lp:1100 });
+      tone({ f:165, to:140, dur:0.24, type:"square", g:0.09, lp:950, at:0.18 });
+    },
     ui:    function(){ tone({ f:740, to:880, dur:0.06, type:"square", g:0.12 }); }
   };
 })();
@@ -354,7 +459,15 @@ var skyGrad = null, hazeGrad = null, tamBeamGrad = null;
 
 function layout(){
   var vw = window.innerWidth || LOGICAL_W, vh = window.innerHeight || LOGICAL_H;
-  var s = Math.min(vw / LOGICAL_W, vh / LOGICAL_H);
+  var sFit = Math.min(vw / LOGICAL_W, vh / LOGICAL_H), s = sFit;
+  /* A screen wider than 16:9 fits with bars down both sides. The world uses
+     every one of its 1920 columns but only y=40..1040 of its height, so
+     growing to fill the width and letting the spare vertical margin crop is
+     free - capped at 6% of overflow, which keeps the top message row and the
+     bottom chip row inside the frame on any screen. Cropping horizontally is
+     never allowed: that would eat playable columns. */
+  var sFill = vw / LOGICAL_W;
+  if (sFill > sFit && sFill * LOGICAL_H <= vh * 1.06) s = sFill;
   var cssW = Math.max(1, Math.floor(LOGICAL_W * s));
   var cssH = Math.max(1, Math.floor(LOGICAL_H * s));
   var dpr = Math.min(window.devicePixelRatio || 1, 1.5);
@@ -395,6 +508,47 @@ function layout(){
   var nb = Math.max(0.5, Math.min(1, scale));
   if (!ready || Math.abs(nb - BAKE) > 0.02){ BAKE = nb; if (ready) bakeAll(); }
 }
+/* ------------------------------------------------------------ full screen */
+var fsBtn = document.getElementById("fs");
+function fsNow(){
+  return document.fullscreenElement || document.webkitFullscreenElement ||
+         document.msFullscreenElement || null;
+}
+function fsCan(){
+  var d = document.documentElement;
+  return !!(d.requestFullscreen || d.webkitRequestFullscreen || d.msRequestFullscreen);
+}
+function fsToggle(){
+  var d = document.documentElement;
+  try {
+    if (fsNow()){
+      var exit = document.exitFullscreen || document.webkitExitFullscreen ||
+                 document.msExitFullscreen;
+      if (exit){ var r = exit.call(document); if (r && r.catch) r.catch(function(){}); }
+    } else {
+      var req = d.requestFullscreen || d.webkitRequestFullscreen ||
+                d.msRequestFullscreen;
+      if (req){ var q = req.call(d); if (q && q.catch) q.catch(function(){}); }
+    }
+  } catch (e) {}
+}
+function fsSync(){
+  fsBtn.lastChild.textContent = fsNow() ? "EXIT FULL SCREEN" : "FULL SCREEN";
+  layout();                      // the viewport just changed size
+}
+if (fsCan()){
+  fsBtn.className = "on";
+  /* The canvas owns "tap anywhere to step forward", so the button has to stop
+     its own click from reaching it - otherwise going full screen also moves. */
+  fsBtn.addEventListener("click", function(e){
+    e.preventDefault(); e.stopPropagation(); AUDIO.ui(); fsToggle();
+  });
+  fsBtn.addEventListener("pointerdown", function(e){ e.stopPropagation(); });
+  document.addEventListener("fullscreenchange", fsSync);
+  document.addEventListener("webkitfullscreenchange", fsSync);
+  document.addEventListener("msfullscreenchange", fsSync);
+}
+
 window.addEventListener("resize", layout);
 window.addEventListener("orientationchange", layout);
 
@@ -669,11 +823,12 @@ var MILESTONES = {
   47:["DIAMOND DISTRICT",   "TECHNICAL WIN",  "Internet Insights: outages before the tickets."],
   50:["ROCK CENTER",        "POV RUNNING",    "Endpoint agents see it from the user’s chair."],
   54:["MoMA",               "BUSINESS CASE",  "Proof beats opinion."],
-  57:["BILLIONAIRES’ ROW","PROCUREMENT", "Find the signature. Walk it in yourself."],
+  57:["CARNEGIE HALL",      "PROCUREMENT",    "Find the signature. Walk it in yourself."],
   59:["CENTRAL PARK SOUTH", "CLOSED WON",     "You made the meeting. Now do it again."],
   65:["LENOX HILL",         "RENEWAL",        "The quarter never ends."],
   72:["UPPER EAST SIDE",    "EXPANSION",      "One site proved it. Now do ninety."],
   79:["THE MET",            "REFERENCE",      "Your customer is now your best slide."],
+  81:["HAPPY HOUR",        "VERBAL AGREEMENT","A handshake is not a signature. Go and get it."],
   86:["CARL SCHURZ",        "LEGEND",         "Nobody walks this far."]
 };
 
@@ -716,6 +871,27 @@ function cabModel(){
     dec.push({ x:0.14+i*0.13, y:0.17, w:0.065, z:0.265, h:0.03, bg:(i%2)?"#1b1b1b":"#f7f3e6" });
   }
   return { parts:parts, decals:dec, W:1.45 };
+}
+
+/* A rideshare car. Same footprint as a cab so the lane maths is untouched,
+   but plain paint, no checker, no roof light, and a lit placard inside the
+   windscreen. Roughly a third of the fleet. */
+function uberModel(variant){
+  var body = ["#1b1e24","#2b2f36","#4a4f57","#8d939b"][variant % 4];
+  var parts = [
+    P(0.05, 0.17, 1.35, 0.66, 0.09, 0.21, body),
+    P(0.32, 0.20, 0.68, 0.60, 0.30, 0.19, shade(body, 0.08)),
+    P(0.94, 0.20, 0.14, 0.60, 0.30, 0.17, "#13222f"),
+    P(0.34, 0.16, 0.58, 0.03, 0.33, 0.13, "#16293a"),
+    E(1.38, 0.21, 0.05, 0.11, 0.17, 0.08, "#ffe9a6"),
+    E(0.03, 0.23, 0.04, 0.10, 0.17, 0.07, "#ff6a6a")
+  ];
+  wheels(parts, [0.17, 1.00], 0.21, 0.13);
+  return { parts:parts, decals:[
+    { x:0.80, y:0.16, w:0.26, z:0.355, h:0.09, bg:"#f4f6f8", fg:"#141619",
+      text:"UBER", size:11 },
+    { x:0.40, y:0.17, w:0.26, z:0.125, h:0.07, bg:shade(body, 0.22) }
+  ], W:1.45 };
 }
 
 /* M34 Select Bus - enormous, and it STOPS at every block. Procurement. */
@@ -1229,6 +1405,41 @@ function halalModel(){                       // halal cart, umbrella up
     { x:0.30, y:0.34, w:0.40, z:0.395, h:0.03, bg:"#ffd166", glow:true }
   ], W:1 };
 }
+/* The slice place. Red-and-green awning, slice out on the counter. */
+function pizzaModel(){
+  return { parts:[
+    P(0.20, 0.33, 0.60, 0.34, 0.12, 0.28, "#d8d2c4"),
+    P(0.20, 0.33, 0.60, 0.34, 0.40, 0.05, "#8d8577"),
+    P(0.47, 0.47, 0.06, 0.06, 0.45, 0.30, "#5a6268"),
+    P(0.12, 0.25, 0.76, 0.52, 0.75, 0.07, "#1f7a46"),
+    P(0.12, 0.25, 0.76, 0.52, 0.82, 0.04, "#c9243f"),
+    P(0.38, 0.36, 0.22, 0.14, 0.45, 0.03, "#e8b93c"),
+    P(0.26, 0.33, 0.10, 0.10, 0,    0.13, "#2b3038"),
+    P(0.64, 0.33, 0.10, 0.10, 0,    0.13, "#2b3038")
+  ], decals:[
+    { x:0.23, y:0.33, w:0.54, z:0.20, h:0.14, bg:"#c9243f", fg:"#f6efe2",
+      text:"PIZZA", size:15 },
+    { x:0.28, y:0.33, w:0.44, z:0.425, h:0.03, bg:"#ffd166", glow:true }
+  ], W:1 };
+}
+/* The hot dog cart. Yellow and blue umbrella, one on every corner. */
+function hotdogModel(){
+  return { parts:[
+    P(0.22, 0.34, 0.56, 0.32, 0.12, 0.26, "#c9ced4"),
+    P(0.22, 0.34, 0.56, 0.32, 0.38, 0.05, "#8d969e"),
+    P(0.48, 0.48, 0.05, 0.05, 0.43, 0.32, "#5a6268"),
+    P(0.13, 0.26, 0.74, 0.50, 0.75, 0.07, "#f0c93c"),
+    P(0.13, 0.26, 0.74, 0.50, 0.82, 0.04, "#1b4fa8"),
+    P(0.40, 0.37, 0.20, 0.12, 0.43, 0.04, "#b0582a"),
+    P(0.26, 0.33, 0.10, 0.10, 0,    0.13, "#2b3038"),
+    P(0.64, 0.33, 0.10, 0.10, 0,    0.13, "#2b3038")
+  ], decals:[
+    { x:0.24, y:0.34, w:0.52, z:0.19, h:0.13, bg:"#1b4fa8", fg:"#f6efe2",
+      text:"HOT DOGS", size:12 },
+    { x:0.29, y:0.34, w:0.42, z:0.405, h:0.03, bg:"#ffd166", glow:true }
+  ], W:1 };
+}
+
 function newsstandModel(){
   return { parts:[
     P(0.14, 0.26, 0.72, 0.50, 0,    0.62, "#1f4a3c"),
@@ -1328,10 +1539,10 @@ function kioskModel(){
 /* "subway" twice, so entrances turn up about twice as often - there is no
    point carrying a card if there is nowhere to swipe in. */
 var FACADE_KINDS = ["facadeA","facadeB","facadeC"];
-var PROP_KINDS = ["shed","halal","newsstand","subway","subway","trash",
+var PROP_KINDS = ["shed","halal","pizza","pizza","hotdog","hotdog","newsstand","subway","subway","trash",
                   "planter","citidock","kiosk"];
 var PROP_MODELS = {
-  shed:shedModel, halal:halalModel, newsstand:newsstandModel, subway:subwayModel,
+  shed:shedModel, halal:halalModel, pizza:pizzaModel, hotdog:hotdogModel, newsstand:newsstandModel, subway:subwayModel,
   trash:trashModel, planter:planterModel, citidock:citiDockModel, kiosk:kioskModel
 };
 
@@ -1383,6 +1594,10 @@ function bakeAll(){
     k = ALL_HAZ[i]; m = MODELS[k]();
     S[k+"_r"] = bake(m);
     S[k+"_l"] = bake(flip(m, m.W));
+  }
+  for (i = 0; i < 4; i++){
+    S["uber"+i+"_r"] = bake(uberModel(i));
+    S["uber"+i+"_l"] = bake(flip(uberModel(i), 1.45));
   }
   S.player_r  = bake(playerModel(1, false));
   S.player_l  = bake(playerModel(-1, false));
@@ -1471,7 +1686,8 @@ function makeRoad(r, streetNo, dir){
   var n = Math.max(1, Math.floor(SPAN / (eff + gap)));
   var slot = SPAN / n, cars = [];
   for (var i=0;i<n;i++){
-    cars.push({ p: i*slot + Math.random()*(slot-eff)*0.5,
+    cars.push({ uber: (kind === "cab" && Math.random() < 0.34) ? ((Math.random()*4)|0) : -1,
+                p: i*slot + Math.random()*(slot-eff)*0.5,
                 stop: spec.stops ? (Math.random()*5.2) : 0 });
   }
 
@@ -1621,8 +1837,8 @@ function reset(){
     hop:1, facing:1, maxRow:0, camRow:0, street:START_ST,
     stage:-1, coach:-1, toast:null, flash:null,
     shield:false, slowT:0, revealT:0, invulnT:0, powersUsed:0,
-    flyT:0, flyA:0, flyBeep:0, tam:false, tamT:0, tamWins:0, hurtT:0,
-    metro:false, ride:null, trace:null, rides:0, bonus:0, tamLeft:0, riskT:0,
+    flyT:0, flyA:0, flyBeep:0, tam:false, tamT:0, tamWins:0, hurtT:0, nahT:0,
+    metro:0, ride:null, trace:null, rides:0, bonus:0, tamLeft:0, riskT:0,
     scene:null, scenesSeen:{},
     trainT:TRAIN_MAX, trainLine:tr[0], trainDest:tr[1],
     trainHH:16 + ((Math.random()*3)|0), trainMM:(Math.random()*60)|0,
@@ -1717,9 +1933,11 @@ function act(dir){
     for (var pi = 0; pi < target.props.length; pi++){
       var sw = target.props[pi];
       if (sw.kind === "subway" && sw.col === nc){
-        if (G.metro){ startRide(nr, nc); return; }
+        if (G.metro > 0){ startRide(nr, nc); return; }
+        G.nahT = 0.85;                       // he looks at the turnstile and no
         AUDIO.bump();
         flash("NO METROCARD", "Find one to ride the subway.", "#ffd24a");
+      AUDIO.nope();
         return;
       }
     }
@@ -1804,7 +2022,9 @@ function collect(){
     G.bonus += CHUCK_BONUS;
     burst(G.col*TILE + TILE/2, rowScreenY(G.row) - 40, "#7fd49a");
   }
-  else if (kind === "metro"){ G.metro = true; }
+  /* Cards accumulate. Three in the wallet is three rides, which is what makes
+     stacking them worth doing instead of riding the first train you find. */
+  else if (kind === "metro"){ G.metro = Math.min(9, G.metro + 1); }
   else if (kind === "tam"){
     G.flyT = Math.min(FLY_MAX, Math.max(G.flyT, FLY_SECS));
     G.tam = true;
@@ -2070,11 +2290,14 @@ function pad2(n){ return (n < 10 ? "0" : "") + n; }
    out of the stairwell rather than into it. Removing a blocker can never
    create a pin, so the generation guarantees still hold. */
 function startRide(enterRow, enterCol){
-  ensureRows(G.maxRow + 60);
+  /* Ten to twenty streets, so the generator has to run far enough ahead to
+     hold them: twenty crossings is sixty-odd rows once the multi-lane streets
+     are counted, and the search has to outrun that with room to spare. */
+  ensureRows(G.maxRow + 160);
   var fromSt = streetAt(enterRow);
-  var wantSt = fromSt + 5 + ((Math.random()*6) | 0);     // 5..10 streets
+  var wantSt = fromSt + 10 + ((Math.random()*11) | 0);   // 10..20 streets
   var dest = null;
-  for (var r = enterRow + 3; r < enterRow + 80; r++){
+  for (var r = enterRow + 3; r < enterRow + 200; r++){
     var w = rows[r];
     if (!w || w.type !== "safe") continue;
     if (streetAt(r) >= wantSt){ dest = r; break; }
@@ -2093,7 +2316,7 @@ function startRide(enterRow, enterCol){
   }
   delete dw.blocked[exitCol];
 
-  G.metro = false;                                       // single ride
+  G.metro--;                             // one swipe, one fare
   G.rides++;
   G.ride = { t:0, phase:"down", fromRow:enterRow, fromCol:enterCol,
              toRow:dest, toCol:exitCol, camFrom:G.camRow, streets:streetAt(dest) - fromSt };
@@ -2110,7 +2333,7 @@ function startRide(enterRow, enterCol){
      arrive   brakes, the station sign sliding in, doors opening
      up       back out into the street
    Each beat has its own sound. The camera races uptown through `run`. */
-var RIDE_PHASES = { down:0.9, platform:0.9, run:3.4, arrive:0.8, up:0.7 };
+var RIDE_PHASES = { down:1.0, platform:1.5, run:5.4, arrive:1.0, up:0.7 };
 
 function updateRide(dt){
   var R = G.ride;
@@ -2118,14 +2341,19 @@ function updateRide(dt){
   R.rock = (R.rock || 0) + dt;
   if (R.phase === "down"){
     if (R.t >= RIDE_PHASES.down){ R.phase = "platform"; R.t = 0; AUDIO.trainIn(); }
+    else if (!R.swiped && R.t > 0.25){ R.swiped = true; AUDIO.turnstile(); }
   } else if (R.phase === "platform"){
-    if (R.t >= RIDE_PHASES.platform){ R.phase = "run"; R.t = 0; AUDIO.trainRun(); }
+    if (!R.paged && R.t > 0.35){ R.paged = true; AUDIO.platformPA(); }
+    if (R.t >= RIDE_PHASES.platform){
+      R.phase = "run"; R.t = 0; AUDIO.doorsClose(); AUDIO.trainRun();
+    }
   } else if (R.phase === "run"){
     var f = Math.min(1, R.t / RIDE_PHASES.run);
     var e = f < 0.5 ? 2*f*f : 1 - Math.pow(-2*f + 2, 2)/2;
     G.camRow = R.camFrom + (R.toRow - R.camFrom) * e;
     if (R.t >= RIDE_PHASES.run){ R.phase = "arrive"; R.t = 0; AUDIO.trainStop(); }
   } else if (R.phase === "arrive"){
+    if (!R.opened && R.t > 0.35){ R.opened = true; AUDIO.doorsOpen(); }
     if (R.t >= RIDE_PHASES.arrive){
       R.phase = "up"; R.t = 0;
       G.row = R.toRow; G.fromRow = R.toRow;
@@ -2216,7 +2444,7 @@ function drawCar(ox, rock, lit){
 var SCENE_SECS = 2.9;
 function sceneFrame(title, sub, body){
   var R = G.scene, t = R.t;
-  var fin = Math.min(1, t/0.3), fout = Math.min(1, (SCENE_SECS - t)/0.35);
+  var fin = Math.min(1, t/0.3), fout = Math.min(1, (R.len - t)/0.35);
   var a = Math.max(0, Math.min(fin, fout));
   ctx.globalAlpha = a * 0.93; ctx.fillStyle = "#07080c";
   ctx.fillRect(0, 0, LOGICAL_W, LOGICAL_H);
@@ -2230,33 +2458,111 @@ function sceneFrame(title, sub, body){
   txt(sub, LOGICAL_W/2, LOGICAL_H-58, 26, C.textDim);
   ctx.globalAlpha = 1;
 }
-/* Times Square: the red steps, the screens, the crowd */
+/* Times Square. Billboards of mixed sizes each running their own moving
+   content, the ticker band, the red steps with people on them, cabs streaming
+   past below, steam off a grate and a crowd three ranks deep. What sells the
+   place is the clutter, so nothing here sits on a grid. */
 function sceneTimes(t, a){
-  for (var i = 0; i < 9; i++){                       // screens
-    var x = 60 + (i%3)*640, y = 170 + ((i/3)|0)*110;
-    var cols = ["#c9243f","#1b4fd0","#e0a81e","#12a05c","#7b2fd0","#d8431f"];
-    var c = cols[(i + ((t*3)|0)) % cols.length];
-    ctx.fillStyle = c; ctx.globalAlpha = a * (0.55 + 0.45*Math.sin(t*5 + i));
-    ctx.fillRect(x, y, 600, 96);
-    ctx.globalAlpha = a * 0.22; ctx.fillStyle = "#000";
-    for (var sy = 0; sy < 96; sy += 7) ctx.fillRect(x, y+sy, 600, 2);
+  var BB = [
+    [  30, 162, 500, 148, "#c9243f"], [ 556, 162, 300,  94, "#1b4fd0"],
+    [ 882, 162, 420, 116, "#e0a81e"], [1330, 162, 560, 148, "#12a05c"],
+    [ 556, 282, 300, 134, "#7b2fd0"], [ 882, 302, 420, 114, "#d8431f"],
+    [  30, 336, 500,  80, "#1f7fd8"], [1330, 336, 560,  80, "#e8c12a"]
+  ];
+  for (var i = 0; i < BB.length; i++){
+    var b = BB[i];
+    ctx.globalAlpha = a * (0.80 + 0.20 * Math.sin(t * 5 + i * 1.7));
+    ctx.fillStyle = b[4]; ctx.fillRect(b[0], b[1], b[2], b[3]);
+    /* Each board runs a different loop, so the wall reads as many screens
+       rather than one tiled pattern. */
+    ctx.globalAlpha = a * 0.34; ctx.fillStyle = "#ffffff";
+    if (i % 3 === 0){
+      var sw = Math.max(0, (t * 200 + i * 90) % (b[2] + 120) - 120);
+      ctx.fillRect(b[0] + sw, b[1], Math.min(100, b[2] - sw), b[3]);
+    } else if (i % 3 === 1){
+      for (var q = 0; q < 4; q++){
+        if (((q + ((t * 4) | 0)) % 3) === 0)
+          ctx.fillRect(b[0] + 16 + q * (b[2] / 4), b[1] + 14,
+                       b[2] / 4 - 28, b[3] - 28);
+      }
+    } else {
+      ctx.fillRect(b[0] + 14, b[1] + b[3] * 0.5 - 9 + Math.sin(t * 4 + i) * 12,
+                   b[2] - 28, 18);
+    }
+    ctx.globalAlpha = a * 0.22; ctx.fillStyle = "#000";          // scanlines
+    for (var sy = 0; sy < b[3]; sy += 7) ctx.fillRect(b[0], b[1] + sy, b[2], 2);
+    ctx.globalAlpha = a * 0.55; ctx.fillStyle = "#0b0a10";       // bezel
+    ctx.fillRect(b[0] - 6, b[1] - 6, b[2] + 12, 6);
+    ctx.fillRect(b[0] - 6, b[1] + b[3], b[2] + 12, 6);
+    ctx.globalAlpha = a * 0.09; ctx.fillStyle = b[4];            // light spill
+    ctx.fillRect(b[0] - 30, b[1] + b[3], b[2] + 60, 120);
+    ctx.globalAlpha = a;
+  }
+  // the ticker band
+  ctx.fillStyle = "#0c0a10"; ctx.fillRect(0, 424, LOGICAL_W, 44);
+  var tk = (t * 500) % (LOGICAL_W + 900);
+  ctx.fillStyle = "#e8c12a"; ctx.fillRect(LOGICAL_W - tk,        435, 330, 22);
+  ctx.fillStyle = "#d8431f"; ctx.fillRect(LOGICAL_W - tk + 420,  435, 240, 22);
+  ctx.fillStyle = "#1f7fd8"; ctx.fillRect(LOGICAL_W - tk + 740,  435, 170, 22);
+
+  /* Broadway runs BEHIND the steps, so the traffic goes down before they do -
+     drawn after, the crowd swallowed it whole. */
+  ctx.fillStyle = "#15171c"; ctx.fillRect(0, 468, LOGICAL_W, 64);
+  for (var c = 0; c < 7; c++){
+    var cx = ((t * 330 + c * 390) % (LOGICAL_W + 340)) - 170;
+    var dark = c % 3 === 0, paint = dark ? "#2b2f36" : "#f2c021";
+    ctx.fillStyle = paint;              ctx.fillRect(cx, 492, 150, 36);
+    ctx.fillStyle = shade(paint, 0.12); ctx.fillRect(cx + 32, 470, 78, 24);
+    ctx.fillStyle = "#0d1014";
+    ctx.fillRect(cx + 16, 524, 26, 10); ctx.fillRect(cx + 106, 524, 26, 10);
+    ctx.fillStyle = dark ? "#f4f6f8" : "#1b1d22";   // placard, or the medallion
+    ctx.fillRect(cx + 52, 476, 34, 11);
+  }
+
+  // the red steps, people sitting on every other one
+  for (var st = 0; st < 8; st++){
+    ctx.fillStyle = st % 2 ? "#b8202f" : "#cf2838";
+    ctx.fillRect(600 + st * 20, 536 + st * 21, 740 - st * 40, 21);
+    if (st % 2 === 0){
+      for (var pz = 0; pz < 4; pz++){
+        var px = 650 + st * 20 + pz * 160;
+        ctx.fillStyle = ["#2a3038", "#39302c", "#2c3340"][pz % 3];
+        ctx.fillRect(px, 508 + st * 21, 26, 29);
+        ctx.fillStyle = "#c79a74"; ctx.fillRect(px + 5, 492 + st * 21, 16, 17);
+      }
+    }
+  }
+  /* Steam off a grate. One big ellipse read as a grey disc stuck to the
+     steps, so each puff is a cluster of small ones at low alpha - overlapping
+     soft edges are the only way to get a soft edge without a blur filter. */
+  for (var sm = 0; sm < 4; sm++){
+    var sp = (t * 0.5 + sm * 0.25) % 1;
+    ctx.globalAlpha = a * (1 - sp) * (1 - sp) * 0.13; ctx.fillStyle = "#cfd8de";
+    for (var pf = 0; pf < 5; pf++){
+      var px2 = 300 + Math.sin(sm * 2.1 + pf * 1.7) * (18 + sp * 46);
+      ctx.beginPath();
+      ctx.ellipse(px2, 812 - sp * 180 - pf * 9, 26 + sp * 30, 16 + sp * 20,
+                  0, 0, Math.PI * 2);
+      ctx.fill();
+    }
   }
   ctx.globalAlpha = a;
-  for (var st = 0; st < 7; st++){                    // the red steps
-    ctx.fillStyle = st % 2 ? "#b8202f" : "#cf2838";
-    ctx.fillRect(560, 560 + st*26, 800 - st*40, 26);
-  }
-  var tk = (t*420) % 1920;                           // the ticker
-  ctx.fillStyle = "#0c0a10"; ctx.fillRect(0, 500, LOGICAL_W, 42);
-  ctx.fillStyle = "#e8c12a"; ctx.fillRect(1920 - tk, 510, 300, 22);
-  ctx.fillStyle = "#d8431f"; ctx.fillRect(1920 - tk + 400, 510, 220, 22);
-  for (var c2 = 0; c2 < 22; c2++){                   // crowd
-    var cx = 70 + c2*86 + Math.sin(t*2 + c2)*6;
-    ctx.fillStyle = ["#2a3038","#39302c","#2c3340","#332a33"][c2 % 4];
-    ctx.fillRect(cx, 690, 36, 92);
-    ctx.fillStyle = "#c79a74"; ctx.fillRect(cx+8, 664, 20, 26);
+  // the pavement they are all standing on
+  ctx.fillStyle = "#1a1c21"; ctx.fillRect(0, 822, LOGICAL_W, 68);
+  ctx.fillStyle = "#23262c"; ctx.fillRect(0, 822, LOGICAL_W, 7);
+  // the crowd, back rank first so the near one overlaps it
+  for (var rk = 2; rk >= 0; rk--){
+    for (var c2 = 0; c2 < 25; c2++){
+      var cx2 = -40 + c2 * 82 + rk * 36 + Math.sin(t * 1.7 + c2 + rk) * 5;
+      var sc = 1 - rk * 0.17, by = 848 + rk * 10;
+      ctx.fillStyle = ["#242a33", "#33282c", "#232d34", "#2e2733"][(c2 + rk) % 4];
+      ctx.fillRect(cx2, by - 88 * sc, 34 * sc, 88 * sc);
+      ctx.fillStyle = ["#c79a74", "#a87f5f", "#8d6243"][(c2 + rk) % 3];
+      ctx.fillRect(cx2 + 7 * sc, by - 112 * sc, 20 * sc, 24 * sc);
+    }
   }
 }
+
 /* Rockefeller: the sunken plaza, the fountains, the flags */
 function sceneRock(t, a){
   ctx.fillStyle = "#241b1e"; ctx.fillRect(0, 150, LOGICAL_W, 420);
@@ -2288,24 +2594,6 @@ function sceneRock(t, a){
   ctx.globalAlpha = a; ctx.fillStyle = "#c9a227";     // the gilded figure
   ctx.fillRect(930, 520, 60, 80); ctx.fillRect(946, 486, 28, 34);
 }
-/* Billionaires' Row: the pencil towers */
-function sceneRow(t, a){
-  var tw = [[420,120,520],[640,90,620],[840,70,700],[1060,100,580],[1260,80,660],[1440,110,500]];
-  for (var i = 0; i < tw.length; i++){
-    ctx.fillStyle = i % 2 ? "#2d2225" : "#281e21";
-    ctx.fillRect(tw[i][0], 760 - tw[i][2], tw[i][1], tw[i][2]);
-    for (var h = 0; h < 14; h++){
-      ctx.globalAlpha = a * (((i*5+h*11)%13) < 5 ? 0.55 : 0.1);
-      ctx.fillStyle = "#ffae55";
-      ctx.fillRect(tw[i][0]+12, 760 - tw[i][2] + 24 + h*((tw[i][2]-40)/14), tw[i][1]-24, 14);
-    }
-    ctx.globalAlpha = a;
-  }
-  var cl = (t*60) % (LOGICAL_W + 400) - 200;          // cloud drifting past
-  ctx.globalAlpha = a*0.18; ctx.fillStyle = "#cfd8de";
-  ctx.fillRect(cl, 300, 420, 46); ctx.fillRect(cl+90, 270, 240, 40);
-  ctx.globalAlpha = a; ctx.fillStyle = "#1b2027"; ctx.fillRect(0, 760, LOGICAL_W, 60);
-}
 /* Central Park South: trees, the pond, a carriage */
 function scenePark(t, a){
   ctx.fillStyle = "#12261a"; ctx.fillRect(0, 430, LOGICAL_W, 390);
@@ -2331,21 +2619,113 @@ function scenePark(t, a){
   for (var k = 0; k < sk.length; k++) ctx.fillRect(sk[k][0], 430 - sk[k][2], sk[k][1], sk[k][2]);
 }
 
+/* Happy Hour, 81st, and the end of the walk. The job ends the way it starts:
+   two people at a bar. Sit down, talk, shake on it. */
+function barFigure(x, face, coat, skin, reach){
+  var hand = face > 0 ? x + 110 + reach - 34 : x - reach;
+  ctx.fillStyle = coat;                                        // torso
+  ctx.fillRect(x, 496, 110, 218);
+  ctx.fillStyle = shade(coat, 0.14);                           // lapels
+  ctx.fillRect(x + 36, 496, 38, 128);
+  ctx.fillStyle = "#f2f4f6"; ctx.fillRect(x + 46, 496, 18, 80);
+  ctx.fillStyle = shade(coat, -0.20);                          // tie
+  ctx.fillRect(x + 50, 514, 11, 66);
+  ctx.fillStyle = skin;                                        // neck, head
+  ctx.fillRect(x + 43, 462, 24, 38); ctx.fillRect(x + 27, 400, 56, 66);
+  ctx.fillStyle = "#2b2219"; ctx.fillRect(x + 25, 392, 60, 22);  // hair
+  /* The arm runs along the bar with the hand at the end of it, so the two
+     figures clasp in the middle instead of pointing at each other. Keeping
+     them close keeps the arms short - held further apart the two arms read as
+     one long beam across the frame. */
+  ctx.fillStyle = coat;
+  ctx.fillRect(face > 0 ? x + 110 : x - reach, 572, reach, 30);
+  ctx.fillStyle = skin; ctx.fillRect(hand, 566, 34, 42);
+}
+function sceneBar(t, a){
+  ctx.fillStyle = "#2a1c18"; ctx.fillRect(0, 150, LOGICAL_W, 480);
+  ctx.fillStyle = "#1d1310"; ctx.fillRect(110, 182, 1700, 266);
+  for (var sh = 0; sh < 3; sh++){                              // the back bar
+    for (var b = 0; b < 27; b++){
+      var bx = 152 + b * 61, by = 240 + sh * 75;
+      ctx.fillStyle = ["#6d4a2a", "#2e5a3a", "#5a2a38", "#8a7a3a"][(b + sh) % 4];
+      ctx.fillRect(bx, by - 48, 22, 48);
+      ctx.fillStyle = "#1a1210"; ctx.fillRect(bx + 7, by - 62, 8, 14);
+    }
+    ctx.fillStyle = "#3a2822"; ctx.fillRect(130, 240 + sh * 75, 1660, 10);
+  }
+  for (var L = 0; L < 5; L++){                                 // pendant lights
+    var lx = 250 + L * 355;
+    ctx.fillStyle = "#4a3a2a"; ctx.fillRect(lx - 2, 150, 4, 56);
+    ctx.globalAlpha = a * 0.9; ctx.fillStyle = "#ffcf7a";
+    ctx.beginPath(); ctx.ellipse(lx, 216, 30, 18, 0, 0, Math.PI * 2); ctx.fill();
+    /* The pool under each lamp stays faint and narrow - at any strength it
+       stops being light and starts being a grey disc stuck on the bottles. */
+    ctx.globalAlpha = a * 0.05;
+    ctx.beginPath(); ctx.ellipse(lx, 268, 74, 62, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.globalAlpha = a;
+  }
+  for (var g = 0; g < 2; g++){                                 // two glasses
+    var gx = g ? 1310 : 540, gy = 624 - (t > 1.5 ? 0 : 34 + Math.sin(t * 6) * 10);
+    ctx.globalAlpha = a * 0.55; ctx.fillStyle = "#cfe4ee";
+    ctx.fillRect(gx, gy - 66, 50, 66);
+    ctx.globalAlpha = a * 0.9;  ctx.fillStyle = "#c98a2a";
+    ctx.fillRect(gx + 4, gy - 40, 42, 40);
+    ctx.globalAlpha = a;
+  }
+  /* The handshake lands at 1.5s and then holds. Before it the arms are tucked
+     in and the glasses are up; after, the hands meet on x=960 and pump. */
+  var shake = t > 1.5, pump = shake ? Math.sin((t - 1.5) * 12) * 6 : 0;
+  var reach = shake ? 145 + pump : 64;
+  barFigure(720,   1, BLAZER,    "#c79a74", reach);
+  barFigure(1090, -1, "#3a3f49", "#8d6243", reach);
+  if (shake){                                                  // the spark
+    var sp = Math.min(1, (t - 1.5) / 0.7);
+    ctx.globalAlpha = a * (1 - sp) * 0.5; ctx.fillStyle = C.brand;
+    ctx.beginPath();
+    ctx.ellipse(960, 586, 36 + sp * 150, 36 + sp * 150, 0, 0, Math.PI * 2);
+    ctx.fill(); ctx.globalAlpha = a;
+  }
+  ctx.fillStyle = "#4a2f20"; ctx.fillRect(0, 630, LOGICAL_W, 42);   // the bar
+  ctx.fillStyle = "#6a452c"; ctx.fillRect(0, 630, LOGICAL_W, 10);
+  ctx.fillStyle = "#2a1a12"; ctx.fillRect(0, 672, LOGICAL_W, 60);
+  ctx.fillStyle = "#17100d"; ctx.fillRect(0, 732, LOGICAL_W, 158);
+  ctx.fillStyle = "#3a2619"; ctx.fillRect(0, 806, LOGICAL_W, 12);   // foot rail
+  for (var k = 0; k < 7; k++){                                 // stools
+    var kx = 150 + k * 270;
+    ctx.fillStyle = "#241812"; ctx.fillRect(kx + 26, 740, 12, 150);
+    ctx.fillStyle = "#4a2f20"; ctx.fillRect(kx, 716, 64, 26);
+  }
+  ctx.globalAlpha = a * 0.13; ctx.fillStyle = "#ffcf7a";
+  ctx.fillRect(0, 640, LOGICAL_W, 4); ctx.globalAlpha = a;
+}
+
 var SCENES = {
-  42: { title:"TIMES SQUARE",        sub:"Forty-second and Broadway", draw:sceneTimes },
+  42: { title:"TIMES SQUARE",        sub:"Forty-second and Broadway", draw:sceneTimes, music:true },
   50: { title:"ROCKEFELLER CENTER",  sub:"The plaza and the rink",    draw:sceneRock },
-  57: { title:"BILLIONAIRES\u2019 ROW", sub:"Fifty-seventh Street",  draw:sceneRow },
-  59: { title:"CENTRAL PARK SOUTH",  sub:"You made it uptown",        draw:scenePark }
+  59: { title:"CENTRAL PARK SOUTH",  sub:"You made it uptown",        draw:scenePark, music:true },
+  81: { title:"HAPPY HOUR",          sub:"Eighty-first, and the end of it", draw:sceneBar,
+        secs:4.6, sound:"deal", music:true,
+        after:["81st - HANDSHAKE", "VERBAL AGREEMENT",
+               "Now get back to the office and lock it in."] }
 };
 
 function startScene(st){
-  G.scene = { st:st, t:0 };
+  var sc = SCENES[st];
+  G.scene = { st:st, t:0, len:(sc && sc.secs) || SCENE_SECS };
   G.scenesSeen[st] = true;
-  AUDIO.stage();
+  if (sc && sc.sound === "deal") AUDIO.deal(); else AUDIO.stage();
+  if (sc && sc.music) AUDIO.cityTheme();
 }
 function updateScene(dt){
   G.scene.t += dt;
-  if (G.scene.t >= SCENE_SECS) G.scene = null;
+  if (G.scene.t >= G.scene.len){
+    /* Some scenes leave you holding an instruction. The handshake at 81st is
+       a verbal, not a signature, and the player should be told so. */
+    var sc = SCENES[G.scene.st];
+    if (sc && sc.after)
+      G.toast = { a:0, life:4.6, name:sc.after[0], stage:sc.after[1], line:sc.after[2] };
+    G.scene = null;
+  }
 }
 function drawScene(){
   if (!G.scene) return;
@@ -2483,6 +2863,7 @@ function update(dt){
   if (G.slowT   > 0) G.slowT   = Math.max(0, G.slowT - dt);
   if (G.riskT > 0) G.riskT = Math.max(0, G.riskT - dt);
   if (G.hurtT > 0) G.hurtT = Math.max(0, G.hurtT - dt);
+  if (G.nahT > 0)  G.nahT  = Math.max(0, G.nahT - dt);
   if (G.revealT > 0){
     G.revealT = Math.max(0, G.revealT - dt);
     if (G.revealT === 0) G.trace = null;
@@ -3134,7 +3515,9 @@ function drawWorld(){
       for (i=0;i<row.cars.length;i++){
         var x = carX(row, row.cars[i]);
         if (x + (row.eff||1) < -1.6 || x > COLS + 1.6) continue;
-        if (row.packN > 1){
+        if (row.cars[i].uber >= 0){
+          blit(S["uber" + row.cars[i].uber + (row.dir > 0 ? "_r" : "_l")], x*TILE, sy);
+        } else if (row.packN > 1){
           for (var q=0;q<row.packN;q++){
             blit(sprite, (x + q*(HAZ[row.kind].w + row.packGap))*TILE, sy);
           }
@@ -3146,7 +3529,11 @@ function drawWorld(){
           blit(S["ebike" + (row.dir > 0 ? "_l" : "_r")], rx*TILE, sy);
         }
       }
-      drawStreetSign(row, sy);
+      /* One sign per crossing, on the far lane - the one with pavement behind
+         it. Every lane drawing its own put four identical "42" signs stacked
+         up the screen on a four-lane crossing. */
+      var beyond = rows[r+1];
+      if (!beyond || beyond.type === "safe") drawStreetSign(row, sy);
     }
 
     if (meRow === r && G.state !== ST_DEAD && G.flyA < 0.15) drawPlayer(pp);
@@ -3321,8 +3708,30 @@ function drawPlayer(pp){
     var blink = 9 + (1 - G.flyT/FLY_WARN) * 17;
     if (Math.floor(G.t * blink) % 2 === 0) return;
   }
-  blitScaled(s, sx, sy - pp.lift - flyLift,
-             (1 - pp.sq*0.10) * hk, (1 + pp.sq*0.14) * hk);
+  var dy = sy - pp.lift - flyLift;
+  var kx = (1 - pp.sq*0.10) * hk, ky = (1 + pp.sq*0.14) * hk;
+
+  /* A head shake, for the turnstile with no card in the wallet. The figure is
+     baked as one sprite, so shaking it whole reads as a stumble; what reads as
+     "no" is the head alone. Two clipped passes do it without erasing anything:
+     the band below the neck draws where it always did, and the band above it
+     draws a few pixels to the side. The sliver of background that opens up
+     behind the head is correct - the head moved. */
+  if (G.nahT > 0){
+    var ox = sx - s.ox*kx, oy = dy - s.oy*ky, w = s.w*kx, h = s.h*ky;
+    var neck = h * 0.30;                       // head is the top third of him
+    var off = Math.sin(G.nahT * 32) * 7 * Math.min(1, G.nahT / 0.25);
+    ctx.save();
+    ctx.beginPath(); ctx.rect(ox - 2, oy + neck, w + 4, h - neck + 2); ctx.clip();
+    blitScaled(s, sx, dy, kx, ky);
+    ctx.restore();
+    ctx.save();
+    ctx.beginPath(); ctx.rect(ox - 18, oy - 2, w + 36, neck + 2); ctx.clip();
+    blitScaled(s, sx + off, dy, kx, ky);
+    ctx.restore();
+    return;
+  }
+  blitScaled(s, sx, dy, kx, ky);
 }
 
 function drawHurt(){
@@ -3448,7 +3857,9 @@ function drawHud(){
   if (G.slowT > 0)   chips.push(["I", "INSIGHTS",       C.pw2, G.slowT / POWERS.insight.secs]);
   if (G.revealT > 0) chips.push(["P", "PATH VIS",       C.pw3,   G.revealT / POWERS.path.secs]);
   if (G.riskT > 0)   chips.push(["TI","TRAFFIC INS",    "#8fd3e8", G.riskT / POWERS.traffic.secs]);
-  if (G.metro)       chips.push(["M", "METROCARD",      "#ffd24a", 0]);
+  if (G.metro > 0)   chips.push([G.metro > 1 ? "M" + G.metro : "M",
+                                 G.metro > 1 ? "METROCARD x" + G.metro : "METROCARD",
+                                 "#ffd24a", 0]);
   /* Compact squares rather than labelled bars: four of the old chips reached
      x=1014 and ran into the arrow pad. The letter and colour identify each
      power-up, and its name was announced in full when it was collected. */

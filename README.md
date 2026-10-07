@@ -18,8 +18,18 @@ Two input methods, both live at once:
 | **Swipe** | Any direction, anywhere on the screen. |
 | Keyboard | Arrows / `WASD` / `Space`, for desktop testing |
 | Mute | Button in the bottom-right of the title and game-over screens, or `M` |
+| Full screen | Button in the bottom-right corner, always available |
 
-There are no on-screen buttons during play, so nothing covers the road.
+The full-screen button is the only control on screen during play, and it sits
+in the one corner the HUD never draws into — below the TAM badge. It hides
+itself where the Fullscreen API is missing, which includes RoomOS builds that
+already run the page full-screen and expose no way to ask.
+
+The canvas fits the viewport at 16:9 and is centred. On a screen *wider* than
+16:9 it grows to fill the width instead of leaving bars down both sides, and
+the spare vertical margin crops — capped at 6%, which keeps the top message row
+and the bottom chip row inside the frame. It never crops horizontally: that
+would eat playable columns.
 
 ## URL parameters
 
@@ -96,6 +106,14 @@ rather than generic cars with labels stuck on them:
 | Double-parked truck | Never moves | The stalled deal |
 | NYPD motorcade | Warning lights, then the street is gone | Re-org / spending freeze |
 
+About a third of the cabs are rideshare cars instead — same footprint and speed
+so the lane maths is untouched, but plain paint, no checker, no roof light and a
+lit placard in the windscreen.
+
+Street furniture on the pavements includes halal carts, pizza counters and hot
+dog stands, newsstands, scaffolding sheds, subway entrances and ThousandEyes
+Path terminals (which act as a free Path Visualization).
+
 Objections and rebuttals appear on the game-over screen, with coaching lines
 between milestones so the slow hazards that rarely kill you still get read.
 
@@ -121,6 +139,55 @@ not geometry - and each is assigned one of four lanes across the screen. Two
 landmarks sharing a lane are never scheduled together, fades included;
 without that the Empire State drew out from behind the Times Square
 billboards. Roughly four are up at once and no street is ever bare.
+
+### The subway
+
+A MetroCard rides you 10-20 streets uptown from any subway entrance. **Cards
+stack** — pick up three and you have three fares, shown on the HUD chip as
+`M3`. Standing on an entrance with an empty wallet says so on screen, plays a
+turnstile refusing to turn, and the player shakes his head.
+
+The head shake is drawn as two clipped passes over the one baked sprite: the
+band below the neck draws where it always did and the band above it draws a few
+pixels to the side. Shaking the whole sprite reads as a stumble; only the head
+moving reads as "no".
+
+The ride itself is a staged animation of about nine seconds — down the stairs,
+the platform, the run, the arrival, back up — with a cue on every beat: the
+swipe and the turnstile bar, a two-note PA chime over an announcement that is
+deliberately unintelligible, the doors closing, five and a half seconds of
+rolling rumble with rail joints beaten out underneath it, a curve squeal, a
+horn, the brakes and the doors opening. Every cue is scheduled up front off the
+audio clock, so a dropped frame cannot knock the sound out of time with the
+picture.
+
+The exit is found or planted on a pavement row at the destination, and the exit
+cell is unblocked — which can never create a pin, since removing a blocker only
+ever widens a gap.
+
+### Arrival scenes
+
+Reaching a landmark crossing stops the walk for a beat and shows you where you
+are, in the same register as the subway ride. Each plays once per run.
+
+| Street | Scene |
+|---|---|
+| 42nd | Times Square — eight billboards each running their own loop, the ticker, Broadway traffic behind the red steps, steam off a grate, a crowd three ranks deep |
+| 50th | Rockefeller Center — the slab, the rink, the flags, the fountains |
+| 59th | Central Park South — the canopy, the pond, a carriage |
+| 81st | Happy Hour — the client, two glasses, and a handshake on a verbal |
+
+81st is the end of the walk: the handshake lands, and the message that follows
+says what a verbal is actually worth — *now get back to the office and lock it
+in.*
+
+### Music
+
+Times Square, Central Park South and Happy Hour play a short theme: a walking
+bass under piano-ish arpeggios, four bars, synthesised at runtime like every
+other cue. **It is an original piece written for this game.** It is not a
+transcription or an arrangement of any existing song, and nothing in the repo
+reproduces copyrighted melody.
 
 ### Power-ups
 
