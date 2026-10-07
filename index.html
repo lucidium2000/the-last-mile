@@ -2086,7 +2086,8 @@ function separate(row){
 function rogueX(row){ return (row.dir > 0 ? SPAN - row.rogue.p : row.rogue.p) - PAD; }
 
 /* -------------------------------------------------------------- game state */
-var ST_TITLE = 0, ST_PLAY = 1, ST_DEAD = 2;
+var ST_TITLE = 0, ST_PLAY = 1, ST_DEAD = 2, ST_NAME = 3, ST_BOARD = 4;
+var INI_CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 ";
 var RANKS = [[0,"SDR INTERN"],[18,"AE IN RAMP"],[40,"QUOTA CARRIER"],
              [70,"PRESIDENT'S CLUB"],[110,"MIDTOWN LEGEND"]];
 var TRAIN_MAX = 60, TRAIN_PER_HOP = 1.25;
@@ -2112,10 +2113,189 @@ function reset(){
     trainHH:16 + ((Math.random()*3)|0), trainMM:(Math.random()*60)|0,
     missedTrain:false,
     shake:0, parts:[], deathName:"", deathObj:"", deathFix:"", deadFor:0,
+    steps:0, got:blankPowers(), startedAt:Date.now(), logged:false,
+    ini:[0,0,0], iniAt:0,
     t:0, sweep:0
   };
   for (var i=0;i<30;i++) G.parts.push({ life:0, x:0, y:0, vx:0, vy:0, s:0, c:"#fff" });
   AUDIO.resetLadder();
+}
+
+/* ====================== SCORES, STATS, LEADERBOARD ========================
+   What is collected, exactly: the numbers this game itself produced - score,
+   rows walked, streets crossed, power-ups picked up by kind, subway rides, TAM
+   wins, whether the run was won and what ended it - plus a random id generated
+   on this device so repeat plays can be counted without counting a person
+   twice.
+
+   What is NOT collected, deliberately: no name beyond the three initials the
+   player types, no user agent, no screen size, no language, no timezone, no
+   location. Those need no permission, which is exactly why they are a
+   fingerprint, and a hallway game does not need one.
+
+   Everything works with no network at all. If BOARD_API is empty the board is
+   this device's own, held in localStorage. Point it at an endpoint and the
+   same board becomes everyone's; the local copy stays as the cache and the
+   offline fallback. See leaderboard-worker.js for a server that implements the
+   four-line contract. */
+
+var BOARD_API = "";                 // e.g. "https://last-mile.<you>.workers.dev"
+var BOARD_MAX = 25;                 // rows kept locally
+var BOARD_SHOW = 10;                // rows on screen
+var LS_BOARD = "lastmile.board.v1", LS_STATS = "lastmile.stats.v1",
+    LS_WHO   = "lastmile.who.v1";
+var OFFLINE = /[?&]offline=1/.test(location.search);
+
+/* localStorage is not always there: private windows, blocked site data, and
+   kiosk shells that refuse it outright all throw on access. When it does
+   throw everything falls back to this object, so the board still fills up for
+   as long as the page is open - it just forgets when you leave. */
+var MEM = {};
+function lsGet(k, d){
+  try {
+    var v = localStorage.getItem(k);
+    if (v !== null) return JSON.parse(v);
+    return (k in MEM) ? MEM[k] : d;
+  } catch (e){ return (k in MEM) ? MEM[k] : d; }
+}
+function lsSet(k, v){
+  MEM[k] = v;
+  try { localStorage.setItem(k, JSON.stringify(v)); } catch (e){}
+}
+
+/* A random id for this browser. Not derived from anything about the machine -
+   it is just a number we made up and wrote down, and clearing site data
+   forgets it. */
+function playerId(){
+  var w = lsGet(LS_WHO, null);
+  if (!w || !w.id){
+    var id;
+    try { id = crypto.randomUUID(); }
+    catch (e){ id = "x" + Math.random().toString(36).slice(2) + Date.now().toString(36); }
+    w = { id:id, ini:"" };
+    lsSet(LS_WHO, w);
+  }
+  return w;
+}
+function lastInitials(){ var w = playerId(); return w.ini || ""; }
+function rememberInitials(ini){
+  var w = playerId(); w.ini = ini; lsSet(LS_WHO, w);
+}
+
+var POWER_ORDER = ["tam","chuck","metro","path","agent","insight","traffic","sponsor"];
+function blankPowers(){
+  var o = {}, i;
+  for (i = 0; i < POWER_ORDER.length; i++) o[POWER_ORDER[i]] = 0;
+  return o;
+}
+function statsRead(){
+  var st = lsGet(LS_STATS, null);
+  if (!st || !st.powers){
+    st = { plays:0, wins:0, deaths:0, bestScore:0, bestRows:0,
+           steps:0, rows:0, rides:0, tamWins:0, secs:0,
+           powers:blankPowers(), first:Date.now(), last:0 };
+  }
+  return st;
+}
+
+/* The record for one completed run. */
+function runRecord(ini){
+  return {
+    ini:   ini || "---",
+    score: pipeline(),
+    rows:  G.maxRow,
+    steps: G.steps,
+    streets: Math.abs(G.street - START_ST),
+    rides: G.rides,
+    tamWins: G.tamWins,
+    powers: G.got,
+    won:   !!G.won,
+    cause: G.won ? "" : (G.missedTrain ? "MISSED TRAIN" : G.deathName),
+    secs:  Math.round((Date.now() - G.startedAt) / 1000),
+    at:    Date.now()
+  };
+}
+
+/* Every finished run bumps the counters, whether or not it makes the board. */
+function statsBump(rec){
+  var st = statsRead(), i, k;
+  st.plays++;
+  if (rec.won) st.wins++; else st.deaths++;
+  if (rec.score > st.bestScore) st.bestScore = rec.score;
+  if (rec.rows  > st.bestRows)  st.bestRows  = rec.rows;
+  st.steps += rec.steps; st.rows += rec.rows; st.rides += rec.rides;
+  st.tamWins += rec.tamWins; st.secs += rec.secs; st.last = rec.at;
+  for (i = 0; i < POWER_ORDER.length; i++){
+    k = POWER_ORDER[i];
+    st.powers[k] = (st.powers[k] || 0) + (rec.powers[k] || 0);
+  }
+  lsSet(LS_STATS, st);
+  return st;
+}
+
+function boardRead(){ var b = lsGet(LS_BOARD, null); return (b && b.length) ? b : []; }
+function boardInsert(rec){
+  var b = boardRead();
+  b.push(rec);
+  b.sort(function(x, y){ return y.score - x.score || x.at - y.at; });
+  b = b.slice(0, BOARD_MAX);
+  lsSet(LS_BOARD, b);
+  return b;
+}
+/* Where a score would land, 1-based, or 0 if it misses the board entirely. */
+function boardRank(score, list){
+  var b = list || BOARD.rows, i;
+  for (i = 0; i < b.length; i++) if (score > b[i].score) return i + 1;
+  return b.length < BOARD_MAX ? b.length + 1 : 0;
+}
+
+/* ---- the one place that talks to a network, if there is one to talk to --- */
+var BOARD = { rows:boardRead(), state:(BOARD_API && !OFFLINE) ? "…" : "LOCAL",
+              global:null, busy:false };
+
+function boardLive(){ return !!BOARD_API && !OFFLINE; }
+
+function boardGET(){
+  if (!boardLive() || BOARD.busy) return;
+  BOARD.busy = true;
+  var done = false, give = function(state){
+    if (done) return; done = true; BOARD.busy = false; BOARD.state = state;
+  };
+  setTimeout(function(){ give(BOARD.state === "…" ? "OFFLINE" : BOARD.state); }, 6000);
+  try {
+    fetch(BOARD_API + "/top?n=" + BOARD_MAX, { method:"GET", mode:"cors" })
+      .then(function(r){ return r.ok ? r.json() : null; })
+      .then(function(j){
+        if (j && j.rows){
+          BOARD.rows = j.rows; BOARD.global = j.stats || null;
+          lsSet(LS_BOARD, j.rows.slice(0, BOARD_MAX));
+          give("LIVE");
+        } else give("OFFLINE");
+      })
+      .catch(function(){ give("OFFLINE"); });
+  } catch (e){ give("OFFLINE"); }
+}
+
+function boardPOST(rec){
+  // local first, always - the board must work with the cable unplugged
+  BOARD.rows = boardInsert(rec);
+  if (!boardLive()) return;
+  try {
+    fetch(BOARD_API + "/score", {
+      method:"POST", mode:"cors",
+      headers:{ "Content-Type":"text/plain" },   // text/plain keeps it a simple
+      body: JSON.stringify({                     // request: no CORS preflight
+        id: playerId().id, ini: rec.ini, score: rec.score, rows: rec.rows,
+        steps: rec.steps, streets: rec.streets, rides: rec.rides,
+        tamWins: rec.tamWins, powers: rec.powers, won: rec.won,
+        cause: rec.cause, secs: rec.secs
+      })
+    }).then(function(r){ return r.ok ? r.json() : null; })
+      .then(function(j){
+        if (j && j.rows){ BOARD.rows = j.rows; BOARD.global = j.stats || null; BOARD.state = "LIVE"; }
+      })
+      .catch(function(){ BOARD.state = "OFFLINE"; });
+  } catch (e){ BOARD.state = "OFFLINE"; }
 }
 
 function best(){
@@ -2168,6 +2348,17 @@ function progress(){
 function act(dir){
   if (G.state === ST_TITLE){ G.state = ST_PLAY; AUDIO.ui(); return; }
   if (G.state === ST_DEAD){
+    if (G.deadFor > 0.45){ G.state = ST_NAME; G.iniAt = 0; AUDIO.ui(); }
+    return;
+  }
+  if (G.state === ST_NAME){
+    if (dir === "l"){ G.iniAt = (G.iniAt + 2) % 3; AUDIO.step(); }
+    else if (dir === "r"){ G.iniAt = (G.iniAt + 1) % 3; AUDIO.step(); }
+    else if (dir === "f"){ iniStep(1); }
+    else if (dir === "b"){ iniStep(-1); }
+    return;
+  }
+  if (G.state === ST_BOARD){
     if (G.deadFor > 0.45){ reset(); G.state = ST_PLAY; AUDIO.ui(); }
     return;
   }
@@ -2237,6 +2428,7 @@ function act(dir){
     G.trainT = Math.min(TRAIN_MAX, G.trainT + TRAIN_PER_HOP);
   } else AUDIO.step();
 
+  G.steps++;
   G.fromRow = G.row; G.fromCol = G.col;
   G.row = nr; G.col = nc; G.hop = 0;
   if (nr > G.maxRow){ G.maxRow = nr; progress(); }
@@ -2251,7 +2443,40 @@ function act(dir){
 /* Top right, not bottom right: the full-screen control is a DOM button in
    the bottom-right corner and the two were drawn on top of each other. */
 var MUTE_BTN = { x:LOGICAL_W - 146, y:38, w:114, h:114 };
-function muteBtnActive(){ return G.state === ST_TITLE || G.state === ST_DEAD; }
+function muteBtnActive(){
+  return G.state === ST_TITLE || G.state === ST_DEAD || G.state === ST_BOARD;
+}
+
+/* The run is over: count it once, then go and get three letters for it. A run
+   worth nothing still counts as a play - the counter is of games started and
+   finished, not of games that went well. */
+function endRun(){
+  if (G.logged) return;
+  G.logged = true;
+  G.rec = runRecord(lastInitials() || "---");
+  statsBump(G.rec);
+  var seed = lastInitials(), i;
+  for (i = 0; i < 3; i++){
+    var ch = seed.charAt(i) || "A";
+    var at = INI_CHARS.indexOf(ch.toUpperCase());
+    G.ini[i] = at < 0 ? 0 : at;
+  }
+}
+function iniStep(d){
+  G.ini[G.iniAt] = (G.ini[G.iniAt] + d + INI_CHARS.length) % INI_CHARS.length;
+  AUDIO.coach();
+}
+function iniString(){
+  return INI_CHARS.charAt(G.ini[0]) + INI_CHARS.charAt(G.ini[1]) + INI_CHARS.charAt(G.ini[2]);
+}
+function submitScore(){
+  var ini = iniString().replace(/\s+$/, "") || "---";
+  G.rec.ini = ini;
+  rememberInitials(ini);
+  boardPOST(G.rec);
+  G.state = ST_BOARD; G.deadFor = 0;
+  AUDIO.stage();
+}
 function inMuteBtn(lx, ly){
   return muteBtnActive() &&
          lx > MUTE_BTN.x - 14 && lx < MUTE_BTN.x + MUTE_BTN.w + 14 &&
@@ -2274,7 +2499,23 @@ cv.addEventListener("pointerup", function(e){
   } else {
     var rect = cv.getBoundingClientRect();
     var px = (e.clientX-rect.left)/rect.width, py = (e.clientY-rect.top)/rect.height;
-    if (inMuteBtn(px*LOGICAL_W, py*LOGICAL_H)){ AUDIO.toggle(); ptr = null; return; }
+    var lx = px*LOGICAL_W, ly = py*LOGICAL_H;
+    if (inMuteBtn(lx, ly)){ AUDIO.toggle(); ptr = null; return; }
+    if (G.state === ST_TITLE &&
+        lx >= BOARD_BTN.x && lx <= BOARD_BTN.x + BOARD_BTN.w &&
+        ly >= BOARD_BTN.y && ly <= BOARD_BTN.y + BOARD_BTN.h){
+      G.state = ST_BOARD; G.deadFor = 0; G.rec = null; boardGET(); AUDIO.ui();
+      ptr = null; return;
+    }
+    if (G.state === ST_NAME){
+      var h = nameHit(lx, ly);
+      if (h){
+        if (h.ok) submitScore();
+        else if (h.d) { G.iniAt = h.i; iniStep(h.d); }
+        else { G.iniAt = h.i; AUDIO.step(); }
+        ptr = null; return;
+      }
+    }
     /* A tap anywhere means forward. The old scheme split the screen into four
        invisible zones, so a tap meant for "cross" near the bottom corners moved
        you sideways instead. Sideways and back come from the arrows or a swipe,
@@ -2290,6 +2531,20 @@ window.addEventListener("keydown", function(e){
   var k = e.key;
   if (k==="m" || k==="M"){ AUDIO.unlock(); AUDIO.toggle(); e.preventDefault(); return; }
   AUDIO.unlock();
+  /* Typing your initials beats nudging a letter wheel, so on that one screen
+     the keyboard is a keyboard. */
+  if (G.state === ST_NAME){
+    if (k === "Enter"){ submitScore(); e.preventDefault(); return; }
+    if (k === "Backspace"){ G.iniAt = (G.iniAt + 2) % 3; AUDIO.step(); e.preventDefault(); return; }
+    if (k && k.length === 1){
+      var at = INI_CHARS.indexOf(k.toUpperCase());
+      if (at >= 0){
+        G.ini[G.iniAt] = at;
+        if (G.iniAt < 2) G.iniAt++;
+        AUDIO.coach(); e.preventDefault(); return;
+      }
+    }
+  }
   if (k==="ArrowUp"    || k==="w" || k===" "){ act("f"); e.preventDefault(); }
   if (k==="ArrowDown"  || k==="s"){ act("b"); e.preventDefault(); }
   if (k==="ArrowLeft"  || k==="a"){ act("l"); e.preventDefault(); }
@@ -2303,6 +2558,7 @@ function collect(){
   var kind = row.pickup.kind, k = POWERS[kind];
   row.pickup = null;
   G.powersUsed++;
+  G.got[kind] = (G.got[kind] || 0) + 1;
   if (kind === "tam") AUDIO.tam(); else AUDIO.power(kind);
   flash(k.name, kind === "chuck" ? ("+" + cash(CHUCK_BONUS) + " on the number.") : k.line, k.col);
   burst(G.col*TILE + TILE/2, rowScreenY(G.row) - 40, k.col);
@@ -2561,7 +2817,7 @@ function die(kind){
   G.deathObj = pair[0]; G.deathFix = pair[1];
   var pp = playerPos();
   burst(pp.col*TILE + TILE/2, rowScreenY(pp.row) - 36);
-  saveBest(pipeline());
+  saveBest(pipeline()); endRun();
 }
 function missTrain(){
   AUDIO.missedTrain();
@@ -2569,7 +2825,7 @@ function missTrain(){
   G.deathName = "THE " + pad2(G.trainHH % 12 || 12) + ":" + pad2(G.trainMM);
   G.deathObj = "You stood on the corner too long.";
   G.deathFix = "Deals and trains both leave without you.";
-  saveBest(pipeline());
+  saveBest(pipeline()); endRun();
 }
 function pad2(n){ return (n < 10 ? "0" : "") + n; }
 
@@ -3352,7 +3608,7 @@ function updateScene(dt){
 function winGame(){
   G.won = true; G.missedTrain = false;
   G.state = ST_DEAD; G.deadFor = 0;
-  saveBest(G.maxRow);
+  saveBest(G.maxRow); endRun();
   AUDIO.win();
 }
 function drawScene(){
@@ -3668,7 +3924,7 @@ function update(dt){
     }
   }
 
-  if (G.state === ST_DEAD) G.deadFor += dt;
+  if (G.state === ST_DEAD || G.state === ST_BOARD) G.deadFor += dt;
   if (G.shake > 0) G.shake = Math.max(0, G.shake - dt*46);
 
   if (G.toast){
@@ -5132,6 +5388,15 @@ function drawTitle(){
 
   txt("Tap anywhere to cross  ·  swipe to step aside",
       LOGICAL_W/2, 822, 25, C.textDim);
+
+  // the way to the board without having to die first
+  var st = statsRead();
+  plate(BOARD_BTN.x, BOARD_BTN.y, BOARD_BTN.w, BOARD_BTN.h, C.ink, 12);
+  rr(BOARD_BTN.x, BOARD_BTN.y, BOARD_BTN.w, BOARD_BTN.h, 12);
+  ctx.strokeStyle = C.brand; ctx.lineWidth = 3; ctx.stroke();
+  txt("LEADERBOARD", BOARD_BTN.x + BOARD_BTN.w/2, BOARD_BTN.y + 36, 26, C.brand);
+  txt(st.plays + (st.plays === 1 ? " run from this device" : " runs from this device"),
+      BOARD_BTN.x + BOARD_BTN.w/2, BOARD_BTN.y + 66, 18, C.textDim);
   txt("A THOUSANDEYES GAME  ·  CISCO", LOGICAL_W/2, 1004, 19,
       "rgba(253,244,238,0.36)");
 }
@@ -5201,6 +5466,123 @@ function drawWon(){
   }
 }
 
+/* ====================== INITIALS AND THE BOARD ============================ */
+var BOARD_BTN = { x:60, y:LOGICAL_H - 176, w:360, h:88 };
+var INI_BOX = { w:150, h:180, gap:40, y:418 };
+function iniX(i){
+  var total = INI_BOX.w*3 + INI_BOX.gap*2;
+  return (LOGICAL_W - total)/2 + i*(INI_BOX.w + INI_BOX.gap);
+}
+var OK_BOX = { w:340, h:84, x:(LOGICAL_W-340)/2, y:716 };
+
+/* Where a tap on the initials screen landed, in logical coordinates. */
+function nameHit(lx, ly){
+  var i, x;
+  for (i = 0; i < 3; i++){
+    x = iniX(i);
+    if (lx >= x && lx <= x + INI_BOX.w){
+      if (ly >= INI_BOX.y - 92 && ly < INI_BOX.y)                 return { i:i, d:1 };
+      if (ly > INI_BOX.y + INI_BOX.h && ly <= INI_BOX.y + INI_BOX.h + 92) return { i:i, d:-1 };
+      if (ly >= INI_BOX.y && ly <= INI_BOX.y + INI_BOX.h)         return { i:i, d:0 };
+    }
+  }
+  if (lx >= OK_BOX.x && lx <= OK_BOX.x + OK_BOX.w &&
+      ly >= OK_BOX.y && ly <= OK_BOX.y + OK_BOX.h)                return { ok:true };
+  return null;
+}
+
+function drawName(){
+  ctx.fillStyle = "rgba(6,5,4,0.90)"; ctx.fillRect(0, 0, LOGICAL_W, LOGICAL_H);
+  var rec = G.rec || runRecord("---");
+  txt(G.won ? "BOOKED" : "RUN OVER", LOGICAL_W/2, 150, 54, G.won ? C.good : C.danger);
+  txt(cash(rec.score), LOGICAL_W/2, 236, 82, C.text);
+  var rk = boardRank(rec.score);
+  txt(rk ? ("THAT IS NUMBER " + rk + " ON THE BOARD") : "NOT A TOP SCORE \u2014 LOG IT ANYWAY",
+      LOGICAL_W/2, 296, 26, rk && rk <= 3 ? C.brand : C.textDim);
+  txt("YOUR INITIALS", LOGICAL_W/2, 362, 24, C.textDim);
+
+  for (var i = 0; i < 3; i++){
+    var x = iniX(i), on = (i === G.iniAt);
+    plate(x, INI_BOX.y, INI_BOX.w, INI_BOX.h, on ? "rgba(255,106,19,0.16)" : C.ink, 14);
+    if (on){
+      rr(x, INI_BOX.y, INI_BOX.w, INI_BOX.h, 14);
+      ctx.strokeStyle = C.brand; ctx.lineWidth = 4; ctx.stroke();
+    }
+    txt(INI_CHARS.charAt(G.ini[i]), x + INI_BOX.w/2, INI_BOX.y + 122, 104, C.text);
+    // chevrons, which are also the tap targets
+    ctx.fillStyle = on ? C.brand : C.textDim;
+    var cx2 = x + INI_BOX.w/2;
+    ctx.beginPath(); ctx.moveTo(cx2, INI_BOX.y - 56); ctx.lineTo(cx2 - 26, INI_BOX.y - 20);
+    ctx.lineTo(cx2 + 26, INI_BOX.y - 20); ctx.closePath(); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(cx2, INI_BOX.y + INI_BOX.h + 56);
+    ctx.lineTo(cx2 - 26, INI_BOX.y + INI_BOX.h + 20);
+    ctx.lineTo(cx2 + 26, INI_BOX.y + INI_BOX.h + 20); ctx.closePath(); ctx.fill();
+  }
+
+  plate(OK_BOX.x, OK_BOX.y, OK_BOX.w, OK_BOX.h, C.brand, 14);
+  txt("PUT ME ON THE BOARD", OK_BOX.x + OK_BOX.w/2, OK_BOX.y + 52, 28, "#1a0a02");
+  txt("TAP THE ARROWS, OR TYPE THREE LETTERS AND PRESS ENTER",
+      LOGICAL_W/2, 856, 22, C.textDim);
+}
+
+function statLine(st){
+  if (!st) return "";
+  return st.plays + (st.plays === 1 ? " run" : " runs") +
+         "  \u00B7  " + st.wins + " booked" +
+         "  \u00B7  " + st.steps.toLocaleString("en-US") + " steps" +
+         "  \u00B7  " + st.rides + " subway rides";
+}
+
+function drawBoard(){
+  ctx.fillStyle = "rgba(6,5,4,0.93)"; ctx.fillRect(0, 0, LOGICAL_W, LOGICAL_H);
+  txt("THE BOARD", LOGICAL_W/2, 112, 56, C.brand);
+  var badge = BOARD.state;
+  var bw = 150;
+  plate(LOGICAL_W/2 + 230, 86, bw, 38, C.ink, 8);
+  txt(badge, LOGICAL_W/2 + 230 + bw/2, 110, 20,
+      badge === "LIVE" ? C.good : (badge === "OFFLINE" ? C.danger : C.textDim));
+
+  var x0 = 250, x1 = 1670, y = 178, rowH = 46;
+  txt("#",        x0 + 36,  y, 20, C.textDim);
+  txt("WHO",      x0 + 130, y, 20, C.textDim);
+  txt("PIPELINE", x0 + 420, y, 20, C.textDim, "right");
+  txt("BLOCKS",   x0 + 560, y, 20, C.textDim, "right");
+  txt("STEPS",    x0 + 700, y, 20, C.textDim, "right");
+  txt("POWER-UPS",x0 + 880, y, 20, C.textDim, "right");
+  txt("RESULT",   x0 + 1180, y, 20, C.textDim, "right");
+  ctx.fillStyle = "rgba(255,255,255,0.12)"; ctx.fillRect(x0, y + 16, x1 - x0, 2);
+
+  var list = BOARD.rows.slice(0, BOARD_SHOW), i;
+  if (!list.length){
+    txt("NOBODY HAS WALKED IT YET", LOGICAL_W/2, 360, 30, C.textDim);
+  }
+  for (i = 0; i < list.length; i++){
+    var r = list[i], ry = y + 56 + i*rowH;
+    var mine = G.rec && r.at === G.rec.at && r.ini === G.rec.ini;
+    if (mine) plate(x0 - 10, ry - 30, x1 - x0 + 20, rowH - 4, "rgba(255,106,19,0.18)", 8);
+    var col = mine ? C.brand : (i === 0 ? C.pw5 : C.text);
+    txt(String(i + 1), x0 + 36, ry, 26, i < 3 ? C.brand : C.textDim);
+    txt(r.ini,         x0 + 130, ry, 30, col);
+    txt(cash(r.score), x0 + 420, ry, 26, col, "right");
+    txt(String(r.rows),  x0 + 560, ry, 24, C.textDim, "right");
+    txt((r.steps || 0).toLocaleString("en-US"), x0 + 700, ry, 24, C.textDim, "right");
+    var pu = 0, k;
+    for (k in r.powers) pu += r.powers[k] || 0;
+    txt(String(pu), x0 + 880, ry, 24, C.textDim, "right");
+    txt(r.won ? "BOOKED" : (r.cause || "\u2014"), x0 + 1180, ry, 22,
+        r.won ? C.good : C.textDim, "right");
+  }
+
+  var st = statsRead();
+  txt(BOARD.global ? "EVERYONE" : "THIS DEVICE", LOGICAL_W/2, 790, 20, C.textDim);
+  txt(statLine(BOARD.global || st), LOGICAL_W/2, 828, 24, C.text);
+  if (G.deadFor > 0.45){
+    ctx.globalAlpha = 0.55 + 0.45*Math.sin(G.t*3);
+    txt("TAP ANYWHERE TO PURSUE A NEW PROSPECT", LOGICAL_W/2, 898, 36, C.brand);
+    ctx.globalAlpha = 1;
+  }
+}
+
 /* --------------------------------------------------------------- main loop */
 var fps = { acc:0, frames:0, value:0 };
 function render(){
@@ -5217,6 +5599,8 @@ function render(){
   if (G.state === ST_PLAY) drawLockup();
   if (G.state === ST_TITLE) drawTitle();
   if (G.state === ST_DEAD)  drawDead();
+  if (G.state === ST_NAME)  drawName();
+  if (G.state === ST_BOARD) drawBoard();
   // the arrival scenes sit over everything, HUD included - they are a
   // cutscene, not an overlay
   if (G.scene) drawScene();
@@ -5258,6 +5642,7 @@ layout();
 bakeAll();
 ready = true;
 reset();
+boardGET();                 // no-op unless BOARD_API is set
 requestAnimationFrame(frame);
 </script>
 </body>

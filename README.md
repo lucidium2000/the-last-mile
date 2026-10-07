@@ -38,6 +38,7 @@ would eat playable columns.
 | `?safe=1` | **Guest-safe mode.** Replaces sales objections with neutral network hazards (packet loss, BGP leak, route flap). Use this for rooms customers sit in. |
 | `?mute=1` | Forces silence for a whole deployment, overriding the local toggle. |
 | `?fps=1` | Perf overlay: FPS, backing-store size, device pixel ratio, bake scale. |
+| `?offline=1` | Never contacts the leaderboard server, even if one is configured. |
 
 Parameters combine, e.g. `?safe=1&mute=1`.
 
@@ -58,6 +59,61 @@ Parameters combine, e.g. `?safe=1&mute=1`.
   preference. Nothing personal is stored — these are shared devices.
 - **Check `?fps=1` on real hardware.** Everything else was validated in a
   desktop browser; the frame rate on a Board is the number that matters.
+
+## The leaderboard
+
+Three initials, arcade style, on every finished run — won or lost.
+
+**GitHub Pages is static hosting: there is no server.** A board shared by
+everyone who opens the link needs one somewhere, so the game is written against
+a two-route HTTP contract and ships with a server that implements it.
+
+```
+GET  /top?n=25   -> { rows: [...], stats: {...} }
+POST /score      -> { rows: [...], stats: {...} }
+```
+
+`BOARD_API` near the top of `index.html` is the switch. **Leave it empty and
+the game never opens a socket** — the board is this device's own, in
+localStorage, and the badge on it reads `LOCAL`. Set it to a URL and the same
+board becomes everyone's, the badge reads `LIVE`, and the local copy stays on
+as cache and offline fallback. If the request fails or takes more than six
+seconds the badge reads `OFFLINE` and play is unaffected; nothing on the
+network path can block the game.
+
+`leaderboard-worker.js` is a Cloudflare Worker that implements it — free tier,
+no SDK, deploy instructions in the file header. Exercised against a fake KV
+before shipping: sorting, aggregation, rate limiting, and input sanitising all
+pass, including `<script>alert(1)` arriving as initials (stored as `SCR`) and a
+score of `1e99` (clamped). It is an open endpoint on a public page, so the
+board is decorative, not a record.
+
+### What is collected
+
+Only numbers this game produced: score, rows walked, steps taken, streets
+crossed, power-ups by kind, subway rides, TAM wins, whether the run was won and
+what ended it, and how long it took. Plus a random id generated on the device,
+so repeat plays can be counted without counting a person twice.
+
+Deliberately **not** collected: no name beyond the three typed initials, no user
+agent, no screen size, no language, no timezone, no location. All of those are
+available without asking permission, which is exactly what makes them a
+fingerprint, and a hallway game does not need one. The worker reads no IP
+address anywhere in the file.
+
+Storage degrades rather than breaks: private windows, blocked site data and
+kiosk shells all throw on `localStorage`. Every access is wrapped, and when it
+throws the board falls back to an in-memory copy — it still fills up while the
+page is open, it just forgets on leaving. (This is not theoretical: the preview
+pane used for testing serves `data:` URLs, where storage is disabled outright,
+and the first version of the board silently held exactly one row because of it.)
+
+### RoomOS
+
+A live board means the device needs outbound HTTPS to the worker. If the rooms
+are locked down, leave `BOARD_API` empty — everything still works, per device.
+The "no network calls" property in the notes above holds exactly as long as
+`BOARD_API` is empty.
 
 ## Rebranding
 
