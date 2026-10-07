@@ -2324,6 +2324,15 @@ var BOARD_SHOW = 10;                // rows on screen
 var LS_BOARD = "lastmile.board.v1", LS_STATS = "lastmile.stats.v1",
     LS_WHO   = "lastmile.who.v1";
 var OFFLINE = /[?&]offline=1/.test(location.search);
+/* Which office this panel is in, taken from its own URL - open the game as
+   .../?site=penn1 on the Penn 1 panel and every score from it carries that.
+   It is typed once per device and nothing is sniffed: no IP lookup, no
+   geolocation prompt, nothing read off the browser. Leave it out and the
+   scores are simply unlabelled. */
+var SITE = (function(){
+  var m = /[?&]site=([A-Za-z0-9-]{1,24})/.exec(location.search);
+  return m ? m[1].toLowerCase() : "";
+})();
 
 /* localStorage is not always there: private windows, blocked site data, and
    kiosk shells that refuse it outright all throw on access. When it does
@@ -2467,7 +2476,7 @@ function boardPOST(rec){
         id: playerId().id, ini: rec.ini, score: rec.score, rows: rec.rows,
         steps: rec.steps, streets: rec.streets, rides: rec.rides,
         tamWins: rec.tamWins, powers: rec.powers, won: rec.won,
-        cause: rec.cause, secs: rec.secs
+        cause: rec.cause, secs: rec.secs, site: SITE
       })
     }).then(function(r){ return r.ok ? r.json() : null; })
       .then(function(j){

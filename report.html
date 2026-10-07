@@ -1,0 +1,427 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex, nofollow, noarchive, nosnippet">
+<meta name="googlebot" content="noindex, nofollow">
+<title>TE Last Mile — readout</title>
+<style>
+/* Same palette as the game, same discipline: no external fonts, no libraries,
+   no images. It has to open on a RoomOS panel as happily as on a laptop. */
+:root{
+  --bg:#0a0708; --panel:#15100e; --panel2:#1d1613; --line:rgba(253,244,238,0.10);
+  --text:#fdf4ee; --dim:rgba(253,244,238,0.56); --faint:rgba(253,244,238,0.34);
+  --brand:#ff6a13; --amber:#ffc23d; --good:#8fe388; --bad:#ff4f7e; --cyan:#00bceb;
+  --p1:#ff5a1f; --p2:#ff8c2b; --p3:#ffc23d; --p4:#ffe08a; --p5:#fff0bd;
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--text);
+  font:15px/1.5 "Helvetica Neue",Helvetica,Arial,sans-serif;
+  -webkit-font-smoothing:antialiased}
+.wrap{max-width:1180px;margin:0 auto;padding:28px 16px 80px}
+
+header{display:flex;flex-wrap:wrap;gap:16px;align-items:flex-end;
+  justify-content:space-between;margin-bottom:26px}
+h1{margin:0;font-size:34px;letter-spacing:-0.4px;font-weight:800}
+h1 .te{color:var(--brand)}
+.sub{color:var(--dim);font-size:13px;margin-top:6px}
+.sub code{color:var(--faint);font-size:12px;word-break:break-all}
+.tools{display:flex;gap:8px;flex-wrap:wrap}
+button{background:var(--panel2);color:var(--text);border:1px solid var(--line);
+  border-radius:8px;padding:9px 14px;font:inherit;font-size:13px;cursor:pointer}
+button:hover{border-color:var(--brand);color:var(--brand)}
+
+h2{font-size:12px;letter-spacing:1.6px;text-transform:uppercase;color:var(--faint);
+  margin:34px 0 12px;font-weight:700}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:18px}
+
+.cards{display:grid;gap:10px;grid-template-columns:repeat(auto-fit,minmax(168px,1fr))}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px 16px}
+.card .k{font-size:11px;letter-spacing:1.3px;text-transform:uppercase;color:var(--faint)}
+.card .v{font-size:30px;font-weight:800;margin-top:4px;letter-spacing:-0.6px}
+.card .n{font-size:12px;color:var(--dim);margin-top:2px}
+.card.hi .v{color:var(--amber)}
+.card.win .v{color:var(--good)}
+
+.bars{display:grid;gap:8px}
+.bar{display:grid;grid-template-columns:minmax(120px,0.9fr) 1fr auto;gap:12px;align-items:center}
+.bar .lab{font-size:13px;color:var(--dim);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.bar .track{background:rgba(253,244,238,0.06);border-radius:5px;height:14px;overflow:hidden}
+.bar .fill{height:100%;border-radius:5px;background:var(--brand);min-width:2px;
+  transition:width .5s cubic-bezier(.2,.7,.3,1)}
+.bar .num{font-variant-numeric:tabular-nums;font-size:13px;color:var(--text);
+  min-width:84px;text-align:right}
+.bar .num span{color:var(--faint)}
+
+.cols{display:grid;gap:14px;grid-template-columns:repeat(auto-fit,minmax(330px,1fr))}
+
+table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}
+th,td{padding:8px 10px;text-align:right;border-bottom:1px solid var(--line);
+  font-size:13px;white-space:nowrap}
+th{color:var(--faint);font-size:11px;letter-spacing:1px;text-transform:uppercase;
+  font-weight:700;position:sticky;top:0;background:var(--panel);cursor:pointer;
+  user-select:none}
+th:hover{color:var(--brand)}
+th.l,td.l{text-align:left}
+tbody tr:hover{background:rgba(255,106,19,0.06)}
+td.rank{color:var(--faint)}
+td.ini{font-weight:800;letter-spacing:1.5px}
+tr.top1 td.ini{color:var(--amber)}
+td.won{color:var(--good)}
+td.died{color:var(--dim)}
+.scroll{max-height:620px;overflow:auto;border:1px solid var(--line);border-radius:12px;
+  background:var(--panel)}
+
+.note{color:var(--dim);font-size:13px;line-height:1.65}
+.note strong{color:var(--text)}
+.note code{background:var(--panel2);padding:1px 6px;border-radius:5px;font-size:12px;
+  color:var(--amber)}
+.flag{border-left:2px solid var(--brand);padding-left:14px;margin:10px 0}
+.empty{color:var(--faint);font-size:13px;padding:10px 0}
+.err{color:var(--bad)}
+footer{margin-top:44px;color:var(--faint);font-size:12px;text-align:center}
+@media print{
+  :root{--bg:#fff;--panel:#fff;--panel2:#fff;--text:#111;--dim:#555;--faint:#777;
+        --line:#ddd}
+  .tools{display:none} .scroll{max-height:none}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <div>
+    <h1><span class="te">TE</span> Last Mile — readout</h1>
+    <div class="sub" id="sub">loading…</div>
+  </div>
+  <div class="tools">
+    <button id="refresh">Refresh</button>
+    <button id="csv">Download CSV</button>
+    <button id="json">Download JSON</button>
+    <button onclick="window.print()">Print</button>
+  </div>
+</header>
+
+<div id="error" class="panel err" style="display:none"></div>
+
+<h2>Totals — every run ever finished</h2>
+<div class="cards" id="totals"></div>
+
+<h2>Per run, on average</h2>
+<div class="cards" id="avgs"></div>
+
+<div class="cols">
+  <div>
+    <h2>What stops people</h2>
+    <div class="panel"><div class="bars" id="causes"></div></div>
+  </div>
+  <div>
+    <h2>Power-ups collected</h2>
+    <div class="panel"><div class="bars" id="powers"></div></div>
+  </div>
+</div>
+
+<h2>By office</h2>
+<div class="panel"><div class="bars" id="sites"></div></div>
+
+<h2>The board — top <span id="nrows">100</span></h2>
+<div class="scroll">
+  <table id="board">
+    <thead><tr>
+      <th class="l">#</th><th class="l">Initials</th><th>Score</th><th>Blocks</th>
+      <th>Rows</th><th>Steps</th><th>Rides</th><th>TAM wins</th><th>Time</th>
+      <th class="l">Outcome</th><th class="l">Office</th><th class="l">When</th>
+    </tr></thead>
+    <tbody></tbody>
+  </table>
+</div>
+
+<h2>What is recorded, and what is not</h2>
+<div class="panel note">
+  <p>Every finished run sends <strong>three initials, the run's own numbers</strong>
+  (score, blocks, rows, steps, subway rides, TAM wins, seconds, how it ended, which
+  power-ups were collected) and <strong>a random id the browser made up for itself</strong>,
+  so repeat plays can be counted without counting a person twice. The set of ids never
+  leaves the server — this page only ever receives the count.</p>
+
+  <div class="flag">
+    <p><strong>There are no device or browser statistics here, on purpose.</strong>
+    User agent, screen size, language and timezone are all readable without asking
+    anyone's permission — which is exactly what makes them a fingerprint. The game
+    does not read them, so there is nothing to report. Same for location: no IP
+    lookup, no geolocation prompt.</p>
+    <p>The <em>By office</em> figures above are not sniffed. A panel reports where it
+    is only if its URL says so — open the game as
+    <code>…/the-last-mile/?site=penn1</code> on the Penn 1 panel and every score from
+    it carries that label. Set it once per device. Anything unlabelled is counted as
+    <code>unlabelled</code>, and nothing breaks.</p>
+  </div>
+
+  <p id="scope"></p>
+</div>
+
+<footer id="foot"></footer>
+</div>
+
+<script>
+"use strict";
+
+/* The endpoint is read out of the game itself rather than written here a second
+   time. One file owns it; this page follows. If that read ever fails - opened
+   from a file:// path, say - it falls back to the constant below, and ?api=
+   overrides both for pointing the page at a test endpoint. */
+var FALLBACK_API = "https://lucidium2000--be403ca8c25711f194891607ee4eb77e.web.val.run";
+var POWER_ORDER = ["tam","chuck","metro","path","agent","insight","traffic","sponsor"];
+var POWER_NAME = {
+  tam:"TAM", chuck:"Chuck Bucks", metro:"MetroCard", path:"Path Visualization",
+  agent:"Endpoint Agent", insight:"Internet Insights", traffic:"Traffic Insights",
+  sponsor:"Executive Sponsor"
+};
+var POWER_COL = {
+  tam:"#fff0bd", chuck:"#4f9c62", metro:"#ffd24a", path:"#ffc23d",
+  agent:"#2f62c4", insight:"#2bff88", traffic:"#8fd3e8", sponsor:"#ffe08a"
+};
+
+var DATA = null, SORT = { key:"score", dir:-1 };
+
+function $(id){ return document.getElementById(id); }
+function el(tag, cls, txt){
+  var e = document.createElement(tag);
+  if (cls) e.className = cls;
+  if (txt !== undefined) e.textContent = txt;
+  return e;
+}
+function num(n){ return (n == null ? 0 : n).toLocaleString("en-US"); }
+function money(n){ return "$" + num(Math.round(n || 0)); }
+function dur(s){
+  s = Math.round(s || 0);
+  var h = Math.floor(s/3600), m = Math.floor((s%3600)/60);
+  if (h) return h + "h " + m + "m";
+  if (m) return m + "m " + (s%60) + "s";
+  return s + "s";
+}
+function when(ms){
+  if (!ms) return "—";
+  var d = new Date(ms);
+  return d.toLocaleDateString("en-US",{month:"short",day:"numeric"}) + " " +
+         d.toLocaleTimeString("en-US",{hour:"numeric",minute:"2-digit"});
+}
+function pct(a, b){ return b ? Math.round((a/b)*100) + "%" : "—"; }
+
+async function apiBase(){
+  var q = /[?&]api=([^&]+)/.exec(location.search);
+  if (q) return decodeURIComponent(q[1]).replace(/\/+$/, "");
+  try {
+    var txt = await (await fetch("index.html", { cache:"no-store" })).text();
+    var m = /var\s+BOARD_API\s*=\s*"([^"]*)"/.exec(txt);
+    if (m && m[1]) return m[1].replace(/\/+$/, "");
+  } catch (e) { /* fall through */ }
+  return FALLBACK_API;
+}
+
+async function load(){
+  $("error").style.display = "none";
+  $("sub").textContent = "loading…";
+  var base;
+  try {
+    base = await apiBase();
+    var res = await fetch(base + "/top?n=100", { cache:"no-store" });
+    if (!res.ok) throw new Error("the board returned " + res.status);
+    DATA = await res.json();
+  } catch (e) {
+    $("error").style.display = "";
+    $("error").textContent = "Could not reach the board: " + e.message +
+      ". The game itself is unaffected — it keeps a local board when the endpoint is down.";
+    $("sub").textContent = "";
+    return;
+  }
+  var s = DATA.stats || {};
+  $("sub").innerHTML = "read just now · first run " +
+    (s.first ? when(s.first) : "—") + " · latest " + (s.last ? when(s.last) : "—") +
+    "<br><code>" + base + "</code>";
+  render();
+}
+
+function render(){
+  var s = DATA.stats || {}, rows = DATA.rows || [];
+  $("nrows").textContent = rows.length;
+
+  /* Totals come from the server's counters, which see every finished run. The
+     rows are only the top hundred, so anything derived from them is labelled
+     as such rather than quietly passed off as the whole picture. */
+  cards("totals", [
+    ["Plays",            num(s.plays),        "finished runs"],
+    ["Players",          num(s.players),      "distinct devices"],
+    ["Made it back",     num(s.wins),         pct(s.wins, s.plays) + " of runs", "win"],
+    ["Didn't",           num(s.deaths),       pct(s.deaths, s.plays) + " of runs"],
+    ["Best score",       money(s.bestScore),  "pipeline", "hi"],
+    ["Furthest",         num(s.bestStreets) + " blocks", "in one run", "hi"],
+    ["Blocks walked",    num(s.rows),         "rows crossed, all runs"],
+    ["Steps taken",      num(s.steps),        "all runs"],
+    ["Subway rides",     num(s.rides),        "all runs"],
+    ["TAM payouts",      num(s.tamWins),      "all runs"],
+    ["Time played",      dur(s.secs),         "all runs"]
+  ]);
+
+  /* The server counts totals but not a score total, so the average score is
+     the one figure that has to come off the board - which means it is the
+     average of the top hundred, not of everyone. Labelled as such rather than
+     passed off as the whole picture. */
+  var p = s.plays || 0;
+  var avgScore = rows.length
+    ? money(rows.reduce(function(a,r){ return a + (r.score||0); }, 0) / rows.length)
+    : "—";
+  cards("avgs", [
+    ["Score",   avgScore, rows.length ? "across the top " + rows.length : ""],
+    ["Blocks",  p ? num(Math.round(s.rows/p))  : "—", "per run"],
+    ["Steps",   p ? num(Math.round(s.steps/p)) : "—", "per run"],
+    ["Rides",   p ? (s.rides/p).toFixed(2)     : "—", "per run"],
+    ["Length",  p ? dur(s.secs/p)              : "—", "per run"],
+    ["TAM payouts", p ? (s.tamWins/p).toFixed(2) : "—", "per run"]
+  ]);
+
+  // what stops people - true totals when the server has them, else the board
+  var causes = s.causes, scope = "every finished run";
+  if (!causes || !Object.keys(causes).length){
+    causes = {};
+    rows.forEach(function(r){
+      var k = r.won ? "MADE IT BACK" : (r.cause || "UNKNOWN");
+      causes[k] = (causes[k] || 0) + 1;
+    });
+    scope = "the top " + rows.length + " rows only";
+  }
+  bars("causes", Object.keys(causes).map(function(k){
+    return { lab:k, v:causes[k],
+             col:k === "MADE IT BACK" ? "#8fe388" : (k === "MISSED TRAIN" ? "#ffc23d" : "#ff4f7e") };
+  }), true);
+  $("scope").innerHTML = "<strong>Scope:</strong> the headline totals and the " +
+    "power-up and office figures count <em>every finished run</em>. " +
+    "“What stops people” counts " + scope + ". The table below is the " +
+    "top " + rows.length + " scores, which is everything the server keeps.";
+
+  bars("powers", POWER_ORDER.map(function(k){
+    return { lab:POWER_NAME[k], v:(s.powers && s.powers[k]) || 0, col:POWER_COL[k] };
+  }), true);
+
+  var sites = s.sites || {};
+  if (!Object.keys(sites).length){
+    $("sites").innerHTML = '<div class="empty">No panel has been labelled yet. ' +
+      'Open the game as <code>…/the-last-mile/?site=penn1</code> on a device and ' +
+      'its scores will appear here.</div>';
+  } else {
+    bars("sites", Object.keys(sites).map(function(k){
+      return { lab:k, v:sites[k], col:k === "unlabelled" ? "#6b625c" : "#00bceb" };
+    }), true);
+  }
+
+  table();
+}
+
+function cards(id, list){
+  var host = $(id); host.innerHTML = "";
+  list.forEach(function(c){
+    var d = el("div", "card" + (c[3] ? " " + c[3] : ""));
+    d.appendChild(el("div","k",c[0]));
+    d.appendChild(el("div","v",c[1]));
+    d.appendChild(el("div","n",c[2] || ""));
+    host.appendChild(d);
+  });
+}
+
+function bars(id, list, withPct){
+  var host = $(id); host.innerHTML = "";
+  list.sort(function(a,b){ return b.v - a.v; });
+  var max = list.reduce(function(m,x){ return Math.max(m, x.v); }, 0) || 1;
+  var tot = list.reduce(function(m,x){ return m + x.v; }, 0) || 1;
+  if (!list.length || !tot){ host.innerHTML = '<div class="empty">Nothing yet.</div>'; return; }
+  list.forEach(function(x){
+    var row = el("div","bar");
+    row.appendChild(el("div","lab",x.lab));
+    var track = el("div","track"), fill = el("div","fill");
+    fill.style.background = x.col || "var(--brand)";
+    fill.style.width = Math.max(0, (x.v/max)*100) + "%";
+    track.appendChild(fill); row.appendChild(track);
+    var n = el("div","num"); n.textContent = num(x.v);
+    if (withPct){
+      var sp = el("span"); sp.textContent = "  " + Math.round((x.v/tot)*100) + "%";
+      n.appendChild(sp);
+    }
+    row.appendChild(n);
+    host.appendChild(row);
+  });
+}
+
+var COLS = ["rank","ini","score","streets","rows","steps","rides","tamWins","secs","won","site","at"];
+function table(){
+  var rows = (DATA.rows || []).slice();
+  var k = SORT.key;
+  rows.sort(function(a,b){
+    var x = k === "won" ? (a.won?1:0) : a[k], y = k === "won" ? (b.won?1:0) : b[k];
+    if (typeof x === "string" || typeof y === "string")
+      return String(x||"").localeCompare(String(y||"")) * SORT.dir * -1;
+    return ((y||0) - (x||0)) * (SORT.dir < 0 ? 1 : -1);
+  });
+  var tb = $("board").querySelector("tbody");
+  tb.innerHTML = "";
+  rows.forEach(function(r, i){
+    var tr = el("tr", i === 0 && SORT.key === "score" && SORT.dir < 0 ? "top1" : "");
+    function td(txt, cls){ var c = el("td", cls, txt); tr.appendChild(c); return c; }
+    td(String(i+1), "l rank");
+    td(r.ini || "---", "l ini");
+    td(money(r.score));
+    td(num(r.streets));
+    td(num(r.rows));
+    td(num(r.steps));
+    td(num(r.rides));
+    td(num(r.tamWins));
+    td(dur(r.secs));
+    td(r.won ? "Made it back" : (r.cause || "—"), "l " + (r.won ? "won" : "died"));
+    td(r.site || "—", "l");
+    td(when(r.at), "l");
+    tb.appendChild(tr);
+  });
+}
+
+Array.prototype.forEach.call($("board").querySelectorAll("th"), function(th, i){
+  th.addEventListener("click", function(){
+    var k = COLS[i];
+    if (k === "rank") return;
+    SORT = { key:k, dir: SORT.key === k ? -SORT.dir : -1 };
+    table();
+  });
+});
+
+function save(name, text, type){
+  var b = new Blob([text], { type:type });
+  var a = document.createElement("a");
+  a.href = URL.createObjectURL(b); a.download = name;
+  document.body.appendChild(a); a.click();
+  setTimeout(function(){ URL.revokeObjectURL(a.href); a.remove(); }, 0);
+}
+$("csv").addEventListener("click", function(){
+  if (!DATA) return;
+  var head = ["rank","initials","score","blocks","rows","steps","rides","tamWins",
+              "seconds","outcome","cause","office","when"];
+  POWER_ORDER.forEach(function(p){ head.push("got_" + p); });
+  var lines = [head.join(",")];
+  (DATA.rows||[]).forEach(function(r, i){
+    var cells = [i+1, r.ini, r.score, r.streets, r.rows, r.steps, r.rides, r.tamWins,
+                 r.secs, r.won ? "won" : "died", '"' + (r.cause||"") + '"',
+                 r.site || "", new Date(r.at).toISOString()];
+    POWER_ORDER.forEach(function(p){ cells.push((r.powers && r.powers[p]) || 0); });
+    lines.push(cells.join(","));
+  });
+  save("te-last-mile-board.csv", lines.join("\n"), "text/csv");
+});
+$("json").addEventListener("click", function(){
+  if (DATA) save("te-last-mile-readout.json", JSON.stringify(DATA, null, 2), "application/json");
+});
+$("refresh").addEventListener("click", load);
+
+$("foot").textContent = "TE Last Mile · this page reads the public board and stores nothing";
+load();
+</script>
+</body>
+</html>

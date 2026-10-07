@@ -98,6 +98,11 @@ export default async function (request: Request): Promise<Response> {
       won: !!body.won,
       cause: String(body.cause || "").replace(/[^\x20-\x7E]/g, "").slice(0, 28),
       powers: cleanPowers(body.powers),
+      /* Which office, if the panel's URL says so (?site=penn1). It is typed
+         into the URL once per device, never sniffed - no IP lookup, no
+         geolocation prompt, nothing read off the browser. A device nobody
+         labelled simply has no site. */
+      site: String(body.site || "").toLowerCase().replace(/[^a-z0-9-]/g, "").slice(0, 24),
       at: now,
     };
 
@@ -138,6 +143,12 @@ function blankStats() {
     plays: 0, wins: 0, deaths: 0, bestScore: 0,
     steps: 0, rows: 0, rides: 0, tamWins: 0, secs: 0,
     players: 0, seen: {} as Record<string, number>,
+    /* Totals, so a report is not stuck describing only the hundred rows it
+       can see. Every finished run bumps these whether or not it makes the
+       board. */
+    causes: {} as Record<string, number>,
+    sites: {} as Record<string, number>,
+    bestStreets: 0,
     powers: cleanPowers(null), first: Date.now(), last: 0,
   };
 }
@@ -156,6 +167,13 @@ function bump(st: any, rec: any, id: string) {
   if (!st.seen) st.seen = {};
   if (!st.seen[id]) st.players = Object.keys(st.seen).length + 1;
   st.seen[id] = rec.at;                        // doubles as the rate limit clock
+  if (rec.streets > (st.bestStreets || 0)) st.bestStreets = rec.streets;
+  if (!st.causes) st.causes = {};
+  const why = rec.won ? "MADE IT BACK" : (rec.cause || "UNKNOWN");
+  st.causes[why] = (st.causes[why] || 0) + 1;
+  if (!st.sites) st.sites = {};
+  const where = rec.site || "unlabelled";
+  st.sites[where] = (st.sites[where] || 0) + 1;
   for (const k of POWERS) st.powers[k] = (st.powers[k] || 0) + (rec.powers[k] || 0);
   return st;
 }

@@ -45,6 +45,7 @@ would eat playable columns.
 | `?mute=1` | Forces silence for a whole deployment, overriding the local toggle. |
 | `?fps=1` | Perf overlay: FPS, backing-store size, device pixel ratio, bake scale. |
 | `?offline=1` | Never contacts the leaderboard server, even if one is configured. |
+| `?site=penn1` | Tags every score from this device with an office, for the readout. Letters, digits and hyphens, 24 max. Nothing is sniffed — this is the only way a score gets a location. |
 
 Parameters combine, e.g. `?safe=1&mute=1`.
 
@@ -87,25 +88,45 @@ as cache and offline fallback. If the request fails or takes more than six
 seconds the badge reads `OFFLINE` and play is unaffected; nothing on the
 network path can block the game.
 
-`leaderboard-worker.js` is a Cloudflare Worker that implements it — free tier,
-no SDK, deploy instructions in the file header. Exercised against a fake KV
-before shipping: sorting, aggregation, rate limiting, and input sanitising all
-pass, including `<script>alert(1)` arriving as initials (stored as `SCR`) and a
-score of `1e99` (clamped). It is an open endpoint on a public page, so the
-board is decorative, not a record.
+The server that implements it lives in [`leaderboard/`](leaderboard/), along
+with the one command that pushes it, pulls it, backs the data up and restores
+it. There is **one copy of that code** and `leaderboard/lb.mjs check` is what
+keeps it that way. Exercised against a stand-in store before shipping: sorting,
+aggregation, rate limiting, and input sanitising all pass, including a score of
+`999999999999` (clamped to the cap) and initials scrubbed to A–Z0–9. It is an
+open endpoint on a public page, so the board is decorative, not a record.
+
+### The readout
+
+[`report.html`](report.html) sits beside the game at
+`…/the-last-mile/report.html` and reads the same public route — no token, no
+setup. Headline totals, per-run averages, what stops people, power-up usage,
+a breakdown by office, and the full sortable board with CSV and JSON download.
+
+It reads `BOARD_API` out of `index.html` instead of repeating the URL, so there
+is still exactly one place that address is written down.
 
 ### What is collected
 
 Only numbers this game produced: score, rows walked, steps taken, streets
 crossed, power-ups by kind, subway rides, TAM wins, whether the run was won and
 what ended it, and how long it took. Plus a random id generated on the device,
-so repeat plays can be counted without counting a person twice.
+so repeat plays can be counted without counting a person twice — and the set of
+those ids never leaves the server, the game and the readout only ever receive
+the count.
+
+One optional extra: an office label, and only because a human typed it into the
+device's URL as `?site=penn1`. It is the single reason a score ever carries a
+location.
 
 Deliberately **not** collected: no name beyond the three typed initials, no user
 agent, no screen size, no language, no timezone, no location. All of those are
 available without asking permission, which is exactly what makes them a
-fingerprint, and a hallway game does not need one. The worker reads no IP
+fingerprint, and a hallway game does not need one. The server reads no IP
 address anywhere in the file.
+
+Which is why there are **no device statistics in the readout** — not an
+omission, there is simply nothing to report.
 
 Storage degrades rather than breaks: private windows, blocked site data and
 kiosk shells all throw on `localStorage`. Every access is wrapped, and when it
