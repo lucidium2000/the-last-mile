@@ -228,7 +228,7 @@ var AUDIO = (function(){
     if (!digBuf) return;
     try {
       var src = ac.createBufferSource(), g = ac.createGain();
-      src.buffer = digBuf; g.gain.value = 1.35;
+      src.buffer = digBuf; g.gain.value = 0.54;   // 40% - it is a hallway
       src.connect(g); g.connect(master); src.start();
     } catch (e){}
   }
