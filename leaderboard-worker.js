@@ -101,7 +101,7 @@ export default {
       const n = clampInt(url.searchParams.get("n"), 1, KEEP, 25);
       const rows = await readJSON(env, BOARD_KEY, []);
       const stats = await readJSON(env, STATS_KEY, blankStats());
-      return json({ rows: rows.slice(0, n), stats });
+      return json({ rows: rows.slice(0, n), stats: publicStats(stats) });
     }
 
     if (request.method === "POST" && url.pathname === "/score") {
@@ -146,7 +146,7 @@ export default {
       const stats = bump(await readJSON(env, STATS_KEY, blankStats()), rec, id);
       await env.BOARD.put(STATS_KEY, JSON.stringify(stats));
 
-      return json({ rows: kept.slice(0, 25), stats });
+      return json({ rows: kept.slice(0, 25), stats: publicStats(stats) });
     }
 
     return json({ error: "not found" }, 404);
@@ -172,6 +172,13 @@ function cleanPowers(p) {
   const out = {};
   for (const k of POWERS) out[k] = clampInt(p && p[k], 0, 10000, 0);
   return out;
+}
+/* `seen` is the set of random browser ids, and it stays on the server - the
+   game only ever needs the count. It was going out with every response, which
+   handed every player everyone else's id for no reason at all. */
+function publicStats(st) {
+  const { seen, ...rest } = st;
+  return rest;
 }
 function blankStats() {
   return {
