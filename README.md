@@ -476,6 +476,11 @@ A walk uptown is tiring, and the only thing that fixes tired is lunch.
 | An objection that lands | **−75%** |
 | Endpoint Agent shield | absorbs the hit completely, costs no health |
 
+While it is held, a **blue shield badge sits against the right-hand end of the
+health bar** rather than in the power-up chip row. What it does is take one hit
+*instead of the bar taking it*, and sitting it with the other power-ups said
+nothing about which number it was protecting.
+
 All of them live together near `CHUCK_BONUS`, so the balance is one line to
 change.
 

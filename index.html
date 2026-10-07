@@ -6172,6 +6172,41 @@ function txt(s,x,y,size,col,align,maxW){
   if (maxW) ctx.fillText(s,x,y,maxW); else ctx.fillText(s,x,y);
 }
 
+/* A shield, drawn as a path rather than a glyph: straight across the top,
+   shoulders, and a point at the bottom. It breathes, so it reads as live. */
+function drawShieldBadge(x, y, w, h){
+  var pul = 0.5 + 0.5 * Math.sin(G.t * 2.4);
+  plate(x, y, w, h, C.ink, 12);
+  var cx = x + w / 2, top = y + 10, bot = y + h - 9, hw = w * 0.33;
+
+  function shield(sx, sy2, sw, sh2){
+    ctx.beginPath();
+    ctx.moveTo(sx - sw, sy2);
+    ctx.lineTo(sx + sw, sy2);
+    ctx.lineTo(sx + sw, sy2 + sh2 * 0.46);
+    ctx.quadraticCurveTo(sx + sw, sy2 + sh2 * 0.86, sx, sy2 + sh2);
+    ctx.quadraticCurveTo(sx - sw, sy2 + sh2 * 0.86, sx - sw, sy2 + sh2 * 0.46);
+    ctx.closePath();
+  }
+
+  ctx.globalAlpha = 0.22 + 0.18 * pul;          // the glow behind it
+  ctx.fillStyle = "#8fc2ff";
+  shield(cx, top - 3, hw + 4, bot - top + 6); ctx.fill();
+  ctx.globalAlpha = 1;
+
+  ctx.fillStyle = BLAZER;
+  shield(cx, top, hw, bot - top); ctx.fill();
+  ctx.fillStyle = shade(BLAZER, 0.26);          // the lit half
+  ctx.save(); ctx.beginPath();
+  ctx.rect(cx - hw, top, hw, bot - top); ctx.clip();
+  shield(cx, top, hw, bot - top); ctx.fill();
+  ctx.restore();
+  ctx.strokeStyle = "#bcd9ff"; ctx.lineWidth = 2;
+  shield(cx, top, hw, bot - top); ctx.stroke();
+
+  txt("E", cx, top + (bot - top) * 0.60, 24, "#eaf2ff");
+}
+
 function drawHealth(x, y, w, h){
   var f = Math.max(0, Math.min(1, G.hp / HP_MAX));
   var low = G.hp <= HP_LOW;
@@ -6240,7 +6275,6 @@ function drawHud(){
 
   var chips = [];
   if (G.flyT > 0)    chips.push(["T", "FLYING", C.pw5, Math.min(1, G.flyT / FLY_SECS)]);
-  if (G.shield)      chips.push(["E", "ENDPOINT",       BLAZER, 0]);
   if (G.slowT > 0)   chips.push(["I", "INSIGHTS",       C.pw2, G.slowT / POWERS.insight.secs]);
   if (G.revealT > 0) chips.push(["P", "PATH VIS",       C.pw3,   G.revealT / POWERS.path.secs]);
   if (G.riskT > 0)   chips.push(["TI","TRAFFIC INS",    "#8fd3e8", G.riskT / POWERS.traffic.secs]);
@@ -6272,7 +6306,13 @@ function drawHud(){
      right, so the centre of that row is the one piece of furniture-free
      space on the board - and it is the number that decides whether the walk
      ends, so it gets a bar of its own rather than a chip. */
-  drawHealth((LOGICAL_W - 560) / 2, 986, 560, 62);
+  var hbX = (LOGICAL_W - 560) / 2;
+  drawHealth(hbX, 986, 560, 62);
+  /* The Endpoint shield sits against the health bar rather than in the chip
+     row, because what it does is take one hit instead of the bar taking it.
+     Putting it with the other power-ups said nothing about which number it
+     was protecting. */
+  if (G.shield) drawShieldBadge(hbX + 560 + 12, 986, 66, 62);
 
   /* Once engaged the TAM never lapses, so it gets a standing badge rather
      than a timed chip. The counter is the point: it keeps delivering. */
