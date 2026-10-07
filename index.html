@@ -1359,10 +1359,16 @@ var POWER_KINDS = ["agent","insight","path","sponsor","metro","chuck","traffic"]
    each, since those are the two to see most often. */
 /* Metrocards carry nine slots - three times what they had - so a ride is
    available far more often than any other power-up. */
+/* Chuck Bucks doubled: 2 slots -> 4, exactly twice the draw. The two slots
+   come out of metro rather than being added on top, so the pool stays 30 and
+   chuck's share is a true 2x (6.7% -> 13.3%) instead of the 1.9x a bigger
+   denominator would have given. Metro pays for it - at 16/30 it is still by
+   far the most common pickup. */
 var POWER_POOL = ["path","path","path",
-                  "metro","metro","metro","metro","metro","metro","metro","metro","metro",
-                  "metro","metro","metro","metro","metro","metro","metro","metro","metro",
-                  "chuck","chuck","traffic","traffic","agent","agent","agent","insight","sponsor"];
+                  "metro","metro","metro","metro","metro","metro","metro","metro",
+                  "metro","metro","metro","metro","metro","metro","metro","metro",
+                  "chuck","chuck","chuck","chuck",
+                  "traffic","traffic","agent","agent","agent","insight","sponsor"];
 var CHUCK_BONUS = 250000;
 
 /* ===================== CSCO TICKER CARD ===================================

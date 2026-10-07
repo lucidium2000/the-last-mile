@@ -296,6 +296,13 @@ baked in here would be stale the next day and would be read as live. A round
 percentage is plainly the game talking. Everything on the card is in percent
 for the same reason: the axis, the series and the tooltip.
 
+Chuck Bucks draws 4 of the 30 slots in `POWER_POOL` — double what it was. The
+two extra slots came out of metro rather than being bolted on, so the pool stays
+30 and the share is a true 2x rather than the 1.9x a bigger denominator would
+have given; metro at 16/30 is still by far the most common pickup. Measured over
+16,000 sampled pickups per arm: 4.47% → 9.26%, a ratio of **2.07** (95% CI
+1.90–2.26).
+
 Each pickup **rolls its own move, between 0 and 10 percent**, and the whole
 series is scaled to it, so the chart, the axis, the headline and the tooltip
 always agree. `CSCO.session` is the shape of the trading day normalised to a
