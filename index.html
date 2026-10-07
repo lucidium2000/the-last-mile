@@ -521,6 +521,22 @@ var AUDIO = (function(){
       }
       hit({ f:5000, hp:true, dur:0.05, g:0.06 });
     },
+    /* Suiting up. A rising figure, then a chord that stays - longer and
+       fuller than any other pickup, because this is the one you can see. */
+    shieldUp: function(){
+      var up = [392.00, 523.25, 659.25, 783.99, 1046.50], i;
+      for (i = 0; i < up.length; i++){
+        tone({ f:up[i],     dur:0.22, type:"triangle", g:0.11, at:i * 0.085 });
+        tone({ f:up[i] * 2, dur:0.14, type:"sine",     g:0.035, at:i * 0.085 });
+      }
+      // the chord it lands on, held
+      tone({ f:261.63, dur:1.5, type:"triangle", g:0.11, at:0.44, lp:760 });
+      tone({ f:392.00, dur:1.4, type:"sine",     g:0.085, at:0.47 });
+      tone({ f:523.25, dur:1.3, type:"sine",     g:0.075, at:0.50 });
+      tone({ f:659.25, dur:1.2, type:"sine",     g:0.055, at:0.53 });
+      hit({ f:6000, hp:true, dur:0.45, g:0.045, at:0.44 });
+      hit({ f:2200, to:600, dur:0.30, g:0.05 });
+    },
     /* A gasp and a rising sparkle - the headline landed. */
     wow: function(){
       hit({ f:900, to:4200, dur:0.22, g:0.07 });
@@ -1950,7 +1966,8 @@ function makeWalk(r){
       var pc = (Math.random()*COLS)|0;
       if (!blocked[pc]){
         // the TAM is the rare drop, gated by its own long cooldown
-        var kind = (r > 7 && r - lastTam >= TAM_COOLDOWN_ROWS && Math.random() < 0.52)
+        var kind = (legDir > 0 && r > 7 && r - lastTam >= TAM_COOLDOWN_ROWS &&
+                    Math.random() < 0.52)
                    ? "tam" : POWER_POOL[(Math.random()*POWER_POOL.length)|0];
         if (kind === "tam") lastTam = r;
         pickup = { col:pc, kind:kind };
@@ -1987,7 +2004,9 @@ function foodAt(row, col){
    and the scene has the world frozen while this runs. */
 function turnBack(){
   legDir = -1;
-  var keep = G.maxRow + 2;
+  /* Strictly past him. Keeping two rows left the one in front of his face
+     holding the number it was given on the way up. */
+  var keep = G.maxRow + 1;
   for (var r = keep; r < genCursor; r++) delete rows[r];
   genCursor = keep;
   var tail = rows[keep - 1];
@@ -2106,9 +2125,9 @@ function reset(){
     stage:-1, coach:-1, toast:null, flash:null,
     shield:false, slowT:0, revealT:0, invulnT:0, powersUsed:0,
     flyT:0, flyA:0, flyBeep:0, tam:false, tamT:0, tamWins:0, tamWin:null, hurtT:0, nahT:0,
-    yumT:0, yumKind:null, yumDir:0, yumBite:0, wowT:0,
+    yumT:0, yumKind:null, yumDir:0, yumBite:0, wowT:0, cheerT:0,
     metro:0, ride:null, trace:null, rides:0, bonus:0, tamLeft:0, riskT:0,
-    scene:null, scenesSeen:{}, ticker:null, leg:1, po:false, won:false,
+    scene:null, scenesSeen:{}, ticker:null, notice:null, leg:1, po:false, won:false,
     trainT:TRAIN_MAX, trainLine:tr[0], trainDest:tr[1],
     trainHH:16 + ((Math.random()*3)|0), trainMM:(Math.random()*60)|0,
     missedTrain:false,
@@ -2309,6 +2328,11 @@ function cash(v){ return "$" + Math.round(v).toLocaleString("en-US"); }
 /* rows walked, plus whatever Chuck handed over */
 function pipeline(){ return G.maxRow*DOLLARS_PER_ROW + G.bonus; }
 function flash(name, line, col){ G.flash = { life:2.2, name:name, line:line, col:col }; }
+/* A flash lives in the top strip and lasts two seconds. Some things need the
+   middle of the screen and seven. */
+function notice(title, line, body, secs, col){
+  G.notice = { life:secs, max:secs, title:title, line:line, body:body, col:col || C.brand };
+}
 
 /* current street number, from the furthest road row crossed */
 function streetAt(r){
@@ -2559,7 +2583,9 @@ function collect(){
   row.pickup = null;
   G.powersUsed++;
   G.got[kind] = (G.got[kind] || 0) + 1;
-  if (kind === "tam") AUDIO.tam(); else AUDIO.power(kind);
+  if (kind === "tam") AUDIO.tam();
+  else if (kind === "agent") AUDIO.shieldUp();
+  else AUDIO.power(kind);
   flash(k.name, kind === "chuck" ? ("+" + cash(CHUCK_BONUS) + " on the number.") : k.line, k.col);
   burst(G.col*TILE + TILE/2, rowScreenY(G.row) - 40, k.col);
 
@@ -2586,7 +2612,12 @@ function collect(){
     G.tamLeft = TAM_DURATION;
     G.tamT = 3 + Math.random()*3;
   }
-  else if (kind === "agent")   G.shield = true;
+  else if (kind === "agent"){
+    /* The blazer going blue is the biggest visual change in the game and it
+       used to happen in silence. Now he jumps, puts both hands up, and the
+       sound says so. */
+    G.shield = true; G.cheerT = CHEER_SECS;
+  }
   else if (kind === "insight") G.slowT = Math.max(G.slowT, k.secs);
   else if (kind === "traffic") G.riskT = Math.max(G.riskT, k.secs);
   else if (kind === "path"){
@@ -2847,12 +2878,18 @@ function startRide(enterRow, enterCol){
      are counted, and the search has to outrun that with room to spare. */
   ensureRows(G.maxRow + 160);
   var fromSt = streetAt(enterRow);
-  var wantSt = fromSt + 10 + ((Math.random()*11) | 0);   // 10..20 streets
+  /* Ten to twenty streets IN THE DIRECTION OF TRAVEL. On the way back the
+     numbers descend, and the old test - streetAt(r) >= fromSt + 10 - could
+     never be satisfied, so every ride on the return leg was refused with a
+     bump. The subway was dead for the whole second half of the game. */
+  var span = 10 + ((Math.random()*11) | 0);
+  var wantSt = fromSt + legDir * span;
+  if (legDir < 0) wantSt = Math.max(START_ST, wantSt);
   var dest = null;
   for (var r = enterRow + 3; r < enterRow + 200; r++){
     var w = rows[r];
     if (!w || w.type !== "safe") continue;
-    if (streetAt(r) >= wantSt){ dest = r; break; }
+    if (legDir > 0 ? (streetAt(r) >= wantSt) : (streetAt(r) <= wantSt)){ dest = r; break; }
   }
   if (dest === null){ AUDIO.bump(); return; }
 
@@ -2879,7 +2916,8 @@ function startRide(enterRow, enterCol){
   var shady = Math.random() < 0.45 ? pull() : -1;
   var cash  = Math.random() < 0.55 ? pull() : -1;
   G.ride = { t:0, phase:"down", fromRow:enterRow, fromCol:enterCol,
-             toRow:dest, toCol:exitCol, camFrom:G.camRow, streets:streetAt(dest) - fromSt,
+             toRow:dest, toCol:exitCol, camFrom:G.camRow,
+             streets:Math.abs(streetAt(dest) - fromSt),
              rock:0, slot:2, face:1, shady:shady, cash:cash, cashGot:false, met:false };
   G.col = enterCol; G.fromCol = enterCol;
   G.row = enterRow; G.fromRow = enterRow; G.hop = 1;
@@ -2961,7 +2999,8 @@ function updateRide(dt){
     if (R.t >= RIDE_PHASES.up){
       G.ride = null;
       G.invulnT = Math.max(G.invulnT, 0.8);
-      flash("OUT AT W " + G.street + " ST", R.streets + " streets uptown.", "#ffd24a");
+      flash("OUT AT W " + G.street + " ST",
+            R.streets + (G.leg > 0 ? " streets uptown." : " streets closer to Penn."), "#ffd24a");
     }
   }
 }
@@ -3599,9 +3638,15 @@ function updateScene(dt){
   if (!sc) return;
   /* Some scenes leave you holding an instruction, and two of them change the
      game: the signing turns the city round, and Penn 1 ends it. */
-  if (sc.turn){ G.leg = -1; G.po = true; turnBack(); }
+  if (sc.turn){
+    G.leg = -1; G.po = true;
+    /* The TAM's job ends with the signature. No more wins, no more payouts,
+       and no new TAM on the way home - the walk back is yours. */
+    G.tam = false; G.tamLeft = 0; G.tamT = 0; G.tamWin = null;
+    turnBack();
+  }
   if (sc.after)
-    G.toast = { a:0, life:5.4, name:sc.after[0], stage:sc.after[1], line:sc.after[2] };
+    notice(sc.after[0], sc.after[1], sc.after[2], 7.5, C.good);
   if (sc.win) winGame();
 }
 
@@ -3766,6 +3811,7 @@ function update(dt){
     while (G.yumBite < want){ G.yumBite++; AUDIO.chomp(); }
   }
   if (G.wowT > 0)  G.wowT  = Math.max(0, G.wowT - dt);
+  if (G.cheerT > 0) G.cheerT = Math.max(0, G.cheerT - dt);
   if (G.revealT > 0){
     G.revealT = Math.max(0, G.revealT - dt);
     if (G.revealT === 0) G.trace = null;
@@ -3934,6 +3980,7 @@ function update(dt){
   }
   if (G.flash){ G.flash.life -= dt; if (G.flash.life <= 0) G.flash = null; }
   if (G.tamWin){ G.tamWin.life -= dt; if (G.tamWin.life <= 0) G.tamWin = null; }
+  if (G.notice){ G.notice.life -= dt; if (G.notice.life <= 0) G.notice = null; }
 
   for (i=0;i<G.parts.length;i++){
     var pt = G.parts[i];
@@ -4569,9 +4616,61 @@ function drawTamPickup(col, sy){
   txt("TAM", cx, eyeY - 46, 22, C.pw5);
 }
 
+/* ---------------------------------------------------------- SUITING UP ---
+   Both hands up, a jump, and the blazer colour thrown out as rings. Drawn
+   over the sprite like the other reactions, for the same reason: drawPlayer
+   returns early in three places. */
+var CHEER_SECS = 1.75;
+function cheerLiftNow(){
+  if (G.cheerT <= 0) return 0;
+  var age = CHEER_SECS - G.cheerT;
+  if (age < 0.30) return Math.sin((age/0.30) * Math.PI * 0.5) * 30;   // spring up
+  if (age < 1.05) return 30 - Math.sin((age-0.30) * 9) * 4;           // hang, bob
+  return Math.max(0, 30 * (1 - (age - 1.05) / 0.45));                 // down
+}
+function drawCheer(cx, topY){
+  var t = G.cheerT, age = CHEER_SECS - t;
+  var a = Math.max(0, Math.min(1, t / 0.35));
+  var open = Math.min(1, age / 0.26);
+
+  // rings of blazer blue going out
+  var i;
+  for (i = 0; i < 3; i++){
+    var rp = (age * 0.85 + i * 0.33) % 1;
+    if (age < 0.1) continue;
+    ctx.globalAlpha = a * (1 - rp) * 0.5;
+    ctx.strokeStyle = i % 2 ? BLAZER : "#8fc2ff"; ctx.lineWidth = 6;
+    ctx.beginPath(); ctx.ellipse(cx, topY + 74, 30 + rp * 150, 12 + rp * 56, 0, 0, Math.PI*2);
+    ctx.stroke();
+  }
+  ctx.globalAlpha = a;
+
+  // both arms up in a V, fists at the top
+  var coat = shade(BLAZER, -0.18);
+  for (i = -1; i <= 1; i += 2){
+    var x0 = cx + i * 24, y0 = topY + 50;
+    var x1 = cx + i * (30 + 26 * open), y1 = y0 - (26 + 40 * open);
+    ctx.strokeStyle = coat; ctx.lineWidth = 12; ctx.lineCap = "round";
+    ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x1, y1); ctx.stroke();
+    ctx.fillStyle = "#e9b98c";
+    ctx.beginPath(); ctx.arc(x1, y1 - 4, 8, 0, Math.PI * 2); ctx.fill();
+  }
+
+  // sparks off the top
+  for (i = 0; i < 7; i++){
+    var sp = (age * 1.1 + i * 0.14) % 1;
+    ctx.globalAlpha = a * (1 - sp) * 0.85;
+    ctx.fillStyle = i % 3 ? "#bcd9ff" : BLAZER;
+    var sx2 = cx + Math.sin(i * 2.1) * (18 + sp * 44);
+    ctx.fillRect(sx2, topY - 10 - sp * 80, 5, 9);
+  }
+  ctx.globalAlpha = 1;
+}
+
 var EAT_AT = null;
 function drawEatOverlay(){
   if (G.yumT > 0 && EAT_AT) drawEat(EAT_AT.x, EAT_AT.y);
+  if (G.cheerT > 0 && EAT_AT) drawCheer(EAT_AT.x, EAT_AT.y);
   EAT_AT = null;
 }
 function drawPlayer(pp){
@@ -4621,7 +4720,9 @@ function drawPlayer(pp){
   }
   // grows into the hero as he transforms, rather than popping
   var hk = 1 + 0.09 * G.flyA;
-  var topY = sy - pp.lift - G.flyA * 78 - s.oy * ((1 + pp.sq * 0.14) * hk);
+  var lift = cheerLiftNow();
+  var topY = sy - pp.lift - lift - G.flyA * 78 - s.oy * ((1 + pp.sq * 0.14) * hk);
+  EAT_AT = { x: sx + TILE * 0.5, y: topY };
   if (G.yumT > 0){
     /* He leans out to hand the money over, then settles back to eat. The food
        itself is NOT drawn here: drawPlayer blits the sprite after this point
@@ -4630,7 +4731,7 @@ function drawPlayer(pp){
        anchor is recorded and the caller paints it once the sprite is down. */
     var reach = Math.max(0, 1 - (EAT_SECS - G.yumT) / EAT_TAKEN);
     sx += Math.sin(reach * Math.PI) * 9 * (G.yumDir || 1);
-    EAT_AT = { x: sx + TILE * 0.5, y: topY };
+    EAT_AT.x = sx + TILE * 0.5;
   }
   if (G.wowT > 0) drawWow(sx + TILE * 0.5, topY, G.wowT);
   if (G.nahT > 0){
@@ -4649,7 +4750,7 @@ function drawPlayer(pp){
     var blink = 9 + (1 - G.flyT/FLY_WARN) * 17;
     if (Math.floor(G.t * blink) % 2 === 0) return;
   }
-  var dy = sy - pp.lift - flyLift;
+  var dy = sy - pp.lift - lift - flyLift;
   var kx = (1 - pp.sq*0.10) * hk, ky = (1 + pp.sq*0.14) * hk;
 
   /* A head shake, for the turnstile with no card in the wallet. The figure is
@@ -5162,6 +5263,15 @@ function drawHud(){
   txt(G.leg > 0 ? "BLOCK" : "BACK TO PENN 1", 538, 58, 26,
       G.leg > 0 ? C.textDim : C.good, "left");
   txt("W " + G.street + " ST", 538, 98, 42, C.amber, "left");
+  if (G.leg < 0){
+    /* Spell the countdown out: "W 68 ST" ticking down is only obvious if you
+       were watching it tick up. It sits on the right of the top band - put
+       beside the street it ran straight through the departure board, which
+       owns the middle. */
+    var togo = Math.max(0, G.street - START_ST);
+    txt("BLOCKS TO PENN 1", 1740, 58, 26, C.textDim, "right");
+    txt(String(togo), 1740, 100, 46, togo <= 10 ? C.good : C.amber, "right");
+  }
 
   // the departure board - the real reason you are hurrying
   var secs = Math.max(0, Math.ceil(G.trainT));
@@ -5466,6 +5576,29 @@ function drawWon(){
   }
 }
 
+/* Dead centre, big, and it holds for seven and a half seconds, because the one
+   thing a player must not miss is that a signature is not a booking. */
+function drawNotice(){
+  var N = G.notice, age = N.max - N.life;
+  var a = Math.max(0, Math.min(1, age/0.25, N.life/0.6));
+  var pop = 1 - Math.min(1, age/0.18);
+  var w = 1340, h = 330, x = (LOGICAL_W - w)/2, y = (LOGICAL_H - h)/2 - 40 + pop*30;
+
+  ctx.globalAlpha = a * 0.72; ctx.fillStyle = "#05060a";
+  ctx.fillRect(0, 0, LOGICAL_W, LOGICAL_H);
+  ctx.globalAlpha = a;
+  plate(x, y, w, h, "rgba(8,6,5,0.96)", 20);
+  rr(x, y, w, h, 20);
+  ctx.strokeStyle = N.col; ctx.lineWidth = 5 + 3*Math.sin(G.t*4); ctx.stroke();
+
+  txt(N.title, LOGICAL_W/2, y + 92, 56, N.col, "center", w - 90);
+  ctx.fillStyle = "rgba(255,255,255,0.14)";
+  ctx.fillRect(x + 90, y + 126, w - 180, 2);
+  txt(N.line,  LOGICAL_W/2, y + 184, 42, C.text,    "center", w - 90);
+  txt(N.body,  LOGICAL_W/2, y + 252, 27, C.textDim, "center", w - 120);
+  ctx.globalAlpha = 1;
+}
+
 /* ====================== INITIALS AND THE BOARD ============================ */
 var BOARD_BTN = { x:60, y:LOGICAL_H - 176, w:360, h:88 };
 var INI_BOX = { w:150, h:180, gap:40, y:418 };
@@ -5605,6 +5738,7 @@ function render(){
   // cutscene, not an overlay
   if (G.scene) drawScene();
   if (G.ticker) drawTicker();
+  if (G.notice) drawNotice();
   drawMuteBtn();
   if (SHOW_FPS){
     ctx.setTransform(scale, 0, 0, scale, 0, 0);

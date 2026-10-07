@@ -214,6 +214,14 @@ At this scale his own face is twenty pixels of baked voxel, so the expression
 lives in a bubble and the body supplies the gesture: two sleeves and two hands
 drawn over the shoulders for the shrug.
 
+### Suiting up
+
+The Endpoint Agent turning the blazer blue is the biggest visual change in the
+game and it used to happen in silence. Picking it up now springs him 30px off
+the pavement, throws both arms into a V with fists at the top, pushes three
+rings of blazer blue out across the road and sparks off the top of the frame —
+over 1.75s, against a rising five-note figure that lands on a held chord.
+
 ### Buying lunch
 
 Walk into a food cart and the whole transaction plays, over 1.95s on one clock:
@@ -339,6 +347,22 @@ are two-way.
 it counting down. Only unreached rows are dropped, and the scene has the world
 frozen while it runs.
 
+**The TAM's engagement ends with the signature.** No more payouts, and no TAM
+spawns on the return leg — the walk home is yours.
+
+**The countdown is said out loud.** The HUD reads `BACK TO PENN 1 / W 68 ST` on
+the left and `BLOCKS TO PENN 1 / 34` on the right, because a street number
+ticking down is only obvious if you watched it tick up. It lives on the right
+of the top band: put next to the street it ran straight through the departure
+board, which owns the middle.
+
+**The subway used to die at the turn.** `startRide` looked for a street
+`>= from + 10`, but numbers descend after the signature, so the test could
+never pass and every ride on the way home was refused with a bump — the subway
+was dead for the entire second half and said nothing. It now searches in the
+direction of travel and clamps at 34. Measured at the real turn street:
+**0 of 25 rides worked before, 25 of 25 after**, spanning 10-20 streets.
+
 Dying on the return leg has its own death screen — **SO CLOSE**, with the
 signed order still in your hand.
 
@@ -377,6 +401,11 @@ are, in the same register as the subway ride. Each plays once per run.
 | 50th | Rockefeller Center — the slab, the rink, the flags, the fountains |
 | 59th | Central Park South — the canopy, the pond, a carriage |
 | 81st | Steak dinner — the customer, two glasses, and a handshake on a verbal |
+
+The message afterwards is a **centre-screen notice**, not a corner toast: the
+world dims, a bordered panel takes the middle of the screen for seven and a
+half seconds, and it says in 56px that a signature is not a booking. A corner
+toast was there before and was missable, which is the one thing it must not be.
 
 81st is the end of the walk: the handshake lands, and the message that follows
 says what a verbal is actually worth — *now get back to the office and lock it
