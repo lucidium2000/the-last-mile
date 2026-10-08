@@ -1168,6 +1168,14 @@ reason. `CHAMPIONS` gets a tally row, a figure in the stats strip, two cards in
 the report, a board column, a field on the run record and a clamped field on the
 val.
 
+**And he never goes back to the pavement's lines.** Somebody who has just handed
+you three hundred thousand dollars does not then tell you to watch where you are
+going. Afterwards he does what everybody does once the business is done —
+*"I'll call you next week."*, *"I'll shoot you an email."*, *"Send me the deck,
+I'll look."* — and on the **fourth** walk into him he stops being polite about
+it: *"I said I'd call you."*, *"Alright — enough."*, *"We are done here."* Which
+is also true to life.
+
 **The money says so three ways at once.** A figure climbs out of him and fades
 (`+$300,000` over `ON THE PIPELINE`, rising 120px over 1.9s); the HUD readout
 swells 12px and turns green for 1.4s; and the banner's right-hand third is a
@@ -1245,10 +1253,24 @@ the square in one tap and they are 1.15 tiles further along.
 
 **And he is out there too.** About one pavement in twenty-two has the hooded
 man on it — never in the park — and on the street he is only ever a presence: no
-knife, no robbery, nothing to react to. He closes on you slowly whenever you
-are on his pavement, holds at `HOOD_KEEP` = 0.95 tiles, says the same fourteen
-things, and gets the red eyes at the same rate. Then you walk past him. That is
-all of it.
+knife, no robbery, nothing to react to. He closes on you slowly, holds at `HOOD_KEEP` = 0.95 tiles, says the same
+fourteen things, and gets the red eyes at the same rate.
+
+**And he follows you off the kerb.** Up to `HOOD_REACH` = 5 rows from the
+pavement he started on, across the lanes, at 1.15 rows a second — and the
+traffic does not care who he is. He is measured against the body of a car, not
+its nose, the same way the player is, and when one gets him he takes it exactly
+the way the player does: a jolt, a topple and a 34px slide the way the thing was
+going, then he lies there for 3.2s and fades. A man who stops at the kerb is
+scenery; a man who steps into 42nd after you is the reason you keep walking. He
+is far slower than anything on the road, so it is not a chase he can win — it is
+a thing happening behind you. Verified: hr 13.44 on the pavement, 13.88 and
+14.32 in the road, flattened at 14.48.
+
+Because he can leave his row, he cannot be drawn by it: `HOOD_DRAW` gathers
+everybody in a hood once a frame and each is drawn in the row he is standing in,
+before that row's own contents, so the traffic in the lane passes in front of
+him.
 
 He **steers** rather than drifting, so he cannot be derived from the clock the
 way everybody else is: `hx` is his own integrated position and `folkRaw` hands
