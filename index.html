@@ -3372,20 +3372,28 @@ function act(dir){
     G.trainT = Math.min(TRAIN_MAX, G.trainT + TRAIN_PER_HOP);
   } else if (onPath) AUDIO.traceStep(); else AUDIO.step();
 
-  /* Did he just walk into where somebody was standing? Measured against the
-     UNDODGED position, because the dodge is what is about to happen - this
-     is the moment before it, and it is the only moment worth a sound. */
-  if (target && target.folk){
-    var fspan2 = COLS + 3;
+  /* Somebody is already standing there. The first attempt gets a mouthful
+     and no step; the second one goes through and they move. Only while he
+     is on a pavement already - a man halfway across 42nd does not stop for
+     a conversation, and a refused tap out there would be a death. */
+  if (target && target.folk && rows[G.row] && rows[G.row].type === "safe"){
     for (var fb = 0; fb < target.folk.length; fb++){
       var fo = target.folk[fb];
-      var raw = ((fo.x0 + fo.v * G.t) % fspan2 + fspan2) % fspan2 - 1.5;
-      if (Math.abs(raw - nc) < 0.62 && G.t - (fo.hitAt || -9) > 0.6){
-        fo.hitAt = G.t;
-        fo.hitSide = raw >= nc ? 1 : -1;
+      if (Math.abs(folkRaw(fo) - nc) >= 0.62) continue;
+      if (G.t - (fo.blockAt || -99) > FOLK_GRACE){
+        fo.blockAt = G.t;
+        fo.sayAt = G.t;
+        fo.line = FOLK_LINES[(Math.random()*FOLK_LINES.length)|0];
         AUDIO.jostle();
-        break;
+        return;                              // he does not get the square
       }
+      /* Second go. They give it up, and shuffle over about it. */
+      var away = folkRaw(fo) >= nc ? 1 : -1;
+      fo.x0 += away * FOLK_ASIDE;
+      fo.slideAt = G.t; fo.slideBack = -away * FOLK_ASIDE;
+      fo.blockAt = -99;
+      AUDIO.jostle();
+      break;
     }
   }
 
@@ -4832,42 +4840,79 @@ function drawPax(cx2, feetY, seed, lit, sway, k){
   ctx.restore();
 }
 
-/* Where a pedestrian actually is, once he is anywhere near them. They get
-   out of the way rather than being solid: a moving blocker would wreck the
-   one guarantee the generator makes - that no cell can ever be pinned - and
-   a person you cannot walk past is not a person, it is a bollard.
+/* They hold their ground. The first version had them slide out of the way
+   as he closed, which stopped the sprites overlapping and looked like
+   nothing that happens on a New York pavement: people do not glide aside
+   for you, they tell you about it.
 
-   The dodge is a pure function of where he is standing this frame, so it
-   needs no state and eases in and out on its own as he closes and leaves.
-   Within 1.25 tiles they slide away from him, up to a tile and a quarter,
-   which is enough that the two sprites never share a column.
+   So the first attempt at their square is REFUSED, they say something, and
+   the second attempt goes through - at which point they step aside with
+   bad grace. That is also what keeps the generator's one guarantee intact,
+   that no cell can ever be pinned: a blocker that always yields on the
+   second tap cannot trap anybody. And it only applies while he is already
+   on a pavement, so a man standing in traffic never loses a beat to a
+   conversation.
 
-   `hitAt` is the one piece of state: the moment he walked into the space
-   somebody was already in. For the next half second they stagger - further
-   aside and a few pixels off the ground - which is the acknowledgement. */
-var FOLK_DODGE = 1.25, FOLK_STAGGER = 0.45;
-function folkX(f, r){
+   State per person: `blockAt` (when they last said no), `sayAt`/`line` (the
+   bubble), and `slideAt`/`slideBack` (the step aside, eased out from a
+   displacement rather than animated into one, so x0 can move immediately
+   and the walk continues from the new line). */
+var FOLK_SAY = 2.1, FOLK_GRACE = 2.6, FOLK_ASIDE = 1.15, FOLK_SLIDE = 0.5;
+var FOLK_LINES = [
+  "Hey! I'm walkin' here!",
+  "Step back, Jack.",
+  "Comedy show tonight?",
+  "You see me standin' here?",
+  "Where's the fire, pal?",
+  "Not today, buddy.",
+  "Watch it!",
+  "Showtime! \u2026 no? Fine.",
+  "This is my block.",
+  "Easy, killer.",
+  "Excuse YOU.",
+  "Sidewalk's that way.",
+  "Got a dollar?",
+  "Yeah, yeah, movin'."
+];
+function folkRaw(f){
   var span = COLS + 3;
-  var x = ((f.x0 + f.v * G.t) % span + span) % span - 1.5;
-  var pp = playerPos();
-  if (Math.abs(pp.row - r) < 0.6){
-    var d = x - pp.col, ad = Math.abs(d);
-    if (ad < FOLK_DODGE){
-      var away = ad < 0.02 ? (f.v >= 0 ? 1 : -1) : (d > 0 ? 1 : -1);
-      x += away * (FOLK_DODGE - ad);
-    }
-  }
-  var age = G.t - (f.hitAt || -9);
-  if (age < FOLK_STAGGER){
-    var k = 1 - age / FOLK_STAGGER;
-    x += (f.hitSide || 1) * 0.42 * k * k;
+  return ((f.x0 + f.v * G.t) % span + span) % span - 1.5;
+}
+function folkX(f){
+  var x = folkRaw(f);
+  var sl = G.t - (f.slideAt || -9);
+  if (sl < FOLK_SLIDE){                      // easing out of the step aside
+    var k = 1 - sl / FOLK_SLIDE;
+    x += (f.slideBack || 0) * k * k;
   }
   return x;
 }
 function folkLift(f){
-  var age = G.t - (f.hitAt || -9);
-  if (age >= FOLK_STAGGER) return 0;
-  return Math.sin((age / FOLK_STAGGER) * Math.PI) * 7;
+  var sl = G.t - (f.slideAt || -9);
+  if (sl >= FOLK_SLIDE) return 0;
+  return Math.sin((sl / FOLK_SLIDE) * Math.PI) * 6;
+}
+
+/* What somebody says, over their head, for FOLK_SAY seconds. Drawn after the
+   props so a hot dog stand cannot sit on top of the words. */
+function drawFolkSay(f, sy){
+  var age = G.t - (f.sayAt || -99);
+  if (age < 0 || age >= FOLK_SAY) return;
+  var a = Math.min(1, age / 0.12) * Math.min(1, (FOLK_SAY - age) / 0.45);
+  var x = folkX(f)*TILE + TILE*0.5 + FOLK_Y*SKEW;
+  var y = sy - FOLK_Y*ROW_H - 112 - folkLift(f) - Math.min(8, age * 26);
+  if (y < HORIZON + 6 || y > LOGICAL_H - 20) return;
+  ctx.font = 'bold 19px "Helvetica Neue",Helvetica,Arial,sans-serif';
+  var w = ctx.measureText(f.line).width + 34, h = 40;
+  var bx = Math.max(10, Math.min(LOGICAL_W - w - 10, x - w/2));
+  ctx.globalAlpha = a;
+  plate(bx, y - h, w, h, "rgba(246,239,226,0.94)", 10);
+  ctx.fillStyle = "rgba(246,239,226,0.94)";   // the tail, pointing at them
+  ctx.beginPath();
+  ctx.moveTo(x - 9, y - 2); ctx.lineTo(x + 9, y - 2); ctx.lineTo(x, y + 13);
+  ctx.closePath(); ctx.fill();
+  txt(f.line, bx + w/2, y - h/2 + 7, 19, "#1a1410");
+  ctx.globalAlpha = 1;
 }
 
 /* The same people, on the pavement. Baked rather than drawn live: a couple on
@@ -7079,7 +7124,7 @@ function drawWorld(){
         for (i=0;i<row.folk.length;i++){
           var fk = row.folk[i];
           blit(S.folk[fk.seed % FOLK_N],
-               folkX(fk, r)*TILE + TILE*0.5 + FOLK_Y*SKEW,
+               folkX(fk)*TILE + TILE*0.5 + FOLK_Y*SKEW,
                sy - FOLK_Y*ROW_H - folkLift(fk));
         }
       }
@@ -7095,6 +7140,11 @@ function drawWorld(){
           blit(S["pw_"+row.pickup.kind], row.pickup.col*TILE, sy - 10 - bob);
           drawPickupLabel(row.pickup.kind, row.pickup.col, sy - bob);
         }
+      }
+      /* And what anybody is saying goes on last, so a hot dog stand cannot
+         sit on top of the words. */
+      if (row.folk){
+        for (i=0;i<row.folk.length;i++) drawFolkSay(row.folk[i], sy);
       }
     } else {
       // a lane turned around by a trace drives, and faces, the other way

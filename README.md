@@ -1004,16 +1004,24 @@ against the 0.46 the player walks on, which is 29px further up the screen — so
 he passes in front of them, and they go down before the props so a hot dog
 stand stands in front of them.
 
-**They get out of the way, and they say so.** They are not solid: a moving
-blocker would wreck the one guarantee the generator makes — that no cell can
-ever be pinned — and a person you cannot walk past is not a person, it is a
-bollard. Instead the drawn position is pushed away from him inside 1.25 tiles,
-as a pure function of where he is standing this frame, so it needs no state and
-eases in and out on its own. Measured: at any approach inside the radius they
-end up exactly 1.25 tiles clear; outside it they do not move at all. If he
-steps into the square somebody was *already* in, that gets `AUDIO.jostle()` —
-cloth, then the low thud of two people meeting — and they stagger for half a
-second, further aside and a few pixels off the ground.
+**They hold their ground, and they tell you about it.** The first version had
+them slide out of the way as he closed. It stopped the sprites overlapping and
+looked like nothing that happens on a New York pavement: people do not glide
+aside for you.
+
+So the **first attempt at their square is refused** — they say one of fourteen
+lines in a speech bubble (*"Hey! I'm walkin' here!"*, *"Step back, Jack."*,
+*"Comedy show tonight?"*) and he does not get the step. The **second attempt
+goes through**, and they shuffle over 1.15 tiles with bad grace, eased out of
+the displacement rather than animated into it so `x0` can move immediately and
+the walk carries on from the new line.
+
+That is also what keeps the generator's guarantee intact: a blocker that always
+yields on the second tap cannot pin anybody. And it only applies **while he is
+already on a pavement** — a man halfway across 42nd does not stop for a
+conversation, and a refused tap out there would be a death. Both get
+`AUDIO.jostle()`: cloth, then the low thud of two people meeting. The bubbles
+draw after the props, so a hot dog stand cannot sit on top of the words.
 
 They are **baked**, not drawn live. A couple on every sidewalk on screen is
 twenty-odd figures a frame and each one is twenty-odd `fillRect`s, where the
