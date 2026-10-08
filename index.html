@@ -3440,7 +3440,8 @@ function act(dir){
       if (G.t - (fo.blockAt || -99) > FOLK_GRACE){
         fo.blockAt = G.t;
         fo.sayAt = G.t;
-        fo.line = FOLK_LINES[(Math.random()*FOLK_LINES.length)|0];
+        var pool = G.hp <= HP_WORN ? FOLK_LINES_LOW : FOLK_LINES;
+        fo.line = pool[(Math.random()*pool.length)|0];
         AUDIO.jostle();
         AUDIO.mutter(fo.seed);
         return;                              // he does not get the square
@@ -5049,6 +5050,25 @@ var FOLK_LINES = [
   "Sidewalk's that way.",
   "Got a dollar?",
   "Yeah, yeah, movin'."
+];
+/* And what they say when he is in the red. Walking into somebody is the same
+   action either way, but a man grey in the face and dripping does not get
+   told to watch where he is going - he gets concern, or he gets avoided, and
+   both of those say the same thing to the player: you are in trouble, and the
+   fix is food. It is the one piece of coaching in the game that arrives in
+   somebody else's voice. */
+var FOLK_LINES_LOW = [
+  "Whoa \u2014 you all right, buddy?",
+  "Get away from me.",
+  "You look like you need a slice.",
+  "Hey, you don't look good.",
+  "Sit down before you fall down.",
+  "Somebody get this guy a bagel.",
+  "Doctor, or a sandwich?",
+  "Easy, pal. Breathe.",
+  "That is a rough-lookin' day.",
+  "You gonna make it?",
+  "Eat something. Seriously."
 ];
 function folkRaw(f){
   var span = COLS + 3;
