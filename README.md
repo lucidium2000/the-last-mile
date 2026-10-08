@@ -692,7 +692,8 @@ face is a read-out.
 
 | | When | How |
 |---|---|---|
-| **Smile** | 75–100%, and he pays / between bites | three rects, middle one *lower*, cheeks |
+| **Fine** | 75–100% | the flat mouth with about a pixel of lift at the ends, no cheeks — barely above level. The full smile is what he does when he has just eaten, and wearing it for the whole top half of the bar made a man walking to a meeting look delighted about nothing |
+| **Smile** | he pays, and between bites | three rects, middle one *lower*, cheeks |
 | **Flat** | 50–75% | one level mouth, nothing else going on |
 | **Meh** | 25–50% | the frown with half the step in it |
 | **Worn** | under 25% | eyes half shut, heavy brows, mouth open, flushed |
@@ -859,10 +860,19 @@ reporting one lump. The whole thing is built **once**, when the run ends, so the
 figures cannot drift between frames and the audio and the rendering read the
 same object.
 
-**The death gets half a second first.** The end screen used to drop over the
+**He goes over when he dies.** A figure that simply vanishes under a panel has
+not been hit by anything, so he takes it, hangs for a tenth of a second, and
+then topples — accelerating, the way something that has stopped holding itself
+up falls. The pivot is the model origin, which `blitScaled` already treats as
+the point under his feet, so he swings round his heels rather than round his
+middle. Sampled off the live canvas: 0.00s 0°, 0.08s −7° (the jolt), 0.20s 39°,
+0.34s 75°, 0.50s flat.
+
+**The death gets its own moment first.** The end screen used to drop over the
 top of the frame he died on, so the one thing the player most wants to see —
 what actually got him — was covered before he could see it. The world keeps
-running underneath for `DEATH_HOLD`: the burst, the shake and the figure all
+running underneath for `DEATH_HOLD`, 0.85s so the fall finishes: the burst,
+the shake and the figure all
 stay up, and the tally clock does not start until the screen is actually there,
 or the first rows would be half counted by the time anybody saw them.
 

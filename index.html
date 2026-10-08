@@ -1595,7 +1595,7 @@ var MODELS = {
    version of the same idea, which has to be milder or a man on 60% health
    looks as if something has just gone wrong. */
 var FACE_SMILE = 1, FACE_CHEW = 2, FACE_SAD = 3, FACE_WORN = 4,
-    FACE_FLAT = 5, FACE_MEH = 6, FACE_SMIRK = 7;
+    FACE_FLAT = 5, FACE_MEH = 6, FACE_OK = 7;
 var HP_HAPPY = 75, HP_LEVEL = 50;
 function playerModel(dir, shielded, face){
   var skin = "#e9b98c";
@@ -1672,16 +1672,14 @@ function playerModel(dir, shielded, face){
       dec.push({ x:0.448, y:0.43, w:0.026, z:0.706, h:0.018, bg:"#6d3b2a" });
       dec.push({ x:0.474, y:0.43, w:0.052, z:0.682, h:0.018, bg:"#6d3b2a" });
       dec.push({ x:0.526, y:0.43, w:0.026, z:0.706, h:0.018, bg:"#6d3b2a" });
-    } else if (face === FACE_SMIRK){
-      /* Proud rather than smug. The first pass lifted one corner four pixels
-         clear of the other and raised a single eyebrow over it, which on a
-         head this size came out as a leer. Now: a level mouth with one end a
-         single pixel up, and both brows raised a little, which reads as a man
-         pleased with himself instead of one about to say something. */
-      dec.push({ x:0.450, y:0.43, w:0.044, z:0.697, h:0.016, bg:"#6d3b2a" });
-      dec.push({ x:0.494, y:0.43, w:0.056, z:0.703, h:0.016, bg:"#6d3b2a" });
-      dec.push({ x:0.408, y:0.43, w:0.044, z:0.774, h:0.011, bg:"#2b1f16" });
-      dec.push({ x:0.548, y:0.43, w:0.044, z:0.776, h:0.011, bg:"#2b1f16" });
+    } else if (face === FACE_OK){
+      /* Fine. Not pleased - the full smile is what he does when he has just
+         eaten, and wearing it for the whole top half of the health bar made a
+         man walking to a meeting look delighted about nothing. This is the
+         flat mouth with about a pixel of lift at the ends, and no cheeks. */
+      dec.push({ x:0.452, y:0.43, w:0.028, z:0.698, h:0.017, bg:"#6d3b2a" });
+      dec.push({ x:0.478, y:0.43, w:0.046, z:0.692, h:0.017, bg:"#6d3b2a" });
+      dec.push({ x:0.522, y:0.43, w:0.028, z:0.698, h:0.017, bg:"#6d3b2a" });
     } else if (face === FACE_FLAT){
       // a level mouth and nothing else going on
       dec.push({ x:0.452, y:0.43, w:0.096, z:0.694, h:0.017, bg:"#6d3b2a" });
@@ -3208,7 +3206,7 @@ function muteBtnActive(){
    wants to see - what actually got him - was covered before he could see it.
    The world keeps running underneath: the burst, the shake and the figure all
    stay up. */
-var DEATH_HOLD = 0.5;
+var DEATH_HOLD = 0.85;
 var TALLY_T0 = 1.15, TALLY_GAP = 0.80, TALLY_RUN = 0.66, TALLY_TOTAL = 1.15;
 function buildTally(){
   var base = G.maxRow * DOLLARS_PER_ROW;
@@ -6697,6 +6695,23 @@ g.globalCompositeOperation = "source-over";
 return TINT_CV;
 }
 
+/* He goes over when he dies. A knocked figure that simply vanishes under a
+   panel has not been hit by anything, so he takes the hit, hangs for a tenth
+   of a second, and then topples - accelerating, the way something that has
+   stopped holding itself up falls.
+
+   The pivot is the model origin, which blitScaled already treats as the point
+   under his feet, so rotating about it swings him round his heels rather than
+   round his middle. */
+function deathTilt(){
+  if (G.state !== ST_DEAD) return 0;
+  var t = G.deadFor;
+  if (t < 0.09) return -0.14 * (t / 0.09) * (G.facing > 0 ? 1 : -1);  // the jolt
+  var k = Math.max(0, Math.min(1, (t - 0.09) / 0.46));
+  var e = 1 - Math.pow(1 - k, 2.4);
+  return (e * Math.PI * 0.5 - 0.14 * (1 - e)) * (G.facing > 0 ? 1 : -1);
+}
+
 function drawPlayer(pp){
   /* The cape follows FLIGHT, not the TAM. He suits back up the moment the
      initial five seconds lapse, and only transforms again when a TAM win hands
@@ -6727,7 +6742,7 @@ function drawPlayer(pp){
       face = G.hp < HP_WORN  ? FACE_WORN
            : G.hp < HP_LEVEL ? FACE_MEH
            : G.hp < HP_HAPPY ? FACE_FLAT
-           : FACE_SMILE;
+           : FACE_OK;
     }
     var suffix = (G.shield ? "S" : "") + (right ? "_r" : "_l");
     s = face ? S["pf" + face + suffix]
@@ -6812,6 +6827,15 @@ function drawPlayer(pp){
      missed on one of the paths that returns early. It beats with the same
      lungs as the chest and the screen edges. */
   function put(sprite, px, py){
+    var tilt = deathTilt();
+    if (tilt){
+      ctx.save();
+      ctx.translate(px, py);
+      ctx.rotate(tilt);
+      blitScaled(sprite, 0, 0, kx, ky);
+      ctx.restore();
+      return;                       // nothing else belongs on a man on the floor
+    }
     blitScaled(sprite, px, py, kx, ky);
     /* Where the model's origin landed, and at what scale. A model point
        (x, y, z) projects to (mx, my) and then sits at (px + mx*kx,
