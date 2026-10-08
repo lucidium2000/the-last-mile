@@ -649,7 +649,7 @@ landed on, since a ride covers seven to fifteen crossings at once and a sponsor
 carries three rows. After: **0 rides land past 81**, and a three-rows-at-a-time
 walk fires all eleven milestones and the dinner in order.
 
-**Seven to fifteen streets, and the run takes 0.75s a street.** Both of those
+**Seven to fifteen streets, and the run takes 0.6s a street.** Both of those
 moved. It was ten to twenty, and twenty streets is a third of the walk gone on
 one swipe — the far end of that range made the metrocard *the game* rather than
 a thing in it, where the best run was the one that drew the most of them. Seven
@@ -658,25 +658,25 @@ without deciding the run on its own. Measured over 400 rides: 7–15, every valu
 present, none refused.
 
 And the run was a flat 5.4s whatever it carried, so a seven-stop hop and a
-fifteen-stop haul cost the same. It is now `RIDE_PER_ST` × streets — 5.25s for
-seven, 11.25s for fifteen — so the ride costs exactly what it covers. The
+fifteen-stop haul cost the same. It is now `RIDE_PER_ST` × streets — 4.2s for
+seven, 9s for fifteen — so the ride costs exactly what it covers. The
 departs clock ticks through the whole thing (it runs above the ride's own
 return in `update`), which is what makes that time real. The floor of 1.0s is
 for the truncated ones: a ride stopped short by the turn at 81 or by Penn can
 be a single street, and the camera racing fifty rows in a blink is a smear with
 no doors-close in front of it and no stop behind it. The other four beats —
 down, platform, arrive, up — are fixed, because the stairs and the doors take
-as long as they take. Measured: 8 streets, 6.00s asked, 6.04s on the clock.
+as long as they take. Measured: 7 streets, 4.20s asked, 4.22s on the clock.
 
 **`n TO GO` counted rows, not streets.** It read `R.toRow - camRow`, which is
 the distance in *generated rows* — three or more to a crossing once the avenues
 and the multi-lane streets are in — so an eleven-street ride opened by
 promising thirty-odd to go, and the two numbers on the same line disagreed by a
 factor of three. It is taken off the run clock now instead of off the camera,
-which makes it exact rather than merely right: the run is 0.75s a street, so it
-drops by one every 750ms and lands on zero as the doors open. Measured on an
-eight-street ride: 8 at 17ms, then 7, 6, 5, 4, 3, 2, 1 at 750, 1550, 2283,
-3017, 3767, 4550, 5283.
+which makes it exact rather than merely right: the run is 0.6s a street, so it
+drops by one every 600ms and lands on zero as the doors open. Measured on a
+seven-street ride: 7 at the first frame, then 6, 5, 4, 3, 2, 1 at 600, 1217,
+1833, 2417, 3017, 3633ms.
 
 **The subway used to die at the turn.** `startRide` looked for a street
 `>= from + 10`, but numbers descend after the signature, so the test could
@@ -1149,7 +1149,7 @@ know that.
 - and, now and then, **red eyes**. Two points come up inside the hood over
   0.7s, hold, and go out again over 1.3s, with a soft disc behind each one
   because a flat rect in a black opening reads as a sticker. They start at
-  0.09 a second against a run phase of 5.25-11.25s, so between a third and
+  0.09 a second against a run phase of 4.2-9s, so between a third and
   two thirds of rides get one. They never mean anything, and that is
   deliberate: the whole man is
   a question the game refuses to answer, and this is the part of him that

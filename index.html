@@ -4597,10 +4597,10 @@ function startRide(enterRow, enterCol){
      up       back out into the street
    Each beat has its own sound. The camera races uptown through `run`. */
 var RIDE_PHASES = { down:1.0, platform:1.5, run:5.4, arrive:1.0, up:0.7 };
-/* The run is no longer a flat 5.4 for every ride. It is THREE QUARTERS OF A
-   SECOND PER STREET, so a seven-stop hop is 5.25s and a fifteen is 11.25 -
-   the ride costs exactly what it carries, and the counter above the window
-   ticks a street off every 750ms while it does. The departs clock runs through the whole thing (it ticks
+/* The run is no longer a flat 5.4 for every ride. It is SIX TENTHS OF A
+   SECOND PER STREET, so a seven-stop hop is 4.2s and a fifteen is 9 - the
+   ride costs exactly what it carries, and the counter above the window ticks
+   a street off every 600ms while it does. The departs clock runs through the whole thing (it ticks
    above the ride's own return in update), so that second a street is real
    money off the countdown and a long ride is a decision rather than a free
    teleport. The floor is for the truncated ones: a ride stopped short by the
@@ -4608,7 +4608,7 @@ var RIDE_PHASES = { down:1.0, platform:1.5, run:5.4, arrive:1.0, up:0.7 };
    rows in a blink is a smear with no doors-close in front of it and no stop
    behind it. The other four beats are fixed because the stairs, the platform
    and the doors take as long as they take. */
-var RIDE_PER_ST = 0.75, RIDE_RUN_MIN = 1.0;
+var RIDE_PER_ST = 0.6, RIDE_RUN_MIN = 1.0;
 function rideRun(R){ return (R && R.runDur) || RIDE_PHASES.run; }
 var RIDE_SLOTS = 5;
 /* The man at the far end of the car. He closes on you in a straight line at
@@ -7239,7 +7239,7 @@ function drawRide(){
        same line disagreed by a factor of three.
 
        Taken off the run clock rather than off the camera, which makes it
-       exact: the run is 0.75s a street, so this drops by one every 750ms and
+       exact: the run is 0.6s a street, so this drops by one every 600ms and
        lands on zero as the doors open. */
     var left = Math.max(0, Math.ceil(R.streets * (1 - Math.min(1, R.t / rideRun(R)))));
     txt(R.streets + " STREETS  \u00B7  " + left + " TO GO", LOGICAL_W/2, 300, 26, "#ffd24a");
