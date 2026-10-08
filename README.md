@@ -546,10 +546,11 @@ both meant to look down at that figure and see themselves holding the
 briefcase. The argument is fine. What it looked like was a toy standing next to
 a street full of people, and that is the verdict that counts.
 
-He is back, **one step darker than he started**: `#d6aa81`, 92% of the old
-`#e9b98c`. The old one was pale enough against a navy blazer and a night sky
-that he read as lit from inside, and this sits in the middle of the range the
-rest of the pavement is drawn from rather than at the top of it. Verified
+He is back, and then **two steps darker and warmer** again: `#c2956b`. The old
+`#e9b98c` was pale enough against a navy blazer and a night sky that he read as
+lit from inside, and each step down also takes a little of the pink out, so
+what is left is a tan rather than a wash. It sits in the middle of the range
+the rest of the pavement is drawn from rather than at the top of it. Verified
 across all six baked variants: the new tone is in every one, the yellow and the
 old pale tone in none. The hand signing the purchase order is left alone; that
 line says AUTHORISED SIGNATURE, and it is not his to sign.
@@ -1938,11 +1939,28 @@ second thing that happened afterwards. He now starts at **0.16s**, while the
 card is still fading up, and is fully in at 0.34. The joke is that he turns up
 uninvited, and that only works if he is already there.
 
-That voice line is the **one recorded sound in the game**, inlined as base64 so
-the file still loads nothing over the network. Everything else is synthesised.
-It is decoded the moment the AudioContext exists rather than on first use, so
-the first Chuck Bucks of a session is not silent; every failure path leaves the
-buffer null and the call becomes a no-op, like the rest of the engine.
+That voice line is one of **two recorded sounds in the game**, inlined as
+base64 so the file still loads nothing over the network. Everything else is
+synthesised. Both are decoded the moment the AudioContext exists rather than on
+first use, so the first Chuck Bucks of a session is not silent; every failure
+path leaves the buffer null and the call becomes a no-op, like the rest of the
+engine.
+
+**The other one is "I'm walkin' here", and it plays when traffic hits him.** He
+has been saying it in a speech bubble since the pavement had people on it;
+getting clipped by a cab is the one moment it is not a line, it is the
+reaction. 40KB of mono-in-stereo at 44.1kHz, 1.33s. It fires on everything in
+the road — which is everything that hits him except the crowd, because a man
+who walks into a wall of people has nothing to shout about — and it fires
+*before* the death check on purpose: going under a bus still shouting it is the
+better version of the joke. Verified: cab yes, bus yes, crowd no.
+
+Adding it turned up the last two chains in the engine still wiring a gain to
+the master and walking away. The sample players were never reaped — the same
+leak every oscillator cue was fixed for, just rarer, because a sound you hear a
+handful of times a run does not look like a leak until the fifth round. Both go
+through one `playSample` now, and it reaps. Measured: 1 live chain while it
+plays, 0 after.
 
 The portrait is a halftone photograph inlined as a `data:` URI in `CHUCK_SRC`.
 It arrived as a 268 KB 8-bit RGBA PNG with 32,504 unique colours and a fully
