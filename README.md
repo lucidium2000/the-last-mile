@@ -1252,8 +1252,11 @@ all of it.
 
 He **steers** rather than drifting, so he cannot be derived from the clock the
 way everybody else is: `hx` is his own integrated position and `folkRaw` hands
-it back untouched. He is drawn rather than blitted, scaled 102:153 to stand the
-same height as the rest of the pavement.
+it back untouched. He is drawn rather than blitted, scaled 102:153 off the rest of the pavement
+and then **`HOOD_TALL`, a tenth taller**, the same as in the carriage — he is
+the same man and he should be the one you keep an eye on wherever he turns up.
+Measured: 96.5px against everybody else's 87.7 on the street, 99.4 against 90.4
+in the car.
 
 On the train he is on **70% of rides** rather than 45, and he means it on
 **5.5%** of those rather than 10 — the whole value of him is the question, and a
