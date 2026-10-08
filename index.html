@@ -1710,18 +1710,18 @@ var MODELS = {
 var FACE_SMILE = 1, FACE_CHEW = 2, FACE_SAD = 3, FACE_WORN = 4,
     FACE_FLAT = 5, FACE_MEH = 6, FACE_OK = 7, FACE_WOW = 8;
 var HP_HAPPY = 75, HP_LEVEL = 50;
-/* The hero is YELLOW, the way a minifigure is yellow. Every other person in
-   the game is drawn from a real range of complexions on purpose - the street
-   is Midtown and Midtown looks like Midtown - but the one you are playing is
-   nobody in particular, and giving him a complexion makes him somebody. A
-   seller in Hartford and a seller in Johannesburg are both meant to look down
-   at that figure and see themselves holding the briefcase. Yellow is the
-   convention that does that without picking anyone, and it reads at 40px
-   against the blazer, which a neutral grey would not.
+/* The hero's complexion. It went minifigure yellow for a while, on the
+   argument that the man you are playing should be nobody in particular - and
+   the argument is fine, but the figure stopped looking like a person in a
+   suit and started looking like a toy standing next to a street full of
+   people. He is back, one step darker than he was: #e9b98c was pale enough
+   against a navy blazer and a night sky that he read as lit from inside, and
+   92% of it sits in the middle of the range everybody else on the pavement
+   is drawn from rather than at the top of it.
 
    One constant, used by both baked models and by every hand drawn over them
    at runtime, so the sprite and the gestures cannot drift apart. */
-var HERO_SKIN = "#f8c83c";
+var HERO_SKIN = "#d6aa81";
 /* `shielded` is a LEVEL now, not a flag: 0 bare, 1 the blue Endpoint blazer
    and sunglasses, 2 the purple coat with the hat and the cane. The old
    boolean still works at the call sites that pass one, because 1 is truthy

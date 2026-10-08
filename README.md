@@ -533,21 +533,26 @@ A seller in a dark suit, white shirt and orange tie. Collect a TAM and the suit
 comes off: caped hero, orange rather than red, **T** rather than S, with a
 second baked cape state that streams back while airborne.
 
-**He is yellow, the way a minifigure is yellow.** Everybody else in the game is
-drawn from a real range of complexions on purpose — the street is Midtown and
-Midtown looks like Midtown — but the one you are *playing* is nobody in
-particular, and giving him a complexion makes him somebody. A seller in
-Hartford and a seller in Johannesburg are both meant to look down at that
-figure and see themselves holding the briefcase. Yellow is the convention that
-does that without picking anyone, and `#f8c83c` still reads as a face at 40px
-against a navy blazer, which a neutral grey would not. It is one constant,
-`HERO_SKIN`, used by both baked models and by every hand drawn over them at
-runtime — the fists in the cheer, the shrug at a closed turnstile, the figure
-in the Penn opening and the one at the bar — so the sprite and the gestures
-cannot drift apart. Verified across all six baked variants: the yellow is
-present in every one and the old tone in none. The hand signing the purchase
-order is left alone; that line says AUTHORISED SIGNATURE, and it is not his to
-sign.
+**His complexion is one constant, `HERO_SKIN`,** used by both baked models and
+by every hand drawn over them at runtime — the fists in the cheer, the shrug at
+a closed turnstile, the figure in the Penn opening and the one at the bar — so
+the sprite and the gestures cannot drift apart.
+
+It went minifigure yellow for a while, on the argument that the man you are
+*playing* should be nobody in particular: everybody else is drawn from a real
+range of complexions on purpose, because the street is Midtown and Midtown
+looks like Midtown, and a seller in Hartford and a seller in Johannesburg are
+both meant to look down at that figure and see themselves holding the
+briefcase. The argument is fine. What it looked like was a toy standing next to
+a street full of people, and that is the verdict that counts.
+
+He is back, **one step darker than he started**: `#d6aa81`, 92% of the old
+`#e9b98c`. The old one was pale enough against a navy blazer and a night sky
+that he read as lit from inside, and this sits in the middle of the range the
+rest of the pavement is drawn from rather than at the top of it. Verified
+across all six baked variants: the new tone is in every one, the yellow and the
+old pale tone in none. The hand signing the purchase order is left alone; that
+line says AUTHORISED SIGNATURE, and it is not his to sign.
 
 Cape geometry is dictated by the projection — depth renders as up-and-right, so
 a cape hanging straight down behind the torso sits in the same screen space as
