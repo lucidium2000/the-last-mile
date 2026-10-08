@@ -1467,6 +1467,13 @@ are, in the same register as the subway ride. Each plays once per run.
 | 59th | Central Park South — the canopy, the pond, a carriage |
 | 81st | Steak dinner — the customer, two glasses, and a handshake on a verbal |
 
+**The second line is the joke** — *why* he is standing in Times Square at six in
+the evening — and it was set 26px in the same grey the HUD uses for things
+nobody has to read. It is 32px in the brand orange now, on the same side of the
+screen as the rule above the title. Times Square's reads *"Probably should have
+gotten an Uber"*, which is the only correct thought anybody has ever had in
+Times Square.
+
 **The red steps** were a symmetric trapezoid that was *wider at the top than the
 bottom*, which is perspective backwards — the top of a flight is further away,
 so that is the end that should be narrower. They now run to one vanishing point

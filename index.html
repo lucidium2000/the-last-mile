@@ -5579,8 +5579,12 @@ function sceneFrame(title, sub, body){
   ctx.globalAlpha = a; ctx.fillStyle = "#07080c";
   ctx.fillRect(0, 0, LOGICAL_W, 150); ctx.fillRect(0, LOGICAL_H-190, LOGICAL_W, 190);
   ctx.fillStyle = C.brand; ctx.fillRect(LOGICAL_W/2 - 180, LOGICAL_H-150, 360, 4);
-  txt(title, LOGICAL_W/2, LOGICAL_H-104, 56, C.text);
-  txt(sub, LOGICAL_W/2, LOGICAL_H-58, 26, C.textDim);
+  txt(title, LOGICAL_W/2, LOGICAL_H-108, 56, C.text);
+  /* The second line is the JOKE - why he is standing in Times Square at six
+     in the evening - and it was 26px of the same grey the HUD uses for
+     things nobody has to read. Brand orange at 32 puts it on the same side
+     of the screen as the rule above the title. */
+  txt(sub, LOGICAL_W/2, LOGICAL_H-54, 32, C.brand, "center", LOGICAL_W - 160);
   ctx.globalAlpha = 1;
 }
 /* Times Square. Billboards of mixed sizes each running their own moving
@@ -6332,7 +6336,7 @@ function scenePenn(t, a){
 }
 
 var SCENES = {
-  42: { title:"TIMES SQUARE",        sub:"Arrived in Times Square for a happy hour",
+  42: { title:"TIMES SQUARE",        sub:"Probably should have gotten an Uber",
         draw:sceneTimes, music:"city" },
   50: { title:"ROCKEFELLER CENTER",  sub:"Meeting a partner at The Top of the Rock",
         draw:sceneRock, music:"rock" },
