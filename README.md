@@ -509,6 +509,51 @@ ten blocks:
 
 Everything resumes at 70th.
 
+### Damage
+
+Every hazard used to take the same 75%. It is worked out from what the thing
+*is* now: damage scales with its **width** and the **square root of its
+speed**, so size leads and speed is deliberately sub-linear — a bus crushing
+you slowly is worse than a cab clipping you quickly. The yellow cab comes out
+at exactly 75 by construction, and everything else is measured against it.
+
+| | w | spd | damage | hits from full |
+|---|---|---|---|---|
+| NYPD motorcade | 1.70 | 6.40 | **−100%** | 1 |
+| city bus | 2.60 | 0.72 | **−99%** | 2 |
+| black SUV | 1.60 | 1.46 | **−86%** | 2 |
+| **yellow cab** | 1.45 | 1.34 | **−75%** | 2 |
+| DSNY truck | 2.40 | 0.48 | **−74%** | 2 |
+| parcel van | 1.35 | 0.86 | **−56%** | 2 |
+| delivery e-bike | 0.80 | 1.72 | **−47%** | 3 |
+| pedicab | 1.55 | 0.62 | **−41%** | 3 |
+| horse carriage | 2.10 | 0.30 | **−39%** | 3 |
+| tourist crowd | 2.90 | 0.36 | **−31%** | 4 |
+| parked box truck | 2.00 | 0 | **−25%** | 4 |
+
+The one thing the formula cannot know is whether the thing is a ton of metal,
+so `HAZ_HARD` tempers the four that are not: a crowd of tourists is the widest
+hazard in the game and would otherwise hit like a taxi, and a parked truck is
+something you walked into rather than something that hit you. The screen shake
+scales with the hit too, so a bus and a pedicab do not land the same way even
+before you read the number.
+
+This cuts both ways: a bus is now nearly a one-shot, and a crowd takes four.
+
+### Speed
+
+Two lanes of the same thing should not run at the same pace. The per-lane
+spread was ±15%, which is not enough to see; it is **±28%** now — measured
+across 40 worlds, cab lanes ran anywhere from **1.52 to 6.20 tiles a second**.
+The crossing guarantee adapts on its own, because the gap is expressed in time
+rather than distance, so a faster lane is handed a proportionally bigger one.
+
+Each driver also has his own foot, ±14% within a lane, **with car-following**:
+he drives at his own pace until he catches the one in front, and then he drives
+at that one's. Without the catch-up test a quick driver closes on a slow one
+and `separate()` snaps him back every frame, which reads as shunting. 547,200
+sampled car pairs after all of it: **0 overlaps**.
+
 ### Health
 
 A walk uptown is tiring, and the only thing that fixes tired is lunch.
@@ -522,7 +567,7 @@ A walk uptown is tiring, and the only thing that fixes tired is lunch.
 | Pizza | **+15%** · $5 · one a cart |
 | Bagel | **+10%** · $7 · one a cart |
 | Hot dog | **+7%** · $3 · **two** a cart |
-| An objection that lands | **−75%** |
+| An objection that lands | **−15% to −100%**, see below |
 | Endpoint Agent shield | absorbs the hit completely, costs no health |
 
 While it is held, a **blue shield badge sits against the right-hand end of the
@@ -651,15 +696,18 @@ face is a read-out.
 | **Flat** | 50–75% | one level mouth, nothing else going on |
 | **Meh** | 25–50% | the frown with half the step in it |
 | **Worn** | under 25% | eyes half shut, heavy brows, mouth open, flushed |
-| **Smirk** | an engaged TAM | asymmetric — one corner up, one brow raised. A smirk is asymmetric or it is just a smile |
+| **Proud** | the orange suit | baked into `heroModel` rather than selected here — it belongs to the moment, and on the ordinary sprite he wore it for the whole sixty seconds of an engagement, long after the flying had stopped being impressive. The first attempt lifted one corner four pixels and raised one brow, which on a head this size came out as a leer |
 | **Chew** | while he is eating | jaw dropped, lower lip below it |
 | **Sad** | he walks into a cart he already bought from | middle *raised*, brows angled in |
 
-The smirk outranks the health bands but **not** running on empty: a man
-smirking at 8% health is reassuring at exactly the wrong moment. Verified
-across all seven: 100/80/75 → smile, 74/55/50 → flat, 49/30/25 → meh, 24/5 →
-worn, TAM at 60% → smirk, TAM at 10% → worn, and a spent cart or a mouthful
-still beats all of it.
+An **engaged TAM puts a backwards orange cap on him** instead of changing his
+face — drawn over his head rather than baked, because a capped variant of all
+seven faces in both directions with and without the shield is twenty-eight more
+sprites, on a device whose sprite memory is already the thing to watch.
+
+Verified: 100/80/75 → smile, 74/55/50 → flat, 49/30/25 → meh, 24/5 → worn; a
+TAM at 60% leaves the health face alone, a TAM at 10% still shows worn, and a
+spent cart or a mouthful beats all of it.
 
 Chewing alternates with the smile at about 3Hz once the bites start — a jaw
 working rather than a flicker; anything faster read as a glitch. The eyes are
@@ -807,6 +855,13 @@ The two bonus streams are tracked separately as they accrue (`bonusChuck`,
 reporting one lump. The whole thing is built **once**, when the run ends, so the
 figures cannot drift between frames and the audio and the rendering read the
 same object.
+
+**The death gets half a second first.** The end screen used to drop over the
+top of the frame he died on, so the one thing the player most wants to see —
+what actually got him — was covered before he could see it. The world keeps
+running underneath for `DEATH_HOLD`: the burst, the shake and the figure all
+stay up, and the tally clock does not start until the screen is actually there,
+or the first rows would be half counted by the time anybody saw them.
 
 **It can be skipped.** The first tap runs the tally out at once, the second
 moves on to the initials. Making a player sit through four seconds of counting

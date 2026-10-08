@@ -1673,13 +1673,15 @@ function playerModel(dir, shielded, face){
       dec.push({ x:0.474, y:0.43, w:0.052, z:0.682, h:0.018, bg:"#6d3b2a" });
       dec.push({ x:0.526, y:0.43, w:0.026, z:0.706, h:0.018, bg:"#6d3b2a" });
     } else if (face === FACE_SMIRK){
-      /* A smirk is asymmetric or it is just a smile. One corner up, the other
-         level, and a single raised brow over the side that moved. */
-      dec.push({ x:0.448, y:0.43, w:0.030, z:0.692, h:0.017, bg:"#6d3b2a" });
-      dec.push({ x:0.478, y:0.43, w:0.040, z:0.699, h:0.017, bg:"#6d3b2a" });
-      dec.push({ x:0.518, y:0.43, w:0.032, z:0.712, h:0.017, bg:"#6d3b2a" });
-      dec.push({ x:0.544, y:0.43, w:0.046, z:0.776, h:0.013, bg:"#2b1f16" });
-      dec.push({ x:0.584, y:0.43, w:0.030, z:0.704, h:0.022, bg:"#e09a7e" });
+      /* Proud rather than smug. The first pass lifted one corner four pixels
+         clear of the other and raised a single eyebrow over it, which on a
+         head this size came out as a leer. Now: a level mouth with one end a
+         single pixel up, and both brows raised a little, which reads as a man
+         pleased with himself instead of one about to say something. */
+      dec.push({ x:0.450, y:0.43, w:0.044, z:0.697, h:0.016, bg:"#6d3b2a" });
+      dec.push({ x:0.494, y:0.43, w:0.056, z:0.703, h:0.016, bg:"#6d3b2a" });
+      dec.push({ x:0.408, y:0.43, w:0.044, z:0.774, h:0.011, bg:"#2b1f16" });
+      dec.push({ x:0.548, y:0.43, w:0.044, z:0.776, h:0.011, bg:"#2b1f16" });
     } else if (face === FACE_FLAT){
       // a level mouth and nothing else going on
       dec.push({ x:0.452, y:0.43, w:0.096, z:0.694, h:0.017, bg:"#6d3b2a" });
@@ -1776,7 +1778,18 @@ function heroModel(dir, flying){
     { x:0.32, y:0.42, w:0.36, z:0.46,  h:0.14,  bg:"#ffe9a8" },
     { x:0.37, y:0.42, w:0.26, z:0.405, h:0.06,  bg:"#ffe9a8" },
     { x:0.345, y:0.42, w:0.31, z:0.475, h:0.105, bg:suit, fg:"#5a1f02",
-      text:"T", size:20 }
+      text:"T", size:20 },
+    /* The proud face. It lives on the suit because the suit is the moment -
+       sitting it on the ordinary sprite instead meant he wore it for the
+       whole sixty seconds of an engagement, long after the flying had
+       stopped being impressive. The head sits 0.02 higher here than on the
+       suit sprite, so the features do too. */
+    { x:0.420, y:0.43, w:0.030, z:0.762, h:0.024, bg:"#241a12" },
+    { x:0.552, y:0.43, w:0.030, z:0.762, h:0.024, bg:"#241a12" },
+    { x:0.408, y:0.43, w:0.044, z:0.794, h:0.011, bg:"#2b1f16" },
+    { x:0.548, y:0.43, w:0.044, z:0.796, h:0.011, bg:"#2b1f16" },
+    { x:0.450, y:0.43, w:0.044, z:0.717, h:0.016, bg:"#6d3b2a" },
+    { x:0.494, y:0.43, w:0.056, z:0.723, h:0.016, bg:"#6d3b2a" }
   ], shadow:false, W:1 };
 }
 
@@ -1869,7 +1882,26 @@ var FOOD_PRICE = { pizza:5, hotdog:3, bagel:7 };
 var FOOD_SERVES = { pizza:1, hotdog:2, bagel:1 };
 function foodPrice(kind){ return FOOD_PRICE[kind] || 0; }
 function foodSpent(pr){ return (pr.served || 0) >= (FOOD_SERVES[pr.kind] || 1); }
-var HP_HIT = 75;           // an objection you did not see coming
+var HP_HIT = 75;           // a yellow cab, which is the baseline for the rest
+/* What a given hazard actually costs, worked out from what it is rather than
+   set by hand. Damage scales with the WIDTH of the thing and the square root
+   of its speed: a bus crushing you slowly is worse than a cab clipping you
+   quickly, so size leads and speed is deliberately sub-linear. The yellow cab
+   comes out at exactly HP_HIT by construction - everything else is measured
+   against it.
+
+   `hard` is the one thing the formula cannot know: whether the thing is a ton
+   of metal. A crowd of tourists is the widest hazard in the game and would
+   otherwise hit like a taxi, and a parked truck is something you walked into
+   rather than something that hit you. */
+var HAZ_HARD = { crowd:0.40, carriage:0.75, rickshaw:0.75, boxtruck:0.55 };
+function hazDamage(kind){
+  var h = HAZ[kind];
+  if (!h) return HP_HIT;
+  var base = HAZ.cab.w * Math.sqrt(HAZ.cab.spd);
+  var score = h.w * Math.sqrt(Math.max(h.spd, 0.25)) * (HAZ_HARD[kind] || 1);
+  return Math.max(15, Math.min(100, Math.round(HP_HIT * score / base)));
+}
 var HP_PER_STREET = 3;     // the walk itself
 var HP_LOW = 25;           // below this the bar starts shouting
 var HP_CRAWL = 5;          // and below this it only costs a point a street
@@ -2418,7 +2450,11 @@ function pickFleet(r, park){
 function makeRoad(r, streetNo, dir){
   var park = inPark(streetNo);
   var d = difficulty(r), kind = pickFleet(r, park), spec = HAZ[kind];
-  var speed = Math.min(MAX_SPEED, d.speed * spec.spd * (0.85 + Math.random()*0.3));
+  /* Two lanes of the same thing should not run at the same pace. The spread
+     was +-15%, which is not enough to see; it is +-28% now. The crossing
+     guarantee below adapts on its own - the gap is expressed in TIME, so a
+     faster lane is given a proportionally bigger one. */
+  var speed = Math.min(MAX_SPEED, d.speed * spec.spd * (0.72 + Math.random()*0.56));
 
   /* A pack is placed as one super-vehicle so the minimum-gap guarantee still
      holds; the riders are drawn inside its footprint. */
@@ -2437,6 +2473,10 @@ function makeRoad(r, streetNo, dir){
   for (var i=0;i<n;i++){
     cars.push({ uber: (kind === "cab" && Math.random() < 0.34) ? ((Math.random()*4)|0) : -1,
                 p: i*slot + Math.random()*(slot-eff)*0.5,
+                /* Each driver has his own foot. Within a lane this is small -
+                   +-14% - because the one in front sets the pace anyway; it is
+                   enough to stop a row looking like a conveyor belt. */
+                k: 0.86 + Math.random()*0.28,
                 stop: spec.stops ? (Math.random()*5.2) : 0 });
   }
 
@@ -3031,7 +3071,7 @@ function act(dir){
   // nobody takes a call mid-change
   if (G.booth && G.state === ST_PLAY) return;
   if (G.state === ST_DEAD){
-    if (G.deadFor > 0.45){
+    if (G.deadFor > DEATH_HOLD + 0.25){
       /* First tap runs the tally out, second one moves on. Making the player
          sit through four seconds of counting every single death would turn the
          best part of the screen into the worst. */
@@ -3048,7 +3088,7 @@ function act(dir){
     return;
   }
   if (G.state === ST_BOARD){
-    if (G.deadFor > 0.45){ reset(); G.state = ST_PLAY; AUDIO.ui(); }
+    if (G.deadFor > DEATH_HOLD + 0.25){ reset(); G.state = ST_PLAY; AUDIO.ui(); }
     return;
   }
   if (G.ride){ rideAct(dir); return; }
@@ -3156,6 +3196,12 @@ function muteBtnActive(){
 
    Built once here rather than in the draw, so the figures cannot drift between
    frames and the audio and the rendering are reading the same object. */
+/* Half a second between the hit and the paperwork. The end screen used to
+   drop over the top of the frame he died on, so the one thing the player most
+   wants to see - what actually got him - was covered before he could see it.
+   The world keeps running underneath: the burst, the shake and the figure all
+   stay up. */
+var DEATH_HOLD = 0.5;
 var TALLY_T0 = 1.15, TALLY_GAP = 0.80, TALLY_RUN = 0.66, TALLY_TOTAL = 1.15;
 function buildTally(){
   var base = G.maxRow * DOLLARS_PER_ROW;
@@ -5334,12 +5380,15 @@ function hitPlayer(kind, pp){
     /* An objection used to end the run outright. Now it takes a bite out of
        him and he can carry on - once. The shield still absorbs completely,
        which is what keeps it worth having. */
-    G.hp -= HP_HIT;
+    var dmg = hazDamage(kind);
+    G.hp -= dmg;
     if (G.hp <= 0){ G.hp = 0; die(kind); return; }
-    G.invulnT = 1.6; G.shake = 34; G.hurtT = 0.7;
+    /* The shake scales with the hit, so a bus and a pedicab do not land the
+       same way even before you read the number. */
+    G.invulnT = 1.6; G.shake = 16 + dmg * 0.26; G.hurtT = 0.4 + dmg * 0.005;
     AUDIO.hurt();
-    flash("THAT ONE LANDED", hazName(kind) + " — " + Math.round(G.hp) +
-          "% left. Find something to eat.", C.danger);
+    flash("THAT ONE LANDED", hazName(kind) + "  −" + dmg + "%  ·  " +
+          Math.round(G.hp) + "% left. Find something to eat.", C.danger);
     burst(pp.col*TILE + TILE/2, rowScreenY(pp.row) - 40, "#ff5e6e");
   }
 }
@@ -5573,7 +5622,20 @@ function update(dt){
         else cur += (want - cur) * Math.min(1, dt * (Math.abs(want) > Math.abs(cur) ? 16 : 5));
         car.sw = Math.abs(cur) < 0.4 ? 0 : cur;
         if (!car.stopped && !(row.halt > 0)){
-          car.p += row.speed * slowK * dt * (row.rv || 1);
+          /* He drives at his own pace until he catches the one in front, and
+             then he drives at that one's. Without the catch-up test a quick
+             driver closes on a slow one and separate() snaps him back every
+             frame, which reads as shunting. */
+          var kk = car.k || 1;
+          var ahead = row.cars[(i + ((row.rv || 1) * row.dir > 0 ? 1 : -1) +
+                                row.cars.length) % row.cars.length];
+          if (ahead && ahead !== car){
+            var gapA = ((row.rv || 1) * row.dir > 0 ? ahead.p - car.p : car.p - ahead.p);
+            if (gapA < 0) gapA += SPAN;
+            gapA -= (row.eff || 1);
+            if (gapA < 1.7) kk = Math.min(kk, (ahead.stopped ? 0 : (ahead.k || 1)));
+          }
+          car.p += row.speed * kk * slowK * dt * (row.rv || 1);
           if (car.p >= SPAN) car.p -= SPAN;
           if (car.p < 0) car.p += SPAN;
         }
@@ -5618,7 +5680,11 @@ function update(dt){
   }
 
   if (G.state === ST_DEAD || G.state === ST_BOARD) G.deadFor += dt;
-  if (G.state === ST_DEAD && G.tally){ G.tally.t += dt; tallyAudio(dt); }
+  /* The tally clock does not start until the screen is actually up, or the
+     first rows would be half counted by the time anybody saw them. */
+  if (G.state === ST_DEAD && G.tally && G.deadFor >= DEATH_HOLD){
+    G.tally.t += dt; tallyAudio(dt);
+  }
   if (G.shake > 0) G.shake = Math.max(0, G.shake - dt*46);
 
   if (G.toast){
@@ -6162,7 +6228,8 @@ function drawWorld(){
      Strict depth is the more correct answer and the worse one. These two are
      the things the player is actually reading. */
   drawTrace();
-  if (G.state !== ST_DEAD){ drawPlayer(pp); drawEatOverlay(); }
+  /* He stays on screen through the hold, so you can see what hit him. */
+  if (G.state !== ST_DEAD || G.deadFor < DEATH_HOLD){ drawPlayer(pp); drawEatOverlay(); }
   if (G.booth && G.state !== ST_DEAD) drawBooth(pp);
 
   if (G.state === ST_DEAD){
@@ -6431,7 +6498,11 @@ function drawNeedFood(cx, topY){
   if (a <= 0) return;
   var hx = cx + 0.43 * SKEW;
   var rise = Math.min(1, (2.6 - G.needFood) * 5) * 8;
-  var bw = 150, bh = 46, bx = hx - bw / 2, by = topY - 64 - rise;
+  /* "NEED FOOD!" at 26px is about 150px of text, which was exactly the width
+     of the bubble - the letters sat on the border at both ends. Wider box,
+     slightly smaller type, and a maxWidth so it can never happen again
+     whatever the font falls back to. */
+  var bw = 208, bh = 50, bx = hx - bw / 2, by = topY - 68 - rise;
 
   ctx.globalAlpha = a;
   plate(bx, by, bw, bh, "#f6efe2", 10);
@@ -6443,13 +6514,47 @@ function drawNeedFood(cx, topY){
   ctx.closePath(); ctx.fill();
   ctx.strokeStyle = C.danger; ctx.lineWidth = 3;
   rr(bx, by, bw, bh, 10); ctx.stroke();
-  txt("NEED FOOD!", hx, by + 31, 26, "#1d1a16");
+  txt("NEED FOOD!", hx, by + 33, 24, "#1d1a16", "center", bw - 34);
   ctx.globalAlpha = 1;
+}
+
+/* An engaged TAM puts a cap on him: orange, worn backwards, with the strap
+   and the button at the front where the peak should be.
+
+   Drawn over his head rather than baked, because baking it would have meant a
+   capped variant of all seven faces in both directions with and without the
+   shield - twenty-eight more sprites, on a device whose sprite memory is
+   already the thing to watch. */
+function drawCap(cx, topY){
+  var hx = cx + 0.43 * SKEW;
+  var y = topY + 4;
+  var orange = "#ff7a1f", deep = "#d14a09";
+
+  ctx.fillStyle = orange;                       // the crown
+  ctx.beginPath();
+  ctx.moveTo(hx - 17, y + 11);
+  ctx.quadraticCurveTo(hx, y - 6, hx + 17, y + 11);
+  ctx.closePath(); ctx.fill();
+  ctx.fillStyle = deep;                         // the band round the bottom
+  ctx.fillRect(hx - 17, y + 10, 34, 4);
+  ctx.fillStyle = shade(orange, 0.22);          // the panel seam
+  ctx.fillRect(hx - 1, y + 1, 2, 9);
+  // the peak, round the back, pointing the way he is not facing
+  var dir = G.facing > 0 ? -1 : 1;
+  ctx.fillStyle = deep;
+  ctx.fillRect(hx + dir * 17 - (dir > 0 ? 0 : 11), y + 9, 11, 5);
+  // the strap, and the button
+  ctx.fillStyle = "#2b1f16";
+  ctx.fillRect(hx - 5, y + 10, 10, 4);
+  ctx.fillStyle = shade(orange, 0.3);
+  ctx.fillRect(hx - 2, y - 2, 4, 4);
 }
 
 function drawEatOverlay(){
   if (G.hp < HP_WORN && G.state === ST_PLAY && EAT_AT) drawWorn(EAT_AT.x, EAT_AT.y);
   if (G.needFood > 0 && G.state === ST_PLAY && EAT_AT) drawNeedFood(EAT_AT.x, EAT_AT.y);
+  // the cap goes on last, over whatever else is happening on his head
+  if (G.tam && G.state === ST_PLAY && G.flyA < 0.15 && EAT_AT) drawCap(EAT_AT.x, EAT_AT.y);
   if (G.yumT > 0 && EAT_AT) drawEat(EAT_AT.x, EAT_AT.y);
   if (G.cheerT > 0 && EAT_AT) drawCheer(EAT_AT.x, EAT_AT.y);
   EAT_AT = null;
@@ -6599,11 +6704,10 @@ function drawPlayer(pp){
        state he is in, and eating is the thing that fixes it anyway. Below
        that, the resting face is just a read-out of his health. */
     else if (G.state === ST_PLAY){
-      /* An engaged TAM outranks the health bands but not being half dead:
-         running on empty is the thing he most needs to be told about, and a
-         man smirking at 8% health is reassuring at exactly the wrong moment. */
+      /* The proud face belongs to the orange suit, not to the subscription -
+         and the suit has its own sprite, so it is baked into heroModel rather
+         than selected here. What is left is the health read-out. */
       face = G.hp < HP_WORN  ? FACE_WORN
-           : G.tam           ? FACE_SMIRK
            : G.hp < HP_LEVEL ? FACE_MEH
            : G.hp < HP_HAPPY ? FACE_FLAT
            : FACE_SMILE;
@@ -7600,6 +7704,7 @@ function drawTitle(){
 }
 
 function drawDead(){
+  if (G.deadFor < DEATH_HOLD) return;        // let the death land first
   if (G.won){ drawWon(); return; }
   ctx.fillStyle = "rgba(8,5,3,0.84)";
   ctx.fillRect(0, 0, LOGICAL_W, LOGICAL_H);
@@ -7885,7 +7990,8 @@ function drawBoard(){
   var st = statsRead();
   txt(BOARD.global ? "EVERYONE" : "THIS DEVICE", LOGICAL_W/2, 790, 20, C.textDim);
   txt(statLine(BOARD.global || st), LOGICAL_W/2, 828, 24, C.text);
-  if (G.deadFor > 0.45){
+  // same gate as the tap that acts on it, so the prompt is never a lie
+  if (G.deadFor > DEATH_HOLD + 0.25){
     ctx.globalAlpha = 0.55 + 0.45*Math.sin(G.t*3);
     txt("TAP ANYWHERE TO PURSUE A NEW PROSPECT", LOGICAL_W/2, 898, 36, C.brand);
     ctx.globalAlpha = 1;
