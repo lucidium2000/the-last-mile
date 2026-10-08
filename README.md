@@ -250,10 +250,35 @@ projection lights top faces hardest and a pale roof slab was all you could see.
 
 Street furniture on the pavements includes bagel carts, pizza counters and hot
 dog stands, newsstands, scaffolding sheds, subway entrances and TE-ADDON
-terminals (which act as a free Path Visualization). At most one subway
+terminals. At most one subway
 entrance per pavement — subway is weighted twice in the prop pool and each prop
 draws independently, so a three-prop sidewalk could otherwise come up with
 three staircases to the same station.
+
+### A TE-ADDON terminal is an attach, and an attach is revenue
+
+Walking into one used to hand over a free Path Visualization and a two-line
+banner, which made the one piece of actual Cisco motion in the game the
+quietest thing in it. It is now worth **$150,000 straight onto the pipeline**,
+with its own banner, the handshake chord rather than the pickup blip, and a
+line of its own on the end screen and in the report.
+
+The banner is deliberately the TAM payout banner's twin — same plate, same
+rule, same `ADDED TO PIPELINE` on the right — because they are the same kind
+of event and nobody should have to learn a second layout to read a number. A
+TAM outranks it if both land on the same frame.
+
+The count travels: `addons` on the run record, totalled in local stats and on
+the server, a `TE-ADDONS` row in the tally, `ADD-ONS n` in the stats strip,
+two cards in the report (the count, and the count times 150k) and an `Add-ons`
+column in the board table and the CSV. The val clamps it like every other
+number, and reads `st.addons || 0` because the stats blob predates the field.
+
+**The skipped total was 3.5x too big.** A tap runs the tally out at once,
+which sets the total's progress to 1 while the clock is still near zero, and
+the unclamped overshoot term went to about 25 — a giant number printed
+straight across the rows underneath it. Clamped at both ends. It only ever
+showed on a skip, which is the path nobody watches.
 
 ### Nothing in a lane overlaps anything else in it
 
@@ -954,11 +979,11 @@ running underneath for `DEATH_HOLD`: the money, the shake and the figure all
 stay up, and the tally clock does not start until the screen is actually there,
 or the first rows would be half counted by the time anybody saw them.
 
-`DEATH_HOLD` has been lengthened twice. 0.50s was enough to register the hit;
-0.85s got the fall onto the ground; **1.00s** lets the notes come back down,
-which is the part worth watching. The fall finishes at 0.55s and the spray at
-about 0.95s, so it is the length of the whole thing rather than a pause bolted
-on the end of it.
+`DEATH_HOLD` has been lengthened three times. 0.50s was enough to register the
+hit; 0.85s got the fall onto the ground; 1.00s let the notes come back down;
+**1.50s** lets them land and fade out where they fall. The fall finishes at
+0.55s and the longest-lived note at about 1.50s, so it is the length of the
+whole thing rather than a pause bolted on the end of it.
 
 **It can be skipped.** The first tap runs the tally out at once, the second
 moves on to the initials. Making a player sit through four seconds of counting

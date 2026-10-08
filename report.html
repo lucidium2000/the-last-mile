@@ -111,7 +111,8 @@ footer{margin-top:44px;color:var(--faint);font-size:12px;text-align:center}
   <table id="board">
     <thead><tr>
       <th class="l">#</th><th class="l">Initials</th><th>Score</th><th>Blocks</th>
-      <th>Rows</th><th>Steps</th><th>Rides</th><th>TAM wins</th><th>Time</th>
+      <th>Rows</th><th>Steps</th><th>Rides</th><th>TAM wins</th>
+      <th>Add-ons</th><th>Time</th>
       <th class="l">Outcome</th><th class="l">When</th>
     </tr></thead>
     <tbody></tbody>
@@ -272,6 +273,8 @@ function render(){
     ["Steps taken",      num(s.steps),        "all runs"],
     ["Subway rides",     num(s.rides),        "all runs"],
     ["TAM payouts",      num(s.tamWins),      "all runs"],
+    ["TE-ADDON attaches", num(s.addons || 0),  "terminals used, all runs", "hi"],
+    ["Add-on pipeline",  money((s.addons || 0) * 150000), "at $150,000 each", "hi"],
     ["Time played",      dur(s.secs),         "all runs"]
   ]);
 
@@ -289,7 +292,8 @@ function render(){
     ["Steps",   p ? num(Math.round(s.steps/p)) : "—", "per run"],
     ["Rides",   p ? (s.rides/p).toFixed(2)     : "—", "per run"],
     ["Length",  p ? dur(s.secs/p)              : "—", "per run"],
-    ["TAM payouts", p ? (s.tamWins/p).toFixed(2) : "—", "per run"]
+    ["TAM payouts", p ? (s.tamWins/p).toFixed(2) : "—", "per run"],
+    ["Add-ons",     p ? ((s.addons||0)/p).toFixed(2) : "—", "per run"]
   ]);
 
   // what stops people - true totals when the server has them, else the board
@@ -351,7 +355,8 @@ function bars(id, list, withPct){
   });
 }
 
-var COLS = ["rank","ini","score","streets","rows","steps","rides","tamWins","secs","won","at"];
+var COLS = ["rank","ini","score","streets","rows","steps","rides","tamWins",
+            "addons","secs","won","at"];
 function table(){
   var rows = (DATA.rows || []).slice();
   var k = SORT.key;
@@ -374,6 +379,7 @@ function table(){
     td(num(r.steps));
     td(num(r.rides));
     td(num(r.tamWins));
+    td(num(r.addons || 0));
     td(dur(r.secs));
     td(r.won ? "Made it back" : (r.cause || "—"), "l " + (r.won ? "won" : "died"));
     td(when(r.at), "l");
@@ -400,11 +406,12 @@ function save(name, text, type){
 $("csv").addEventListener("click", function(){
   if (!DATA) return;
   var head = ["rank","initials","score","blocks","rows","steps","rides","tamWins",
-              "seconds","outcome","cause","when"];
+              "addons","seconds","outcome","cause","when"];
   POWER_ORDER.forEach(function(p){ head.push("got_" + p); });
   var lines = [head.join(",")];
   (DATA.rows||[]).forEach(function(r, i){
     var cells = [i+1, r.ini, r.score, r.streets, r.rows, r.steps, r.rides, r.tamWins,
+                 r.addons || 0,
                  r.secs, r.won ? "won" : "died", '"' + (r.cause||"") + '"',
                  new Date(r.at).toISOString()];
     POWER_ORDER.forEach(function(p){ cells.push((r.powers && r.powers[p]) || 0); });

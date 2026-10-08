@@ -1979,6 +1979,12 @@ var HP_WORN  = 25;         // and below this it starts to show on him
    different game from one that does not. */
 var TAM_CHANCE = 0.416;
 var CHUCK_BONUS = 250000;
+/* A TE-ADDON terminal is an attach, and an attach is revenue. It used to
+   hand over a trace and a two-line banner and nothing else, which made the
+   one piece of actual Cisco motion in the game the quietest thing in it.
+   150k on the number, its own banner, the handshake chord, and a line of its
+   own on the end screen and in the report. */
+var ADDON_BONUS = 150000;
 
 /* ===================== CSCO TICKER CARD ===================================
    Chuck Bucks pays out, and the card is the celebration: a mock of the Google
@@ -2827,7 +2833,8 @@ function reset(){
     stage:-1, coach:-1, toast:null, flash:null,
     shield:false, slowT:0, revealT:0, invulnT:0, powersUsed:0,
     hp:HP_MAX, hpGain:null, meals:0, sadT:0, needFood:0, saidFood:false,
-    bonusChuck:0, bonusTam:0, tally:null, booth:null, deathPush:0,
+    bonusChuck:0, bonusTam:0, bonusAddon:0, addons:0, addonWin:null,
+    tally:null, booth:null, deathPush:0,
     flyT:0, flyA:0, flyBeep:0, tam:false, tamT:0, tamWins:0, tamWin:null, hurtT:0, nahT:0,
     yumT:0, yumKind:null, yumDir:0, yumBite:0, wowT:0, cheerT:0,
     metro:0, ride:null, trace:null, rides:0, bonus:0, tamLeft:0, riskT:0,
@@ -2918,7 +2925,7 @@ function statsRead(){
   var st = lsGet(LS_STATS, null);
   if (!st || !st.powers){
     st = { plays:0, wins:0, deaths:0, bestScore:0, bestRows:0,
-           steps:0, rows:0, rides:0, tamWins:0, secs:0,
+           steps:0, rows:0, rides:0, tamWins:0, addons:0, secs:0,
            powers:blankPowers(), first:Date.now(), last:0 };
   }
   return st;
@@ -2934,6 +2941,7 @@ function runRecord(ini){
     streets: Math.abs(G.street - START_ST),
     rides: G.rides,
     tamWins: G.tamWins,
+    addons: G.addons,
     powers: G.got,
     won:   !!G.won,
     cause: G.won ? "" : (G.missedTrain ? "MISSED TRAIN" : G.deathName),
@@ -2950,7 +2958,8 @@ function statsBump(rec){
   if (rec.score > st.bestScore) st.bestScore = rec.score;
   if (rec.rows  > st.bestRows)  st.bestRows  = rec.rows;
   st.steps += rec.steps; st.rows += rec.rows; st.rides += rec.rides;
-  st.tamWins += rec.tamWins; st.secs += rec.secs; st.last = rec.at;
+  st.tamWins += rec.tamWins; st.addons += (rec.addons || 0);
+  st.secs += rec.secs; st.last = rec.at;
   for (i = 0; i < POWER_ORDER.length; i++){
     k = POWER_ORDER[i];
     st.powers[k] = (st.powers[k] || 0) + (rec.powers[k] || 0);
@@ -3013,7 +3022,7 @@ function boardPOST(rec){
       body: JSON.stringify({                     // request: no CORS preflight
         id: playerId().id, ini: rec.ini, score: rec.score, rows: rec.rows,
         steps: rec.steps, streets: rec.streets, rides: rec.rides,
-        tamWins: rec.tamWins, powers: rec.powers, won: rec.won,
+        tamWins: rec.tamWins, addons: rec.addons, powers: rec.powers, won: rec.won,
         cause: rec.cause, secs: rec.secs
       })
     }).then(function(r){ return r.ok ? r.json() : null; })
@@ -3186,8 +3195,14 @@ function act(dir){
         kp.used = true;
         G.revealT = Math.max(G.revealT, POWERS.path.secs);
         G.trace = buildTrace();
-        AUDIO.power("path");
-        flash("TE-ADDON", POWERS.path.line, POWERS.path.col);
+        /* The attach. Same money shape as a TAM payout - straight onto the
+           pipeline, with a banner that says so - because that is what it
+           is. The trace is the feature; the 150k is the deal. */
+        G.addons++;
+        G.bonus += ADDON_BONUS; G.bonusAddon += ADDON_BONUS;
+        G.addonWin = { life:4.4, max:4.4 };
+        G.flash = null;                    // the banner replaces it
+        AUDIO.deal();
         burst(nc*TILE + TILE/2, rowScreenY(nr) - 40, POWERS.path.col);
         return;
       }
@@ -3275,12 +3290,12 @@ function muteBtnActive(){
    The world keeps running underneath: the money, the shake and the figure all
    stay up.
 
-   It has been lengthened twice. 0.50 was enough to register the hit; 0.85
-   got the fall onto the ground; 1.00 lets the notes come back down, which
-   is the part worth watching. The fall finishes at 0.55 and the spray at
-   about 0.95, so this is the length of the whole thing rather than a pause
-   bolted on the end of it. */
-var DEATH_HOLD = 1.00;
+   It has been lengthened three times. 0.50 was enough to register the hit;
+   0.85 got the fall onto the ground; 1.00 let the notes come back down;
+   1.50 lets them land and fade out where they fall. The fall finishes at
+   0.55 and the longest-lived note at about 1.50, so this is the length of
+   the whole thing rather than a pause bolted on the end of it. */
+var DEATH_HOLD = 1.50;
 var TALLY_T0 = 1.15, TALLY_GAP = 0.80, TALLY_RUN = 0.66, TALLY_TOTAL = 1.15;
 function buildTally(){
   var base = G.maxRow * DOLLARS_PER_ROW;
@@ -3290,7 +3305,9 @@ function buildTally(){
     { label:"CHUCK BUCKS", note:(G.got.chuck || 0) + " collected",
       amt:G.bonusChuck, col:"#7fd49a" },
     { label:"TAM PAYOUTS", note:G.tamWins + (G.tamWins === 1 ? " win" : " wins"),
-      amt:G.bonusTam, col:C.pw5 }
+      amt:G.bonusTam, col:C.pw5 },
+    { label:"TE-ADDONS", note:G.addons + (G.addons === 1 ? " terminal" : " terminals"),
+      amt:G.bonusAddon, col:POWERS.path.col }
   ];
   var powers = 0;
   for (var k in G.got) powers += G.got[k];
@@ -3300,6 +3317,7 @@ function buildTally(){
     stats:[
       ["STEPS", G.steps],
       ["SUBWAY", G.rides],
+      ["ADD-ONS", G.addons],
       ["MEALS", G.meals],
       ["POWER-UPS", powers],
       ["FURTHEST", "W " + Math.max(START_ST, G.street) + " ST"]
@@ -5836,6 +5854,7 @@ function update(dt){
   }
   if (G.flash){ G.flash.life -= dt; if (G.flash.life <= 0) G.flash = null; }
   if (G.tamWin){ G.tamWin.life -= dt; if (G.tamWin.life <= 0) G.tamWin = null; }
+  if (G.addonWin){ G.addonWin.life -= dt; if (G.addonWin.life <= 0) G.addonWin = null; }
   if (G.notice){ G.notice.life -= dt; if (G.notice.life <= 0) G.notice = null; }
   if (G.hpGain){ G.hpGain.life -= dt; if (G.hpGain.life <= 0) G.hpGain = null; }
 
@@ -7819,7 +7838,7 @@ function drawHud(){
      over the road. They used to sit at y=380, in the clear part of the
      playfield, which hid the traffic you were about to cross. A flash
      suppresses the milestone banner rather than stacking on top of it. */
-  if (G.toast && G.toast.a > 0.01 && !G.flash && !G.tamWin){
+  if (G.toast && G.toast.a > 0.01 && !G.flash && !G.tamWin && !G.addonWin){
     ctx.globalAlpha = G.toast.a;
     var w = 820, x = (LOGICAL_W-w)/2;
     plate(x, MSG_Y, w, 118, "rgba(255,106,19,0.16)");
@@ -7853,7 +7872,29 @@ function drawHud(){
     txt("+" + cash(W.amt), tx + tw - 166, ty + 108, 48, C.good);
     ctx.globalAlpha = 1;
   }
-  if (G.flash && !G.tamWin){
+  /* The attach banner. Deliberately the TAM banner's twin - same plate, same
+     rule, same ADDED TO PIPELINE on the right - because they are the same
+     kind of event and the player should not have to learn a second layout to
+     read a number. The TAM outranks it if both land on the same frame. */
+  if (G.addonWin && !G.tamWin){
+    var A = G.addonWin, aage = A.max - A.life;
+    ctx.globalAlpha = Math.max(0, Math.min(1, aage/0.22, A.life/0.5));
+    var aw2 = 1280, ax = (LOGICAL_W - aw2)/2;
+    var ay = MSG_Y - 14 - (1 - Math.min(1, aage/0.22)) * 26;
+    plate(ax, ay, aw2, 174, "rgba(4,10,14,0.90)", 18);
+    ctx.fillStyle = POWERS.path.col; ctx.fillRect(ax, ay, 10, 174);
+    plate(ax + 36, ay + 30, 104, 50, POWERS.path.col, 10);
+    txt("TE", ax + 88, ay + 58, 30, "#06161c");
+    txt("TE-ADDON ATTACHED", ax + 172, ay + 56, 40, POWERS.path.col, "left", 700);
+    txt(POWERS.path.line, ax + 172, ay + 104, 26, C.text, "left", 760);
+    txt("TERMINAL  ·  ATTACH #" + G.addons, ax + 172, ay + 142, 20, C.textDim, "left");
+    ctx.fillStyle = "rgba(255,255,255,0.14)";
+    ctx.fillRect(ax + aw2 - 332, ay + 28, 2, 118);
+    txt("ADDED TO PIPELINE", ax + aw2 - 166, ay + 56, 20, C.textDim);
+    txt("+" + cash(ADDON_BONUS), ax + aw2 - 166, ay + 108, 48, C.good);
+    ctx.globalAlpha = 1;
+  }
+  if (G.flash && !G.tamWin && !G.addonWin){
     ctx.globalAlpha = Math.min(1, G.flash.life/0.4);
     var fw = 880, fx = (LOGICAL_W-fw)/2;
     plate(fx, MSG_Y, fw, 96, C.ink);
@@ -8031,8 +8072,16 @@ function drawTally(top, accent){
     txt(G.won ? "PIPELINE BOOKED" : "PIPELINE BUILT", X + 34, ly + 56, 28, C.textDim, "left");
     /* The total overshoots its size on landing. It is the one number anybody
        repeats afterwards, so it gets the only piece of animation on the page
-       that is purely for effect. */
-    var pop = tk >= 1 ? 1 + 0.10 * Math.max(0, 1 - (T.t - (TALLY_T0 + T.rows.length*TALLY_GAP + 0.25 + TALLY_TOTAL)) * 5) : 1;
+       that is purely for effect.
+
+       Clamped at BOTH ends. A tap runs the tally out at once, which sets
+       tk to 1 while T.t is still near zero, and the unclamped term then went
+       to about 25 - a 3.5x total printed straight across the rows underneath
+       it. It only showed up on a skip, which is the path nobody watches. */
+    var landed = TALLY_T0 + T.rows.length*TALLY_GAP + 0.25 + TALLY_TOTAL;
+    var pop = tk >= 1
+      ? 1 + 0.10 * Math.max(0, Math.min(1, 1 - (T.t - landed) * 5))
+      : 1;
     var big = Math.round(76 * pop);
     txt(cash(Math.round(T.total * ease(tk))), X + W - 34, ly + 66, big,
         tk >= 1 ? (G.won ? C.good : C.text) : C.textDim, "right");
