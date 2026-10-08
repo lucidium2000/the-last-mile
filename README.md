@@ -939,6 +939,29 @@ Everything derives from an integer seed, so nobody changes clothes between
 frames, and they stand to one side of the grab pole rather than having it
 come up through their heads.
 
+**There are enough people here that nobody has to stand for a category.**
+Seven skin tones across the whole range rather than three browns; seven hair
+colours including grey and white; six ways of wearing it — cropped, short,
+shoulder-length, a top knot, a beanie, a headwrap — and a coat that may or may
+not be a skirt, with tights or without. Penn 1 to 81st is about as mixed a
+stretch of pavement as there is, and a carriage of one complexion was a
+decision whether or not anybody meant to make it. Long hair is drawn *before*
+the face so it falls behind the head rather than across it.
+
+**And they are out on the street too.** Nought to two on every pavement,
+walking, wrapping round the ends. They carry no state at all: the position is
+`x0 + v * G.t` wrapped, so nothing has to be stepped, and a row that scrolls
+off and comes back is where it would have been. They block nothing and collide
+with nothing, because they walk at the *back* of the pavement — model y 0.86
+against the 0.46 the player walks on, which is 29px further up the screen — so
+he passes in front of them, and they go down before the props so a hot dog
+stand stands in front of them.
+
+They are **baked**, not drawn live. A couple on every sidewalk on screen is
+twenty-odd figures a frame and each one is twenty-odd `fillRect`s, where the
+rest of the world puts a whole bus down with one `drawImage`. Twelve variants
+at 0.86 of the carriage scale, blitted like everything else.
+
 **They are the hero's size, off his own sprite.** `bake` pads every sprite by
 14 a side, so the hero's *visible* figure is `(h - 28) * 0.92` tall and his
 soles sit `14 * 0.92` above the bottom of the image `drawRider` places — 90.4px
@@ -948,6 +971,17 @@ for variety: enough that a carriage is not a row of identical people, not
 enough that anybody looks like they belong to a different game. Before this
 they were 102–116px tall standing at `cy + 190`, which is both taller than the
 man walking past them and standing in the floor.
+
+**And everybody in the car stands on `CAR_FLOOR`.** It was 78, which put the
+whole carriage up inside the window band with their feet somewhere on the
+glass. The windows run `cy+66` to `cy+198` and the floor below them to the blue
+stripe at `cy+268`, so **132** lands the soles at `cy+235` — the middle of the
+floor, which is where people on a train actually stand. `carSole()` and
+`carVis()` work it out in one place because the hero, the passengers and the
+man in the hood have to agree about it to the pixel: the hooded man used to be
+fitted to the *image bottom* rather than to the soles, 13px into the floor, and
+scaled against the padded height, which left him 29% taller than the hero even
+after he was supposedly matched to him.
 
 **The CSCO card is 2.4s, not 3.4.** It is a celebration, not a document:
 everything on it is legible inside a second and the last of it was dead air

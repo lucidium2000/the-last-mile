@@ -2499,6 +2499,7 @@ function bakeAll(){
     S["pf" + fc + "P_r"] = bake(playerModel(1, 2, fc));
     S["pf" + fc + "P_l"] = bake(playerModel(-1, 2, fc));
   }
+  bakeFolk();
   S.hero_r    = bake(heroModel(1, false));
   S.hero_l    = bake(heroModel(-1, false));
   S.heroFly_r = bake(heroModel(1, true));
@@ -2709,7 +2710,23 @@ function makeWalk(r, park){
       }
     }
   }
-  return { type:"safe", park:!!park, props:props, blocked:blocked, pickup:pickup };
+  /* Nought to two people on the pavement, walking. They carry no state: the
+     position is `x0 + v * G.t` wrapped, so nothing has to be stepped and a
+     row that scrolls off and comes back is in the same place it would have
+     been. They are purely the city - they block nothing and collide with
+     nothing, because they are at the back of the pavement and he walks in
+     front of them. */
+  var folk = [];
+  if (r >= 4){
+    var nf = [0,1,1,2,2][(Math.random()*5)|0];
+    for (var fq = 0; fq < nf; fq++){
+      folk.push({ x0: Math.random() * COLS,
+                  v: (Math.random() < 0.5 ? -1 : 1) * (0.14 + Math.random()*0.26),
+                  seed: (Math.random()*9999)|0 });
+    }
+  }
+  return { type:"safe", park:!!park, props:props, blocked:blocked,
+           pickup:pickup, folk:folk };
 }
 
 /* whatever is standing in a cell, or null */
@@ -4338,6 +4355,22 @@ function drawSwing(px, cy, R){
 /* The player, between slots. A step is a fifth of a second of easing out plus
    a small lift, so it reads as a stride across a moving floor rather than a
    sprite being dragged from one window to the next. */
+/* Where everybody in the car stands. It was 78, which put the whole carriage
+   up inside the window band with their feet somewhere on the glass. The
+   windows run cy+66 to cy+198 and the floor below them to the blue stripe at
+   cy+268, so 132 lands the soles at cy+232 - the middle of the floor, which
+   is where people on a train actually stand.
+
+   And one place that works it out, because the three of them have to agree
+   about it to the pixel. `bake` pads every sprite by 14 a side, so the hero's
+   soles are 14 * 0.92 above the bottom of the image drawRider places and his
+   VISIBLE figure is (h - 28) * 0.92. The hooded man used to be fitted to that
+   image bottom rather than to the soles - 13px into the floor - and scaled
+   against the padded height, which left him 29% taller than the hero even
+   after he was supposedly matched to him. */
+var CAR_FLOOR = 132;
+function carSole(){ return CAR_FLOOR + (S.player_r.h - 14) * 0.92; }
+function carVis(){ return (S.player_r.h - 28) * 0.92; }
 function drawRider(cx0, cw, cy){
   var R = G.ride;
   if (!R) return;
@@ -4363,7 +4396,7 @@ function drawRider(cx0, cw, cy){
   }
 
   ctx.save();
-  ctx.translate(mx, cy + 78 - lift + sp.h * 0.92);
+  ctx.translate(mx, cy + CAR_FLOOR - lift + sp.h * 0.92);
   ctx.rotate(lean);
   ctx.drawImage(sp.img, -sp.w*0.46, -sp.h*0.92, sp.w*0.92, sp.h*0.92);
   ctx.restore();
@@ -4385,9 +4418,8 @@ function drawRider(cx0, cw, cy){
    223 is the sole in his own coordinates and 70 is the top of the hood, so
    153 is his height and everything else follows. */
 function hoodFit(){
-  var hh = S.player_r.h * 0.92;            // the hero, exactly as drawn here
-  var scl = hh / 153;
-  return { scl:scl, dy:(78 + hh) - 223 * scl };
+  var scl = carVis() / 153;                // 153 is his own height, 70 to 223
+  return { scl:scl, dy:carSole() - 223 * scl };
 }
 function drawHoodie(mx, cy, scl, alert, look, red){
   function R2(x, y, w, h, col){
@@ -4600,26 +4632,39 @@ function drawShady(cx0, cw, cy){
 
    One per slot rather than two. Two half-sized people in a window was the
    old problem in a different shape; one at the hero's own scale is a person. */
-var PAX_COAT = ["#3b4a56","#55404a","#3f5547","#4a4660","#5b4a3c","#2f4a5c"];
-var PAX_SKIN = ["#c79a74","#a87f5f","#e2b58f","#8b6246","#d7a37c"];
-var PAX_HAIR = ["#241a12","#4a3526","#141414","#6b5a3f","#2b2b33"];
-var PAX_WOOL = ["#8c4a4a","#3d6b7a","#6a6a3d","#54406b"];
+var PAX_COAT = ["#3b4a56","#55404a","#3f5547","#4a4660","#5b4a3c","#2f4a5c",
+                "#6b4a52","#3c5a66"];
+/* Seven tones across the whole range, not three browns. Penn 1 to 81st is
+   about as mixed a stretch of pavement as there is, and a carriage of one
+   complexion was a decision whether or not it was made on purpose. */
+var PAX_SKIN = ["#f0cdae","#e2b58f","#d7a37c","#c79a74","#a87f5f","#8b6246",
+                "#5e3c28"];
+// black, dark brown, auburn, mid brown, blonde, grey, white
+var PAX_HAIR = ["#141414","#241a12","#5a2f1c","#4a3526","#9a7a44","#8d8d93",
+                "#d6d2cb"];
+var PAX_WOOL = ["#8c4a4a","#3d6b7a","#6a6a3d","#54406b","#9a6a36","#2f6b57"];
 /* Where a passenger's feet go and how big they are, both off the hero's own
    sprite rather than guessed. The bake pads every sprite by 14 on each side,
    so the hero's VISIBLE figure is (h - 28) * 0.92 tall and his soles are
-   14 * 0.92 above the bottom of the image that drawRider places. Everything
+   14 * 0.92 above the bottom of the image that drawRider places, which puts
+   them on CAR_FLOOR. Everything
    here is expressed against a base figure 102 units tall and then scaled, so
    the people in the car are the same height as the man walking through it
    and standing on the same floor. */
 function paxFit(){
-  var ph = S.player_r.h;
-  return { tall:(ph - 28) * 0.92, feet:78 + (ph - 14) * 0.92 };
+  return { tall:carVis(), feet:carSole() };
 }
 function drawPax(cx2, feetY, seed, lit, sway, k){
-  var coat = PAX_COAT[seed % 6], skin = PAX_SKIN[(seed * 3) % 5];
-  var hair = PAX_HAIR[(seed * 5) % 5], wool = PAX_WOOL[(seed * 2) % 4];
+  var coat = PAX_COAT[seed % 8], skin = PAX_SKIN[(seed * 3) % 7];
+  var hair = PAX_HAIR[(seed * 5) % 7], wool = PAX_WOOL[(seed * 2) % 6];
   var doing = (seed * 7) % 5;                 // phone, bag, cans, scarf, asleep
-  var beanie = (seed % 4) === 0;
+  /* Six ways of wearing your hair and a coat that may or may not be a skirt.
+     Between those, seven skin tones and seven hair colours there are enough
+     people here that nobody has to stand for a category. */
+  var style = (seed * 11) % 6;                // 0 cropped 1 short 2 long
+                                              // 3 top knot 4 beanie 5 wrap
+  var skirt = ((seed * 13) % 3) === 0;
+  var tights = (seed % 2) === 0;
   var longCoat = (seed % 2) === 0;
   /* Four percent either side of the hero's height, which is enough that a
      carriage is not a row of identical people and not enough that anybody
@@ -4627,7 +4672,7 @@ function drawPax(cx2, feetY, seed, lit, sway, k){
   var H = 102 * (0.96 + (seed % 3) * 0.04);
   var headH = 26, headW = 28, bodyW = 50;
   var top = -(H - headH);                     // the shoulder line, feet-relative
-  var hem = -(longCoat ? 30 : 46);
+  var hem = -(skirt ? 40 : (longCoat ? 30 : 46));
   var slump = doing === 4 ? 4 : 0;            // asleep: the head goes forward
 
   ctx.save();
@@ -4641,29 +4686,54 @@ function drawPax(cx2, feetY, seed, lit, sway, k){
     R3(-bodyW/2 - 13, top + 12, 14, 46, shade(coat, -0.30));
     R3(-bodyW/2 - 13, top + 12, 14, 6,  shade(coat, -0.12));
   }
-  // trousers and shoes
-  R3(-15, -40, 13, 36, shade(coat, -0.38));
-  R3(  2, -40, 13, 36, shade(coat, -0.38));
-  R3(-19,  -9, 19,  9, "#15181e");
-  R3(  0,  -9, 19,  9, "#15181e");
+  // legs, and whether there is a skirt over them
+  if (skirt){
+    var leg = tights ? shade(coat, -0.45) : skin;
+    R3(-12, -34, 10, 30, leg);
+    R3(  2, -34, 10, 30, leg);
+    R3(-19, -42, 38, 10, shade(coat, -0.14));  // the hem, wider than the hips
+    R3(-16, -52, 32, 12, shade(coat, -0.08));
+  } else {
+    R3(-15, -40, 13, 36, shade(coat, -0.38));
+    R3(  2, -40, 13, 36, shade(coat, -0.38));
+  }
+  R3(-19, -9, 19, 9, "#15181e");
+  R3(  0, -9, 19, 9, "#15181e");
   // the coat
   R3(-bodyW/2, top, bodyW, hem - top, coat);
   R3(-bodyW/2, top, bodyW, 8, shade(coat, 0.14));            // light on the shoulders
   R3(-1.5, top + 9, 3, hem - top - 9, shade(coat, -0.22));   // the opening
   R3(-bodyW/2 - 9, top + 6, 9, (hem - top) - 13, shade(coat, -0.24));   // arms
   R3( bodyW/2,     top + 6, 9, (hem - top) - 13, shade(coat, -0.24));
-  if (longCoat) R3(-bodyW/2, hem - 5, bodyW, 5, shade(coat, -0.16));
+  if (longCoat && !skirt) R3(-bodyW/2, hem - 5, bodyW, 5, shade(coat, -0.16));
 
   // head, and whatever is on it
   var hy = top - headH + slump;
+  /* Long hair goes on BEFORE the face, so it sits behind the head and
+     reads as falling past it rather than across it. */
+  if (style === 2){
+    R3(-headW/2 - 6, hy - 5, headW + 12, headH + 26, hair);
+  }
   R3(-headW/2, hy, headW, headH, skin);
-  if (beanie){
+  if (style === 4){                                          // a beanie
     R3(-headW/2 - 2, hy - 8, headW + 4, 13, wool);
     R3(-headW/2 - 2, hy - 8, headW + 4, 4,  shade(wool, 0.16));
+  } else if (style === 5){                                   // a headwrap
+    R3(-headW/2 - 3, hy - 7, headW + 6, 14, wool);
+    R3(-headW/2 - 3, hy + 5, 6, headH - 2, wool);
+    R3( headW/2 - 3, hy + 5, 6, headH - 2, wool);
+    R3(-headW/2 - 3, hy - 7, headW + 6, 4, shade(wool, 0.14));
   } else {
-    R3(-headW/2 - 2, hy - 6, headW + 4, 10, hair);
-    R3(-headW/2 - 2, hy + 4, 4, 9, hair);                    // sideburns
-    R3( headW/2 - 2, hy + 4, 4, 9, hair);
+    R3(-headW/2 - 2, hy - (style === 0 ? 4 : 6), headW + 4,
+       style === 0 ? 7 : 10, hair);
+    if (style === 1 || style === 2){
+      R3(-headW/2 - 2, hy + 4, 4, 9, hair);                  // sideburns
+      R3( headW/2 - 2, hy + 4, 4, 9, hair);
+    }
+    if (style === 3){                                        // a top knot
+      ctx.fillStyle = hair;
+      ctx.beginPath(); ctx.arc(0, hy - 11, 9, 0, Math.PI*2); ctx.fill();
+    }
   }
   if (doing !== 4){                                           // eyes, if awake
     ctx.globalAlpha *= 0.85;
@@ -4692,6 +4762,32 @@ function drawPax(cx2, feetY, seed, lit, sway, k){
   }
   ctx.globalAlpha = 1;
   ctx.restore();
+}
+
+/* The same people, on the pavement. Baked rather than drawn live: a couple on
+   every sidewalk on screen is twenty-odd figures a frame and each one is
+   twenty-odd fillRects, where the rest of the world puts a whole bus down
+   with one drawImage. Twelve variants is enough that you do not notice the
+   repeat at this size, and they are blitted like everything else.
+
+   0.86 of the carriage scale, because they stand at the BACK of the pavement
+   rather than on the line the player walks. */
+var FOLK_N = 12, FOLK_K = 0.86, FOLK_Y = 0.86;
+function bakeFolk(){
+  var W = 150, H = 150, i;
+  S.folk = [];
+  for (i = 0; i < FOLK_N; i++){
+    var off = document.createElement("canvas");
+    off.width  = Math.max(1, Math.ceil(W * BAKE));
+    off.height = Math.max(1, Math.ceil(H * BAKE));
+    var g = off.getContext("2d");
+    g.setTransform(BAKE, 0, 0, BAKE, 0, 0);
+    var saved = ctx;
+    ctx = g;
+    drawPax(W / 2, H - 8, i * 7 + 5, true, 0, FOLK_K);
+    ctx = saved;
+    S.folk.push({ img:off, ox:W / 2, oy:H - 8, w:W, h:H });
+  }
 }
 
 function drawCar(ox, rock, lit){
@@ -6852,6 +6948,15 @@ function drawWorld(){
     if (sy < HORIZON - 60 || sy - ROW_H > LOGICAL_H + 80) continue;
 
     if (row.type === "safe"){
+      /* Before the props, so a hot dog stand stands in front of them. */
+      if (row.folk && S.folk){
+        for (i=0;i<row.folk.length;i++){
+          var fk = row.folk[i], fspan = COLS + 3;
+          var fx = ((fk.x0 + fk.v * G.t) % fspan + fspan) % fspan - 1.5;
+          blit(S.folk[fk.seed % FOLK_N],
+               fx*TILE + TILE*0.5 + FOLK_Y*SKEW, sy - FOLK_Y*ROW_H);
+        }
+      }
       for (i=0;i<row.props.length;i++){
         var pr2 = row.props[i];
         if (pr2.kind === "kiosk" && pr2.used) ctx.globalAlpha = 0.4;  // spent
