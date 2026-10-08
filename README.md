@@ -301,6 +301,16 @@ stays, because the terminal reads its colour, its copy and its fourteen
 seconds out of it, and `POWER_ORDER` keeps the key so the runs already on the
 board still read.
 
+**The route always ends on a pavement.** Left to itself the walk stopped as
+soon as it had crossed its quota of streets, which half the time is the middle
+of a lane — and a line with a crosshair on the end of it that terminates in
+traffic is the game telling you to go and stand there. `traceLand` walks on to
+the next kerb, trying straight ahead first and then a step either side when
+something is in the way, and if it cannot find one it trims back to the last
+pavement the route did cross. One of those two always succeeds, because the
+route began on one. Checked over 120 traces: 215 paths, every one of them
+ending on a sidewalk.
+
 **The route is drawn in the product's grammar.** Nodes joined by links, hop
 ticks, per-hop latency, a destination with a crosshair, packets running the
 line, and `BEST PATH!` pinned to the furthest node still on screen — because a
@@ -360,6 +370,28 @@ after a bagel, a slice and a hot dog. It gets its own `LUNCH` row on the end
 screen so the tally still adds up, `cash()` is signed now (−$15, not $-15), and
 `pipeline()` is floored at zero because a man who buys a bagel on the first
 block should not owe the company seven dollars.
+
+### The two best things in the game are ThousandEyes, so they arrive like it
+
+A TAM and an Add-On Pack used to land the same way a metrocard does: a line of
+text in a bar at the top of the screen. They are the two most valuable things a
+player can pick up and the moment was worth about a fifth of a second of
+attention.
+
+`brandHit` is the opposite. The mark comes up out of the middle of the screen at
+the size of a dinner plate, two rings leave it, and the product is spelled out
+in full underneath — **THOUSANDEYES** over **TAM** or **ADD-ON PACK** — with
+`AUDIO.wow()` over the top. The banner that follows says `THOUSANDEYES ADD-ON
+PACK` rather than `TE-ADDON ATTACHED`, and the pickup label on the pack itself
+says `THOUSANDEYES ADD-ON`. The point is that seeing the brand should be the
+good feeling, not the small print on it.
+
+It is gone again in 1.1 seconds, the wash is capped at 0.18 alpha and lasts a
+third of a second, and the mark itself draws at 0.86 rather than opaque. He is
+standing on a pavement when either of these fires — the TAM is inside its
+booth's invulnerability and the pack is street furniture on a safe row — but
+the lanes he has to read next are behind all of it, and a celebration that
+hides the traffic is a celebration that kills you.
 
 ### Nothing in a lane overlaps anything else in it
 

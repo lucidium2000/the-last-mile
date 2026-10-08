@@ -1952,7 +1952,7 @@ var POWERS = {
      flight, and then it STAYS engaged for the rest of the run, periodically
      delivering another two seconds. A real TAM subscription keeps paying out
      after onboarding, so this one does too. */
-  tam:    { col:C.pw5, letter:"T", name:"TAM",
+  tam:    { col:C.pw5, letter:"T", name:"THOUSANDEYES TAM",
             line:"Technical Account Manager. Five seconds of flight — and they stay.",
             secs:5 }
 };
@@ -2968,7 +2968,8 @@ function reset(){
     bonusChuck:0, bonusTam:0, bonusAddon:0, bonusFood:0, bonusChamp:0,
     addons:0, champs:0, addonWin:null, champWin:null,
     tally:null, booth:null, deathPush:0,
-    flyT:0, flyA:0, flyBeep:0, flyMove:0, flyTilt:0, walkPh:0, walkAmt:0, tam:false, tamT:0, tamWins:0, tamWin:null, hurtT:0, nahT:0,
+    flyT:0, flyA:0, flyBeep:0, flyMove:0, flyTilt:0, walkPh:0, walkAmt:0,
+    brand:null, tam:false, tamT:0, tamWins:0, tamWin:null, hurtT:0, nahT:0,
     yumT:0, yumKind:null, yumDir:0, yumBite:0, wowT:0, cheerT:0,
     metro:0, ride:null, trace:null, rides:0, bonus:0, tamLeft:0, riskT:0,
     scene:null, scenesSeen:{}, ticker:null, notice:null, leg:1, po:false, won:false,
@@ -3346,6 +3347,7 @@ function act(dir){
         G.addonWin = { life:4.4, max:4.4 };
         G.flash = null;                    // the banner replaces it
         AUDIO.deal();
+        brandHit("ADD-ON PACK", C.pw3);
         burst(nc*TILE + TILE/2, rowScreenY(nr) - 40, POWERS.path.col);
         return;
       }
@@ -3746,6 +3748,7 @@ function collect(){
   else if (kind === "tam"){
     /* He does not simply take off. He gets changed first - see drawBooth.
        The flight is handed out when the booth opens, not here. */
+    brandHit("TAM", C.pw5);
     G.booth = { t:0, col:G.col, row:G.row };
     G.invulnT = Math.max(G.invulnT, BOOTH_SECS + 0.5);
     G.tam = true;
@@ -3880,8 +3883,42 @@ function traceBranch(main){
   return out.length > 3 ? out : null;
 }
 
+/* A route has to END somewhere a man can stand. Left to itself the walk
+   stopped as soon as it had crossed its quota of streets, which half the time
+   is the middle of a lane - and a line with a crosshair on it that terminates
+   in traffic is the game telling you to go and stand there.
+
+   So it walks on to the next pavement, trying straight ahead first and then a
+   step either side when something is in the way, and if it cannot find one it
+   trims back to the last pavement it did cross. One of those two always
+   succeeds, because the route began on one. */
+function traceLand(path){
+  var last = path[path.length - 1];
+  var r = last.r, c = last.c, guard = 0, i;
+  while (guard++ < 40){
+    var here = rows[r];
+    if (here && here.type === "safe") return;
+    var nxt = rows[r + 1];
+    if (!nxt) break;
+    var step = -1, tries = [c, c - 1, c + 1];
+    for (i = 0; i < 3; i++){
+      var tc = tries[i];
+      if (tc < 0 || tc > COLS - 1) continue;
+      if (nxt.blocked && nxt.blocked[tc]) continue;
+      step = tc; break;
+    }
+    if (step < 0) break;
+    if (step !== c){ c = step; path.push({ r:r, c:c }); }
+    r++; path.push({ r:r, c:c });
+  }
+  for (i = path.length - 1; i > 0; i--){
+    var rw = rows[path[i].r];
+    if (rw && rw.type === "safe"){ path.length = i + 1; return; }
+  }
+}
+
 function buildTrace(){
-  ensureRows(G.row + 70);
+  ensureRows(G.row + 84);
   var streets = 6 + ((Math.random() * 3) | 0);          // 6-8 crossings
   var main = [{ r:G.row, c:G.col }];
 
@@ -3911,6 +3948,7 @@ function buildTrace(){
       rr++; main.push({ r:rr, c:col });
       if (row.type === "road" || row.type === "sweep") crossed++;
     }
+    traceLand(main);
     return { paths:[main], straight:true };
   }
 
@@ -3921,6 +3959,7 @@ function buildTrace(){
     var br = traceBranch(main);
     if (br) paths.push(br);
   }
+  for (var li = 0; li < paths.length; li++) traceLand(paths[li]);
   return { paths:paths, straight:false };
 }
 
@@ -6745,6 +6784,7 @@ function update(dt){
   if (G.tamWin){ G.tamWin.life -= dt; if (G.tamWin.life <= 0) G.tamWin = null; }
   if (G.addonWin){ G.addonWin.life -= dt; if (G.addonWin.life <= 0) G.addonWin = null; }
   if (G.champWin){ G.champWin.life -= dt; if (G.champWin.life <= 0) G.champWin = null; }
+  if (G.brand){ G.brand.life -= dt; if (G.brand.life <= 0) G.brand = null; }
   if (G.notice){ G.notice.life -= dt; if (G.notice.life <= 0) G.notice = null; }
   if (G.hpGain){ G.hpGain.life -= dt; if (G.hpGain.life <= 0) G.hpGain = null; }
   if (G.hpShow > 0) G.hpShow = Math.max(0, G.hpShow - dt);
@@ -7604,7 +7644,7 @@ function drawKioskLabel(col, botY, bob){
   rr(cx - w/2, top, w, 76, 9);
   ctx.strokeStyle = C.pw3; ctx.lineWidth = 2.5; ctx.stroke();
   ctx.fillStyle = C.pw3; ctx.fillRect(cx - w/2, top, 5, 76);
-  txt("TE-ADDON PACK", cx + 2, top + 26, 22, C.pw3);
+  txt("THOUSANDEYES ADD-ON", cx + 2, top + 26, 22, C.pw3);
   txt("+" + cash(ADDON_BONUS) + "   \u00B7   BEST PATH",
       cx + 2, top + 58, 19, C.good);
   ctx.globalAlpha = 1;
@@ -9172,7 +9212,8 @@ function drawHud(){
     ctx.fillStyle = POWERS.path.col; ctx.fillRect(ax, ay, 10, 174);
     plate(ax + 36, ay + 30, 104, 50, POWERS.path.col, 10);
     txt("TE", ax + 88, ay + 58, 30, "#06161c");
-    txt("TE-ADDON ATTACHED", ax + 172, ay + 56, 40, POWERS.path.col, "left", 700);
+    txt("THOUSANDEYES ADD-ON PACK", ax + 172, ay + 56, 40, POWERS.path.col,
+        "left", 700);
     txt(POWERS.path.line, ax + 172, ay + 104, 26, C.text, "left", 760);
     txt("TERMINAL  ·  ATTACH #" + G.addons, ax + 172, ay + 142, 20, C.textDim, "left");
     ctx.fillStyle = "rgba(255,255,255,0.14)";
@@ -9190,6 +9231,58 @@ function drawHud(){
     txt(G.flash.line, LOGICAL_W/2, MSG_Y+68, 21, C.text,      "center", fw-60);
     ctx.globalAlpha = 1;
   }
+}
+
+/* The moment a piece of ThousandEyes lands. The two best things in the game
+   are a TAM and an Add-On Pack and they used to arrive the same way a
+   metrocard does - a line of text in a bar. This is the opposite: the mark
+   comes up out of the middle of the screen at the size of a dinner plate,
+   two rings leave it, the product name is spelled out in full, and the whole
+   thing is gone again inside a second and a bit.
+
+   The wash is capped at 0.18 and gone in a third of a second on purpose. He
+   is standing on a pavement when either of these fire, but the lanes he has
+   to read next are not, and a celebration that hides the traffic is a
+   celebration that kills you. */
+var BRAND_HIT = 1.10;
+function brandHit(what, col){
+  G.brand = { life:BRAND_HIT, max:BRAND_HIT, what:what, col:col };
+  AUDIO.wow();
+}
+function drawBrandHit(){
+  var B = G.brand;
+  if (!B) return;
+  var k = 1 - B.life / B.max;                 // 0 at the strike, 1 at the end
+  var out = Math.min(1, B.life / 0.40);       // the tail
+  var e = 1 - Math.pow(1 - Math.min(1, k * 1.9), 3);
+  var cx = LOGICAL_W / 2, cy = LOGICAL_H * 0.355;
+
+  ctx.globalAlpha = Math.max(0, 1 - k * 3.2) * 0.18;
+  ctx.fillStyle = B.col;
+  ctx.fillRect(0, 0, LOGICAL_W, LOGICAL_H);
+
+  // two rings leaving the mark
+  ctx.lineWidth = 7;
+  for (var i = 0; i < 2; i++){
+    var rk = Math.min(1, k * 1.7 + i * 0.22);
+    if (rk <= 0 || rk >= 1) continue;
+    ctx.globalAlpha = (1 - rk) * 0.55 * out;
+    ctx.strokeStyle = i ? "#ffffff" : B.col;
+    ctx.beginPath();
+    ctx.ellipse(cx, cy, 120 + rk * 520, 44 + rk * 190, 0, 0, Math.PI*2);
+    ctx.stroke();
+  }
+
+  /* Not quite opaque. He is standing on a pavement when either of these
+     fires, but the lanes he has to read next are behind this, and a
+     celebration that hides the traffic is a celebration that kills you. */
+  ctx.globalAlpha = out * 0.86;
+  drawEye(cx, cy, 74 + e * 70, B.col, "#2a1400", "#ffffff");
+
+  ctx.globalAlpha = out * Math.min(1, k * 5);
+  txt("THOUSANDEYES", cx, cy + 232 + (1 - e) * 26, 62, "#ffffff");
+  txt(B.what, cx, cy + 290 + (1 - e) * 26, 42, B.col);
+  ctx.globalAlpha = 1;
 }
 
 /* The brand mark, drawn from paths: an eye, because the product is about
@@ -9622,6 +9715,7 @@ function render(){
   if (G.scene) drawScene();
   if (G.ticker) drawTicker();
   if (G.notice && !G.ride) drawNotice();
+  drawBrandHit();
   drawMuteBtn();
   if (SHOW_FPS){
     ctx.setTransform(scale, 0, 0, scale, 0, 0);
