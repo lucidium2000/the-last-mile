@@ -2794,6 +2794,15 @@ function makeSweep(r, streetNo, dir){
    there, with the roll floored at one so none of those blocks can come up
    deserted. It keys on the street number rather than the leg, so the walk
    home is just as bad. */
+/* He is not only on the train. About one pavement in twenty-two has him on
+   it, walking - and on the street he is only ever a presence: no knife, no
+   robbery, nothing to react to. He closes on you slowly, he says the same
+   fourteen things, and then you walk past him. That is all.
+
+   He steers rather than drifting, so he cannot be derived from the clock the
+   way everybody else is: `hx` is his own integrated position and folkRaw
+   hands it back untouched. */
+var HOOD_ODDS = 0.045, HOOD_CREEP = 0.42, HOOD_KEEP = 0.95;
 var CROWD_FROM = 42, CROWD_TO = 46;
 function crowdHere(st){ return st >= CROWD_FROM && st <= CROWD_TO; }
 
@@ -2866,10 +2875,14 @@ function makeWalk(r, park, crowd){
     var nf = crowd ? [1,1,2,2,2][(Math.random()*5)|0] * 3
                    : [0,1,1,2,2][(Math.random()*5)|0];
     for (var fq = 0; fq < nf; fq++){
+      var hood = !park && Math.random() < HOOD_ODDS;
       folk.push({ x0: Math.random() * COLS,
                   v: (Math.random() < 0.5 ? -1 : 1) * (0.14 + Math.random()*0.26),
                   seed: (Math.random()*9999)|0,
-                  champ: Math.random() < CHAMP_ODDS });
+                  champ: !hood && Math.random() < CHAMP_ODDS,
+                  hood: hood,
+                  hx: hood ? Math.random() * COLS : 0,
+                  eyes: 0 });
     }
   }
   return { type:"safe", park:!!park, props:props, blocked:blocked,
@@ -3567,7 +3580,8 @@ function act(dir){
       if (G.t - (fo.blockAt || -99) > FOLK_GRACE){
         fo.blockAt = G.t;
         fo.sayAt = G.t;
-        var pool = G.hp <= HP_WORN ? FOLK_LINES_LOW : FOLK_LINES;
+        var pool = fo.hood ? SHADY_LINES
+                 : (G.hp <= HP_WORN ? FOLK_LINES_LOW : FOLK_LINES);
         fo.line = pool[(Math.random()*pool.length)|0];
         AUDIO.jostle();
         AUDIO.mutter(fo.seed);
@@ -4378,7 +4392,11 @@ function startRide(enterRow, enterCol){
   var free = [0, 1, 3, 4], pull = function(){
     return free.length ? free.splice((Math.random()*free.length)|0, 1)[0] : -1;
   };
-  var shady = Math.random() < 0.45 ? pull() : -1;
+  /* He is on most rides now rather than under half of them, and he means it
+     far less often than he used to. The whole value of him is the question,
+     and a question you only get asked every other ride is not one you carry
+     around with you. */
+  var shady = Math.random() < 0.70 ? pull() : -1;
   var cash  = Math.random() < 0.55 ? pull() : -1;
   G.ride = { t:0, phase:"down", fromRow:enterRow, fromCol:enterCol,
              toRow:dest, toCol:exitCol, camFrom:G.camRow,
@@ -4432,7 +4450,7 @@ var SHADY_SPEED = 0.52;    // slots a second, when he means it
    watches, he may still drift up the car - but he does not draw anything and
    he does not take anything. The one time in ten that he does is worth
    something precisely because the other nine were nothing. */
-var SHADY_HOSTILE = 0.10;
+var SHADY_HOSTILE = 0.055;
 var SHADY_CREEP = 0.13;    // slots a second when he is only being odd about it
 var SHADY_KEEP  = 1.35;    // and he never comes closer than this
 /* The red eyes: how long one showing lasts, how much of that is the fade
@@ -4623,7 +4641,10 @@ function updateShady(dt){
     R.pause -= dt;
     if (R.pause <= 0){
       R.moving = !R.moving;
-      R.pause = R.moving ? 1.4 + Math.random() * 2.6 : 1.0 + Math.random() * 2.4;
+      /* Weighted toward walking. He spends most of the ride closing on you
+         slowly and only a beat or two of it standing still, which is the
+         difference between a man who is around and a man who is coming. */
+      R.pause = R.moving ? 2.4 + Math.random() * 3.0 : 0.6 + Math.random() * 1.1;
       /* A quarter of the times he sets off he does it quickly - three times
          the creep for half a second - and then stops dead. That half second
          is the whole of him. */
@@ -5454,6 +5475,7 @@ var FOLK_ORDER = [
    instead of occupying the same pixels, and it costs nothing - the
    projection already shifts x and y by it. */
 function folkRaw(f){
+  if (f.hood) return f.hx;                    // he steers, he does not drift
   if (f.q) return f.qx;                       // standing in a line
   var span = COLS + 3;
   return ((f.x0 + f.v * (G.t - (f.frozen || 0))) % span + span) % span - 1.5;
@@ -5510,6 +5532,23 @@ function updateFolk(dt){
         continue;                              // queues are stepped below
       }
       if (f.coolT > 0) f.coolT -= dt;
+      if (f.hood){
+        /* Toward him while he is on this pavement, and never inside
+           HOOD_KEEP - holding at arm's length is worse than arriving. */
+        var ppH = playerPos();
+        if (Math.abs(ppH.row - r) < 1.3){
+          var dH = ppH.col - f.hx;
+          if (Math.abs(dH) > HOOD_KEEP)
+            f.hx += (dH > 0 ? 1 : -1) * HOOD_CREEP * dt;
+        } else {
+          f.hx += f.v * dt;
+          var spanH = COLS + 3;
+          if (f.hx < -1.5) f.hx += spanH;
+          if (f.hx > COLS + 1.5) f.hx -= spanH;
+        }
+        if (f.eyes > 0) f.eyes = Math.max(0, f.eyes - dt);
+        else if (Math.random() < EYES_RATE * dt) f.eyes = EYES_SECS;
+      }
       if (f.eatT > 0){
         f.eatT -= dt;
         if (f.eatT <= 0){ f.eatT = 0; f.ate = null; }
@@ -5678,6 +5717,23 @@ function drawOneFolk(f, sy){
      chew there is and at this size it is the only one that reads. */
   var bite = (f.eatT > 0 && f.ate)
              ? Math.max(0, Math.sin((FOLK_EAT_SECS - f.eatT) * 7.4)) : 0;
+  if (f.hood){
+    /* Drawn rather than blitted: he is one procedural figure and there is
+       never more than one or two of him on screen. Scaled to the same height
+       as everybody else on the pavement - 153 is his own, 102 is theirs. */
+    var hk2 = (102 * FOLK_K) / 153;
+    var red2 = 0;
+    if (f.eyes > 0){
+      var ep2 = 1 - f.eyes / EYES_SECS;
+      red2 = ep2 < EYES_UP ? ep2 / EYES_UP
+                           : Math.max(0, (1 - ep2) / (1 - EYES_UP));
+    }
+    var pp3 = playerPos();
+    drawHoodie(x, y - 223 * hk2, hk2, f.sayAt && G.t - f.sayAt < 1.2 ? 2 : 0,
+               pp3.col > f.hx ? 1 : -1, red2);
+    if (f.champ && !f.spent) drawChampTag(x, y - 104);
+    return;
+  }
   blit((f.champ ? S.champ[f.seed % CHAMP_N] : S.folk[f.seed % FOLK_N]),
        x, y + bite * 2);
   if (f.eatT > 0 && f.ate){

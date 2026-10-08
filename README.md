@@ -1233,6 +1233,25 @@ spot, out of a queue if they were in one, and talk about it afterwards
 Verified: on foot the first tap is refused and he stays put; flying, he takes
 the square in one tap and they are 1.15 tiles further along.
 
+**And he is out there too.** About one pavement in twenty-two has the hooded
+man on it — never in the park — and on the street he is only ever a presence: no
+knife, no robbery, nothing to react to. He closes on you slowly whenever you
+are on his pavement, holds at `HOOD_KEEP` = 0.95 tiles, says the same fourteen
+things, and gets the red eyes at the same rate. Then you walk past him. That is
+all of it.
+
+He **steers** rather than drifting, so he cannot be derived from the clock the
+way everybody else is: `hx` is his own integrated position and `folkRaw` hands
+it back untouched. He is drawn rather than blitted, scaled 102:153 to stand the
+same height as the rest of the pavement.
+
+On the train he is on **70% of rides** rather than 45, and he means it on
+**5.5%** of those rather than 10 — the whole value of him is the question, and a
+question you only get asked every other ride is not one you carry around with
+you. His pacing is weighted toward walking now too: 2.4–5.4s of closing against
+0.6–1.7s of standing still, which is the difference between a man who is around
+and a man who is coming.
+
 **They hold their ground, and they tell you about it.** The first version had
 them slide out of the way as he closed. It stopped the sprites overlapping and
 looked like nothing that happens on a New York pavement: people do not glide
