@@ -1906,8 +1906,15 @@ var POWER_KINDS = ["agent","insight","path","sponsor","metro","chuck","traffic"]
 
    Shields are up a fifth: 15 slots to 18, 10% of drops to 12%, with the three
    taken off metrocards, which are still far and away the most common. */
+/* No `path` in here on purpose. A trace now comes from ONE place - walking
+   into a TE-ADDON terminal - so the route is a thing you went and got off a
+   piece of Cisco kit rather than a cube that happened to be lying in the
+   street. POWERS.path stays: the terminal reads its colour, its copy and its
+   fourteen seconds out of it, and POWER_ORDER keeps the key so the runs
+   already on the board still read. The 15 slots go to the three next most
+   useful things rather than back to metrocards. */
 var POWER_WEIGHTS = {
-  metro:77, chuck:20, agent:18, path:15, traffic:10, insight:5, sponsor:5
+  metro:77, chuck:26, agent:23, traffic:14, insight:5, sponsor:5
 };
 var POWER_POOL = (function(){
   var out = [], k, i;
@@ -1925,6 +1932,7 @@ var DETER_TILES = 3.2;     // how close it gets before it turns round entirely
 /* Before it gets that close it tries to go ROUND him. SWERVE_FROM is where a
    driver starts easing over, SWERVE_PX how far off the lane centre he ends up,
    and SWERVE_CLEAR how far out counts as having actually missed. */
+var PARK_KERB = 20;        // how far off the lane centre a parked truck sits
 var SWERVE_FROM = 5.5, SWERVE_PX = 26, SWERVE_CLEAR = 11;
 /* ------------------------------------------------------------- HEALTH ----
    A walk uptown is tiring, and the only thing that fixes tired is lunch.
@@ -1997,7 +2005,7 @@ var ADDON_BONUS = 150000;
    Everything on the card is in percent for the same reason: the axis, the
    series and the tooltip. */
 var CSCO = {
-  name:"Cisco Systems Inc", mkt:"NASDAQ: CSCO",
+  name:"CSCO", mkt:"NASDAQ: CSCO",
   pill:"\u2191 TODAY", chg:"on the day",
   asOf:"Market close  \u00B7  Simulated",
   tipTime:"CLOSE",
@@ -3728,11 +3736,42 @@ function colSafeFor(r, col, secs){
 }
 
 /* ------------------------------------------------------------------ update */
+/* He walks now. He used to hop - a 30px arc and an ease-out cubic that
+   darted him out of the square and set him down - which made a man on his
+   way to a meeting look like a frog.
+
+   Two changes. The easing is a smoothstep rather than an ease-out, so the
+   speed builds and settles instead of all of it being spent in the first
+   third; and the arc is gone unless he is actually airborne, where it is
+   deeper than ever because that one IS a flight. What is left on the ground
+   is the bob of a walk: two footfalls a square, three and a half pixels. */
 function playerPos(){
-  var e = G.hop >= 1 ? 1 : 1 - Math.pow(1-G.hop, 3);
+  var e = G.hop >= 1 ? 1 : G.hop*G.hop*(3 - 2*G.hop);
   var s = G.hop >= 1 ? 0 : Math.sin(G.hop * Math.PI);
+  var air = G.flyA > 0.05 ? G.flyA : 0;
+  var lift = air ? s * 30 * air
+           : (G.hop >= 1 ? 0 : Math.abs(Math.sin(G.hop * Math.PI * 2)) * 3.4);
   return { col:G.fromCol + (G.col-G.fromCol)*e, row:G.fromRow + (G.row-G.fromRow)*e,
-           lift:s*30, sq:s };
+           lift:lift, sq:s };
+}
+
+/* The stride. With the hop gone something has to say a step happened, and a
+   figure sliding square to square says nothing at all. The sprite is one
+   bake, so the legs get separated by clipping rather than by another
+   forty-two bakes: the band below the knee is drawn twice, once clipped to
+   the left half and once to the right, each raised by its own half of the
+   cycle. The sliver of road that opens under the raised shoe is the whole
+   point - that is the foot off the ground.
+
+   One cycle per square, and the phase flips on odd steps, or he would lead
+   with the same leg every single time. */
+var STRIDE_PX = 5;
+function walkStride(){
+  if (G.state !== ST_PLAY || G.hop >= 1 || G.ride) return null;
+  if (G.flyA > 0.05) return null;            // flight has no footfalls
+  var ph = (G.hop + (G.steps % 2) * 0.5) * Math.PI * 2;
+  var a = Math.sin(ph);
+  return [ Math.max(0, a) * STRIDE_PX, Math.max(0, -a) * STRIDE_PX ];
 }
 function burst(x, y, col){
   for (var i=0;i<G.parts.length;i++){
@@ -5549,7 +5588,14 @@ function update(dt){
        a real cost - the crossing windows do not get any wider to match - but
        it is the point: he is supposed to be struggling, and the fix for it is
        lunch. Flight overrides it, since he is not walking. */
-    var drag = (G.flyT > 0) ? 1 : 1 + wornK() * 0.40;
+    /* Sluggish once he is in the red. The ramp alone started at nothing, so
+       crossing into the worn band changed the handling by a figure nobody
+       could feel; there is a step of 0.15 the moment he goes under HP_WORN
+       and then it climbs. 135ms a step becomes 155ms at the threshold and
+       250ms on his last point of health, which is slow enough that a gap
+       you would have taken at full strength is not there any more. */
+    var wk2 = wornK();
+    var drag = (G.flyT > 0) ? 1 : (wk2 > 0 ? 1 + 0.15 + wk2 * 0.70 : 1);
     G.hop += dt*1000 / (HOP_MS * (1 - 0.32*G.flyA) * drag);   // airborne is quicker
     if (G.hop >= 1){ G.hop = 1; collect(); }
   }
@@ -6220,63 +6266,208 @@ function traceScreenPts(path){
 /* The trace is green end to end - line, hop ticks, nodes, destination and the
    packet halo. One block so it is a single swap point, the way BRAND is. */
 var TRACE = { line:"#35d07f", pale:"#bff3d4", dest:"#19b35f", node:"#0d1a12" };
+
+/* The glow is stacked strokes of the SAME path, not a blur. shadowBlur and
+   ctx.filter are both off the table on RoomOS - they are the two things that
+   put this canvas on the software rasteriser - so a bloom has to be built out
+   of what is cheap: one path, four widths, four alphas. */
+var TRACE_GLOW = [[46, 0.055], [31, 0.085], [19, 0.140], [10, 0.230]];
+
+/* Where a fraction k through the polyline lands. */
+function tracePointAt(pts, k){
+  var span = pts.length - 1;
+  var pos = Math.max(0, Math.min(span, k * span));
+  var seg = Math.min(span - 1, Math.floor(pos)), f = pos - seg;
+  return [ pts[seg][0] + (pts[seg+1][0] - pts[seg][0]) * f,
+           pts[seg][1] + (pts[seg+1][1] - pts[seg][1]) * f ];
+}
+/* The points up to k, with the last one interpolated. The route draws itself
+   on from his feet outwards instead of appearing whole, which is what a
+   traceroute actually looks like resolving. */
+function tracePartial(pts, k){
+  if (k >= 1) return pts;
+  var span = pts.length - 1, upto = k * span;
+  var n = Math.floor(upto), f = upto - n;
+  if (n >= span) return pts;
+  var out = pts.slice(0, n + 1);
+  out.push([ pts[n][0] + (pts[n+1][0] - pts[n][0]) * f,
+             pts[n][1] + (pts[n+1][1] - pts[n][1]) * f ]);
+  return out;
+}
+function tracePoly(pts){
+  ctx.beginPath(); ctx.moveTo(pts[0][0], pts[0][1]);
+  for (var i = 1; i < pts.length; i++) ctx.lineTo(pts[i][0], pts[i][1]);
+}
+/* A hop's latency, derived from the cell so it is stable frame to frame. A
+   number that flickers is a number nobody reads, and the point of putting
+   them on at all is that a path view without per-hop figures is just a line. */
+function hopMs(p){ return 4 + ((p.r * 7 + p.c * 13 + 11) % 46); }
+
+/* One packet and its tail. Seven samples behind the head along the route
+   itself rather than a straight streak, so it bends through the corners. */
+function drawPacket(mp, k, fade){
+  for (var i = 7; i >= 1; i--){
+    var kk = k - i * 0.011;
+    if (kk < 0) continue;
+    var tp = tracePointAt(mp, kk), a = 1 - i / 8;
+    ctx.globalAlpha = fade * 0.55 * a * a;
+    ctx.fillStyle = TRACE.pale;
+    ctx.beginPath(); ctx.arc(tp[0], tp[1], 2.5 + 4.5 * a, 0, Math.PI*2); ctx.fill();
+  }
+  var h = tracePointAt(mp, k);
+  ctx.globalAlpha = fade * 0.30; ctx.fillStyle = TRACE.pale;
+  ctx.beginPath(); ctx.arc(h[0], h[1], 15, 0, Math.PI*2); ctx.fill();
+  ctx.globalAlpha = fade * 0.55;
+  ctx.beginPath(); ctx.arc(h[0], h[1], 9, 0, Math.PI*2); ctx.fill();
+  ctx.globalAlpha = fade; ctx.fillStyle = "#ffffff";
+  ctx.beginPath(); ctx.arc(h[0], h[1], 4.5, 0, Math.PI*2); ctx.fill();
+}
+
 function drawTrace(){
   if (G.revealT <= 0 || !G.trace || !G.trace.paths.length) return;
   var fade = Math.min(1, G.revealT / 1.2);
+  /* Resolving. The power-up runs for POWERS.path.secs, so the time since it
+     landed is what is left subtracted from that; the first six tenths of a
+     second of it are spent drawing the route on. */
+  var grow = Math.max(0, Math.min(1, (POWERS.path.secs - G.revealT) / 0.6));
   var pulse = 0.5 + 0.5*Math.sin(G.t*4);
+  var i, q;
   ctx.lineCap = "round"; ctx.lineJoin = "round";
 
   // branches first so the main line sits on top
   for (var pi = G.trace.paths.length - 1; pi >= 0; pi--){
     var main = (pi === 0);
-    var pts = traceScreenPts(G.trace.paths[pi]);
+    var path = G.trace.paths[pi];
+    var full = traceScreenPts(path);
+    if (full.length < 2) continue;
+    var pts = tracePartial(full, grow);
     if (pts.length < 2) continue;
-    var w = main ? 1 : 0.62, i;
+    var w = main ? 1 : 0.58;
+    var dim = main ? 1 : 0.5;
 
-    ctx.globalAlpha = fade * (main ? 0.20 : 0.12);
-    ctx.strokeStyle = TRACE.line; ctx.lineWidth = 16*w;
-    ctx.beginPath(); ctx.moveTo(pts[0][0], pts[0][1]);
-    for (i = 1; i < pts.length; i++) ctx.lineTo(pts[i][0], pts[i][1]);
-    ctx.stroke();
-    ctx.globalAlpha = fade * (main ? 0.85 : 0.45); ctx.lineWidth = 3*w;
-    ctx.stroke();
+    tracePoly(pts);
+    ctx.strokeStyle = TRACE.line;
+    for (i = 0; i < TRACE_GLOW.length; i++){
+      ctx.globalAlpha = fade * TRACE_GLOW[i][1] * dim;
+      ctx.lineWidth = TRACE_GLOW[i][0] * w;
+      ctx.stroke();
+    }
+    ctx.globalAlpha = fade * 0.95 * dim;
+    ctx.lineWidth = 3.4 * w; ctx.strokeStyle = TRACE.pale; ctx.stroke();
+    ctx.globalAlpha = fade * 0.85 * dim;
+    ctx.lineWidth = 1.5 * w; ctx.strokeStyle = "#ffffff"; ctx.stroke();
 
-    ctx.globalAlpha = fade * (main ? 0.5 : 0.28); ctx.fillStyle = TRACE.pale;
-    for (i = 1; i < pts.length; i++){
-      for (var k = 1; k <= 2; k++){
-        var f = k/3;
-        ctx.fillRect(pts[i-1][0] + (pts[i][0]-pts[i-1][0])*f - 2,
-                     pts[i-1][1] + (pts[i][1]-pts[i-1][1])*f - 2, 4, 4);
-      }
+    /* A marching dash over the core. Nothing else on the line says the
+       traffic is moving rather than the route merely existing. */
+    ctx.setLineDash([9 * w, 21 * w]);
+    ctx.lineDashOffset = -((G.t * 130) % 30);
+    ctx.globalAlpha = fade * 0.60 * dim;
+    ctx.lineWidth = 6 * w; ctx.strokeStyle = TRACE.pale; ctx.stroke();
+    ctx.setLineDash([]);
+
+    /* The tip, while it is still resolving: a bright head at the live end. */
+    if (grow < 1){
+      var tip = pts[pts.length - 1];
+      ctx.globalAlpha = fade * 0.5; ctx.fillStyle = TRACE.pale;
+      ctx.beginPath(); ctx.arc(tip[0], tip[1], 16, 0, Math.PI*2); ctx.fill();
+      ctx.globalAlpha = fade; ctx.fillStyle = "#ffffff";
+      ctx.beginPath(); ctx.arc(tip[0], tip[1], 6, 0, Math.PI*2); ctx.fill();
     }
 
-    for (i = 0; i < pts.length; i++){
-      var last = main && (i === pts.length - 1);
-      var rad = (last ? 15 : 10) * w;
-      ctx.globalAlpha = fade * (main ? 0.9 : 0.55);
-      ctx.beginPath(); ctx.arc(pts[i][0], pts[i][1], rad, 0, Math.PI*2);
+    // only the hops the route has actually reached get a node
+    var resolved = grow >= 1 ? full.length : Math.max(0, pts.length - 1);
+    for (i = 0; i < resolved; i++){
+      var x = full[i][0], y = full[i][1];
+      var last = main && (i === full.length - 1) && grow >= 1;
+      var first = (i === 0);
+      var rad = (last ? 17 : (first ? 13 : 11)) * w;
+
+      ctx.globalAlpha = fade * 0.20 * dim;
+      ctx.fillStyle = TRACE.line;
+      ctx.beginPath(); ctx.arc(x, y, rad + 13, 0, Math.PI*2); ctx.fill();
+
+      ctx.globalAlpha = fade * 0.95 * dim;
+      ctx.beginPath(); ctx.arc(x, y, rad, 0, Math.PI*2);
       ctx.fillStyle = last ? TRACE.dest : TRACE.node; ctx.fill();
-      ctx.lineWidth = 3*w; ctx.strokeStyle = last ? TRACE.pale : TRACE.line; ctx.stroke();
+      ctx.lineWidth = 3 * w;
+      ctx.strokeStyle = last ? TRACE.pale : TRACE.line; ctx.stroke();
+      if (!last){
+        ctx.globalAlpha = fade * 0.9 * dim;
+        ctx.beginPath(); ctx.arc(x, y, rad * 0.34, 0, Math.PI*2);
+        ctx.fillStyle = TRACE.pale; ctx.fill();
+      }
+
+      /* Per-hop latency, every other node, main route only. All of them was
+         a wall of numbers over the lanes he still has to cross. */
+      if (main && !last && !first && (i % 2 === 1)){
+        ctx.globalAlpha = fade * 0.55;
+        txt(hopMs(path[i]) + " ms", x + rad + 26, y + 6, 16, TRACE.pale);
+      }
+
+      if (first && main){
+        ctx.globalAlpha = fade * 0.55;
+        txt("ORIGIN", x, y - rad - 14, 15, TRACE.pale);
+        // an origin ring that breathes, so the route has two ends
+        ctx.globalAlpha = fade * (0.18 + 0.22 * pulse);
+        ctx.lineWidth = 2.5; ctx.strokeStyle = TRACE.line;
+        ctx.beginPath(); ctx.arc(x, y, rad + 7 + 6 * pulse, 0, Math.PI*2); ctx.stroke();
+      }
+
       if (last){
-        ctx.globalAlpha = fade * (0.35 + 0.35*pulse);
-        ctx.beginPath(); ctx.arc(pts[i][0], pts[i][1], rad + 8 + 5*pulse, 0, Math.PI*2);
+        // concentric rings leaving the target, three of them out of phase
+        for (q = 0; q < 3; q++){
+          var kq = (G.t * 0.75 + q / 3) % 1;
+          ctx.globalAlpha = fade * 0.40 * (1 - kq);
+          ctx.lineWidth = 2.6; ctx.strokeStyle = TRACE.pale;
+          ctx.beginPath(); ctx.arc(x, y, rad + 4 + kq * 34, 0, Math.PI*2); ctx.stroke();
+        }
+        // a crosshair, which is the one mark that says "this is the target"
+        ctx.globalAlpha = fade * 0.75; ctx.lineWidth = 2.4;
+        ctx.strokeStyle = TRACE.pale;
+        ctx.beginPath();
+        ctx.moveTo(x - rad - 14, y); ctx.lineTo(x - rad - 5, y);
+        ctx.moveTo(x + rad + 5, y);  ctx.lineTo(x + rad + 14, y);
+        ctx.moveTo(x, y - rad - 14); ctx.lineTo(x, y - rad - 5);
+        ctx.moveTo(x, y + rad + 5);  ctx.lineTo(x, y + rad + 14);
         ctx.stroke();
+        // the total, which is the figure the product puts in the corner
+        var tot = 0;
+        for (q = 0; q < path.length; q++) tot += hopMs(path[q]);
+        ctx.globalAlpha = fade * 0.75;
+        txt("TARGET  \u00B7  " + tot + " ms  \u00B7  " + path.length + " hops",
+            x, y - rad - 20, 17, TRACE.pale);
       }
     }
   }
 
-  // the packet runs the main route
+  // packets run the main route, three of them, once it has resolved
   var mp = traceScreenPts(G.trace.paths[0]);
-  if (mp.length >= 2){
-    var span = mp.length - 1;
-    var pos = ((G.t * 0.9) % 1) * span;
-    var seg = Math.min(span - 1, Math.floor(pos)), f2 = pos - seg;
-    var px = mp[seg][0] + (mp[seg+1][0]-mp[seg][0])*f2;
-    var py = mp[seg][1] + (mp[seg+1][1]-mp[seg][1])*f2;
-    ctx.globalAlpha = fade * 0.30; ctx.fillStyle = TRACE.pale;
-    ctx.beginPath(); ctx.arc(px, py, 13, 0, Math.PI*2); ctx.fill();
-    ctx.globalAlpha = fade; ctx.fillStyle = "#ffffff";
-    ctx.beginPath(); ctx.arc(px, py, 5, 0, Math.PI*2); ctx.fill();
+  if (mp.length >= 2 && grow >= 1){
+    for (q = 0; q < 3; q++) drawPacket(mp, (G.t * 0.5 + q / 3) % 1, fade);
+  }
+
+  /* The headline. The route is not just drawn, it is the claim - this is
+     the one to take - and a line on its own does not say that.
+
+     It hangs off the BOTTOM of the route, under his feet, not the top. At
+     the far end it sat straight on top of the destination's own readout,
+     which is the one label on the whole trace carrying a figure. Down here
+     there is nothing but pavement behind it. Clamped inboard and off the
+     HUD so it never hangs over an edge. */
+  if (mp.length >= 2 && grow > 0.35){
+    var top = mp[0];
+    var lab = "BEST PATH!";
+    ctx.font = 'bold 30px "Helvetica Neue",Helvetica,Arial,sans-serif';
+    var lw2 = ctx.measureText(lab).width + 46;
+    var bx = Math.max(lw2/2 + 16, Math.min(LOGICAL_W - lw2/2 - 16, top[0]));
+    var by = Math.min(LOGICAL_H - 170, top[1] + 74);
+    var bob = Math.sin(G.t * 3) * 4;
+    ctx.globalAlpha = fade * 0.92;
+    plate(bx - lw2/2, by - 28 + bob, lw2, 52, "rgba(6,22,14,0.90)", 12);
+    rr(bx - lw2/2, by - 28 + bob, lw2, 52, 12);
+    ctx.strokeStyle = TRACE.line; ctx.lineWidth = 2.5; ctx.stroke();
+    ctx.globalAlpha = fade * (0.72 + 0.28 * pulse);
+    txt(lab, bx, by + 8 + bob, 30, TRACE.pale);
   }
   ctx.globalAlpha = 1;
 }
@@ -6356,10 +6547,6 @@ function drawWorld(){
         }
       }
     } else {
-      // parked first, then moving traffic, then the wrong-way bike on top
-      for (i=0;i<row.parked.length;i++){
-        blit(S.boxtruck_r, row.parked[i].col*TILE, sy);
-      }
       // a lane turned around by a trace drives, and faces, the other way
       var faceR = (row.dir * (row.rv || 1)) > 0;
       var sprite = S[(row.skin || row.kind) + (faceR ? "_r" : "_l")];
@@ -6374,6 +6561,18 @@ function drawWorld(){
             blit(sprite, (x + q*(HAZ[row.kind].w + row.packGap))*TILE, ysw);
           }
         } else blit(sprite, x*TILE, ysw);
+      }
+      /* The double-parked truck goes LAST, and at the kerb rather than on
+         the lane centre. It used to be drawn first, on the centre line, so
+         every car in the row drove straight over the top of it - which is
+         the one thing a parked truck never does. Dropping it PARK_KERB px
+         toward the camera puts it in the parking lane and lets the traffic
+         pass on the far side of it, which is what is actually happening.
+
+         20px is inside the range the lane already moves things through: a
+         car swerving round the player travels up to SWERVE_PX, 26. */
+      for (i=0;i<row.parked.length;i++){
+        blit(S.boxtruck_r, row.parked[i].col*TILE, sy + PARK_KERB);
       }
       if (row.rogue){
         var rx = rogueX(row);
@@ -6894,6 +7093,26 @@ return TINT_CV;
    The pivot is the model origin, which blitScaled already treats as the point
    under his feet, so rotating about it swings him round his heels rather than
    round his middle. */
+/* Flying is not standing in the air with a cape on. While he is actually
+   crossing a gap he pitches over into the dive and comes back up as he
+   lands, which is the difference between a man in flight and a man being
+   carried.
+
+   A sideways step is the one the projection can really show, so that gets
+   the full lean; a step straight up the screen gets a token amount in the
+   direction he faces, because bolt upright mid-flight was the whole
+   complaint. Both scale with pp.sq, which is the sine of the hop - zero at
+   both ends, one at the top of the arc - and with flyA, so it eases in and
+   out with the transformation rather than snapping on. */
+var FLY_PITCH_SIDE = 0.62, FLY_PITCH_FWD = 0.24;
+function flyPitch(pp){
+  if (G.flyA < 0.05 || G.state !== ST_PLAY) return 0;
+  var dx = G.col - G.fromCol;
+  var dir = dx > 0 ? 1 : (dx < 0 ? -1 : (G.facing > 0 ? 1 : -1));
+  var amt = dx !== 0 ? FLY_PITCH_SIDE : FLY_PITCH_FWD;
+  return dir * amt * pp.sq * G.flyA;
+}
+
 function deathTilt(){
   if (G.state !== ST_DEAD) return 0;
   /* Thrown the way the thing that hit him was going. Only a death with no
@@ -6975,8 +7194,10 @@ function drawPlayer(pp){
   if (!s) s = right ? S.player_r : S.player_l;
   var sx = pp.col*TILE, sy = rowScreenY(pp.row);
   var fly = G.flyA, flyLift = fly * 78;
-  var k = (1 - pp.sq*0.35) * (1 - fly*0.45);          // shadow shrinks with height
-  ctx.globalAlpha = (0.34 - pp.sq*0.12) * (1 - fly*0.45);
+  // the shadow only shrinks for something that actually left the ground
+  var sqS = G.flyA > 0.05 ? 1 : 0.2;
+  var k = (1 - pp.sq*0.35*sqS) * (1 - fly*0.45);
+  ctx.globalAlpha = (0.34 - pp.sq*0.12*sqS) * (1 - fly*0.45);
   ctx.fillStyle = "#000";
   ctx.beginPath();
   ctx.ellipse(sx + TILE*0.5, sy - ROW_H*0.46, 29*k, 11*k, 0, 0, Math.PI*2);
@@ -7037,8 +7258,12 @@ function drawPlayer(pp){
     var blink = 9 + (1 - G.flyT/FLY_WARN) * 17;
     if (Math.floor(G.t * blink) % 2 === 0) return;
   }
-  var dy = sy - pp.lift - lift - flyLift;
-  var kx = (1 - pp.sq*0.10) * hk, ky = (1 + pp.sq*0.14) * hk;
+  // and a deeper arc while airborne, so the dive has somewhere to go
+  var dy = sy - pp.lift - lift - flyLift - pp.sq * 30 * G.flyA;
+  /* The stretch belongs to a jump. On foot it is cut to a fifth, which
+     leaves just enough to stop the walk looking rigid. */
+  var sqK = G.flyA > 0.05 ? 1 : 0.22;
+  var kx = (1 - pp.sq*0.10*sqK) * hk, ky = (1 + pp.sq*0.14*sqK) * hk;
 
 /* A head shake, for the turnstile with no card in the wallet. The figure is
      baked as one sprite, so shaking it whole reads as a stumble; what reads as
@@ -7060,6 +7285,19 @@ function drawPlayer(pp){
       blitScaled(sprite, 0, 0, kx, ky);
       ctx.restore();
       return;                       // nothing else belongs on a man on the floor
+    }
+    /* The dive. Pivoted on his middle rather than his heels - rotating
+       about the origin swung him round his feet, which is a man falling
+       over, not a man flying. */
+    var pitch = flyPitch(pp);
+    if (pitch){
+      var cy2 = py - sprite.oy * ky * 0.55;
+      ctx.save();
+      ctx.translate(px, cy2); ctx.rotate(pitch); ctx.translate(-px, -cy2);
+      blitScaled(sprite, px, py, kx, ky);
+      ctx.restore();
+      if (EAT_AT){ EAT_AT.px = px; EAT_AT.py = py; EAT_AT.kx = kx; EAT_AT.ky = ky; }
+      return;
     }
     blitScaled(sprite, px, py, kx, ky);
     /* Where the model's origin landed, and at what scale. A model point
@@ -7092,19 +7330,29 @@ function drawPlayer(pp){
     ctx.restore();
     return;
   }
+
+  var stride = walkStride();
+  if (stride && (stride[0] > 0.05 || stride[1] > 0.05)){
+    var lx = sx - s.ox*kx, ly2 = dy - s.oy*ky, lw3 = s.w*kx, lh = s.h*ky;
+    var knee = dy - s.oy*ky*0.30;        // about a third of the way up him
+    var midX = lx + lw3*0.5;
+    ctx.save();                           // everything above the knee, once
+    ctx.beginPath(); ctx.rect(lx - 2, ly2 - 2, lw3 + 4, knee - ly2 + 2); ctx.clip();
+    put(s, sx, dy);
+    ctx.restore();
+    ctx.save();                           // the near leg
+    ctx.beginPath(); ctx.rect(lx - 2, knee, midX - lx + 2, lh); ctx.clip();
+    put(s, sx, dy - stride[0]);
+    ctx.restore();
+    ctx.save();                           // and the far one
+    ctx.beginPath(); ctx.rect(midX, knee, lx + lw3 - midX + 2, lh); ctx.clip();
+    put(s, sx, dy - stride[1]);
+    ctx.restore();
+    return;
+  }
   put(s, sx, dy);
 }
 
-/* The Cisco mark: vertical bars rising to an arch. Approximated from paths
-   like the rest of the brand art, since the file loads no external assets. */
-function ciscoMark(x, y, w, h, col){
-  var n = 9, bw = w / (n * 2 - 1);
-  ctx.fillStyle = col;
-  for (var i = 0; i < n; i++){
-    var k = 0.42 + 0.58 * Math.sin(Math.PI * (i / (n - 1)));
-    ctx.fillRect(x + i * bw * 2, y + h * (1 - k), bw, h * k);
-  }
-}
 function drawTicker(){
   var T = G.ticker, t = T.t;
   var pct = T.pct, K = pct / 10;
@@ -7124,15 +7372,14 @@ function drawTicker(){
   rr(X, Y, W, H, 26); ctx.strokeStyle = "#35373b"; ctx.lineWidth = 2; ctx.stroke();
 
   var L = X + 52;                                  // the card's left margin
-  // the logo tile
-  plate(L, Y + 40, 96, 96, "#f1f3f4", 14);
-  ciscoMark(L + 18, Y + 56, 60, 34, "#131314");
-  gtxt("CISCO", L + 48, Y + 118, 20, "#131314", "bold", "center");
-  // name and market
-  gtxt(CSCO.name, L + 124, Y + 86, 48, "#e8eaed", "500");
-  gtxt(CSCO.mkt, L + 126, Y + 128, 25, "#9aa0a6", "normal");
+  /* No logo tile. A drawn-from-paths wordmark next to a real ticker is the
+     one place on the card where a mock starts to look like a claim, and the
+     ticker says who it is anyway. The name is the symbol for the same
+     reason. */
+  gtxt(CSCO.name, L, Y + 86, 48, "#e8eaed", "500");
+  gtxt(CSCO.mkt, L + 2, Y + 128, 25, "#9aa0a6", "normal");
   ctx.fillStyle = "#9aa0a6";
-  for (var d = 0; d < 3; d++) ctx.fillRect(L + 126 + 206, Y + 114 + d * 9, 4, 4);
+  for (var d = 0; d < 3; d++) ctx.fillRect(L + 208, Y + 114 + d * 9, 4, 4);
 
   // the Following pill, right-aligned
   var fw = 268, fx = X + W - 52 - fw;

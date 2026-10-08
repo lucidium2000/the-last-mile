@@ -280,6 +280,34 @@ the unclamped overshoot term went to about 25 — a giant number printed
 straight across the rows underneath it. Clamped at both ends. It only ever
 showed on a skip, which is the path nobody watches.
 
+**A trace comes from a terminal and nowhere else.** `path` is out of
+`POWER_WEIGHTS`, so it never drops as a cube in the street any more; its 15
+slots went to Chuck Bucks, Endpoint Agents and Traffic Insights. `POWERS.path`
+stays, because the terminal reads its colour, its copy and its fourteen
+seconds out of it, and `POWER_ORDER` keeps the key so the runs already on the
+board still read.
+
+**The route is drawn in the product's grammar.** Nodes joined by links, hop
+ticks, per-hop latency, a destination with a crosshair, packets running the
+line, and `BEST PATH!` pinned to the furthest node still on screen — because a
+line on its own is a fact and the whole point is that it is a recommendation.
+
+The glow is **stacked strokes of the same path, not a blur**: `shadowBlur` and
+`ctx.filter` are the two things that put this canvas on the software
+rasteriser, so a bloom is built out of one path, four widths and four alphas.
+The route also **draws itself on** from his feet outwards over the first 0.6s,
+with a bright head at the live end, which is what a traceroute actually looks
+like resolving — and nodes only appear once the line has reached them. Hop
+latencies come off the cell (`4 + ((r*7 + c*13 + 11) % 46)` ms) so they are
+stable frame to frame; a number that flickers is a number nobody reads.
+
+**The double-parked truck sits at the kerb, and goes down last.** It used to be
+drawn first, on the lane centre, so every car in the row drove straight over
+the top of it. It now drops `PARK_KERB` = 20px toward the camera and draws
+after the traffic, so the lane passes on the far side of it the way it does on
+a real street. 20px is inside the range the lane already moves things through:
+a car swerving round the player travels up to `SWERVE_PX`, 26.
+
 ### Nothing in a lane overlaps anything else in it
 
 Every vehicle in a lane shares a speed, so left alone they hold their spacing
@@ -793,6 +821,48 @@ is the only direction it can reach without going behind the head.
 **Walking into a spent cart** is its own answer now. A cart serves a fixed number
 of times and the stand is still standing there afterwards, so without a reaction
 the refusal looked like the controls ignoring him.
+
+### He walks. He used to hop
+
+A 30px arc and an ease-out cubic that darted him out of the square and set him
+down made a man on his way to a meeting look like a frog. Three changes:
+
+- the easing is a **smoothstep**, so the speed builds and settles instead of
+  all of it being spent in the first third;
+- the **arc is gone** unless he is actually airborne, where it is deeper than
+  ever, because that one is a flight. What is left on the ground is the bob of
+  a walk: two footfalls a square, 3.4px;
+- and the **stride is clipped, not baked**. The sprite is one bake and there
+  are already forty-two of them, so the band below the knee is drawn twice —
+  once clipped to the left half, once to the right — each raised by its own
+  half of the cycle, 5px at the top. The sliver of road that opens under the
+  raised shoe is the point: that is the foot off the ground. One cycle per
+  square, and the phase flips on odd steps or he leads with the same leg every
+  time.
+
+The squash and the shadow shrink were a jump's, so on foot they are cut to a
+fifth and a fifth respectively. Measured over four steps: lift peaks at 3.4px
+mid-footfall, the legs alternate 5px and 0, and consecutive steps lead with
+opposite feet.
+
+**And the TAM hero flies rather than hovering.** While he is crossing a gap he
+pitches over into the dive and comes back up as he lands — 0.62rad on a step
+with a sideways component, which is the one the projection can show, and
+0.24rad on a step straight up the screen so he is never bolt upright
+mid-flight. Both scale with the sine of the hop and with `flyA`, and the pivot
+is his middle, not his heels: rotating about the origin is a man falling over.
+Sampled: 32° at the top of a sideways step.
+
+**He is sluggish in the red.** The worn drag used to ramp from nothing, which
+meant crossing into the band changed the handling by an amount nobody could
+feel. There is now a step of 0.15 the moment he goes under `HP_WORN` and then
+it climbs to 0.85: 135ms a step becomes 155ms at the threshold and 250ms on
+his last point of health, which is slow enough that a gap he would have taken
+at full strength is not there any more.
+
+**The ticker card lost its logo.** A wordmark drawn from paths next to a real
+symbol is the one place on that card where a mock starts to look like a claim.
+The name is the symbol now too — `CSCO`, not `Cisco Systems Inc`.
 
 ### Moving about the car
 
