@@ -682,14 +682,50 @@ var AUDIO = (function(){
       tone({ f:2800, dur:0.42, type:"sine", g:0.030, at:0.12 });
       tone({ f:4200, dur:0.30, type:"sine", g:0.016, at:0.14 });
     },
-    /* And the answer: a whoosh, a flat connect, and him hitting the floor. */
+    /* Four things in order, because a hit is not one noise: the case coming
+       round, the flat crack of a hard-shell corner on a jaw, the air going
+       out of him, and the body arriving on the floor. Nothing musical - the
+       cue that something good just happened is the flash, not a fanfare. */
     swing: function(){
-      hit({ f:900, to:260, hp:true, dur:0.16, g:0.07 });
-      hit({ f:220, to:60, dur:0.22, g:0.30, at:0.14 });
-      tone({ f:120, to:52, dur:0.30, type:"triangle", g:0.20, at:0.15, lp:280 });
-      hit({ f:320, to:80, dur:0.30, g:0.16, at:0.46 });
-      tone({ f:523.25, dur:0.5, type:"triangle", g:0.07, at:0.30 });
-      tone({ f:659.25, dur:0.45, type:"sine", g:0.05, at:0.34 });
+      // the swing
+      hit({ f:1100, to:300, hp:true, dur:0.15, g:0.075 });
+      // the connect: a sharp crack over a flat low thud, both on the same frame
+      hit({ f:2600, to:900, hp:true, dur:0.07, g:0.26, at:0.13 });
+      hit({ f:300, to:70, dur:0.17, g:0.34, at:0.13 });
+      tone({ f:150, to:58, dur:0.22, type:"square", g:0.17, at:0.13, lp:240 });
+      // the breath knocked out of him
+      hit({ f:800, to:340, dur:0.26, g:0.10, at:0.19 });
+      tone({ f:132, to:96, dur:0.30, type:"sawtooth", g:0.055, at:0.20, lp:520 });
+      // and the floor
+      hit({ f:240, to:60, dur:0.34, g:0.22, at:0.50 });
+      tone({ f:92, to:44, dur:0.40, type:"triangle", g:0.14, at:0.50, lp:200 });
+      hit({ f:4200, hp:true, dur:0.10, g:0.035, at:0.52 });
+    },
+    /* Jointed rail under the wheels. Two axles over the same gap, a beat
+       apart, with a little rattle on top - the sound a car makes all the way
+       uptown and the thing the ride was missing most. */
+    clack: function(hard){
+      var g0 = hard ? 0.075 : 0.05;
+      hit({ f:190, to:62, dur:0.085, g:g0 });
+      hit({ f:3200, hp:true, dur:0.035, g:g0 * 0.45 });
+      hit({ f:175, to:58, dur:0.085, g:g0 * 0.85, at:0.11 });
+      hit({ f:2900, hp:true, dur:0.035, g:g0 * 0.35, at:0.11 });
+      if (hard) tone({ f:74, to:52, dur:0.17, type:"triangle", g:0.05, lp:170 });
+    },
+    /* The whole car working: a long low roar that rises as it gets going. */
+    rail: function(){
+      hit({ f:320, to:180, dur:1.5, g:0.045 });
+      tone({ f:58, dur:1.5, type:"triangle", g:0.05, lp:150 });
+    },
+    /* Wheel flange on a curve. Occasional, and unpleasant on purpose. */
+    squeal: function(){
+      tone({ f:1850, to:2450, dur:0.55, type:"sawtooth", g:0.030, lp:3400 });
+      tone({ f:2480, to:1900, dur:0.45, type:"sawtooth", g:0.020, at:0.2, lp:3600 });
+    },
+    /* The hero's end of it: a grunt of effort on the backswing. */
+    heave: function(){
+      tone({ f:188, to:124, dur:0.26, type:"sawtooth", g:0.085, lp:620 });
+      hit({ f:900, to:400, dur:0.14, g:0.05 });
     },
     /* The booth landing: a sheet of glass and an aluminium frame meeting the
        pavement, then the receiver going back on the hook. */
@@ -3579,7 +3615,8 @@ function startRide(enterRow, enterCol){
              streets:Math.abs(streetAt(dest) - fromSt),
              rock:0, slot:2, slotX:2, slotFrom:2, stepT:1,
              face:1, shady:shady, cash:cash, cashGot:false, met:false,
-             shadyX:shady, knife:0, knifeSide:0, ko:0, koT:0, swing:0, robbed:0 };
+             shadyX:shady, knife:0, knifeSide:0, ko:0, koT:0, swing:0, brace:0,
+             robbed:0, clack:0 };
   G.col = enterCol; G.fromCol = enterCol;
   G.row = enterRow; G.fromRow = enterRow; G.hop = 1;
   G.invulnT = Math.max(G.invulnT, 1.2);
@@ -3608,7 +3645,7 @@ var TRAIN_ROB   = 30;      // what standing still costs you
 
 /* Chuck Bucks found on the train. Same payout as the pavement pickup, same
    card, same voice line - it is the identical event, just somewhere else. */
-function chuckPayout(where){
+function chuckPayout(where, quiet){
   G.bonus += CHUCK_BONUS; G.bonusChuck += CHUCK_BONUS;
   /* Not on the train. The ticker card takes the whole screen and freezes the
      world behind it, and the ride is already a scene - stacking a second one
@@ -3616,6 +3653,14 @@ function chuckPayout(where){
      when the man at the other end is walking towards him. The money, the
      sound and the flash all still land. */
   if (!G.ride) G.ticker = { t:0, pct: 0.1 + Math.random() * 9.9 };
+  /* `quiet` is for the moment the money is not the event. Knocking a man down
+     and having him say "I know you're gonna dig this" over the top of it was
+     the wrong voice for what just happened; the briefcase gets the sound. */
+  /* Quiet means something else owns this moment - it keeps its own sound and
+     its own banner, and the payout just adds the money. Raising a second
+     flash here overwrote "BRIEFCASE, FULL SWING" a frame after it appeared,
+     so the headline the player never got to read was the swing itself. */
+  if (quiet) return;
   AUDIO.dig();
   flash("CHUCK BUCKS", where, POWERS.chuck.col);
 }
@@ -3638,9 +3683,13 @@ function rideAct(dir){
       Math.abs(R.shadyX - rideManX(R)) <= SWING_REACH){
     R.ko = 1; R.koT = 0; R.swing = 0.42; R.knife = 0;
     R.face = d;
+    R.brace = 0.55;                      // the hero's own follow-through
+    AUDIO.heave();
+    G.shake = 18;
     AUDIO.swing();
-    flash("BRIEFCASE, FULL SWING", "He picked the wrong commuter.", C.good);
-    chuckPayout("He dropped it on his way down.");
+    chuckPayout("He dropped it on his way down.", true);
+    flash("BRIEFCASE, FULL SWING",
+          "He picked the wrong commuter.  +" + cash(CHUCK_BONUS), C.good);
     return;
   }
 
@@ -3677,11 +3726,34 @@ function rideSlotX(x, cx0, cw){
   return cx0 + 45 + x * ww + (ww - 30) / 2;
 }
 
+/* The car's own noise, driven off the ride clock. Every cue is scheduled
+   once at the moment it is due rather than looped, so nothing has to be
+   stopped later and nothing can be left running when the ride ends. */
+function updateRideSound(dt){
+  var R = G.ride;
+  if (R.phase !== "run"){ R.clack = 0; return; }
+  R.clack -= dt;
+  if (R.clack <= 0){
+    /* Every 0.62s, and every fourth one over a heavier joint. Slightly
+       irregular, because perfectly even track does not exist. */
+    R.clackN = (R.clackN || 0) + 1;
+    R.clack = 0.56 + Math.random() * 0.12;
+    AUDIO.clack(R.clackN % 4 === 0);
+    if (R.clackN % 7 === 3) AUDIO.rail();
+    if (R.clackN % 11 === 5) AUDIO.squeal();
+  }
+}
+
 function updateShady(dt){
   var R = G.ride;
   if (R.shady < 0 || R.phase !== "run") return;
-  if (R.ko){ R.koT += dt; return; }
+  /* The swing and the brace are the HERO's, and they are set on the same
+     frame the man goes down - so they have to tick before the early return
+     for him, or the player stays frozen mid-follow-through for the rest of
+     the ride. */
   if (R.swing > 0) R.swing = Math.max(0, R.swing - dt);
+  if (R.brace > 0) R.brace = Math.max(0, R.brace - dt);
+  if (R.ko){ R.koT += dt; return; }
 
   /* Robbed once, he has what he came for and backs off to where he started. */
   var to = R.robbed ? R.shady : rideManX(R);
@@ -3733,6 +3805,7 @@ function updateRide(dt){
     R.slotX = R.slot;
   }
   updateShady(dt);
+  updateRideSound(dt);
   if (R.phase === "down"){
     if (R.t >= RIDE_PHASES.down){ R.phase = "platform"; R.t = 0; AUDIO.trainIn(); }
     else if (!R.swiped && R.t > 0.25){ R.swiped = true; AUDIO.turnstile(); }
@@ -3805,7 +3878,99 @@ function drawRider(cx0, cw, cy){
   var lift = (R.stepT != null && R.stepT < 1) ? Math.sin(R.stepT * Math.PI) * 7 : 0;
   var sp = G.shield ? (R.face < 0 ? S.playerS_l : S.playerS_r)
                     : (R.face < 0 ? S.player_l  : S.player_r);
-  ctx.drawImage(sp.img, mx - sp.w*0.46, cy + 78 - lift, sp.w*0.92, sp.h*0.92);
+
+  /* A stride leans. Without it he is a sprite being slid along a floor; with
+     four degrees of it, into the direction of travel and back upright as he
+     lands, he is walking. */
+  var lean = 0;
+  if (R.stepT != null && R.stepT < 1) lean = Math.sin(R.stepT * Math.PI) * 0.075 * (R.face || 1);
+
+  /* And the swing throws him. He winds back, comes through hard, and is still
+     settling for a third of a second after the case has landed. */
+  var brace = R.brace > 0 ? R.brace / 0.55 : 0;
+  if (brace){
+    var phase = 1 - brace;                       // 0 at the moment of contact
+    lean += (phase < 0.18 ? -0.22 + phase * 2.2 : 0.18 * Math.pow(1 - phase, 2))
+            * (R.face || 1);
+  }
+
+  ctx.save();
+  ctx.translate(mx, cy + 78 - lift + sp.h * 0.92);
+  ctx.rotate(lean);
+  ctx.drawImage(sp.img, -sp.w*0.46, -sp.h*0.92, sp.w*0.92, sp.h*0.92);
+  ctx.restore();
+}
+
+/* The hooded figure. The old one had a face and a pair of sunglasses, which
+   made him a man in sunglasses. What actually unsettles people is the absence:
+   a hood with nothing in it at all.
+
+   So the hood is an opening with no features inside - not a dark face, a void
+   - and the only thing that reads inside it is the faint bounce of the car
+   lights off the inside of the fabric, which makes it a hole rather than a
+   black sticker. Grey-blue zip hoodie, hands down, shoulders square, slight
+   forward set to the neck. */
+function drawHoodie(mx, cy, scl, alert){
+  function R2(x, y, w, h, col){
+    ctx.fillStyle = col;
+    ctx.fillRect(mx + x * scl, cy + y * scl, w * scl, h * scl);
+  }
+  var cloth = "#5d6a74", clothD = "#49545d", clothL = "#6d7a85";
+
+  // legs and shoes first, so the hem of the hoodie sits over them
+  R2(-20, 190, 17, 30, "#2b3138");
+  R2(4,   190, 17, 30, "#2b3138");
+  R2(-23, 214, 22, 9, "#15181e");
+  R2(3,   214, 22, 9, "#15181e");
+
+  // body: the hoodie, with the pouch and the zip line
+  R2(-30, 112, 60, 86, cloth);
+  R2(-30, 112, 60, 10, clothL);                 // the light on the shoulders
+  R2(-31, 152, 62, 34, clothD);                 // the kangaroo pocket
+  R2(-1,  116, 2,  80, "#39434b");              // the zip
+  R2(-33, 118, 10, 74, clothD);                 // arms, hanging
+  R2(23,  118, 10, 74, clothD);
+  R2(-34, 186, 12, 14, "#8a7a6c");              // the hands, barely lit
+  R2(22,  186, 12, 14, "#8a7a6c");
+
+  /* The hood. An outer shell, then the opening cut into it, and nothing in
+     the opening except a hint of the lining catching the carriage light. */
+  ctx.fillStyle = cloth;
+  ctx.beginPath();
+  ctx.moveTo(mx - 29 * scl, cy + 124 * scl);
+  ctx.quadraticCurveTo(mx - 33 * scl, cy + 74 * scl, mx, cy + 70 * scl);
+  ctx.quadraticCurveTo(mx + 33 * scl, cy + 74 * scl, mx + 29 * scl, cy + 124 * scl);
+  ctx.closePath(); ctx.fill();
+  ctx.fillStyle = clothL;                       // light along the top of it
+  ctx.beginPath();
+  ctx.moveTo(mx - 20 * scl, cy + 82 * scl);
+  ctx.quadraticCurveTo(mx, cy + 66 * scl, mx + 20 * scl, cy + 82 * scl);
+  ctx.quadraticCurveTo(mx, cy + 76 * scl, mx - 20 * scl, cy + 82 * scl);
+  ctx.closePath(); ctx.fill();
+
+  ctx.fillStyle = "#04060a";                    // the opening: nothing in it
+  ctx.beginPath();
+  ctx.ellipse(mx, cy + 100 * scl, 21 * scl, 26 * scl, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = "#121820";                    // lining, catching a little
+  ctx.beginPath();
+  ctx.ellipse(mx, cy + 86 * scl, 19 * scl, 10 * scl, 0, Math.PI, 0);
+  ctx.fill();
+
+  /* Once the blade is out, two points of light find him from inside the hood.
+     Nothing like eyes until he means it. */
+  if (alert){
+    var g2 = 0.55 + 0.45 * Math.sin(G.t * 7);
+    ctx.globalAlpha = g2;
+    ctx.fillStyle = "#c8d8e4";
+    ctx.fillRect(mx - 9 * scl, cy + 96 * scl, 5 * scl, 3 * scl);
+    ctx.fillRect(mx + 4 * scl, cy + 96 * scl, 5 * scl, 3 * scl);
+    ctx.globalAlpha = 1;
+  }
+
+  // drawstrings
+  R2(-9, 118, 2, 16, "#cfd6dd");
+  R2(7,  118, 2, 13, "#cfd6dd");
 }
 
 /* The man at the far end of the car. Drawn at his own floating position
@@ -3817,45 +3982,49 @@ function drawShady(cx0, cw, cy){
   var mx = rideSlotX(R.shadyX, cx0, cw);
 
   if (R.ko){
-    /* Flat out across the floor, with the hood where his head went. */
-    var kk = Math.min(1, R.koT / 0.35), lie = kk * 1;
+    /* Three beats, because a man who simply becomes horizontal has not been
+       hit by anything. His head goes first, then his feet leave, then he
+       lands and stops. */
+    var away = R.face || 1;
+    var snap = Math.min(1, R.koT / 0.09);        // head back
+    var tip  = Math.max(0, Math.min(1, (R.koT - 0.07) / 0.30));
+    var land = Math.max(0, Math.min(1, (R.koT - 0.37) / 0.14));
+    var ease = 1 - Math.pow(1 - tip, 2);
+
     ctx.save();
-    ctx.translate(mx, cy + 196);
-    ctx.rotate(lie * Math.PI * 0.5 * (R.face || 1) * -1);
-    ctx.fillStyle = "#15181e"; ctx.fillRect(-26, -86, 52, 86);
-    ctx.fillStyle = "#1b1f26";
-    ctx.beginPath(); ctx.arc(0, -94, 24, Math.PI, 0); ctx.fill();
-    ctx.fillRect(-24, -94, 48, 20);
-    ctx.fillStyle = "#6b5447"; ctx.fillRect(-15, -102, 30, 26);
+    ctx.translate(mx + away * (14 * snap + 40 * ease), cy + 196);
+    ctx.rotate(ease * Math.PI * 0.5 * away);
+    ctx.translate(0, -196 - (1 - ease) * 6);
+    ctx.globalAlpha = 1;
+    drawHoodie(0, 0, 1, false);
     ctx.restore();
-    // and the little stars, because he is not hurt, he is out
-    for (var st = 0; st < 3; st++){
-      var sa = G.t * 2.2 + st * 2.09;
-      ctx.globalAlpha = 0.75;
-      ctx.fillStyle = "#ffd24a";
-      ctx.fillRect(mx + Math.cos(sa) * 34 - 4, cy + 86 + Math.sin(sa) * 11 - 4, 8, 8);
+
+    if (land > 0){
+      // dust off the floor where he came down
+      ctx.globalAlpha = (1 - land) * 0.4;
+      ctx.fillStyle = "#8e969e";
+      for (var d2 = 0; d2 < 5; d2++){
+        var dx2 = (d2 - 2) * (12 + land * 26);
+        ctx.fillRect(mx + away * 40 + dx2, cy + 214 - land * 10, 9, 3);
+      }
       ctx.globalAlpha = 1;
+    }
+    // and the little stars, because he is not hurt, he is out
+    if (R.koT > 0.4){
+      for (var st = 0; st < 3; st++){
+        var sa = G.t * 2.2 + st * 2.09;
+        ctx.globalAlpha = 0.75;
+        ctx.fillStyle = "#ffd24a";
+        ctx.fillRect(mx + away * 54 + Math.cos(sa) * 30 - 4,
+                     cy + 150 + Math.sin(sa) * 10 - 4, 8, 8);
+        ctx.globalAlpha = 1;
+      }
     }
     return;
   }
 
-  /* The one you do not make eye contact with. Hood up, collar up, hands in,
-     and a slow sway that is not the train's. */
   var sw = Math.sin(G.t * 1.6 + 1.1) * 3;
-  ctx.fillStyle = "#15181e";
-  ctx.fillRect(mx - 26 + sw, cy+104, 52, 86);                 // coat
-  ctx.fillRect(mx - 30 + sw, cy+108, 60, 26);                 // shoulders
-  ctx.fillStyle = "#1b1f26";
-  ctx.beginPath();                                            // hood
-  ctx.arc(mx + sw, cy+96, 24, Math.PI, 0); ctx.fill();
-  ctx.fillRect(mx - 24 + sw, cy+96, 48, 20);
-  ctx.fillStyle = "#6b5447";                                  // face in shadow
-  ctx.fillRect(mx - 15 + sw, cy+88, 30, 26);
-  ctx.fillStyle = "#07080b";                                  // the glasses
-  ctx.fillRect(mx - 16 + sw, cy+94, 32, 9);
-  ctx.fillStyle = "#15181e";
-  ctx.fillRect(mx - 20 + sw, cy+190, 16, 22);                 // legs
-  ctx.fillRect(mx + 4 + sw,  cy+190, 16, 22);
+  drawHoodie(mx + sw, cy, 1, R.knife > 0);
 
   if (R.knife > 0){
     /* The blade comes out on the side he is approaching from, and the timer
@@ -3937,10 +4106,17 @@ function drawCar(ox, rock, lit){
       ctx.fillStyle = "#a87f5f"; ctx.fillRect(wx+69, cy+102, 16, 18);
       ctx.globalAlpha = 1;
     }
-    // straps
+    /* Straps, swinging with the car and each on its own slight delay down the
+       length of it - a carriage of straps moving in lockstep looks welded. */
     for (var k = 0; k < 3; k++){
+      var swg = Math.sin(G.t * 2.3 + i * 0.5 + k * 0.3) * (R2.phase === "run" ? 4 : 1.2);
+      var bx2 = wx + 18 + k*((ww-60)/2);
       ctx.fillStyle = "#6e767e";
-      ctx.fillRect(wx + 18 + k*((ww-60)/2), cy+66, 4, 18);
+      ctx.fillRect(bx2, cy+66, 4, 12);
+      ctx.fillRect(bx2 + swg * 0.5, cy+78, 4, 10);
+      ctx.strokeStyle = "#8e969e"; ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.arc(bx2 + 2 + swg, cy+94, 7, 0, Math.PI*2); ctx.stroke();
     }
   }
   /* Him last, so he passes in FRONT of the people standing in the slots. He
@@ -3952,6 +4128,61 @@ function drawCar(ox, rock, lit){
   for (var d = 1; d < wn; d++){
     var dx = cx0 + 45 + d*ww - 16;
     ctx.fillStyle = "#8e969e"; ctx.fillRect(dx, cy+60, 5, ch-120);
+  }
+
+  /* The band of card advertising above the windows, which is most of what you
+     actually look at on a subway car. Real-shaped, unreadable at this size,
+     and one of them is ours. */
+  /* Card stock under fluorescent light, not light boxes. The first pass used
+     near-white and the four of them became the brightest thing in the car,
+     which is not where anybody should be looking. */
+  var adY = cy + 26, adW = (cw - 90) / 4, ADS = ["#6d6a62", "#5f6b6f", "#1a1208", "#6a6158"];
+  for (var ad = 0; ad < 4; ad++){
+    var ax = cx0 + 45 + ad * adW;
+    plate(ax + 6, adY, adW - 16, 28, ADS[ad], 3);
+    ctx.globalAlpha = 0.55;
+    if (ad === 2){
+      ctx.globalAlpha = 1;
+      ctx.fillStyle = C.brand; ctx.fillRect(ax + 12, adY + 6, 4, 16);
+      txt("TE", ax + 32, adY + 20, 14, C.brand);
+      ctx.fillStyle = "rgba(255,217,184,0.40)";
+      ctx.fillRect(ax + 50, adY + 10, adW - 78, 3);
+      ctx.fillRect(ax + 50, adY + 17, adW - 100, 3);
+    } else {
+      ctx.fillStyle = "#2b2f33";
+      ctx.fillRect(ax + 14, adY + 7, adW - 44, 3);
+      ctx.fillRect(ax + 14, adY + 14, adW - 64, 3);
+      ctx.fillRect(ax + 14, adY + 21, adW - 54, 3);
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  /* The strip map over the doors, with a bullet creeping along it. */
+  var mpX = cx0 + cw - 300, mpY = cy + ch - 46;
+  plate(mpX, mpY, 270, 26, "#0d1117", 5);
+  ctx.fillStyle = "#39434b"; ctx.fillRect(mpX + 14, mpY + 12, 242, 3);
+  for (var stp = 0; stp < 7; stp++){
+    ctx.fillStyle = "#6e767e";
+    ctx.beginPath(); ctx.arc(mpX + 18 + stp * 40, mpY + 13, 4, 0, Math.PI*2); ctx.fill();
+  }
+  var prog = R2.phase === "run" ? Math.min(1, R2.t / RIDE_PHASES.run) : (R2.phase === "arrive" ? 1 : 0);
+  ctx.fillStyle = C.brand;
+  ctx.beginPath(); ctx.arc(mpX + 18 + prog * 240, mpY + 13, 6, 0, Math.PI*2); ctx.fill();
+
+  /* The floor, and the dirt on it. A carriage with a clean floor is not one
+     anybody has been in. */
+  ctx.fillStyle = "#4a5159"; ctx.fillRect(cx0 + 9, cy + ch - 72, cw - 18, 12);
+  ctx.globalAlpha = 0.18; ctx.fillStyle = "#1a1f25";
+  for (var sp2 = 0; sp2 < 22; sp2++)
+    ctx.fillRect(cx0 + 30 + (sp2 * 137) % (cw - 80), cy + ch - 70 + (sp2 * 31) % 8, 11, 3);
+  ctx.globalAlpha = 1;
+
+  /* The lights flicker when the car is working hardest. Two frames out of a
+     hundred, so it is a glimpse rather than a strobe. */
+  if (lit && R2.phase === "run" && ((G.t * 60) | 0) % 97 < 2){
+    ctx.globalAlpha = 0.34; ctx.fillStyle = "#05070a";
+    ctx.fillRect(cx0 + 9, cy + 9, cw - 18, ch - 18);
+    ctx.globalAlpha = 1;
   }
 }
 

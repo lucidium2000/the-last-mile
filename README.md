@@ -650,7 +650,35 @@ scene — stacking a second one on top threw the player out of the carriage
 mid-stride, which is exactly when the man at the other end is walking towards
 him. The money, the sound and the flash all still land.
 
+### The carriage
+
+The car does more than hold two figures now.
+
+**Sound.** Jointed rail under the wheels: two axles over the same gap a beat
+apart, every 0.56–0.68s with a heavier one every fourth, plus a long low roar
+and the occasional flange squeal on a curve. It is scheduled off the ride clock
+rather than looped, so nothing has to be stopped later and nothing can be left
+running when the ride ends — and it goes silent the moment the car is not
+moving. Measured: 10 clacks in six seconds of running, **0** at the platform.
+
+**Graphics.** The band of card advertising above the windows (one of them is
+ours), the strip map over the doors with a bullet creeping along it as the ride
+progresses, straps that swing with the car each on its own slight delay, a
+floor with dirt on it, and the lights dropping out for two frames in a hundred
+while the car is working hardest.
+
+The ad cards are *card stock under fluorescent light*, not light boxes. The
+first pass used near-white and the four of them became the brightest thing in
+the carriage, which is not where anybody should be looking.
+
 ### The man at the end of the car
+
+**He has no face.** The first version had one, plus sunglasses, which made him
+a man in sunglasses. What actually unsettles people is the absence: a hood with
+nothing in it at all. So the opening is a void rather than a dark face, with
+just enough bounce off the inside of the fabric to read as a hole rather than a
+black sticker, and two points of light find you from inside it only once the
+blade is out. Grey-blue zip hoodie, hands down, shoulders square.
 
 He shows up on 45% of rides, and he is no longer scenery. He **closes on you**,
 smoothly, at 0.52 slots a second — off the grid the player moves on, because a
@@ -665,6 +693,23 @@ you have. A reaction test with an invisible clock is just a trap.
 | **Nothing**, for 1.7s | He takes the bag. **−30% health**, and the roll on the seat goes with him. Then he backs off to where he started. |
 | **Step away** | The clock restarts. He closes again. |
 | **Step into him** | Briefcase, full swing. He is out for the rest of the ride and drops a roll of Chuck Bucks. |
+
+**The hit is four sounds, not one**: the case coming round, the flat crack of a
+hard-shell corner on a jaw over a low thud on the same frame, the air going out
+of him, and the body arriving on the floor. Plus a grunt of effort on the
+backswing. Nothing musical — the cue that something good just happened is the
+banner, not a fanfare.
+
+It used to play the Chuck Bucks voice sample, which was the wrong voice
+entirely for having just put a man on the floor. The payout now has a `quiet`
+mode: it adds the money and keeps its mouth shut, and the swing keeps its own
+sound and its own banner.
+
+**Both of them react.** He goes down in three beats — head back, feet leave,
+then he lands, with dust off the floor and the stars after — because a man who
+simply becomes horizontal has not been hit by anything. The hero winds back,
+comes through hard, and is still settling a third of a second after the case
+has landed.
 
 The swing is checked **before** the bounds test, because it is not a step: he
 can have you cornered against the end of the car with nowhere to retreat, and
