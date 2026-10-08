@@ -1078,6 +1078,15 @@ know that.
   menace standing still. A head that snapped round would be a jump scare, and
   this is supposed to be worse than that.
 
+- and **he talks to you**. Not one of his fourteen lines is a threat, and that
+  is the entire point — the frightening version of a stranger on a train is the
+  one asking an ordinary question slightly wrong. *"Hey. Can I use your phone?"*,
+  *"Who do you work for?"*, *"What is in the case?"*, *"You look like
+  somebody."*, *"Where you gettin' off?"* He says one on the beats where
+  something nearly happens — a lurch, a tell — and never twice inside four
+  seconds, because a stranger who keeps talking is a character and he is
+  supposed to be a question. Three harder ones come out with the blade
+  (*"Give me the bag."*), where there is nothing left to wonder about.
 - and, now and then, **red eyes**. Two points come up inside the hood over
   0.7s, hold, and go out again over 1.3s, with a soft disc behind each one
   because a flat rect in a black opening reads as a sticker. They start at
@@ -1215,6 +1224,14 @@ band against 1.13 outside it, minimum 3. It keys on the street number rather
 than the leg, so the walk home is just as bad — and speech bubbles take one of
 three heights off the seed, because four people talking at once all at the same
 altitude is one illegible stack.
+
+**Nobody argues with the cape.** While he is flying they do not block him at
+all — he already passes over scaffolding and parked trucks, and a man standing
+on a pavement is not going to be the thing that stops him. They scatter on the
+spot, out of a queue if they were in one, and talk about it afterwards
+(*"Did you SEE that?"*, *"Only in New York."*, *"I am callin' somebody."*).
+Verified: on foot the first tap is refused and he stays put; flying, he takes
+the square in one tap and they are 1.15 tiles further along.
 
 **They hold their ground, and they tell you about it.** The first version had
 them slide out of the way as he closed. It stopped the sprites overlapping and

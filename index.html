@@ -3529,6 +3529,11 @@ function act(dir){
     for (var fb = 0; fb < target.folk.length; fb++){
       var fo = target.folk[fb];
       if (Math.abs(folkRaw(fo) - nc) >= 0.62) continue;
+      /* Flying through. He already passes over scaffolding and parked
+         trucks; a man standing on a pavement is not going to be the thing
+         that stops him. They jump, he keeps the step, and nobody has to tap
+         twice. */
+      if (G.flyT > 0){ folkScatter(fo, nc); AUDIO.jostle(); continue; }
       /* The one in fifty. Walking into them is not an argument, it is the
          renewal: the only place in the game where bumping into somebody is
          the right move. They still keep the square - he has stopped to
@@ -4383,7 +4388,7 @@ function startRide(enterRow, enterCol){
              shadyX:shady, knife:0, knifeSide:0, ko:0, koT:0, swing:0, brace:0,
              robbed:0, clack:0,
              hostile: Math.random() < SHADY_HOSTILE,
-             tell:0, look:0, lurch:0, eyes:0,
+             tell:0, look:0, lurch:0, eyes:0, sayAt:-99, sayLine:null,
              /* The people in the car get the same lives as the people on the
                 pavement: they are in his way until he says excuse me, and
                 they talk to each other while he is doing it. One per slot,
@@ -4577,6 +4582,16 @@ function updateRideSound(dt){
   }
 }
 
+/* One line at a time, and never twice inside four seconds - a stranger who
+   keeps talking is a character, and he is supposed to be a question. */
+function shadySay(R, hard){
+  if (R.t - (R.sayAt || -99) < 4) return;
+  var pool = hard ? SHADY_LINES_HARD : SHADY_LINES;
+  R.sayAt = R.t;
+  R.sayLine = pool[(Math.random()*pool.length)|0];
+  AUDIO.mutter(hard ? 3 : 11);          // the hard one lower
+}
+
 function updateShady(dt){
   var R = G.ride;
   if (R.shady < 0 || R.phase !== "run") return;
@@ -4613,9 +4628,15 @@ function updateShady(dt){
          the creep for half a second - and then stops dead. That half second
          is the whole of him. */
       if (R.moving && Math.random() < 0.25){ R.lurch = 0.5; R.pause = 0.5; }
+      /* He speaks on the beats where something nearly happens, which is what
+         makes an ordinary question land wrong. */
+      if (Math.random() < 0.42) shadySay(R, false);
       /* And now and then, standing still, a hand comes out of the pocket
          with something in it. Then it goes back. */
-      if (!R.moving && R.tell <= 0 && Math.random() < 0.30) R.tell = 0.9;
+      if (!R.moving && R.tell <= 0 && Math.random() < 0.30){
+        R.tell = 0.9;
+        if (Math.random() < 0.6) shadySay(R, false);
+      }
     }
     if (R.moving){
       var gapC = R.shadyX - rideManX(R);
@@ -4639,6 +4660,7 @@ function updateShady(dt){
 
   // the one in ten. He means it, and he is looking straight at you.
   R.look += (1 - R.look) * Math.min(1, dt * 5);
+  if (!R.robbed && !R.knife && Math.random() < dt * 0.35) shadySay(R, false);
   if (R.tell > 0) R.tell = Math.max(0, R.tell - dt);
 
   /* Robbed once, he has what he came for and backs off to where he started. */
@@ -4653,6 +4675,7 @@ function updateShady(dt){
     if (!R.knife){
       R.knife = 0.0001;
       R.knifeSide = R.shadyX >= rideManX(R) ? 1 : -1;
+      shadySay(R, true);
       AUDIO.knife();
       flash("HE HAS A KNIFE", "Move. Either way.", C.danger);
     } else {
@@ -5010,6 +5033,8 @@ function drawShady(cx0, cw, cy){
     ctx.globalAlpha = 1;
   }
 
+  if (R.sayLine) drawCarSay(mx + sw, HY(52), R.sayLine, R.t - R.sayAt);
+
   if (R.knife > 0){
     /* The blade comes out on the side he is approaching from, and the timer
        is drawn as a bar under him - this is a reaction test, and a reaction
@@ -5298,6 +5323,13 @@ var FOLK_LINES = [
 /* And what somebody standing in a line says. They do not step aside for him
    at all - a queue that parts for a stranger is not a queue - so this is the
    one obstacle in the game he has to wait out or walk round. */
+/* And what they say when he goes through at head height in an orange cape.
+   Nobody argues with that; they get out of the way and talk about it
+   afterwards. */
+var FOLK_LINES_FLY = [
+  "Whoa!", "Look out!", "Did you SEE that?", "Was that a guy?",
+  "Only in New York.", "I am callin' somebody."
+];
 var FOLK_LINES_BUSY = [
   "I'm in line here.",
   "One second, pal.",
@@ -5359,6 +5391,36 @@ var TRAIN_CHAT_RARE = [
   "Somebody is eating fish.",
   "Do not sit on that seat."
 ];
+/* What the man in the hood says. Not one of these is a threat, and that is
+   the entire point - the frightening version of a stranger on a train is the
+   one asking an ordinary question slightly wrong. "Who do you work for?" is
+   small talk and it is not, and the player has to decide which on no
+   information at all.
+
+   The hard set only comes out with the blade, where there is nothing left to
+   wonder about. */
+var SHADY_LINES = [
+  "Hey. Can I use your phone?",
+  "Who do you work for?",
+  "You got a dollar?",
+  "I seen you before.",
+  "Nice bag.",
+  "What is in the case?",
+  "You from around here?",
+  "What time is it?",
+  "You look like somebody.",
+  "Long ride, huh.",
+  "Where you gettin' off?",
+  "That a laptop?",
+  "You in a hurry?",
+  "Cold out there."
+];
+var SHADY_LINES_HARD = [
+  "Give me the bag.",
+  "Hand it over.",
+  "Do not."
+];
+
 var TRAIN_BUMP = [
   "Hey. Watch the shoes.",
   "There is a whole car, pal.",
@@ -5397,6 +5459,26 @@ function folkRaw(f){
   return ((f.x0 + f.v * (G.t - (f.frozen || 0))) % span + span) % span - 1.5;
 }
 function folkLane(f){ return f.lane || FOLK_Y; }
+/* Out of the way, now, whatever they were doing. Used when he comes through
+   flying: it drops them out of a queue if they were in one, folding the
+   standing position back into x0 the same way being served does, and then
+   shoves them a tile and a bit sideways with the slide easing out of it. */
+function folkScatter(f, fromCol){
+  var away = folkRaw(f) >= fromCol ? 1 : -1;
+  if (f.q){
+    var q = f.q.q || [], at = q.indexOf(f);
+    if (at >= 0) q.splice(at, 1);
+    f.x0 = (f.qx + 1.5) - f.v * (G.t - (f.frozen || 0));
+    f.q = null; f.waitT = null; f.coolT = 9;
+  }
+  f.x0 += away * FOLK_ASIDE;
+  f.slideAt = G.t; f.slideBack = -away * FOLK_ASIDE;
+  f.blockAt = -99; f.holdT = 0;
+  if (G.t - (f.sayAt || -99) > 1.2){
+    f.sayAt = G.t;
+    f.line = FOLK_LINES_FLY[(Math.random()*FOLK_LINES_FLY.length)|0];
+  }
+}
 
 /* Everybody on a pavement near the camera, once a frame. Two people who
    meet stop and have four words about it; somebody passing a cart may stop
@@ -5757,8 +5839,12 @@ function drawCar(ox, rock, lit){
       var pxx = mx + ((i % 2) ? 36 : -36);
       drawPax(pxx, cy + pfit.feet, i * 13 + 5, lit, psw, pfit.tall / 102);
       var pp2 = carPaxAt(R2, i);
-      if (pp2 && pp2.line) drawCarSay(pxx, cy + pfit.feet - pfit.tall - 16,
-                                      pp2.line, R2.t - pp2.sayAt);
+      /* Two heights, alternating down the car, for the same reason the
+         pavement has three: two people talking at once at the same altitude
+         is one illegible stack. */
+      if (pp2 && pp2.line)
+        drawCarSay(pxx, cy + pfit.feet - pfit.tall - 16 - (i % 2) * 30,
+                   pp2.line, R2.t - pp2.sayAt);
     }
     /* Straps, swinging with the car and each on its own slight delay down the
        length of it - a carriage of straps moving in lockstep looks welded. */
