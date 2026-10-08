@@ -532,6 +532,22 @@ A seller in a dark suit, white shirt and orange tie. Collect a TAM and the suit
 comes off: caped hero, orange rather than red, **T** rather than S, with a
 second baked cape state that streams back while airborne.
 
+**He is yellow, the way a minifigure is yellow.** Everybody else in the game is
+drawn from a real range of complexions on purpose — the street is Midtown and
+Midtown looks like Midtown — but the one you are *playing* is nobody in
+particular, and giving him a complexion makes him somebody. A seller in
+Hartford and a seller in Johannesburg are both meant to look down at that
+figure and see themselves holding the briefcase. Yellow is the convention that
+does that without picking anyone, and `#f8c83c` still reads as a face at 40px
+against a navy blazer, which a neutral grey would not. It is one constant,
+`HERO_SKIN`, used by both baked models and by every hand drawn over them at
+runtime — the fists in the cheer, the shrug at a closed turnstile, the figure
+in the Penn opening and the one at the bar — so the sprite and the gestures
+cannot drift apart. Verified across all six baked variants: the yellow is
+present in every one and the old tone in none. The hand signing the purchase
+order is left alone; that line says AUTHORISED SIGNATURE, and it is not his to
+sign.
+
 Cape geometry is dictated by the projection — depth renders as up-and-right, so
 a cape hanging straight down behind the torso sits in the same screen space as
 the legs and is invisible. It has to be wider than the body to read at all.
