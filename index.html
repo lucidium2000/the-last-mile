@@ -4982,7 +4982,12 @@ function update(dt){
   }
   if (G.ride){ updateRide(dt); if (G.ride) return; } G.sweep += dt*0.4; if (G.sweep > 1.7) G.sweep -= 1.7;
   if (G.hop < 1){
-    G.hop += dt*1000 / (HOP_MS * (1 - 0.32*G.flyA));   // airborne is quicker
+    /* Tired legs. Up to 40% longer on a step once he is nearly out, which is
+       a real cost - the crossing windows do not get any wider to match - but
+       it is the point: he is supposed to be struggling, and the fix for it is
+       lunch. Flight overrides it, since he is not walking. */
+    var drag = (G.flyT > 0) ? 1 : 1 + wornK() * 0.40;
+    G.hop += dt*1000 / (HOP_MS * (1 - 0.32*G.flyA) * drag);   // airborne is quicker
     if (G.hop >= 1){ G.hop = 1; collect(); }
   }
   if (G.slowT   > 0) G.slowT   = Math.max(0, G.slowT - dt);
@@ -6044,6 +6049,21 @@ function drawEatOverlay(){
   EAT_AT = null;
 }
 
+/* How far gone he is: 0 at the 20% threshold, 1 at nothing left. One place,
+   because the face, the sweat, the slump and his walking speed all have to
+   agree about it. */
+function wornK(){
+  if (G.hp >= HP_WORN || G.state !== ST_PLAY) return 0;
+  return Math.max(0, Math.min(1, (HP_WORN - G.hp) / HP_WORN));
+}
+/* He sinks on his feet and his chest works. Small numbers: a figure 110px tall
+   that visibly bounces reads as a bug, not as exhaustion. */
+function wornSag(){
+  var k = wornK();
+  if (!k) return 0;
+  return -(2 + k * 4) + Math.sin(G.t * 2.1) * (1 + k * 1.6);
+}
+
 /* Running on empty. The face is baked (see FACE_WORN); this is everything
    that has to move: sweat coming off him, laboured breath, and the heat
    coming off a man who has walked sixty blocks without eating.
@@ -6051,8 +6071,14 @@ function drawEatOverlay(){
    It gets heavier the lower he goes, so the player can read how bad it is
    without looking away from the road to check the bar. */
 function drawWorn(cx, topY){
-  var k = Math.max(0, Math.min(1, (HP_WORN - G.hp) / HP_WORN));   // 0 at 20%, 1 at 0
+  var k = wornK();
   var a = 0.35 + k * 0.5;
+  /* The anchor every overlay gets is the middle of his TILE, which is the
+     model at x=0.5 on the y=0 plane. His head is on the face plane, y=0.43,
+     and the projection shifts x by y*SKEW - so the head sits about twelve
+     pixels to the right of the anchor and the sweat was running down the air
+     beside his ear. */
+  var hx = cx + 0.43 * SKEW;
 
   /* Sweat. Each bead hangs at the brow, swells, then flicks off and falls -
      restarting on its own cycle so they never drip in step. */
@@ -6060,9 +6086,11 @@ function drawWorn(cx, topY){
   for (i = 0; i < beads; i++){
     var ph = (G.t * (0.75 + i * 0.13) + i * 0.37) % 1;
     var side = i % 2 ? 1 : -1;
-    var bx = cx + side * (13 + (i >> 1) * 7);
-    var by = topY + 26 + ph * ph * 62;
-    ctx.globalAlpha = a * (1 - ph * ph);
+    /* Down the temples rather than over the middle of his face - the head is
+       31px across, so +-9 and +-14 put them on the sides where sweat runs. */
+    var bx = hx + side * (9 + (i >> 1) * 5);
+    var by = topY + 20 + ph * ph * 58;
+    ctx.globalAlpha = Math.min(1, a * 1.5) * (1 - ph * ph);
     ctx.fillStyle = "#cfe6f4";
     var r = ph < 0.25 ? 2 + ph * 8 : 4;
     ctx.fillRect(bx - r / 2, by, r, r * 1.6);
@@ -6077,19 +6105,20 @@ function drawWorn(cx, topY){
   for (i = 0; i < 3; i++){
     var pr = br + i * 0.06;
     ctx.beginPath();
-    ctx.ellipse(cx + dir * (22 + pr * 46), topY + 44 - pr * 12,
-                7 + pr * 16, 5 + pr * 11, 0, 0, Math.PI * 2);
+    ctx.ellipse(hx + dir * (17 + pr * 42), topY + 40 - pr * 12,
+                6 + pr * 14, 4 + pr * 10, 0, 0, Math.PI * 2);
     ctx.fill();
   }
   ctx.globalAlpha = 1;
 
-  // and the heat, a thin shimmer that only shows when it is really bad
+  /* Heat coming OFF him, so it belongs above his head and not across his
+     eyes, where the first pass put it. */
   if (k > 0.45){
-    ctx.globalAlpha = (k - 0.45) * 0.30;
+    ctx.globalAlpha = (k - 0.45) * 0.34;
     ctx.fillStyle = "#ff8c6a";
     for (i = 0; i < 4; i++){
       var wv = Math.sin(G.t * 5 + i * 1.7) * 5;
-      ctx.fillRect(cx - 20 + wv, topY + 6 + i * 9, 40, 2);
+      ctx.fillRect(hx - 16 + wv, topY - 26 + i * 7, 32, 2);
     }
     ctx.globalAlpha = 1;
   }
@@ -6157,7 +6186,7 @@ function drawPlayer(pp){
   }
   // grows into the hero as he transforms, rather than popping
   var hk = 1 + 0.09 * G.flyA;
-  var lift = cheerLiftNow();
+  var lift = cheerLiftNow() + wornSag();
   var topY = sy - pp.lift - lift - G.flyA * 78 - s.oy * ((1 + pp.sq * 0.14) * hk);
   EAT_AT = { x: sx + TILE * 0.5, y: topY };
   if (G.yumT > 0){

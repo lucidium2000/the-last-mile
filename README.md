@@ -579,10 +579,27 @@ bar:
 - **The face** — a fourth baked expression. Eyes half shut, flat heavy brows,
   mouth open to breathe, and colour in the cheeks that has nothing to do with
   being pleased about anything.
-- **Sweat** — beads that hang at the brow, swell, flick off and fall, each on
+- **Sweat** — beads down the temples that swell, flick off and fall, each on
   its own cycle so they never drip in step. Two at 20%, four near zero.
 - **Breath**, on the side he is facing.
-- **Heat** coming off him, below about 11%.
+- **Heat** coming off him, above his head, below about 11%.
+- **A slump** — he sinks 2 to 6px on his feet with his chest working. Small
+  numbers on purpose: a figure 110px tall that visibly bounces reads as a bug,
+  not as exhaustion.
+- **Tired legs** — up to **40% longer on a step**. A real cost, since the
+  crossing windows do not widen to match, but that is the point: he is
+  supposed to be struggling, and the fix is lunch. Flight overrides it.
+
+Measured step times against a healthy 0.150s: 20% → ×1.00, 18% → ×1.00,
+10% → ×1.11, 5% → ×1.22, 2% → ×1.33, and flying at 2% → ×1.00. The drag
+itself is applied exactly; what is observable quantises to whole frames,
+because a hop can only finish on a 1/60s boundary.
+
+**The overlay anchor is not the middle of his face.** Every overlay is handed
+the centre of his *tile* — the model at x=0.5 on the `y=0` plane — but his head
+sits on the face plane at `y=0.43`, and the projection shifts x by `y * SKEW`.
+The head is therefore **11.6px to the right** of the anchor, and the first pass
+ran the sweat down the air beside his ear.
 
 It is the lowest-priority face: a reaction to something in front of him beats
 the state he is in, and eating is what fixes it anyway.
