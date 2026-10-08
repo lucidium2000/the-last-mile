@@ -568,7 +568,19 @@ A walk uptown is tiring, and the only thing that fixes tired is lunch.
 | Bagel | **+10%** · $7 · one a cart |
 | Hot dog | **+7%** · $3 · **two** a cart |
 | An objection that lands | **−15% to −100%**, see below |
-| Endpoint Agent shield | absorbs the hit completely, costs no health |
+| Endpoint Agents shield | absorbs the hit completely, costs no health |
+
+**The shield stacks.** A second set of Endpoint Agents on top of the first
+turns the coat purple and adds a wide-brim hat and a cane, and it is worth
+**two** hits: purple takes one and drops to blue, blue takes one and drops to
+nothing, and only the third actually lands. The badge beside the health bar
+doubles up so the number of free hits left is countable rather than inferred
+from the colour. A third pickup is capped.
+
+Verified: 1 agent → blue, 2 → purple, 3 → still purple; hit one leaves 100%
+health and the blue coat, hit two leaves 100% and no coat, hit three takes the
+full −75%. And the sprite actually worn at each level is the bare, blue and
+purple variant respectively.
 
 While it is held, a **blue shield badge sits against the right-hand end of the
 health bar** rather than in the power-up chip row. What it does is take one hit
@@ -721,6 +733,15 @@ rather than a different sprite.
 The curve needs a step of about 3px across a 14.5px head or the three rects line
 up and read as a straight bar. The first attempt used 1.3px and did exactly
 that.
+
+**Hats and hair sort on the back edge.** Parts are drawn furthest-first by
+`y + d`, with ties broken on `z`. The hair reached 0.59 against the head's
+0.58, which made it one step further away and hung it off the back of his
+skull rather than sitting on top; the first hat was worse, at 0.62, and read
+as a purple frame standing behind him. Matching the head's back edge drops
+both onto the `z` tiebreak, and a higher `z` is what "on top" means in this
+projection. A brim may still overhang *forward* — a smaller `y` — because that
+is the only direction it can reach without going behind the head.
 
 **Walking into a spent cart** is its own answer now. A cart serves a fixed number
 of times and the stand is still standing there afterwards, so without a reaction

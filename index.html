@@ -1597,10 +1597,15 @@ var MODELS = {
 var FACE_SMILE = 1, FACE_CHEW = 2, FACE_SAD = 3, FACE_WORN = 4,
     FACE_FLAT = 5, FACE_MEH = 6, FACE_OK = 7;
 var HP_HAPPY = 75, HP_LEVEL = 50;
+/* `shielded` is a LEVEL now, not a flag: 0 bare, 1 the blue Endpoint blazer
+   and sunglasses, 2 the purple coat with the hat and the cane. The old
+   boolean still works at the call sites that pass one, because 1 is truthy
+   and true coerces to 1. */
 function playerModel(dir, shielded, face){
   var skin = "#e9b98c";
-  var suit = shielded ? BLAZER : "#232f44";
-  var suitDark = "#19222f";
+  var lvl = shielded === true ? 1 : (shielded | 0);
+  var suit = lvl >= 2 ? BLAZER2 : (lvl ? BLAZER : "#232f44");
+  var suitDark = lvl >= 2 ? "#4e2375" : "#19222f";
   var parts = [
     P(0.28, 0.46, 0.16, 0.13, 0,     0.06,  "#12151a"),      // shoes
     P(0.56, 0.46, 0.16, 0.13, 0,     0.06,  "#12151a"),
@@ -1612,7 +1617,12 @@ function playerModel(dir, shielded, face){
     P(0.76, 0.45, 0.08, 0.12, 0.34,  0.21,  shade(suit,-0.24)),
     P(0.42, 0.44, 0.16, 0.14, 0.615, 0.04,  shade(skin,-0.30)),// neck
     P(0.37, 0.43, 0.26, 0.15, 0.655, 0.145, skin),           // head
-    P(0.355, 0.42, 0.29, 0.17, 0.78, 0.075, "#2b1d14")       // hair
+    /* Parts are sorted on their BACK edge, y+d, and ties are broken by z.
+       The hair used to reach 0.59 against the head's 0.58, which made it one
+       step further away and put it behind him - a dark slab hanging off the
+       back of his skull. Matching the head's back edge drops it onto the z
+       tiebreak, and a higher z is what "on top" means here. */
+    P(0.355, 0.42, 0.29, 0.16, 0.78, 0.075, "#2b1d14")       // hair
   ];
   parts.push(P(dir > 0 ? 0.82 : 0.05, 0.46, 0.15, 0.13, 0.17, 0.14, "#17202c"));
   var dec = [
@@ -1622,7 +1632,25 @@ function playerModel(dir, shielded, face){
     { x:0.30,  y:0.42, w:0.10, z:0.35,  h:0.22,  bg:shade(suit,0.10) },
     { x:0.60,  y:0.42, w:0.10, z:0.35,  h:0.22,  bg:shade(suit,0.10) }
   ];
-  if (shielded){
+  if (lvl >= 2){
+    /* The hat. A brim wide enough to read at this size, a tall crown, a band
+       and one feather - and the cane in his outside hand, which is the hand
+       the projection shows. Both are parts rather than decals so the painter
+       sort puts them in front of and behind him correctly. */
+    var felt = "#6a2fa0", band = "#2a1540", gold = "#e8c558";
+    /* Every piece shares the head's back edge of 0.58, so they sort against
+       it on z alone and stack upwards instead of standing behind him. The
+       brim is allowed to reach further FORWARD - smaller y - because that is
+       the only direction a brim can overhang without going behind his head. */
+    parts.push(P(0.275, 0.40, 0.45, 0.18, 0.855, 0.032, felt));        // brim
+    parts.push(P(0.360, 0.43, 0.28, 0.15, 0.887, 0.100, shade(felt, 0.10))); // crown
+    parts.push(P(0.360, 0.43, 0.28, 0.15, 0.887, 0.026, band));        // hatband
+    parts.push(P(0.600, 0.43, 0.05, 0.15, 0.975, 0.075, gold));        // the feather
+    var cx2 = dir > 0 ? 0.845 : 0.11;
+    parts.push(P(cx2, 0.455, 0.035, 0.05, 0.02, 0.46, "#2b1a12"));    // the cane
+    parts.push(P(cx2 - 0.012, 0.45, 0.06, 0.06, 0.47, 0.045, gold));  // its head
+  }
+  if (lvl){
     /* Two separate lenses with skin showing between them and a narrow bridge
        at eye height. One continuous bar across the face read as a visor. */
     dec.push({ x:0.378, y:0.43, w:0.104, z:0.704, h:0.052, bg:"#0a0d12" });  // L lens
@@ -1650,7 +1678,7 @@ function playerModel(dir, shielded, face){
      about 3px on a head 14.5px tall, or the three rects line up and read as a
      straight bar. The first attempt used a 1.3px step and did exactly that. */
   if (face){
-    if (!shielded){
+    if (!lvl){
       var eyeZ = face === FACE_SAD ? 0.738 : 0.742;
       if (face === FACE_WORN){
         // half shut: wider and flatter, sitting low, under a heavy brow
@@ -1769,7 +1797,8 @@ function heroModel(dir, flying){
   parts.push(P(0.77, 0.45, 0.09, 0.12, 0.38,  0.20,  shade(suit,-0.22)));
   parts.push(P(0.42, 0.44, 0.16, 0.14, 0.635, 0.04,  shade(skin,-0.30))); // neck
   parts.push(P(0.37, 0.43, 0.26, 0.15, 0.675, 0.145, skin));
-  parts.push(P(0.355, 0.42, 0.29, 0.17, 0.80, 0.075, "#2b1d14"));
+  // same back edge as the head, so the z tiebreak puts it on top of him
+  parts.push(P(0.355, 0.42, 0.29, 0.16, 0.80, 0.075, "#2b1d14"));
 
   return { parts:parts, decals:[
     // shield: wide top, tapered bottom, with the T across it
@@ -1803,8 +1832,13 @@ function heroModel(dir, flying){
    not the value, so declaring it afterwards left agent.col undefined and
    threw inside bakeAll() - the page never finished initialising. */
 var BLAZER = "#2f62c4";   // the Endpoint blue: blazer, pickup and ring all match
+/* Deploy a second set of agents on top of the first and the coat goes purple.
+   It is worth two hits rather than one, and it comes off a layer at a time -
+   purple to blue to nothing - so you can see exactly what you have left
+   without reading anything. */
+var BLAZER2 = "#7b3fb5";
 var POWERS = {
-  agent:  { col:BLAZER, letter:"E", name:"ENDPOINT",
+  agent:  { col:BLAZER, letter:"E", name:"ENDPOINT AGENTS",
             line:"A shield. Absorbs the next objection.", secs:0 },
   insight:{ col:C.pw2, letter:"I", name:"INTERNET INSIGHTS",
             line:"The whole grid drops into slow motion.", secs:11 },
@@ -2367,13 +2401,17 @@ function bakeAll(){
   }
   S.player_r  = bake(playerModel(1, false));
   S.player_l  = bake(playerModel(-1, false));
-  S.playerS_r = bake(playerModel(1, true));
-  S.playerS_l = bake(playerModel(-1, true));
+  S.playerS_r = bake(playerModel(1, 1));
+  S.playerS_l = bake(playerModel(-1, 1));
+  S.playerP_r = bake(playerModel(1, 2));
+  S.playerP_l = bake(playerModel(-1, 2));
   for (var fc = 1; fc <= 7; fc++){
-    S["pf" + fc + "_r"]  = bake(playerModel(1, false, fc));
-    S["pf" + fc + "_l"]  = bake(playerModel(-1, false, fc));
-    S["pf" + fc + "S_r"] = bake(playerModel(1, true, fc));
-    S["pf" + fc + "S_l"] = bake(playerModel(-1, true, fc));
+    S["pf" + fc + "_r"]  = bake(playerModel(1, 0, fc));
+    S["pf" + fc + "_l"]  = bake(playerModel(-1, 0, fc));
+    S["pf" + fc + "S_r"] = bake(playerModel(1, 1, fc));
+    S["pf" + fc + "S_l"] = bake(playerModel(-1, 1, fc));
+    S["pf" + fc + "P_r"] = bake(playerModel(1, 2, fc));
+    S["pf" + fc + "P_l"] = bake(playerModel(-1, 2, fc));
   }
   S.hero_r    = bake(heroModel(1, false));
   S.hero_l    = bake(heroModel(-1, false));
@@ -3420,7 +3458,13 @@ function collect(){
     /* The blazer going blue is the biggest visual change in the game and it
        used to happen in silence. Now he jumps, puts both hands up, and the
        sound says so. */
-    G.shield = true; G.cheerT = CHEER_SECS;
+    /* A second set on top of the first stacks rather than being wasted. */
+    var was = G.shield | 0;
+    G.shield = Math.min(2, was + 1);
+    G.cheerT = CHEER_SECS;
+    if (G.shield > was && G.shield === 2)
+      flash("ENDPOINT AGENTS \u00d72", "Purple. Two objections bounce off this.",
+            BLAZER2);
   }
   else if (kind === "insight") G.slowT = Math.max(G.slowT, k.secs);
   else if (kind === "traffic") G.riskT = Math.max(G.riskT, k.secs);
@@ -4061,8 +4105,9 @@ function drawRider(cx0, cw, cy){
   if (!R) return;
   var mx = rideSlotX(rideManX(R), cx0, cw);
   var lift = (R.stepT != null && R.stepT < 1) ? Math.sin(R.stepT * Math.PI) * 7 : 0;
-  var sp = G.shield ? (R.face < 0 ? S.playerS_l : S.playerS_r)
-                    : (R.face < 0 ? S.player_l  : S.player_r);
+  var sp = G.shield >= 2 ? (R.face < 0 ? S.playerP_l : S.playerP_r)
+         : G.shield      ? (R.face < 0 ? S.playerS_l : S.playerS_r)
+                         : (R.face < 0 ? S.player_l  : S.player_r);
 
   /* A stride leans. Without it he is a sprite being slid along a floor; with
      four degrees of it, into the direction of travel and back upright as he
@@ -5375,13 +5420,17 @@ function landFromFlight(){
 
 function hitPlayer(kind, pp){
   if (G.invulnT > 0) return;
-  if (G.shield){
+  if (G.shield > 0){
     /* Taking the hit should land, not just tick a counter: a hard shake, a
        hit-stop that freezes the world for a beat, a red wash, and the figure
        flickering while he recovers. */
-    G.shield = false; G.invulnT = 1.3; G.shake = 30; G.hurtT = 0.6;
+    G.shield = (G.shield | 0) - 1;
+    G.invulnT = 1.3; G.shake = 30; G.hurtT = 0.6;
     AUDIO.hurt();
-    flash("OBJECTION ABSORBED", "That one cost you the shield.", BLAZER);
+    flash("OBJECTION ABSORBED",
+          G.shield > 0 ? "Down to the blue one. One more is still free."
+                       : "That one cost you the shield.",
+          G.shield > 0 ? BLAZER2 : BLAZER);
     burst(pp.col*TILE + TILE/2, rowScreenY(pp.row) - 40, "#ff5e6e");
   } else {
     /* An objection used to end the run outright. Now it takes a bite out of
@@ -6768,10 +6817,11 @@ function drawPlayer(pp){
            : G.hp < HP_HAPPY ? FACE_FLAT
            : FACE_OK;
     }
-    var suffix = (G.shield ? "S" : "") + (right ? "_r" : "_l");
+    var suffix = (G.shield >= 2 ? "P" : G.shield ? "S" : "") + (right ? "_r" : "_l");
     s = face ? S["pf" + face + suffix]
-             : (G.shield ? (right ? S.playerS_r : S.playerS_l)
-                         : (right ? S.player_r  : S.player_l));
+             : (G.shield >= 2 ? (right ? S.playerP_r : S.playerP_l)
+                : G.shield      ? (right ? S.playerS_r : S.playerS_l)
+                                : (right ? S.player_r  : S.player_l));
   }
   if (!s) s = right ? S.player_r : S.player_l;
   var sx = pp.col*TILE, sy = rowScreenY(pp.row);
@@ -7114,7 +7164,8 @@ function drawSay(str, cx, topY, t){
    whole gesture. */
 function drawHandsUp(cx, topY, t){
   var up = Math.sin(Math.min(1, t / 0.9) * Math.PI);
-  var coat = G.shield ? shade(BLAZER, -0.24) : "#19222f";
+  var coat = G.shield >= 2 ? shade(BLAZER2, -0.20)
+           : G.shield      ? shade(BLAZER, -0.24) : "#19222f";
   var sy2 = topY + 46, len = 30 + up * 16;
   ctx.globalAlpha = Math.min(1, t / 0.15);
   for (var k = -1; k <= 1; k += 2){
@@ -7443,9 +7494,15 @@ function txt(s,x,y,size,col,align,maxW){
 /* A shield, drawn as a path rather than a glyph: straight across the top,
    shoulders, and a point at the bottom. It breathes, so it reads as live. */
 function drawShieldBadge(x, y, w, h){
+  /* Two agents, two shields: the badge doubles up so the number of free hits
+     left is countable at a glance rather than inferred from the colour. */
+  var two = G.shield >= 2;
+  var col = two ? BLAZER2 : BLAZER;
+  var glow = two ? "#d3a6ff" : "#8fc2ff";
+  var edge = two ? "#e6ccff" : "#bcd9ff";
   var pul = 0.5 + 0.5 * Math.sin(G.t * 2.4);
   plate(x, y, w, h, C.ink, 12);
-  var cx = x + w / 2, top = y + 10, bot = y + h - 9, hw = w * 0.33;
+  var cx = x + w / 2, top = y + 10, bot = y + h - 9, hw = w * (two ? 0.26 : 0.33);
 
   function shield(sx, sy2, sw, sh2){
     ctx.beginPath();
@@ -7457,22 +7514,31 @@ function drawShieldBadge(x, y, w, h){
     ctx.closePath();
   }
 
-  ctx.globalAlpha = 0.22 + 0.18 * pul;          // the glow behind it
-  ctx.fillStyle = "#8fc2ff";
-  shield(cx, top - 3, hw + 4, bot - top + 6); ctx.fill();
-  ctx.globalAlpha = 1;
+  function one(ox, c, lit){
+    ctx.globalAlpha = 0.22 + 0.18 * pul;        // the glow behind it
+    ctx.fillStyle = glow;
+    shield(cx + ox, top - 3, hw + 4, bot - top + 6); ctx.fill();
+    ctx.globalAlpha = 1;
 
-  ctx.fillStyle = BLAZER;
-  shield(cx, top, hw, bot - top); ctx.fill();
-  ctx.fillStyle = shade(BLAZER, 0.26);          // the lit half
-  ctx.save(); ctx.beginPath();
-  ctx.rect(cx - hw, top, hw, bot - top); ctx.clip();
-  shield(cx, top, hw, bot - top); ctx.fill();
-  ctx.restore();
-  ctx.strokeStyle = "#bcd9ff"; ctx.lineWidth = 2;
-  shield(cx, top, hw, bot - top); ctx.stroke();
-
-  txt("E", cx, top + (bot - top) * 0.60, 24, "#eaf2ff");
+    ctx.fillStyle = c;
+    shield(cx + ox, top, hw, bot - top); ctx.fill();
+    ctx.fillStyle = shade(c, 0.26);             // the lit half
+    ctx.save(); ctx.beginPath();
+    ctx.rect(cx + ox - hw, top, hw, bot - top); ctx.clip();
+    shield(cx + ox, top, hw, bot - top); ctx.fill();
+    ctx.restore();
+    ctx.strokeStyle = lit; ctx.lineWidth = 2;
+    shield(cx + ox, top, hw, bot - top); ctx.stroke();
+  }
+  if (two){
+    // the blue one behind, the purple one in front and slightly proud of it
+    one(-11, BLAZER, "#bcd9ff");
+    one(9, BLAZER2, edge);
+    txt("E", cx + 9, top + (bot - top) * 0.60, 20, "#f3eaff");
+  } else {
+    one(0, col, edge);
+    txt("E", cx, top + (bot - top) * 0.60, 24, "#eaf2ff");
+  }
 }
 
 function drawHealth(x, y, w, h){
@@ -7597,7 +7663,7 @@ function drawHud(){
      row, because what it does is take one hit instead of the bar taking it.
      Putting it with the other power-ups said nothing about which number it
      was protecting. */
-  if (G.shield) drawShieldBadge(hbX + 560 + 12, 986, 66, 62);
+  if (G.shield > 0) drawShieldBadge(hbX + 560 + 12, 986, 66, 62);
 
   /* Once engaged the TAM never lapses, so it gets a standing badge rather
      than a timed chip. The counter is the point: it keeps delivering. */
