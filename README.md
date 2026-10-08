@@ -380,8 +380,13 @@ attention.
 
 `brandHit` is the opposite. The mark comes up out of the middle of the screen at
 the size of a dinner plate, two rings leave it, and the product is spelled out
-in full underneath — **THOUSANDEYES** over **TAM** or **ADD-ON PACK** — with
-`AUDIO.wow()` over the top. The banner that follows says `THOUSANDEYES ADD-ON
+in full underneath — **THOUSANDEYES** over **TAM** or **ADD-ON PACK** — over a
+**cash register**. The mechanism first, two short noise bursts, one bright and
+one dull, which is the *cha*; then the bell a twentieth of a second later, four
+partials at inharmonic intervals because a real bell is not a chord and a sine
+on its own is a doorbell; then the drawer coming out and stopping. Eight chains
+scheduled, all of them torn down afterwards — measured 0 live nodes before and
+0 after, which on this file is not a formality. The banner that follows says `THOUSANDEYES ADD-ON
 PACK` rather than `TE-ADDON ATTACHED`, and the pickup label on the pack itself
 says `THOUSANDEYES ADD-ON`. The point is that seeing the brand should be the
 good feeling, not the small print on it.

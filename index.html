@@ -376,6 +376,24 @@ var AUDIO = (function(){
       hit({ f:1400, to:500, dur:0.10, g:0.055 });
       tone({ f:132, to:112, dur:0.11, type:"sine", g:0.085 });
     },
+    /* A cash register. The mechanism first - two short noise bursts, one
+       bright and one dull, which is the "cha" - then the bell a twentieth of
+       a second later: four partials at inharmonic intervals, because a real
+       bell is not a chord and a sine on its own is a doorbell. Then the
+       drawer coming out and stopping.
+
+       It plays on a TAM and on an Add-On Pack, over the top of their own
+       cues, because the thing being said is about money. */
+    chaChing: function(){
+      hit({ f:3400, hp:true, dur:0.05, g:0.10 });
+      hit({ f:900, dur:0.07, g:0.055, at:0.012 });
+      tone({ f:1318.51, dur:0.42, type:"sine", g:0.130, at:0.055 });
+      tone({ f:1975.53, dur:0.50, type:"sine", g:0.100, at:0.060 });
+      tone({ f:2637.02, dur:0.34, type:"sine", g:0.055, at:0.070 });
+      tone({ f:3951.07, dur:0.22, type:"sine", g:0.026, at:0.080 });
+      tone({ f:160, to:118, dur:0.17, type:"triangle", g:0.090, at:0.095, lp:500 });
+      hit({ f:430, dur:0.06, g:0.050, at:0.200 });
+    },
     /* Somebody saying something. Not words - two or three short formant
        blips through a low-pass, which is roughly what speech is across a
        pavement and is the oldest trick in the book for a reason. The seed
@@ -9247,7 +9265,7 @@ function drawHud(){
 var BRAND_HIT = 1.10;
 function brandHit(what, col){
   G.brand = { life:BRAND_HIT, max:BRAND_HIT, what:what, col:col };
-  AUDIO.wow();
+  AUDIO.chaChing();
 }
 function drawBrandHit(){
   var B = G.brand;
