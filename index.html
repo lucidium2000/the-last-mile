@@ -701,6 +701,14 @@ var AUDIO = (function(){
       tone({ f:92, to:44, dur:0.40, type:"triangle", g:0.14, at:0.50, lp:200 });
       hit({ f:4200, hp:true, dur:0.10, g:0.035, at:0.52 });
     },
+    /* Brakes. A short squeal of pad on disc and the car settling on its
+       springs - not a crash, just somebody who saw him in time. */
+    brakes: function(){
+      tone({ f:1500, to:620, dur:0.30, type:"sawtooth", g:0.045, lp:2600 });
+      tone({ f:1180, to:520, dur:0.26, type:"sawtooth", g:0.030, at:0.04, lp:2300 });
+      hit({ f:2400, to:700, hp:true, dur:0.22, g:0.045 });
+      hit({ f:140, to:60, dur:0.18, g:0.09, at:0.26 });
+    },
     /* Jointed rail under the wheels. Two axles over the same gap, a beat
        apart, with a little rattle on top - the sound a car makes all the way
        uptown and the thing the ride was missing most. */
@@ -1824,7 +1832,7 @@ var HP_HIT = 75;           // an objection you did not see coming
 var HP_PER_STREET = 3;     // the walk itself
 var HP_LOW = 25;           // below this the bar starts shouting
 var HP_CRAWL = 5;          // and below this it only costs a point a street
-var HP_WORN  = 20;         // and below this it starts to show on him
+var HP_WORN  = 25;         // and below this it starts to show on him
 
 /* A fifth less often: it was 0.52, and a run that opens with a TAM is a
    different game from one that does not. */
@@ -2393,7 +2401,7 @@ function makeRoad(r, streetNo, dir){
 
   var row = { type:"road", streetNo:streetNo, dir:dir, speed:speed, kind:kind,
               cars:cars, eff:eff, packN:packN, packGap:packGap,
-              parked:[], blocked:{}, rogue:null, rv:1, bounce:0, park:park,
+              parked:[], blocked:{}, rogue:null, rv:1, bounce:0, halt:0, park:park,
               /* Which livery this row wears. Only buses differ; everything
                  else falls back to the one sprite for its kind. */
               skin: kind === "bus"
@@ -2884,7 +2892,36 @@ function streetAt(r){
   for (var i=r;i>=0;i--){ var w = rows[i]; if (w && w.streetNo) return w.streetNo; }
   return START_ST;
 }
+/* A scene used to fire the moment the street number ticked over, which is the
+   moment he steps OFF the kerb into the first lane of that crossing. The world
+   is frozen behind a cutscene, so he spent it standing in live traffic and
+   sceneStepBack had to haul him out afterwards.
+
+   Now it looks one row ahead instead: standing on a pavement, if the next
+   crossing belongs to a street with a scene he has not seen, it opens here,
+   with the kerb under his feet. The sweep in progress() stays as the backstop
+   for arrivals that skip the pavement entirely - a subway ride, or a sponsor
+   carrying him three rows at once. */
+function sceneLookahead(){
+  if (G.state !== ST_PLAY || G.scene || G.ride) return;
+  var here = rows[G.maxRow];
+  if (!here || here.type !== "safe") return;
+
+  var next = null;
+  for (var r = G.maxRow + 1; r <= G.maxRow + 8; r++){
+    var w = rows[r];
+    if (!w) return;                       // not generated yet; try again later
+    if (w.type === "safe") continue;      // still pavement
+    next = w.streetNo; break;
+  }
+  if (next === null) return;
+
+  var table = G.leg > 0 ? SCENES : SCENES_BACK;
+  if (table[next] && !G.scenesSeen["L" + G.leg + "_" + next]) startScene(next);
+}
+
 function progress(){
+  sceneLookahead();
   var st = streetAt(G.maxRow);
   if (st !== G.street){
     var prev = G.street, step = st > prev ? 1 : -1, n;
@@ -3474,7 +3511,9 @@ function colSafeFor(r, col, secs){
   if (row.type === "sweep") return row.phase === "idle";
   if (row.type !== "road") return true;
   var p0 = col+0.12, p1 = col+0.88;
-  var k = (G.slowT > 0) ? SLOW_K : 1;
+  /* A halted lane is genuinely safe, and the predictor has to know or it will
+     paint a stopped street red and refuse to call a clear crossing clear. */
+  var k = (row.halt > 0) ? 0 : ((G.slowT > 0) ? SLOW_K : 1);
   var spec = HAZ[row.kind], i;
   for (i=0;i<row.cars.length;i++){
     var x = carX(row, row.cars[i]);
@@ -3588,16 +3627,24 @@ function startRide(enterRow, enterCol){
   if (dest === null && legDir > 0 && cap !== null && streetAt(cap) > fromSt) dest = cap;
   if (dest === null){ AUDIO.bump(); return; }
 
-  // find or plant the exit
-  var exitCol = -1, dw = rows[dest], i;
-  for (i = 0; i < dw.props.length; i++){
-    if (dw.props[i].kind === "subway"){ exitCol = dw.props[i].col; break; }
+  /* He comes up in the MIDDLE of the pavement, every time. It used to reuse
+     whatever station entrance the row happened to have, or plant one wherever
+     there was space, so he surfaced at a random column and the first thing
+     the player had to do after a ride was work out where he was. The stair is
+     the landmark; it belongs under the camera.
+
+     Anything already standing in the middle column is moved aside rather than
+     left to overlap the stair. */
+  var dw = rows[dest], i;
+  var exitCol = COLS >> 1;
+  for (i = dw.props.length - 1; i >= 0; i--){
+    if (dw.props[i].col === exitCol) dw.props.splice(i, 1);
   }
-  if (exitCol < 0){
-    var cand = placeBlockers(1);
-    exitCol = cand.length ? cand[0] : (COLS >> 1);
-    dw.props.push({ col:exitCol, kind:"subway" });
+  // any station entrance the row already had is redundant now
+  for (i = dw.props.length - 1; i >= 0; i--){
+    if (dw.props[i].kind === "subway") dw.props.splice(i, 1);
   }
+  dw.props.push({ col:exitCol, kind:"subway" });
   delete dw.blocked[exitCol];
 
   G.metro--;                             // one swipe, one fare
@@ -3616,7 +3663,9 @@ function startRide(enterRow, enterCol){
              rock:0, slot:2, slotX:2, slotFrom:2, stepT:1,
              face:1, shady:shady, cash:cash, cashGot:false, met:false,
              shadyX:shady, knife:0, knifeSide:0, ko:0, koT:0, swing:0, brace:0,
-             robbed:0, clack:0 };
+             robbed:0, clack:0,
+             hostile: Math.random() < SHADY_HOSTILE,
+             pause: 1 + Math.random() * 2 };
   G.col = enterCol; G.fromCol = enterCol;
   G.row = enterRow; G.fromRow = enterRow; G.hop = 1;
   G.invulnT = Math.max(G.invulnT, 1.2);
@@ -3637,7 +3686,14 @@ var RIDE_SLOTS = 5;
    game you are, and a mugger who moves on your grid looks like another
    commuter. Everything else here is the window you get once he is close. */
 var RIDE_STEP = 0.20;      // how long he takes to cross from one slot to the next
-var SHADY_SPEED = 0.52;    // slots a second
+var SHADY_SPEED = 0.52;    // slots a second, when he means it
+/* Nine times in ten he is just a man on a train. He still gets on, he still
+   watches, he may still drift up the car - but he does not draw anything and
+   he does not take anything. The one time in ten that he does is worth
+   something precisely because the other nine were nothing. */
+var SHADY_HOSTILE = 0.10;
+var SHADY_CREEP = 0.13;    // slots a second when he is only being odd about it
+var SHADY_KEEP  = 1.35;    // and he never comes closer than this
 var KNIFE_NEAR  = 0.95;    // how close before the blade comes out
 var KNIFE_GRACE = 1.70;    // how long you have to do something about it
 var SWING_REACH = 1.30;    // how far the briefcase carries
@@ -3712,6 +3768,9 @@ function rideAct(dir){
     flash("HE IS WATCHING YOUR BAG", "Keep walking. Eyes forward.", "#9aa0a6");
     AUDIO.nope();
   }
+  /* Walking into the one who is only being odd about it gets nothing. No
+     knife means no swing, and a man who has done nothing does not get hit
+     with a briefcase. */
 }
 
 /* His drawn position, which is not his logical one while he is mid-stride.
@@ -3754,6 +3813,30 @@ function updateShady(dt){
   if (R.swing > 0) R.swing = Math.max(0, R.swing - dt);
   if (R.brace > 0) R.brace = Math.max(0, R.brace - dt);
   if (R.ko){ R.koT += dt; return; }
+
+  /* The nine-in-ten version: he drifts up the car and stops a yard and a half
+     short, with long pauses in between. Nothing happens. That is the whole
+     point of him - the car feels wrong, and then you get off.
+
+     He holds his ground rather than retreating if the player walks at him,
+     which is more unsettling than either following or fleeing. */
+  if (!R.hostile){
+    R.pause -= dt;
+    if (R.pause <= 0) R.pause = (R.moving = !R.moving) ? 1.4 + Math.random() * 2.6
+                                                       : 1.0 + Math.random() * 2.4;
+    if (R.moving){
+      var gapC = R.shadyX - rideManX(R);
+      var wantC = rideManX(R) + (gapC >= 0 ? SHADY_KEEP : -SHADY_KEEP);
+      var dC = wantC - R.shadyX, stepC = SHADY_CREEP * dt;
+      // only ever towards him, never away
+      if ((dC > 0) === (gapC < 0)){
+        if (Math.abs(dC) <= stepC) R.shadyX = wantC;
+        else R.shadyX += (dC > 0 ? stepC : -stepC);
+      }
+    }
+    R.knife = 0;
+    return;
+  }
 
   /* Robbed once, he has what he came for and backs off to where he started. */
   var to = R.robbed ? R.shady : rideManX(R);
@@ -5037,12 +5120,20 @@ function updateScene(dt){
     }
   }
   if (G.scene.t < G.scene.len) return;
-  var sc = G.scene.sc;
+  /* Take the street off the scene before dropping it - `sc` is the table
+     entry and does not carry one, and the turn below needs to know where it
+     happened. */
+  var sc = G.scene.sc, sceneSt = G.scene.st;
   G.scene = null;
   if (!sc) return;
   /* Some scenes leave you holding an instruction, and two of them change the
      game: the signing turns the city round, and Penn 1 ends it. */
   if (sc.turn){
+    /* The scene opens on the pavement BEFORE the street, so by the numbers he
+       has not reached it yet. He has - that is where the restaurant is - so
+       the countdown home starts from the scene's own street rather than from
+       the kerb he happens to be standing on. */
+    G.street = Math.max(G.street, sceneSt || G.street);
     G.leg = -1; G.po = true;
     /* He has just sat down to a steak. Forty-seven blocks back to Penn 1 is a
        second run in all but name, and starting it on whatever was left of the
@@ -5402,18 +5493,25 @@ function update(dt){
                       ? Math.min(1, (SWERVE_FROM - approach) / 1.9) : 0);
           want = -SWERVE_PX * near * (go > 0 ? 1 : -1);
 
-          /* The turn-around is the fallback, not the first answer: a driver who
-             has already pulled clear just goes past. Without this guard the
-             flip fired at 3.2 tiles, before any swerve had developed, and the
-             avoidance was decoration. */
+          /* Anything that cannot get round him STOPS. It used to turn the
+             whole lane around, which worked - gaps were preserved exactly -
+             but a street full of traffic reversing on the spot is a strange
+             thing to watch and it threw the cars he had already judged safe
+             back across his path. Brakes are the obvious reading of "that
+             driver has seen me", and halting the whole row keeps every gap
+             exactly as it was for nothing.
+
+             It re-arms every frame while he is still in front of them, so the
+             lane stays stopped for as long as he stands there and rolls again
+             half a second after he is clear. */
           var clear = Math.abs(car.sw || 0) >= SWERVE_CLEAR;
-          if (!clear && !(row.bounce > 0) &&
-              (overlap || (approach > -0.2 && approach < DETER_TILES))){
-            row.rv = -(row.rv || 1);
-            row.bounce = 1.4;
-            row.flinch = 0.55;
-            burst(pp.col*TILE + TILE/2, rowScreenY(r) - 26, POWERS.traffic.col);
-            AUDIO.hiss();
+          if (!clear && (overlap || (approach > -0.2 && approach < DETER_TILES))){
+            if (!(row.halt > 0)){
+              row.flinch = 0.55;
+              burst(pp.col*TILE + TILE/2, rowScreenY(r) - 26, POWERS.traffic.col);
+              AUDIO.brakes();
+            }
+            row.halt = 0.5;
           }
         }
         /* Fast out, slow back: a driver commits to the swerve and drifts back
@@ -5423,16 +5521,17 @@ function update(dt){
         if (overlap && Math.abs(want) > Math.abs(cur)) cur = want;
         else cur += (want - cur) * Math.min(1, dt * (Math.abs(want) > Math.abs(cur) ? 16 : 5));
         car.sw = Math.abs(cur) < 0.4 ? 0 : cur;
-        if (!car.stopped){
+        if (!car.stopped && !(row.halt > 0)){
           car.p += row.speed * slowK * dt * (row.rv || 1);
           if (car.p >= SPAN) car.p -= SPAN;
           if (car.p < 0) car.p += SPAN;
         }
       }
       if (row.bounce > 0) row.bounce -= dt;
+      if (row.halt > 0) row.halt -= dt;
       if (row.flinch > 0) row.flinch -= dt;
       separate(row);
-      if (row.rogue){
+      if (row.rogue && !(row.halt > 0)){
         // against the posted direction, which is the whole joke
         row.rogue.p += row.rogue.speed * slowK * dt;
         if (row.rogue.p >= SPAN) row.rogue.p -= SPAN;
@@ -6367,6 +6466,39 @@ function drawWorn(cx, topY){
     ctx.globalAlpha = 1;
   }
 }
+/* ------------------------------------------------------- THE RED PULSE ---
+ Tinting a baked sprite needs a composite op, and `source-atop` applies to
+ the whole canvas - run it on the main context and it would wash everything
+ already drawn behind him. So the silhouette is built on one scratch canvas,
+ reused for the life of the page, and blitted over him at the pulse alpha.
+
+ A tinted variant per face would have been four more baked sprites for every
+ expression, and sprite memory on a panel is already up. This costs one
+ canvas and four calls on the frames it is actually needed. */
+var TINT_CV = null, TINT_CX = null;
+function tintCanvas(sp, col){
+if (!sp || !sp.img || !sp.img.width) return null;
+if (!TINT_CV){
+  TINT_CV = document.createElement("canvas");
+  TINT_CX = TINT_CV.getContext("2d");
+}
+// only ever grow: resizing clears it, and it is reused every frame
+if (TINT_CV.width < sp.img.width || TINT_CV.height < sp.img.height){
+  TINT_CV.width = Math.max(TINT_CV.width, sp.img.width);
+  TINT_CV.height = Math.max(TINT_CV.height, sp.img.height);
+}
+var g = TINT_CX;
+g.globalCompositeOperation = "source-over";
+g.globalAlpha = 1;
+g.clearRect(0, 0, TINT_CV.width, TINT_CV.height);
+g.drawImage(sp.img, 0, 0);
+g.globalCompositeOperation = "source-atop";   // only where he already is
+g.fillStyle = col;
+g.fillRect(0, 0, sp.img.width, sp.img.height);
+g.globalCompositeOperation = "source-over";
+return TINT_CV;
+}
+
 function drawPlayer(pp){
   /* The cape follows FLIGHT, not the TAM. He suits back up the moment the
      initial five seconds lapse, and only transforms again when a TAM win hands
@@ -6463,27 +6595,42 @@ function drawPlayer(pp){
   var dy = sy - pp.lift - lift - flyLift;
   var kx = (1 - pp.sq*0.10) * hk, ky = (1 + pp.sq*0.14) * hk;
 
-  /* A head shake, for the turnstile with no card in the wallet. The figure is
+/* A head shake, for the turnstile with no card in the wallet. The figure is
      baked as one sprite, so shaking it whole reads as a stumble; what reads as
      "no" is the head alone. Two clipped passes do it without erasing anything:
      the band below the neck draws where it always did, and the band above it
      draws a few pixels to the side. The sliver of background that opens up
      behind the head is correct - the head moved. */
+  /* Every blit of the player goes through here, so the red pulse cannot be
+     missed on one of the paths that returns early. It beats with the same
+     lungs as the chest and the screen edges. */
+  function put(sprite, px, py){
+    blitScaled(sprite, px, py, kx, ky);
+    var wk = wornK();
+    if (!wk) return;
+    var tc = tintCanvas(sprite, "#ff2130");
+    if (!tc) return;
+    ctx.globalAlpha = (0.20 + wk * 0.45) * (0.26 + 0.74 * wornBreath());
+    ctx.drawImage(tc, 0, 0, sprite.img.width, sprite.img.height,
+                  px - sprite.ox*kx, py - sprite.oy*ky, sprite.w*kx, sprite.h*ky);
+    ctx.globalAlpha = 1;
+  }
+
   if (G.nahT > 0){
     var ox = sx - s.ox*kx, oy = dy - s.oy*ky, w = s.w*kx, h = s.h*ky;
     var neck = h * 0.30;                       // head is the top third of him
     var off = Math.sin(G.nahT * 32) * 7 * Math.min(1, G.nahT / 0.25);
     ctx.save();
     ctx.beginPath(); ctx.rect(ox - 2, oy + neck, w + 4, h - neck + 2); ctx.clip();
-    blitScaled(s, sx, dy, kx, ky);
+    put(s, sx, dy);
     ctx.restore();
     ctx.save();
     ctx.beginPath(); ctx.rect(ox - 18, oy - 2, w + 36, neck + 2); ctx.clip();
-    blitScaled(s, sx + off, dy, kx, ky);
+    put(s, sx + off, dy);
     ctx.restore();
     return;
   }
-  blitScaled(s, sx, dy, kx, ky);
+  put(s, sx, dy);
 }
 
 /* The Cisco mark: vertical bars rising to an arch. Approximated from paths
@@ -6925,7 +7072,8 @@ function cellRisk(row, col){
   }
   for (i = 0; i < row.cars.length; i++){
     var c = row.cars[i];
-    consider(carX(row, c), c.stopped ? 0 : row.speed * row.dir * (row.rv || 1));
+    consider(carX(row, c), (c.stopped || row.halt > 0) ? 0
+                          : row.speed * row.dir * (row.rv || 1));
   }
   for (i = 0; i < row.parked.length; i++){
     var px = row.parked[i].col;
@@ -6995,13 +7143,22 @@ function drawRisk(){
     /* A lane that just turned away gets a band and an arrow pair, so the
        player sees the cause and not only the result. Without it the traffic
        simply appears to change its mind for no reason. */
+    /* A lane that has just stood on the brakes gets a band and the word for
+       it. It used to show a trio of arrows saying which way it had turned,
+       which is no longer what happens to it. */
     if (row.flinch > 0){
       var f = Math.min(1, row.flinch / 0.55);
       ctx.globalAlpha = f * 0.55 * fade; ctx.fillStyle = POWERS.traffic.col;
       ctx.fillRect(0, sy - ROW_H, LOGICAL_W, ROW_H);
       ctx.globalAlpha = f * 0.9 * fade;
-      var ar = (row.dir * (row.rv || 1)) > 0 ? "»" : "«";
-      txt(ar + " " + ar + " " + ar, LOGICAL_W/2, sy - ROW_H*0.34, 46, "#eafcff");
+      txt("—  STOPPED  —", LOGICAL_W/2, sy - ROW_H*0.34, 38, "#eafcff");
+    }
+    /* And while it is held, a steady bar along the kerb: the band is a flash,
+       and he needs to know the lane is still holding for him. */
+    if (row.halt > 0 && row.flinch <= 0){
+      ctx.globalAlpha = 0.30 * fade; ctx.fillStyle = POWERS.traffic.col;
+      ctx.fillRect(0, sy - 5, LOGICAL_W, 5);
+      ctx.globalAlpha = 1;
     }
   }
   ctx.globalAlpha = 1;

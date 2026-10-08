@@ -358,6 +358,13 @@ billboards. Roughly four are up at once and no street is ever bare.
 
 ### The subway
 
+**He always surfaces in the middle column.** The exit used to reuse whatever
+station entrance the destination row happened to have, or plant one wherever
+there was space, so he came up at a random column and the first thing anyone
+had to do after a ride was work out where he was. The stair is the landmark and
+it belongs under the camera; anything already standing in that column is moved
+aside. Verified over 60 rides: **60 out of 60 in column 8**, one stair each.
+
 A MetroCard rides you 10-20 streets uptown from any subway entrance. **Cards
 stack** — pick up three and you have three fares, shown on the HUD chip as
 `M3`. Standing on an entrance with an empty wallet says so on screen, plays a
@@ -572,7 +579,7 @@ flashes.
 
 ### Running on empty
 
-Below **20% health** it starts to show on him, and it gets worse the lower he
+Below **25% health** it starts to show on him, and it gets worse the lower he
 goes, so the state is readable without looking away from the road to check the
 bar:
 
@@ -591,6 +598,15 @@ bar:
   worth a couple of pixels and read as gentle bobbing rather than fighting for
   air. The puff leaves on the *exhale*, because watching a man heave and
   breathe out on different beats is worse than no breath at all.
+- **He pulses red himself**, on the same breath. Tinting a baked sprite needs
+  a composite op, and `source-atop` applies to the whole canvas — run on the
+  main context it would wash everything already drawn behind him. So the
+  silhouette is built on **one scratch canvas, reused for the life of the
+  page** (verified: one canvas created across 2.5 seconds of pulsing) and
+  blitted over him at the pulse alpha. A tinted variant per face would have
+  been four more baked sprites for every expression, and sprite memory on a
+  panel is already up. Every blit of the player goes through one helper, so
+  the pulse cannot be missed on a path that returns early.
 - **Red edges**, pulsing in time with that breathing and harder the lower he
   gets. An edge pulse and not a full wash: a wash over the playfield is the one
   thing that would make the crossing harder to read at exactly the moment he
@@ -690,7 +706,18 @@ just enough bounce off the inside of the fabric to read as a hole rather than a
 black sticker, and two points of light find you from inside it only once the
 blade is out. Grey-blue zip hoodie, hands down, shoulders square.
 
-He shows up on 45% of rides, and he is no longer scenery. He **closes on you**,
+He shows up on 45% of rides — but **nine times in ten he is just a man on a
+train.** He gets on, he watches, he may drift up the car, and nothing happens.
+He creeps at 0.13 slots a second in fits and starts (measured 20.4s moving
+against 19.6s standing over 40 seconds), stops a yard and a half short and
+never comes closer, holds his ground rather than retreating if you walk at him,
+never draws, never takes anything, and cannot be hit — a man who has done
+nothing does not get a briefcase in the face.
+
+The one time in ten he means it is worth something precisely because the other
+nine were nothing. Measured over 4,000 rolls: **10.0%**.
+
+When he does mean it, he **closes on you**,
 smoothly, at 0.52 slots a second — off the grid the player moves on, because a
 mugger who hops between the same five positions you do looks like another
 commuter.
@@ -774,18 +801,28 @@ ticks with nothing at the end of it is a stuck machine.
 
 ### Arrival scenes
 
-A scene can fire on the step that lands him **in the middle of a road**, and a
-cutscene several seconds long is exactly long enough to forget where you were
-standing. The world is frozen behind it, so the traffic is still there when the
-scene lifts and he gets flattened by something he never saw move. He is stepped
-back to the pavement before the scene opens — backwards rather than forwards,
-since forwards would hand him a free crossing for reaching a landmark — onto an
-unblocked column, with a beat of grace after. `maxRow` is untouched, so nothing
-he has already earned comes off.
+**A scene opens on the kerb, not in the road.** It used to fire the moment the
+street number ticked over, which is the moment he steps *off* the pavement into
+the first lane of that crossing — and the world is frozen behind a cutscene, so
+he spent it standing in live traffic. It now looks one row ahead instead:
+standing on a pavement, if the next crossing belongs to a street with a scene
+he has not seen, it opens there.
 
-Checked over 200 trials starting in traffic: **200 on a pavement afterwards, 0
-on a blocked column, 200 with `maxRow` intact, 200 given grace.** And over 120
-trials starting on a pavement, **0 moved** — it only fires when it is needed.
+Measured over 25 generated walks: **100 scenes opened, 100 of them on a
+pavement, 0 in the road.** On a single full uptown leg, 42nd, 50th, 59th and
+81st each opened on a safe row.
+
+The sweep in `progress()` stays as the backstop for arrivals that skip the
+pavement entirely — a subway ride, or a sponsor carrying him three rows at
+once — and `sceneStepBack` stays behind that, moving him out of traffic if one
+ever does fire there. Checked over 200 trials starting in traffic: **200 on a
+pavement afterwards, 0 on a blocked column, 200 with `maxRow` intact.** Over
+120 trials starting on a pavement, **0 moved**.
+
+Because the dinner scene now opens a row before 81st, the turn explicitly sets
+the street to the scene's own — the restaurant is on that corner, and the walk
+home should count down from 81 rather than from the kerb he happened to be
+standing on.
 
 Reaching a landmark crossing stops the walk for a beat and shows you where you
 are, in the same register as the subway ride. Each plays once per run.
@@ -973,10 +1010,14 @@ now answers it,* in two stages:
    eases off the lane centre, holds the swerve while it passes, and drifts back
    after. A car far enough out has gone round him, not through him, and the
    collision check skips it.
-2. **If there is no room, the lane turns around.** The same whole-lane flip the
-   path trace uses — reversing one vehicle inside a moving stream is most of
-   what "cars pass through each other" used to be. This is the fallback now,
-   not the first answer.
+2. **If there is no room, the lane stops.** It used to turn around, which
+   worked — gaps were preserved exactly — but a street full of traffic
+   reversing on the spot is a strange thing to watch, and it threw cars he had
+   already judged safe back across his path. Brakes are the obvious reading of
+   *that driver has seen me*, and halting the whole row keeps every gap exactly
+   as it was for nothing. It re-arms every frame while he is still in front of
+   them, so the lane holds for as long as he stands there and rolls again half
+   a second after he is clear.
 
 Two things had to be got right. The swerve is measured against the **whole
 body**, not the leading edge: measuring the nose of a bus collapsed the swerve
@@ -984,6 +1025,12 @@ the moment the front was past him while nine feet of bus was still over his
 head, and he was run down on the way out. And the turn-around is suppressed for
 a car that has already pulled clear — without that it fired at 3.2 tiles before
 any swerve had developed, and the avoidance was decoration.
+
+Standing in a lane for thirty seconds: **0 direction changes, 0 frames run
+over.** The halt only ran for 0.5s of that, because the swerve got there first
+nearly every time — so to prove the brakes work at all, the same test with
+swerving disabled: **30s halted out of 30, cars rolling for 0s, 0 reverses, 0
+frames run over.**
 
 Measured, four lanes, thirty seconds each, standing still at the same column:
 
