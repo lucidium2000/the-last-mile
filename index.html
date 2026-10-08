@@ -364,6 +364,29 @@ var AUDIO = (function(){
       hit({ f:2600, hp:true, dur:0.035, g:0.07 });
     },
     step: function(){ ladder = 0; tone({ f:196, to:208, dur:0.08, type:"triangle", g:0.14 }); },
+    /* Walking the traced route. The same climbing ladder as an ordinary
+       step forward, but the note is a stack - root, fifth, octave, and a
+       twelfth right at the top - on sines instead of a triangle, with a
+       longer tail and a ping over it. Staying on the path should sound like
+       being rewarded for staying on the path, which is the entire pitch of
+       the product. */
+    traceHop: function(){
+      if (ladder < 12) ladder++;
+      var i = ladder % PENT.length, oct = Math.floor(ladder / PENT.length);
+      var f = 261.63 * Math.pow(2, (PENT[i] + oct * 12) / 12);
+      tone({ f:f,        to:f * 1.02, dur:0.17, type:"sine", g:0.17 });
+      tone({ f:f * 1.498, dur:0.21, type:"sine", g:0.085, at:0.015 });
+      tone({ f:f * 2,     dur:0.27, type:"sine", g:0.055, at:0.030 });
+      tone({ f:f * 3,     dur:0.13, type:"sine", g:0.020, at:0.055 });
+      hit({ f:5200, hp:true, dur:0.030, g:0.05 });
+    },
+    // and sideways along it: the same idea, flat, because it buys no ground
+    traceStep: function(){
+      ladder = 0;
+      tone({ f:392, to:415, dur:0.11, type:"sine", g:0.11 });
+      tone({ f:588, dur:0.15, type:"sine", g:0.048, at:0.02 });
+      hit({ f:4800, hp:true, dur:0.025, g:0.04 });
+    },
     bump: function(){
       hit({ f:320, to:120, dur:0.12, g:0.26 });
       tone({ f:92, to:62, dur:0.14, type:"sine", g:0.26 });
@@ -1818,8 +1841,22 @@ function heroModel(dir, flying){
   parts.push(P(0.29, 0.44, 0.42, 0.15, 0.31,  0.08,  trim));      // trunks
   parts.push(P(0.23, 0.42, 0.54, 0.16, 0.38,  0.24,  suit));      // chest
   parts.push(P(0.22, 0.41, 0.56, 0.17, 0.55,  0.09,  shade(suit,0.08))); // shoulders
-  parts.push(P(0.14, 0.45, 0.09, 0.12, 0.38,  0.20,  shade(suit,-0.22)));// arms
-  parts.push(P(0.77, 0.45, 0.09, 0.12, 0.38,  0.20,  shade(suit,-0.22)));
+  if (flying){
+    /* Arms up. Standing with his hands at his sides and a cape on is a man
+       in a costume; both fists over the head is the one silhouette that
+       reads as flight at this size and at this angle.
+
+       They sit a hair nearer the camera than the shoulders - back edge 0.57
+       against 0.58 - so they pass in FRONT of him rather than behind, and
+       they clear the head on both sides, which spans 0.37 to 0.63. */
+    parts.push(P(0.175, 0.450, 0.095, 0.12, 0.58, 0.300, shade(suit,-0.22)));
+    parts.push(P(0.730, 0.450, 0.095, 0.12, 0.58, 0.300, shade(suit,-0.22)));
+    parts.push(P(0.162, 0.445, 0.120, 0.13, 0.87, 0.095, skin));   // fists
+    parts.push(P(0.717, 0.445, 0.120, 0.13, 0.87, 0.095, skin));
+  } else {
+    parts.push(P(0.14, 0.45, 0.09, 0.12, 0.38,  0.20,  shade(suit,-0.22)));// arms
+    parts.push(P(0.77, 0.45, 0.09, 0.12, 0.38,  0.20,  shade(suit,-0.22)));
+  }
   parts.push(P(0.42, 0.44, 0.16, 0.14, 0.635, 0.04,  shade(skin,-0.30))); // neck
   parts.push(P(0.37, 0.43, 0.26, 0.15, 0.675, 0.170, skin));
   /* The same moulded cap as the walking sprite, lifted the 0.02 this head
@@ -2021,7 +2058,10 @@ var CSCO = {
   tail:[10.00,10.12,10.28,10.20,10.34,10.42,10.34,10.38,10.46,10.40,
         10.36,10.42]
 };
-var TICKER_SECS = 3.4;
+/* 2.4, not 3.4. The card is a celebration, not a document - everything on
+   it is legible inside a second and the last of it was dead air over a
+   frozen street. */
+var TICKER_SECS = 2.4;
 /* Google's card is set in regular and medium weights; everything else in this
    game is bold, so the card needs its own text helper or it reads as a poster
    rather than a quote. */
@@ -3258,10 +3298,13 @@ function act(dir){
     return;
   }
 
+  /* The route has its own footsteps. Checked against the square he is
+     arriving at, not the one he is leaving, so the note lands with him. */
+  var onPath = G.revealT > 0 && G.trace && onTrace(nr, nc);
   if (dir === "f"){
-    AUDIO.hop();
+    if (onPath) AUDIO.traceHop(); else AUDIO.hop();
     G.trainT = Math.min(TRAIN_MAX, G.trainT + TRAIN_PER_HOP);
-  } else AUDIO.step();
+  } else if (onPath) AUDIO.traceStep(); else AUDIO.step();
 
   G.steps++;
   G.fromRow = G.row; G.fromCol = G.col;
@@ -3945,6 +3988,7 @@ function startRide(enterRow, enterCol){
              shadyX:shady, knife:0, knifeSide:0, ko:0, koT:0, swing:0, brace:0,
              robbed:0, clack:0,
              hostile: Math.random() < SHADY_HOSTILE,
+             tell:0, look:0, lurch:0,
              pause: 1 + Math.random() * 2 };
   G.col = enterCol; G.fromCol = enterCol;
   G.row = enterRow; G.fromRow = enterRow; G.hop = 1;
@@ -4101,22 +4145,47 @@ function updateShady(dt){
      He holds his ground rather than retreating if the player walks at him,
      which is more unsettling than either following or fleeing. */
   if (!R.hostile){
+    /* Three things make the question live, and none of them ever turn into
+       anything: a lurch, a tell, and the hood. The nine-in-ten man still
+       does nothing at all - the point is that you cannot know that. */
+    if (R.tell > 0) R.tell = Math.max(0, R.tell - dt);
+    if (R.lurch > 0) R.lurch = Math.max(0, R.lurch - dt);
+
     R.pause -= dt;
-    if (R.pause <= 0) R.pause = (R.moving = !R.moving) ? 1.4 + Math.random() * 2.6
-                                                       : 1.0 + Math.random() * 2.4;
+    if (R.pause <= 0){
+      R.moving = !R.moving;
+      R.pause = R.moving ? 1.4 + Math.random() * 2.6 : 1.0 + Math.random() * 2.4;
+      /* A quarter of the times he sets off he does it quickly - three times
+         the creep for half a second - and then stops dead. That half second
+         is the whole of him. */
+      if (R.moving && Math.random() < 0.25){ R.lurch = 0.5; R.pause = 0.5; }
+      /* And now and then, standing still, a hand comes out of the pocket
+         with something in it. Then it goes back. */
+      if (!R.moving && R.tell <= 0 && Math.random() < 0.30) R.tell = 0.9;
+    }
     if (R.moving){
       var gapC = R.shadyX - rideManX(R);
       var wantC = rideManX(R) + (gapC >= 0 ? SHADY_KEEP : -SHADY_KEEP);
-      var dC = wantC - R.shadyX, stepC = SHADY_CREEP * dt;
+      var dC = wantC - R.shadyX;
+      var stepC = SHADY_CREEP * (R.lurch > 0 ? 3 : 1) * dt;
       // only ever towards him, never away
       if ((dC > 0) === (gapC < 0)){
         if (Math.abs(dC) <= stepC) R.shadyX = wantC;
         else R.shadyX += (dC > 0 ? stepC : -stepC);
       }
     }
+    /* The hood tracks him while anything is happening and drifts off when
+       nothing is. Eased, because a head that snaps round is a jump scare and
+       this is supposed to be worse than that. */
+    var want = (R.moving || R.tell > 0) ? 1 : 0.15;
+    R.look += (want - R.look) * Math.min(1, dt * 2.4);
     R.knife = 0;
     return;
   }
+
+  // the one in ten. He means it, and he is looking straight at you.
+  R.look += (1 - R.look) * Math.min(1, dt * 5);
+  if (R.tell > 0) R.tell = Math.max(0, R.tell - dt);
 
   /* Robbed once, he has what he came for and backs off to where he started. */
   var to = R.robbed ? R.shady : rideManX(R);
@@ -4274,7 +4343,18 @@ function drawRider(cx0, cw, cy){
    lights off the inside of the fabric, which makes it a hole rather than a
    black sticker. Grey-blue zip hoodie, hands down, shoulders square, slight
    forward set to the neck. */
-function drawHoodie(mx, cy, scl, alert){
+/* He stood 153px tall against a hero drawn at 113 - a head and a half on
+   him, which made him a monster rather than a man on a train, and a monster
+   is not frightening in the way a stranger is. Fitted to the hero and stood
+   on the same floor, both derived from the sprite rather than eyeballed:
+   223 is the sole in his own coordinates and 70 is the top of the hood, so
+   153 is his height and everything else follows. */
+function hoodFit(){
+  var hh = S.player_r.h * 0.92;            // the hero, exactly as drawn here
+  var scl = hh / 153;
+  return { scl:scl, dy:(78 + hh) - 223 * scl };
+}
+function drawHoodie(mx, cy, scl, alert, look){
   function R2(x, y, w, h, col){
     ctx.fillStyle = col;
     ctx.fillRect(mx + x * scl, cy + y * scl, w * scl, h * scl);
@@ -4312,23 +4392,27 @@ function drawHoodie(mx, cy, scl, alert){
   ctx.quadraticCurveTo(mx, cy + 76 * scl, mx - 20 * scl, cy + 82 * scl);
   ctx.closePath(); ctx.fill();
 
+  /* The opening slides a few pixels toward whatever he is looking at. It is
+     the only thing on him that can point, and a hood that turns to track
+     you is worth more than any amount of menace standing still. */
+  var lk = (look || 0) * 7 * scl;
   ctx.fillStyle = "#04060a";                    // the opening: nothing in it
   ctx.beginPath();
-  ctx.ellipse(mx, cy + 100 * scl, 21 * scl, 26 * scl, 0, 0, Math.PI * 2);
+  ctx.ellipse(mx + lk, cy + 100 * scl, 21 * scl, 26 * scl, 0, 0, Math.PI * 2);
   ctx.fill();
   ctx.fillStyle = "#121820";                    // lining, catching a little
   ctx.beginPath();
-  ctx.ellipse(mx, cy + 86 * scl, 19 * scl, 10 * scl, 0, Math.PI, 0);
+  ctx.ellipse(mx + lk, cy + 86 * scl, 19 * scl, 10 * scl, 0, Math.PI, 0);
   ctx.fill();
 
   /* Once the blade is out, two points of light find him from inside the hood.
      Nothing like eyes until he means it. */
   if (alert){
-    var g2 = 0.55 + 0.45 * Math.sin(G.t * 7);
-    ctx.globalAlpha = g2;
+    var g2 = (alert === 2 ? 0.28 : 0.55) + 0.45 * Math.sin(G.t * (alert === 2 ? 3 : 7));
+    ctx.globalAlpha = Math.max(0, g2);
     ctx.fillStyle = "#c8d8e4";
-    ctx.fillRect(mx - 9 * scl, cy + 96 * scl, 5 * scl, 3 * scl);
-    ctx.fillRect(mx + 4 * scl, cy + 96 * scl, 5 * scl, 3 * scl);
+    ctx.fillRect(mx + lk - 9 * scl, cy + 96 * scl, 5 * scl, 3 * scl);
+    ctx.fillRect(mx + lk + 4 * scl, cy + 96 * scl, 5 * scl, 3 * scl);
     ctx.globalAlpha = 1;
   }
 
@@ -4345,6 +4429,8 @@ function drawShady(cx0, cw, cy){
   if (!R || R.shady < 0) return;
   var mx = rideSlotX(R.shadyX, cx0, cw);
 
+  var F = hoodFit(), K = F.scl;
+  function HY(v){ return cy + F.dy + v * K; }     // his own y, on the floor
   if (R.ko){
     /* Three beats, because a man who simply becomes horizontal has not been
        hit by anything. His head goes first, then his feet leave, then he
@@ -4356,11 +4442,11 @@ function drawShady(cx0, cw, cy){
     var ease = 1 - Math.pow(1 - tip, 2);
 
     ctx.save();
-    ctx.translate(mx + away * (14 * snap + 40 * ease), cy + 196);
+    ctx.translate(mx + away * (14 * snap + 40 * ease) * K, HY(196));
     ctx.rotate(ease * Math.PI * 0.5 * away);
-    ctx.translate(0, -196 - (1 - ease) * 6);
+    ctx.translate(0, -(196 + (1 - ease) * 6) * K);
     ctx.globalAlpha = 1;
-    drawHoodie(0, 0, 1, false);
+    drawHoodie(0, 0, K, false, 0);
     ctx.restore();
 
     if (land > 0){
@@ -4368,8 +4454,8 @@ function drawShady(cx0, cw, cy){
       ctx.globalAlpha = (1 - land) * 0.4;
       ctx.fillStyle = "#8e969e";
       for (var d2 = 0; d2 < 5; d2++){
-        var dx2 = (d2 - 2) * (12 + land * 26);
-        ctx.fillRect(mx + away * 40 + dx2, cy + 214 - land * 10, 9, 3);
+        var dx2 = (d2 - 2) * (12 + land * 26) * K;
+        ctx.fillRect(mx + away * 40 * K + dx2, HY(214) - land * 10, 9 * K, 3);
       }
       ctx.globalAlpha = 1;
     }
@@ -4379,42 +4465,153 @@ function drawShady(cx0, cw, cy){
         var sa = G.t * 2.2 + st * 2.09;
         ctx.globalAlpha = 0.75;
         ctx.fillStyle = "#ffd24a";
-        ctx.fillRect(mx + away * 54 + Math.cos(sa) * 30 - 4,
-                     cy + 150 + Math.sin(sa) * 10 - 4, 8, 8);
+        ctx.fillRect(mx + away * 54 * K + Math.cos(sa) * 30 * K - 4,
+                     HY(150) + Math.sin(sa) * 10 - 4, 8, 8);
         ctx.globalAlpha = 1;
       }
     }
     return;
   }
 
-  var sw = Math.sin(G.t * 1.6 + 1.1) * 3;
-  drawHoodie(mx + sw, cy, 1, R.knife > 0);
+  var sw = Math.sin(G.t * 1.6 + 1.1) * 3 * K;
+  /* Three states in the hood instead of two. The blade out is the loud one;
+     a tell is the quiet one - two points of light that come up slowly and
+     go again, which is the moment the player cannot tell what is about to
+     happen. The look is how far the opening has turned toward him. */
+  var alert = R.knife > 0 ? 1 : ((R.tell || 0) > 0 ? 2 : 0);
+  var look = (R.look || 0) * (rideManX(R) > R.shadyX ? 1 : -1);
+  drawHoodie(mx + sw, cy + F.dy, K, alert, look);
+
+  /* A hand coming out of the pocket with something in it - and then not.
+     It is the same metal as the blade and it lasts under a second. */
+  if ((R.tell || 0) > 0){
+    var tside = rideManX(R) >= R.shadyX ? 1 : -1;
+    var ta = Math.min(1, R.tell / 0.22) * Math.min(1, (0.9 - R.tell) / 0.25 + 1);
+    ctx.globalAlpha = Math.max(0, Math.min(1, ta)) * 0.9;
+    ctx.fillStyle = "#8a7a6c";
+    ctx.fillRect(mx + sw + tside * 20 * K, HY(170), 11 * K, 13 * K);
+    ctx.fillStyle = "#aeb8c2";
+    ctx.fillRect(mx + sw + tside * 23 * K, HY(166), 5 * K, 7 * K);
+    ctx.globalAlpha = 1;
+  }
 
   if (R.knife > 0){
     /* The blade comes out on the side he is approaching from, and the timer
        is drawn as a bar under him - this is a reaction test, and a reaction
        test with an invisible clock is just a trap. */
-    var side = R.knifeSide || 1, hx = mx + sw - side * 30;
-    ctx.fillStyle = "#2b2f36"; ctx.fillRect(hx - 5, cy+146, 10, 16);
+    var side = R.knifeSide || 1, hx = mx + sw - side * 30 * K;
+    ctx.fillStyle = "#2b2f36";
+    ctx.fillRect(hx - 5*K, HY(146), 10*K, 16*K);
     ctx.fillStyle = "#d8dde3";
     ctx.beginPath();
-    ctx.moveTo(hx - 4, cy+146);
-    ctx.lineTo(hx + 4, cy+146);
-    ctx.lineTo(hx + 2 - side * 30, cy+124);
+    ctx.moveTo(hx - 4*K, HY(146));
+    ctx.lineTo(hx + 4*K, HY(146));
+    ctx.lineTo(hx + (2 - side * 30)*K, HY(124));
     ctx.closePath(); ctx.fill();
     ctx.globalAlpha = 0.5 + 0.5 * Math.sin(G.t * 18);
     ctx.fillStyle = "#ffffff";
-    ctx.fillRect(hx - 2 - side * 16, cy+131, 7, 5);
+    ctx.fillRect(hx - (2 + side * 16)*K, HY(131), 7*K, 5*K);
     ctx.globalAlpha = 1;
 
+    /* The clock stays full size. Everything else about him shrank to human
+       scale, but this is the reaction test and a reaction test you have to
+       squint at is a trap. */
     var left = Math.max(0, 1 - R.knife / KNIFE_GRACE);
-    ctx.fillStyle = "rgba(0,0,0,0.55)"; ctx.fillRect(mx - 46, cy+220, 92, 9);
+    ctx.fillStyle = "rgba(0,0,0,0.55)"; ctx.fillRect(mx - 46, HY(236), 92, 9);
     ctx.fillStyle = left > 0.35 ? C.amber : C.danger;
-    ctx.fillRect(mx - 46, cy+220, 92 * left, 9);
+    ctx.fillRect(mx - 46, HY(236), 92 * left, 9);
   }
 }
 
 /* the car, drawn at an arbitrary x offset and vertical rock */
+/* The other people in the car. They were two flat rectangles and a head,
+   which at this size read as furniture rather than as anybody, and the
+   hooded man standing among them had nothing to be a stranger among.
+
+   Still rectangles - everything in this file is - but enough of them to make
+   a carriage: coats of two lengths in six colours, five skin tones, hair or
+   a beanie, and one thing each of them is doing. Everything is derived from
+   an integer seed, so nobody changes clothes between frames.
+
+   One per slot rather than two. Two half-sized people in a window was the
+   old problem in a different shape; one at the hero's own scale is a person. */
+var PAX_COAT = ["#3b4a56","#55404a","#3f5547","#4a4660","#5b4a3c","#2f4a5c"];
+var PAX_SKIN = ["#c79a74","#a87f5f","#e2b58f","#8b6246","#d7a37c"];
+var PAX_HAIR = ["#241a12","#4a3526","#141414","#6b5a3f","#2b2b33"];
+var PAX_WOOL = ["#8c4a4a","#3d6b7a","#6a6a3d","#54406b"];
+function drawPax(cx2, floorY, seed, lit, sway){
+  var coat = PAX_COAT[seed % 6], skin = PAX_SKIN[(seed * 3) % 5];
+  var hair = PAX_HAIR[(seed * 5) % 5], wool = PAX_WOOL[(seed * 2) % 4];
+  var doing = (seed * 7) % 5;                 // phone, bag, cans, scarf, asleep
+  var beanie = (seed % 4) === 0;
+  var tall = 102 + (seed % 3) * 7;
+  var longCoat = (seed % 2) === 0;
+  var x = Math.round(cx2 + sway);
+  var headH = 23, headW = 21;
+  var top = floorY - tall + headH;            // the shoulders
+  var hem = floorY - (longCoat ? 30 : 46);
+  var slump = doing === 4 ? 4 : 0;            // asleep: the head goes forward
+  function R3(rx, ry, rw, rh, c){ ctx.fillStyle = c; ctx.fillRect(x + rx, ry, rw, rh); }
+
+  ctx.globalAlpha = lit ? 0.92 : 0.52;
+
+  if (doing === 1){                            // a backpack, behind the shoulder
+    R3(-24, top + 10, 11, 40, shade(coat, -0.30));
+    R3(-24, top + 10, 11, 5,  shade(coat, -0.12));
+  }
+  // trousers and shoes
+  R3(-11, floorY - 36, 9, 32, shade(coat, -0.38));
+  R3(  2, floorY - 36, 9, 32, shade(coat, -0.38));
+  R3(-14, floorY -  7, 14, 7, "#15181e");
+  R3(  0, floorY -  7, 14, 7, "#15181e");
+  // the coat
+  R3(-15, top, 30, hem - top, coat);
+  R3(-15, top, 30, 7, shade(coat, 0.14));                 // light on the shoulders
+  R3( -1, top + 8, 2, hem - top - 8, shade(coat, -0.22)); // the opening
+  R3(-21, top + 5, 7, (hem - top) - 11, shade(coat, -0.24));   // arms
+  R3( 14, top + 5, 7, (hem - top) - 11, shade(coat, -0.24));
+  if (longCoat) R3(-15, hem - 4, 30, 4, shade(coat, -0.16));
+
+  // head, and whatever is on it
+  var hy = top - headH + slump;
+  R3(-headW/2, hy, headW, headH, skin);
+  if (beanie){
+    R3(-headW/2 - 1, hy - 7, headW + 2, 11, wool);
+    R3(-headW/2 - 1, hy - 7, headW + 2, 3,  shade(wool, 0.16));
+  } else {
+    R3(-headW/2 - 1, hy - 5, headW + 2, 9, hair);
+    R3(-headW/2 - 1, hy + 4, 3, 7, hair);                 // sideburns
+    R3( headW/2 - 2, hy + 4, 3, 7, hair);
+  }
+  if (doing !== 4){                                        // eyes, if awake
+    ctx.globalAlpha *= 0.85;
+    R3(-6, hy + 11, 3, 3, "#1d1510");
+    R3( 3, hy + 11, 3, 3, "#1d1510");
+    ctx.globalAlpha = lit ? 0.92 : 0.52;
+  } else {
+    R3(-6, hy + 12, 4, 2, "#1d1510");                      // shut
+    R3( 2, hy + 12, 4, 2, "#1d1510");
+  }
+
+  if (doing === 0){                            // a phone, and the light off it
+    R3(2, top + 16, 10, 15, "#0d1117");
+    R3(3, top + 17, 8,  13, "#9fd8ff");
+    ctx.globalAlpha *= 0.30; R3(-8, hy + 14, 16, 8, "#9fd8ff");
+    ctx.globalAlpha = lit ? 0.92 : 0.52;
+  } else if (doing === 2){                     // headphones
+    R3(-headW/2 - 4, hy + 4, 4, 9, "#1d2026");
+    R3( headW/2,     hy + 4, 4, 9, "#1d2026");
+    ctx.fillStyle = "#1d2026"; ctx.lineWidth = 3;
+    ctx.strokeStyle = "#1d2026";
+    ctx.beginPath();
+    ctx.arc(x, hy + 2, headW/2 + 2, Math.PI, 0); ctx.stroke();
+  } else if (doing === 3){                     // a scarf, and its tail
+    R3(-13, top - 2, 26, 8, wool);
+    R3(  4, top + 5, 7, 18, shade(wool, -0.12));
+  }
+  ctx.globalAlpha = 1;
+}
+
 function drawCar(ox, rock, lit){
   var cy = 470 + rock, ch = 330, cx0 = 90 + ox, cw = LOGICAL_W - 180;
   ctx.globalAlpha = 0.4; ctx.fillStyle = "#000";
@@ -4459,16 +4656,13 @@ function drawCar(ox, rock, lit){
       ctx.restore();
       txt("CHUCK", mx, cy+150 + bob + 38, 15, POWERS.chuck.col);
     } else {
-      // other riders
-      var seed = i*7;
-      ctx.globalAlpha = lit ? 0.75 : 0.4;
-      ctx.fillStyle = ["#3b4a56","#55404a","#3f5547","#4a4660"][i % 4];
-      ctx.fillRect(wx+24, cy+112, 30, 72);
-      ctx.fillStyle = "#c79a74"; ctx.fillRect(wx+30, cy+92, 18, 20);
-      ctx.fillStyle = ["#55404a","#3b4a56"][i % 2];
-      ctx.fillRect(wx+64, cy+120, 26, 64);
-      ctx.fillStyle = "#a87f5f"; ctx.fillRect(wx+69, cy+102, 16, 18);
-      ctx.globalAlpha = 1;
+      /* One rider, standing at the hero's own scale, swaying with the car.
+         Each on a slightly different phase down the length of it, the way
+         the straps are, or a carriage of people looks welded together. */
+      var psw = Math.sin(G.t * 1.9 + i * 1.37) * (R2.phase === "run" ? 2.4 : 0.8);
+      /* Off the pole, alternate sides. Centred, the pole came up through the
+         middle of their heads. */
+      drawPax(mx + ((i % 2) ? 36 : -36), cy + 190, i * 7 + 3, lit, psw);
     }
     /* Straps, swinging with the car and each on its own slight delay down the
        length of it - a carriage of straps moving in lockstep looks welded. */

@@ -845,6 +845,14 @@ fifth and a fifth respectively. Measured over four steps: lift peaks at 3.4px
 mid-footfall, the legs alternate 5px and 0, and consecutive steps lead with
 opposite feet.
 
+**The traced route has its own footsteps.** Same climbing pentatonic ladder
+as an ordinary step, but the note is a stack — root, fifth, octave and a
+twelfth over the top — on sines rather than a triangle, with a longer tail
+and a ping on it. Staying on the path should sound like being rewarded for
+staying on the path, which is the entire pitch of the product. Checked
+against the square he is arriving at, not the one he is leaving, so the note
+lands with him.
+
 **And the TAM hero flies rather than hovering.** While he is crossing a gap he
 pitches over into the dive and comes back up as he lands — 0.62rad on a step
 with a sideways component, which is the one the projection can show, and
@@ -852,6 +860,15 @@ with a sideways component, which is the one the projection can show, and
 mid-flight. Both scale with the sine of the hop and with `flyA`, and the pivot
 is his middle, not his heels: rotating about the origin is a man falling over.
 Sampled: 32° at the top of a sideways step.
+
+**Flying is both fists over his head.** Standing with his hands at his sides
+and a cape on is a man in a costume. A fully horizontal pose was tried — the
+whole figure authored lying along x, head leading, legs trailing — and
+abandoned: at 148px long and 24px thick it read as a log, and the head got
+lost against the cape. Arms up is the one silhouette that works at this size
+and this camera angle. The raised arms sit at back edge 0.57 against the
+shoulders' 0.58, so they pass in front of him rather than behind, and they
+clear the head, which spans 0.37 to 0.63.
 
 **He is sluggish in the red.** The worn drag used to ramp from nothing, which
 meant crossing into the band changed the handling by an amount nobody could
@@ -863,6 +880,50 @@ at full strength is not there any more.
 **The ticker card lost its logo.** A wordmark drawn from paths next to a real
 symbol is the one place on that card where a mock starts to look like a claim.
 The name is the symbol now too — `CSCO`, not `Cisco Systems Inc`.
+
+### The man in the hood, and everybody else in the car
+
+**He was a head and a half taller than the hero.** 153px against 113, which
+made him a monster rather than a stranger — and a monster is not frightening
+in the way a stranger is. He is fitted to the hero and stood on the same
+floor now, both derived from the sprite rather than eyeballed: 223 is his
+sole in his own coordinates and 70 is the top of the hood, so 153 is his
+height and the scale and the drop both follow from where his feet have to
+land. The knife, the blade glint and the KO all scale with him. The reaction
+clock does not — everything else shrank to human scale, but that bar is the
+reaction test and a reaction test you have to squint at is a trap.
+
+**Three things make the question live, and none of them turn into anything.**
+The nine-in-ten man still does nothing at all; the point is that you cannot
+know that.
+
+- a **lurch**: a quarter of the times he sets off he does it at three times
+  the creep for half a second, and then stops dead. That half second is the
+  whole of him.
+- a **tell**: standing still, 30% of the time a hand comes out of the pocket
+  with something in it, for nine tenths of a second, and then goes back. The
+  same metal as the blade. Two points of light come up slowly inside the hood
+  while it lasts — half the brightness and half the rate of the ones that
+  mean it.
+- the **hood turns**. The opening slides a few pixels toward whatever he is
+  looking at, eased over about half a second. It is the only thing on him
+  that can point, and a hood that tracks you is worth more than any amount of
+  menace standing still. A head that snapped round would be a jump scare, and
+  this is supposed to be worse than that.
+
+**The other people in the car were two rectangles and a head**, which at this
+size read as furniture — and a hooded man standing among furniture has nobody
+to be a stranger among. One rider per slot now rather than two, at the hero's
+own scale: coats of two lengths in six colours, five skin tones, hair or a
+beanie, and one thing each of them is doing — a phone with its light on the
+face, a backpack, headphones, a scarf, or asleep with their eyes shut.
+Everything derives from an integer seed, so nobody changes clothes between
+frames, and they stand to one side of the grab pole rather than having it
+come up through their heads.
+
+**The CSCO card is 2.4s, not 3.4.** It is a celebration, not a document:
+everything on it is legible inside a second and the last of it was dead air
+over a frozen street.
 
 ### Moving about the car
 
