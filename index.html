@@ -2691,7 +2691,7 @@ var legDir = 1;
 /* On the way back he is facing downtown, so the whole grid is mirrored: a
    street that ran left-to-right on the way up runs right-to-left now. */
 function laneDir(no){ return streetDir(no) * legDir; }
-var lastSweep = -99, prevWasSafe = true;
+var lastSweep = -99, prevWasSafe = true, lastHood = -999;
 
 /* MIN_WINDOW is the shortest time a column may stay clear. A hop is 135ms, so
    0.60s leaves room to read the gap and commit. MAX_SPEED keeps traffic
@@ -2846,6 +2846,13 @@ var HOOD_ROWV = 1.15, HOOD_REACH = 5, HOOD_KO = 3.2;
    It is a lookahead, not a guarantee. He gets it wrong often enough to be
    worth watching, which is the point of him being out there at all. */
 var HOOD_LOOK = 1.15, HOOD_RUSH = 1.9;
+/* There is only ever ONE of him. Two hooded men on the same screen is a gang,
+   and a gang is a different game - the whole weight of him comes from being
+   the only one. The visible band is ROWS_BEHIND + ROWS_AHEAD = 21 rows and he
+   can wander HOOD_REACH = 5 from where he started, so two of them 34 rows
+   apart cannot close to within 21 of each other. The draw enforces it
+   anyway. */
+var HOOD_GAP = 34;
 function hoodSafe(f, r){
   var row = rows[r];
   if (!row) return false;
@@ -2870,7 +2877,7 @@ function hoodSafe(f, r){
 var CROWD_FROM = 42, CROWD_TO = 46;
 function crowdHere(st){ return st >= CROWD_FROM && st <= CROWD_TO; }
 
-function makeWalk(r, park, crowd){
+function makeWalk(r, park, crowd, hood){
   var props = [], blocked = {}, chosen = [];
   /* Frontage goes down first and is seeded into the separation list, because a
      building at column 0 plus a prop at column 2 would strand column 1 between
@@ -2939,12 +2946,14 @@ function makeWalk(r, park, crowd){
     var nf = crowd ? [1,1,2,2,2][(Math.random()*5)|0] * 3
                    : [0,1,1,2,2][(Math.random()*5)|0];
     for (var fq = 0; fq < nf; fq++){
-      var hood = !park && Math.random() < HOOD_ODDS;
       folk.push({ x0: Math.random() * COLS,
                   v: (Math.random() < 0.5 ? -1 : 1) * (0.14 + Math.random()*0.26),
                   seed: (Math.random()*9999)|0,
-                  champ: !hood && Math.random() < CHAMP_ODDS,
-                  hood: hood,
+                  /* The hood goes to the FIRST of them and nobody else.
+                     The flag is for the row, and handing it to the whole
+                     loop put three of him on one pavement. */
+                  champ: !(hood && fq === 0) && Math.random() < CHAMP_ODDS,
+                  hood: !!hood && fq === 0,
                   hx: hood ? Math.random() * COLS : 0,
                   hr: r, ko: 0,
                   eyes: 0 });
@@ -3042,7 +3051,13 @@ function ensureRows(upTo){
     else                     wantRoad = Math.random() < 0.62;
 
     if (!wantRoad){
-      pushRow(makeWalk(r, inPark(curStreet), crowdHere(curStreet)));
+      /* At most one hooded man anywhere near the camera, decided here
+         rather than inside makeWalk because this is where the row counter
+         that enforces the spacing lives. */
+      var wantHood = !inPark(curStreet) && (r - lastHood) >= HOOD_GAP &&
+                     r >= 6 && Math.random() < HOOD_ODDS;
+      if (wantHood) lastHood = r;
+      pushRow(makeWalk(r, inPark(curStreet), crowdHere(curStreet), wantHood));
       safeRun++; roadRun = 0; prevWasSafe = true;
       continue;
     }
@@ -3126,6 +3141,7 @@ var G = null;
 function reset(){
   rows = {}; genCursor = 0; roadRun = 0; safeRun = 0; lastPower = 0;
   nextStreet = START_ST + 1; lastSweep = -99; prevWasSafe = true; lastTam = -99;
+  lastHood = -999;
   curStreet = START_ST; curLane = 0; legDir = 1;
   ensureRows(ROWS_AHEAD);
   var tr = TRAINS[(Math.random()*TRAINS.length)|0];
@@ -8235,12 +8251,20 @@ function drawWorld(){
      actually standing in rather than the one he is stored on, because he is
      allowed to leave it. One pass over the same handful of rows. */
   HOOD_DRAW.length = 0;
+  var hoodBest = null, hoodD = 1e9;
   for (r = hi; r >= lo; r--){
     row = rows[r];
     if (!row || !row.folk) continue;
-    for (i = 0; i < row.folk.length; i++)
-      if (row.folk[i].hood) HOOD_DRAW.push(row.folk[i]);
+    for (i = 0; i < row.folk.length; i++){
+      if (!row.folk[i].hood) continue;
+      /* If the spacing ever lets two of them into the band - a leg change
+         regenerates the rows ahead, and the counter does not survive that -
+         only the one nearest him is drawn. One is the whole point of him. */
+      var hd = Math.abs(row.folk[i].hr - pp.row);
+      if (hd < hoodD){ hoodD = hd; hoodBest = row.folk[i]; }
+    }
   }
+  if (hoodBest) HOOD_DRAW.push(hoodBest);
   for (r = hi; r >= lo; r--){
     row = rows[r]; if (!row) continue;
     sy = rowScreenY(r);

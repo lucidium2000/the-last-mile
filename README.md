@@ -1260,6 +1260,17 @@ spot, out of a queue if they were in one, and talk about it afterwards
 Verified: on foot the first tap is refused and he stays put; flying, he takes
 the square in one tap and they are 1.15 tiles further along.
 
+**There is only ever one of him.** Two hooded men on the same screen is a gang,
+and a gang is a different game — the whole weight of him comes from being the
+only one. `HOOD_GAP` = 34 rows between them: the visible band is
+`ROWS_BEHIND + ROWS_AHEAD` = 21 and he can wander `HOOD_REACH` = 5 from where he
+started, so 34 apart cannot close to within 21. The flag belongs to the *row*,
+so it goes to the first person on it and nobody else — handing it to the whole
+loop put three of him on one pavement. And the draw keeps only the one nearest
+the player regardless, because a leg change regenerates the rows ahead and the
+spacing counter does not survive that. Checked over 900 rows: nine of him,
+minimum gap 36, never more than one in any visible band.
+
 **And he is out there too.** About one pavement in twenty-two has the hooded
 man on it — never in the park — and on the street he is only ever a presence: no
 knife, no robbery, nothing to react to. He closes on you slowly, holds at `HOOD_KEEP` = 0.95 tiles, says the same
