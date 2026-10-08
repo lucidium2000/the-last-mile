@@ -1729,20 +1729,26 @@ voice line.
 **He comes in from the right, and the screen crops him.** He used to rise out
 of the floor inside a tidy bordered box floating 84px above the bottom edge.
 Checked against the reference frame: Dan Forden slides in from the right, he is
-*big* — most of the bottom corner — and the screen edges cut him off, bottom and
-right. So does this one: 452px wide, the bottom 118 of him below the canvas, and
-he arrives from off the right edge rather than from under the floor. The
+*big* — most of the bottom corner — and the screen edges cut him off. So does
+this one, except for the crop: he arrives from off the right edge rather than
+from under the floor, 420px wide, and he **sits on the bottom safe line rather
+than through it**. Hanging 118px of him below the canvas looked right in a 4:3
+pane and wrong on everything else — a screen wider than 16:9 is scaled to fill
+the width and the spare height comes off *both* ends, so another thirty-odd
+pixels went with it and what was left was the top of his head. The world only
+ever uses y = 40–1040 for exactly this reason, and he lives inside it. The
 hairline and the shadow stay on the picture's edge because the asset is a
 rectangular halftone rather than a cut-out, and a hard rectangle with nothing on
 it reads as a bug.
 
-**It was not fast enough either.** He was up for 1.78 seconds, which is long enough to
+**And no word next to him.** The card behind him already says `CHUCK BUCKS ·
++$250,000 ON THE NUMBER`; a shout over the top of that was the same sentence
+twice in two sizes. He is the gag, the card is the caption.
+
+**The timing.** He was up for 1.78 seconds, which is long enough to
 turn your head and look at him, and the whole effect is that you cannot. In at
-0.18s, held for 0.62, out in 0.18 — **under a second end to end** — overshooting
-the resting line by six percent on the way up and settling back, and dropping
-faster than he rose. And the **word**: `CHUCK BUCKS!` arrives with him in brand
-orange on a slight lean with its own shadow, because a face in the corner with
-nothing shouted next to it is just a face in the corner.
+0.18s, **held for 1.12**, out in 0.18 — 1.48s end to end — overshooting by six
+percent on the way in and settling back, and leaving faster than he arrived.
 
 That voice line is the **one recorded sound in the game**, inlined as base64 so
 the file still loads nothing over the network. Everything else is synthesised.

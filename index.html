@@ -4879,8 +4879,15 @@ function drawRider(cx0, cw, cy){
    on the same floor, both derived from the sprite rather than eyeballed:
    223 is the sole in his own coordinates and 70 is the top of the hood, so
    153 is his height and everything else follows. */
+/* A tenth taller than everybody else in the carriage. Matched exactly to the
+   hero he read as just another commuter, and he is not meant to - he is meant
+   to be the one you keep an eye on. Ten percent is enough to notice and not
+   enough to be a monster, which is the thing that was wrong with him when he
+   stood a head and a half over the car. His SOLES stay on CAR_FLOOR; the
+   extra goes upward. */
+var HOOD_TALL = 1.10;
 function hoodFit(){
-  var scl = carVis() / 153;                // 153 is his own height, 70 to 223
+  var scl = carVis() * HOOD_TALL / 153;    // 153 is his own height, 70 to 223
   return { scl:scl, dy:carSole() - 223 * scl };
 }
 function drawHoodie(mx, cy, scl, alert, look, red){
@@ -9277,8 +9284,10 @@ if (CHUCK_SRC){
    at and therefore not the joke: the whole effect in Mortal Kombat is that
    he is gone before you can turn your head. In at 0.18, held for 0.62, out
    in 0.18 - under a second end to end - and he overshoots the resting line
-   by six percent on the way up and settles back, which is the snap. */
-var CHUCK_IN = 0.42, CHUCK_UP = 0.60, CHUCK_OUT = 1.22, CHUCK_GONE = 1.40;
+   by six percent on the way in and settles back, which is the snap. Held
+   half a second longer than that first pass - long enough to land, still
+   short enough that he is gone before you have turned your head. */
+var CHUCK_IN = 0.42, CHUCK_UP = 0.60, CHUCK_OUT = 1.72, CHUCK_GONE = 1.90;
 function drawChuck(t){
   if (t < CHUCK_IN || t > CHUCK_GONE) return;
   var k;
@@ -9305,9 +9314,17 @@ function drawChuck(t){
      The edge of the photograph still gets a hairline and a shadow, because
      the asset is a rectangular halftone rather than a cut-out and a hard
      rectangle with nothing on it reads as a bug. */
-  var w = 452, h = 440;                           // 455:443, the photo's aspect
+  var w = 420, h = 409;                           // 455:443, the photo's aspect
   var x = LOGICAL_W - w * k;
-  var y = LOGICAL_H - h + 118;                    // cropped by the bottom
+  /* Sitting ON the bottom safe line, not through it. Hanging 118px of him
+     below the canvas looked right in a 4:3 pane and wrong on everything
+     else: a screen wider than 16:9 is scaled to fill the width and the
+     spare height is cropped off BOTH ends, so another thirty-odd pixels of
+     him went with it and what was left was the top of his head. The world
+     only ever uses y = 40..1040 for exactly this reason, and he lives
+     inside it now - cropped by the right edge on the way in, and by
+     nothing else. */
+  var y = LOGICAL_H - 56 - h;
 
   ctx.save();
   ctx.beginPath(); ctx.rect(0, 0, LOGICAL_W, LOGICAL_H); ctx.clip();
@@ -9332,23 +9349,10 @@ function drawChuck(t){
   if (!(CHUCK_IMG && CHUCK_IMG.complete && CHUCK_IMG.naturalWidth > 0)){
     ctx.fillStyle = "rgba(255,106,19,0.14)"; ctx.fillRect(x, y, w, h);
   }
+  /* No word next to him. The card behind him already says CHUCK BUCKS and
+     +$250,000 ON THE NUMBER, and a shout over the top of that was the same
+     sentence twice in two sizes. He is the gag; the card is the caption. */
   ctx.restore();
-
-  /* And the word. "Toasty!" is the whole gag - a face in the corner with
-     nothing shouted next to it is just a face in the corner. It arrives with
-     him, leaning, with its own shadow so it reads over the card behind it. */
-  ctx.save();
-  ctx.globalAlpha = Math.min(1, k * 1.8);
-  ctx.translate(x - 22, y + 150);
-  ctx.rotate(-0.075);
-  ctx.font = 'bold 58px "Helvetica Neue",Helvetica,Arial,sans-serif';
-  ctx.textAlign = "right"; ctx.textBaseline = "alphabetic";
-  ctx.fillStyle = "rgba(12,6,2,0.85)";
-  ctx.fillText("CHUCK BUCKS!", 5, 5);
-  ctx.fillStyle = C.brand;
-  ctx.fillText("CHUCK BUCKS!", 0, 0);
-  ctx.restore();
-  ctx.globalAlpha = 1;
 }
 
 /* A smile and what he is smiling at, over his head. At this scale his own
