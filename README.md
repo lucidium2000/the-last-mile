@@ -414,7 +414,8 @@ draining from one into the other over the life of the burst with three grains in
 the air between them. It is drawn slowly on purpose — an hourglass running fast
 says the opposite of what that SKU means. It is 78px and centred at y 270,
 because the pickup banner ends at 230 and the eye starts around 311, and
-anything bigger sits on one or the other.
+anything bigger sits on one or the other. **And a second glass stays on screen
+for the whole eleven seconds** — see below.
 
 **Everything that is ThousandEyes by name gets it** — the TAM, the Add-On Pack,
 **Endpoint Agents**, **Traffic Insights** and **Internet Insights**, off one
@@ -1993,6 +1994,35 @@ is broken, and the cycle is scaled now too.
 The look is a cool wash, scanlines, a frame and one bright band sweeping down
 at normal speed. The band is what sells it: it is the only thing on screen still
 moving at the old rate.
+
+**The hourglass stays up for the whole eleven seconds.** The one in the pickup
+burst says *time is about to go slow* and then leaves, which is the wrong half
+of the sentence: the thing worth showing is how much of it is left. The one in
+the overlay drains against `G.slowT`, so it is a clock rather than a logo and
+the player can read the end coming. Measured across a full run: drawn every
+frame at (960, 898) at 76px, draining 0.17, 0.33, 0.49, 0.66, 0.82, 0.99 as the
+clock runs out, and gone the frame it does.
+
+It also moved the `SLOW MOTION` label, which was at `LOGICAL_H - 36` — y 1044,
+dead centre inside the health bar, which spans 680–1240 at y 986–1048 and is
+drawn *after* the tint. It was painted over every frame it was up. Label at 966
+now, glass above it at 898, both clear of the bar.
+
+**And it sounds low.** A wind-down first — a pitch falling from 392Hz to 82.41,
+two and a half octaves over most of a second, which is the sound of something
+losing speed — and then a drone underneath that holds for as long as the mode
+does: 55Hz and 82.41Hz, A1 and the fifth above it, through a 420Hz low-pass.
+Two oscillators rather than one, because a lone sine at 55Hz is *felt* rather
+than heard on a panel speaker and the fifth is what makes it read as a pitch at
+all; the upper one is detuned six cents so the pair beat against each other
+about once a second, since a dead-steady drone reads as a hum in the room
+rather than as something the game is doing.
+
+It starts only on the way *in*. A second card while the first is still running
+extends the clock, and a second drone on top of the one already playing is two
+drones, not a louder one. It is one chain for the whole eleven seconds rather
+than a cue retriggered per frame, and it is reaped like everything else —
+measured: 3 live chains while it plays, 0 after it ends.
 
 An earlier version put Matrix-style green glyph rain over all of this. It looked
 the part and it was distracting, and for an overlay you have to play *underneath*

@@ -384,6 +384,45 @@ var AUDIO = (function(){
 
        It plays on a TAM and on an Add-On Pack, over the top of their own
        cues, because the thing being said is about money. */
+    /* The world slowing down, in the one register nobody mistakes for
+       anything else. A wind-down first - a pitch falling two and a half
+       octaves over most of a second, which is the sound of something losing
+       speed - and then a drone underneath it that holds for as long as the
+       mode does and gets out of the way at the end.
+
+       Two oscillators a fifth apart rather than one, because a lone sine at
+       55Hz is felt rather than heard on a panel speaker and the fifth is
+       what makes it read as a pitch at all. The upper one is detuned six
+       cents so the pair beat against each other about once a second: a
+       dead-steady drone reads as a hum in the room rather than as something
+       the game is doing.
+
+       It is one chain for the whole eleven seconds rather than a cue
+       retriggered per frame, and it is reaped like everything else. */
+    slowDrone: function(secs){
+      if (!live()) return;
+      tone({ f:392, to:82.41, dur:0.85, type:"triangle", g:0.15, lp:1100 });
+      try {
+        var t = ac.currentTime, dur = Math.max(1.2, secs);
+        var rel = Math.max(t + 0.6, t + dur - 0.9);
+        var mix = ac.createGain(), lp = ac.createBiquadFilter();
+        lp.type = "lowpass"; lp.frequency.value = 420;
+        mix.gain.setValueAtTime(0.0001, t);
+        mix.gain.exponentialRampToValueAtTime(0.085, t + 0.55);
+        mix.gain.setValueAtTime(0.085, rel);
+        mix.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+        mix.connect(lp); lp.connect(master);
+        var lo = ac.createOscillator(), fifth = ac.createOscillator();
+        lo.type = "sine";        lo.frequency.setValueAtTime(55, t);
+        fifth.type = "triangle"; fifth.frequency.setValueAtTime(82.41, t);
+        fifth.detune.setValueAtTime(-6, t);
+        lo.connect(mix); fifth.connect(mix);
+        lo.start(t); fifth.start(t);
+        lo.stop(t + dur + 0.05); fifth.stop(t + dur + 0.05);
+        reap(lo, [mix, lp], t + dur + 0.05);
+        reap(fifth, [], t + dur + 0.05);
+      } catch (e){}
+    },
     chaChing: function(){
       hit({ f:3400, hp:true, dur:0.05, g:0.10 });
       hit({ f:900, dur:0.07, g:0.055, at:0.012 });
@@ -4084,7 +4123,13 @@ function collect(){
       flash("ENDPOINT AGENTS \u00d72", "Purple. Two objections bounce off this.",
             BLAZER2);
   }
-  else if (kind === "insight") G.slowT = Math.max(G.slowT, k.secs);
+  else if (kind === "insight"){
+    /* Only on the way IN. A second card while the first is still running
+       extends the clock, and starting a second drone on top of the one
+       already playing is two drones, not a louder one. */
+    if (G.slowT <= 0) AUDIO.slowDrone(k.secs);
+    G.slowT = Math.max(G.slowT, k.secs);
+  }
   else if (kind === "traffic") G.riskT = Math.max(G.riskT, k.secs);
   else if (kind === "path"){
     G.revealT = Math.max(G.revealT, k.secs);
@@ -9982,8 +10027,22 @@ function drawSlowTint(){
   // and a frame, so it reads as a mode rather than a filter
   ctx.globalAlpha = 0.45 * a; ctx.strokeStyle = POWERS.insight.col; ctx.lineWidth = 3;
   ctx.strokeRect(10, 10, LOGICAL_W - 20, LOGICAL_H - 20);
+
+  /* The glass stays for the whole eleven seconds, not just for the burst.
+     The burst's hourglass says "time is about to go slow" and then leaves,
+     which is the wrong half of the sentence - the thing worth showing is
+     how much of it is left. This one drains against G.slowT, so it is a
+     clock rather than a logo, and the player reads the end coming.
+
+     It sits at 898 with the label under it at 966. The label used to be at
+     LOGICAL_H - 36, which is 1044 - dead centre inside the health bar,
+     which spans 680..1240 at y 986..1048 and is drawn AFTER the tint. It
+     was painted over every frame it was up. */
+  ctx.globalAlpha = 0.9 * a;
+  drawHourglass(LOGICAL_W / 2, 898, 76,
+                1 - Math.max(0, Math.min(1, G.slowT / POWERS.insight.secs)));
   ctx.globalAlpha = 0.85 * a;
-  txt("SLOW MOTION", LOGICAL_W / 2, LOGICAL_H - 36, 22, POWERS.insight.col);
+  txt("SLOW MOTION", LOGICAL_W / 2, 966, 22, POWERS.insight.col);
   ctx.globalAlpha = 1;
 }
 function drawRisk(){
