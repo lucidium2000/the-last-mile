@@ -7656,15 +7656,22 @@ function drawKioskLabel(col, botY, bob){
   if (top < HORIZON - 6 || top > LOGICAL_H - 40) return;
   var pulse = 0.80 + 0.20*Math.sin(G.t*3 + col);
   ctx.font = 'bold 22px "Helvetica Neue",Helvetica,Arial,sans-serif';
-  var w = ctx.measureText("TE-ADDON PACK").width + 44;
+  /* Measure what is actually DRAWN, both lines of it. The plate used to be
+     sized off "TE-ADDON PACK" while the line above it said "THOUSANDEYES
+     ADD-ON", seven characters longer - so the words hung off both ends of
+     their own box. Whichever line is wider sets the width. */
+  var lab = "THOUSANDEYES ADD-ON";
+  var sub = "+" + cash(ADDON_BONUS) + "   \u00B7   BEST PATH";
+  var w1 = ctx.measureText(lab).width;
+  ctx.font = 'bold 19px "Helvetica Neue",Helvetica,Arial,sans-serif';
+  var w = Math.max(w1, ctx.measureText(sub).width) + 48;
   ctx.globalAlpha = pulse;
   plate(cx - w/2, top, w, 76, "rgba(8,5,3,0.90)", 9);
   rr(cx - w/2, top, w, 76, 9);
   ctx.strokeStyle = C.pw3; ctx.lineWidth = 2.5; ctx.stroke();
   ctx.fillStyle = C.pw3; ctx.fillRect(cx - w/2, top, 5, 76);
-  txt("THOUSANDEYES ADD-ON", cx + 2, top + 26, 22, C.pw3);
-  txt("+" + cash(ADDON_BONUS) + "   \u00B7   BEST PATH",
-      cx + 2, top + 58, 19, C.good);
+  txt(lab, cx + 2, top + 26, 22, C.pw3);
+  txt(sub, cx + 2, top + 58, 19, C.good);
   ctx.globalAlpha = 1;
 }
 
