@@ -3757,21 +3757,31 @@ function playerPos(){
 
 /* The stride. With the hop gone something has to say a step happened, and a
    figure sliding square to square says nothing at all. The sprite is one
-   bake, so the legs get separated by clipping rather than by another
-   forty-two bakes: the band below the knee is drawn twice, once clipped to
-   the left half and once to the right, each raised by its own half of the
-   cycle. The sliver of road that opens under the raised shoe is the whole
-   point - that is the foot off the ground.
+   bake and there are already forty-two of them, so the limbs are separated
+   by CLIPPING rather than by another eighty: the drawn figure is cut into
+   five bands - head and torso, each arm, each leg - and each band is blitted
+   from the same sprite at its own offset.
 
-   One cycle per square, and the phase flips on odd steps, or he would lead
-   with the same leg every single time. */
-var STRIDE_PX = 5;
+   Everything moves UP and only up, and that is not a shortcut - +y is away
+   from the camera in this projection, so a limb swinging forward IS a limb
+   moving up the screen. It also solves the seam: a band that only rises has
+   its top edge cut off by its own clip and stays attached to the body,
+   where one that dropped would open a strip of road between the shoulder
+   and the sleeve. Sideways throw was tried and abandoned for the same
+   reason - the sleeve's inner edge and the jacket's outer edge are the same
+   line, so any lateral movement either clips the arm or detaches it.
+
+   Arms run in opposition to the leg on the same side at a bit over half the
+   throw, which is what arms do. One cycle per square, and the phase flips
+   on odd steps, or he would lead with the same leg every single time. */
+var STRIDE_LIFT = 9, STRIDE_ARM = 5;
 function walkStride(){
   if (G.state !== ST_PLAY || G.hop >= 1 || G.ride) return null;
   if (G.flyA > 0.05) return null;            // flight has no footfalls
-  var ph = (G.hop + (G.steps % 2) * 0.5) * Math.PI * 2;
-  var a = Math.sin(ph);
-  return [ Math.max(0, a) * STRIDE_PX, Math.max(0, -a) * STRIDE_PX ];
+  var a = Math.sin((G.hop + (G.steps % 2) * 0.5) * Math.PI * 2);
+  var up = Math.max(0, a), dn = Math.max(0, -a);
+  return { legL: -up * STRIDE_LIFT, legR: -dn * STRIDE_LIFT,
+           armL: -dn * STRIDE_ARM,  armR: -up * STRIDE_ARM };
 }
 function burst(x, y, col){
   for (var i=0;i<G.parts.length;i++){
@@ -7331,23 +7341,47 @@ function drawPlayer(pp){
     return;
   }
 
-  var stride = walkStride();
-  if (stride && (stride[0] > 0.05 || stride[1] > 0.05)){
-    var lx = sx - s.ox*kx, ly2 = dy - s.oy*ky, lw3 = s.w*kx, lh = s.h*ky;
-    var knee = dy - s.oy*ky*0.30;        // about a third of the way up him
-    var midX = lx + lw3*0.5;
-    ctx.save();                           // everything above the knee, once
-    ctx.beginPath(); ctx.rect(lx - 2, ly2 - 2, lw3 + 4, knee - ly2 + 2); ctx.clip();
+  var W2 = walkStride();
+  if (W2){
+    /* A model point (x, y, z) lands on screen at sx + (x*TILE + y*SKEW)*kx,
+       dy - (y*ROW_H + z*ZH)*ky, because blitScaled offsets by the same ox/oy
+       the projection measured from. That is how the band edges below are
+       derived rather than guessed: y = 0.45 is the plane the arms and legs
+       sit on, z = 0.30 is mid-trouser and z = 0.56 is just under the
+       shoulders, and x = 0.245 / 0.755 are the inside edges of the sleeves. */
+    var lx = sx - s.ox*kx, ly2 = dy - s.oy*ky, lw3 = s.w*kx;
+    var bot   = ly2 + s.h*ky + 6;
+    /* The leg band starts at the JACKET HEM, z = 0.33, not mid-thigh. Cut
+       lower and the trouser shears against itself halfway down; cut here and
+       the whole exposed leg travels as one piece with the hem covering where
+       it joins. The arm band starts just under the shoulders at z = 0.56,
+       one unit above the top of the sleeve, so a sleeve on the way up loses
+       its top edge to the clip instead of parting from the shoulder. */
+    var hip   = dy - (0.45*ROW_H + 0.330*ZH) * ky;
+    var shldr = dy - (0.45*ROW_H + 0.560*ZH) * ky;
+    var aL    = sx + (0.245*TILE + 0.45*SKEW) * kx;
+    var aR    = sx + (0.755*TILE + 0.45*SKEW) * kx;
+    var legM  = sx + (0.500*TILE + 0.45*SKEW) * kx;
+    function band(x0, y0, x1, y1, oy){
+      ctx.save();
+      ctx.beginPath(); ctx.rect(x0, y0, x1 - x0, y1 - y0); ctx.clip();
+      put(s, sx, dy + oy);
+      ctx.restore();
+    }
+    /* Head, shoulders and torso in one pass, as a T: the full width down to
+       the shoulders, then the middle only, stopping at the hem so the legs
+       are not drawn twice. */
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(lx - 2, ly2 - 2, lw3 + 4, shldr - ly2 + 2);
+    ctx.rect(aL, shldr, aR - aL, hip - shldr);
+    ctx.clip();
     put(s, sx, dy);
     ctx.restore();
-    ctx.save();                           // the near leg
-    ctx.beginPath(); ctx.rect(lx - 2, knee, midX - lx + 2, lh); ctx.clip();
-    put(s, sx, dy - stride[0]);
-    ctx.restore();
-    ctx.save();                           // and the far one
-    ctx.beginPath(); ctx.rect(midX, knee, lx + lw3 - midX + 2, lh); ctx.clip();
-    put(s, sx, dy - stride[1]);
-    ctx.restore();
+    band(lx - 2, shldr, aL,           bot, W2.armL);  // arm, hand, and the case
+    band(aR,     shldr, lx + lw3 + 2, bot, W2.armR);
+    band(aL,     hip,   legM,         bot, W2.legL);
+    band(legM,   hip,   aR,           bot, W2.legR);
     return;
   }
   put(s, sx, dy);
