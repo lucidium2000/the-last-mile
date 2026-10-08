@@ -308,6 +308,24 @@ after the traffic, so the lane passes on the far side of it the way it does on
 a real street. 20px is inside the range the lane already moves things through:
 a car swerving round the player travels up to `SWERVE_PX`, 26.
 
+**The terminal is staged like the TAM.** It is the best thing on the whole
+pavement — a route and a hundred and fifty thousand — and it was drawn like a
+parking meter with a caption. It gets a beam into the sky band so you can see
+it coming from blocks away, a glow pool and two rings on the ground, and a card
+reading `TE-ADDON PACK` over `+$150,000 · BEST PATH`, because what it is worth
+matters more than what it is called. The sparks climbing out of it are the
+**trace green**, not the amber: they are a preview of the thing it hands you,
+and the only green on the street until you take it. Spent, it drops to 0.4
+alpha and loses all of it.
+
+**And lunch comes off the number.** Three dollars against a seven-figure
+pipeline is not a mechanic, it is a joke that lands because the last three
+digits of the headline figure stop being zeroes — $300,000 becomes $299,985
+after a bagel, a slice and a hot dog. It gets its own `LUNCH` row on the end
+screen so the tally still adds up, `cash()` is signed now (−$15, not $-15), and
+`pipeline()` is floored at zero because a man who buys a bagel on the first
+block should not owe the company seven dollars.
+
 ### Nothing in a lane overlaps anything else in it
 
 Every vehicle in a lane shares a speed, so left alone they hold their spacing
@@ -843,6 +861,22 @@ down made a man on his way to a meeting look like a frog. Three changes:
   square, and the phase flips on odd steps or he leads with the same leg every
   time.
 
+**The gait runs on its own clock, not on the step.** Tying the cycle to
+`G.hop` made every square its own little animation — the legs came up, went
+down, snapped to attention, and the next tap started it again from zero, which
+is what read as stiff. `G.walkPh` only advances while he is moving and
+`G.walkAmt` eases in and out around it, so a second step picks up where the
+first left off and the legs settle over about a tenth of a second instead of
+snapping. **Half a cycle — one footfall — per square**: a full cycle was two
+footfalls in 135ms, which is a sprint, and worse, the phase came back to where
+it started every step so he led with the same leg every time. Half means they
+alternate for free. Verified: π a step, legL, legR, legL, legR.
+
+And he breathes when he is not walking — 1.3px at about 0.25Hz, folded into the
+same `lift`. A figure perfectly still between taps is a statue, and a statue is
+the other half of what read as stiff. `walkStride` returns null while he is
+idle, so standing there still costs one blit rather than five.
+
 The squash and the shadow shrink were a jump's, so on foot they are cut to a
 fifth and a fifth respectively. Measured over four steps: lift peaks at 3.4px
 mid-footfall, the legs alternate 5px and 0, and consecutive steps lead with
@@ -956,6 +990,17 @@ with nothing, because they walk at the *back* of the pavement — model y 0.86
 against the 0.46 the player walks on, which is 29px further up the screen — so
 he passes in front of them, and they go down before the props so a hot dog
 stand stands in front of them.
+
+**They get out of the way, and they say so.** They are not solid: a moving
+blocker would wreck the one guarantee the generator makes — that no cell can
+ever be pinned — and a person you cannot walk past is not a person, it is a
+bollard. Instead the drawn position is pushed away from him inside 1.25 tiles,
+as a pure function of where he is standing this frame, so it needs no state and
+eases in and out on its own. Measured: at any approach inside the radius they
+end up exactly 1.25 tiles clear; outside it they do not move at all. If he
+steps into the square somebody was *already* in, that gets `AUDIO.jostle()` —
+cloth, then the low thud of two people meeting — and they stagger for half a
+second, further aside and a few pixels off the ground.
 
 They are **baked**, not drawn live. A couple on every sidewalk on screen is
 twenty-odd figures a frame and each one is twenty-odd `fillRect`s, where the

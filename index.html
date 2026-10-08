@@ -370,6 +370,12 @@ var AUDIO = (function(){
        longer tail and a ping over it. Staying on the path should sound like
        being rewarded for staying on the path, which is the entire pitch of
        the product. */
+    /* Shouldering past somebody. Cloth first, then the low thud of two
+       people meeting - no tone, because it is not an event, it is Midtown. */
+    jostle: function(){
+      hit({ f:1400, to:500, dur:0.10, g:0.055 });
+      tone({ f:132, to:112, dur:0.11, type:"sine", g:0.085 });
+    },
     traceHop: function(){
       if (ladder < 12) ladder++;
       var i = ladder % PENT.length, oct = Math.floor(ladder / PENT.length);
@@ -847,7 +853,7 @@ var AUDIO = (function(){
 var cv = document.getElementById("c");
 var ctx = cv.getContext("2d", { alpha:false });
 var scale = 1, BAKE = 1, ready = false;
-var skyGrad = null, hazeGrad = null, tamBeamGrad = null;
+var skyGrad = null, hazeGrad = null, tamBeamGrad = null, addonBeamGrad = null;
 
 function layout(){
   var vw = window.innerWidth || LOGICAL_W, vh = window.innerHeight || LOGICAL_H;
@@ -896,6 +902,13 @@ function layout(){
   tamBeamGrad.addColorStop(0,    "rgba(255,240,189,0.34)");
   tamBeamGrad.addColorStop(0.35, "rgba(255,170,60,0.16)");
   tamBeamGrad.addColorStop(1,    "rgba(255,170,60,0)");
+  /* The terminal gets its own, shorter and in the path amber. Same trick,
+     same reason: a gradient is transformed by the CTM, so it is built at the
+     origin and translated into place. */
+  addonBeamGrad = ctx.createLinearGradient(0, 0, 0, -300);
+  addonBeamGrad.addColorStop(0,    "rgba(255,217,135,0.30)");
+  addonBeamGrad.addColorStop(0.35, "rgba(255,194,61,0.15)");
+  addonBeamGrad.addColorStop(1,    "rgba(255,194,61,0)");
 
   var nb = Math.max(0.5, Math.min(1, scale));
   /* Mid-burst, take the new scale but hold the re-bake. The settled call that
@@ -2901,9 +2914,9 @@ function reset(){
     stage:-1, coach:-1, toast:null, flash:null,
     shield:false, slowT:0, revealT:0, invulnT:0, powersUsed:0,
     hp:HP_MAX, hpGain:null, meals:0, sadT:0, needFood:0, saidFood:false,
-    bonusChuck:0, bonusTam:0, bonusAddon:0, addons:0, addonWin:null,
+    bonusChuck:0, bonusTam:0, bonusAddon:0, bonusFood:0, addons:0, addonWin:null,
     tally:null, booth:null, deathPush:0,
-    flyT:0, flyA:0, flyBeep:0, flyMove:0, flyTilt:0, tam:false, tamT:0, tamWins:0, tamWin:null, hurtT:0, nahT:0,
+    flyT:0, flyA:0, flyBeep:0, flyMove:0, flyTilt:0, walkPh:0, walkAmt:0, tam:false, tamT:0, tamWins:0, tamWin:null, hurtT:0, nahT:0,
     yumT:0, yumKind:null, yumDir:0, yumBite:0, wowT:0, cheerT:0,
     metro:0, ride:null, trace:null, rides:0, bonus:0, tamLeft:0, riskT:0,
     scene:null, scenesSeen:{}, ticker:null, notice:null, leg:1, po:false, won:false,
@@ -3108,9 +3121,16 @@ function best(){
 function saveBest(v){ try { if (v > best()) localStorage.setItem("lastmile.best", String(v)); } catch (e){} }
 function rankFor(r){ var n = RANKS[0][1]; for (var i=0;i<RANKS.length;i++) if (r >= RANKS[i][0]) n = RANKS[i][1]; return n; }
 function money(r){ return "$" + (r*DOLLARS_PER_ROW).toLocaleString("en-US"); }
-function cash(v){ return "$" + Math.round(v).toLocaleString("en-US"); }
+/* Signed, because lunch is the one line on the end screen that goes the
+   other way and "$-12" is not how anybody writes it. */
+function cash(v){
+  var n = Math.round(v);
+  return (n < 0 ? "\u2212$" : "$") + Math.abs(n).toLocaleString("en-US");
+}
 /* rows walked, plus whatever Chuck handed over */
-function pipeline(){ return G.maxRow*DOLLARS_PER_ROW + G.bonus; }
+/* Floored at nothing. Lunch comes off the number now, and a man who buys a
+   bagel on the first block should not owe the company seven dollars. */
+function pipeline(){ return Math.max(0, G.maxRow*DOLLARS_PER_ROW + G.bonus); }
 function flash(name, line, col){ G.flash = { life:2.2, name:name, line:line, col:col }; }
 /* A flash lives in the top strip and lasts two seconds. Some things need the
    middle of the screen and seven. */
@@ -3319,6 +3339,11 @@ function act(dir){
       var was = G.hp;
       G.hp = Math.min(HP_MAX, G.hp + foodValue(foodPr.kind));
       G.meals = (G.meals || 0) + 1;
+      /* And he pays for it. Three dollars against a seven-figure pipeline is
+         not a mechanic, it is a joke that lands because the last three digits
+         of the headline number stop being zeroes. */
+      var price = foodPrice(foodPr.kind);
+      G.bonus -= price; G.bonusFood -= price;
       G.hpGain = { life:1.5, amt:Math.round(G.hp - was) };
       AUDIO.pay();
     } else AUDIO.bump();
@@ -3332,6 +3357,23 @@ function act(dir){
     if (onPath) AUDIO.traceHop(); else AUDIO.hop();
     G.trainT = Math.min(TRAIN_MAX, G.trainT + TRAIN_PER_HOP);
   } else if (onPath) AUDIO.traceStep(); else AUDIO.step();
+
+  /* Did he just walk into where somebody was standing? Measured against the
+     UNDODGED position, because the dodge is what is about to happen - this
+     is the moment before it, and it is the only moment worth a sound. */
+  if (target && target.folk){
+    var fspan2 = COLS + 3;
+    for (var fb = 0; fb < target.folk.length; fb++){
+      var fo = target.folk[fb];
+      var raw = ((fo.x0 + fo.v * G.t) % fspan2 + fspan2) % fspan2 - 1.5;
+      if (Math.abs(raw - nc) < 0.62 && G.t - (fo.hitAt || -9) > 0.6){
+        fo.hitAt = G.t;
+        fo.hitSide = raw >= nc ? 1 : -1;
+        AUDIO.jostle();
+        break;
+      }
+    }
+  }
 
   G.steps++;
   G.fromRow = G.row; G.fromCol = G.col;
@@ -3385,7 +3427,9 @@ function buildTally(){
     { label:"TAM PAYOUTS", note:G.tamWins + (G.tamWins === 1 ? " win" : " wins"),
       amt:G.bonusTam, col:C.pw5 },
     { label:"TE-ADDONS", note:G.addons + (G.addons === 1 ? " terminal" : " terminals"),
-      amt:G.bonusAddon, col:POWERS.path.col }
+      amt:G.bonusAddon, col:POWERS.path.col },
+    { label:"LUNCH", note:G.meals + (G.meals === 1 ? " bought" : " bought"),
+      amt:G.bonusFood, col:C.textDim }
   ];
   var powers = 0;
   for (var k in G.got) powers += G.got[k];
@@ -3822,8 +3866,12 @@ function playerPos(){
      not on where he is between two squares. On foot it is the bob of a
      walk: two footfalls a square, three and a half pixels. */
   var air = G.flyA > 0.05 ? G.flyA : 0;
+  /* Two footfalls a square while he walks, and a slow breath when he is not.
+     A figure that is perfectly still between taps is a statue, and a statue
+     is the other half of what reads as stiff. */
   var lift = air ? (6 + G.flyMove * 26) * air
-           : (G.hop >= 1 ? 0 : Math.abs(Math.sin(G.hop * Math.PI * 2)) * 3.4);
+           : Math.abs(Math.sin(G.walkPh)) * 3.4 * G.walkAmt
+             + (1 - G.walkAmt) * 1.3 * (0.5 + 0.5 * Math.sin(G.t * 1.6));
   return { col:G.fromCol + (G.col-G.fromCol)*e, row:G.fromRow + (G.row-G.fromRow)*e,
            lift:lift, sq:s };
 }
@@ -3845,14 +3893,20 @@ function playerPos(){
    line, so any lateral movement either clips the arm or detaches it.
 
    Arms run in opposition to the leg on the same side at a bit over half the
-   throw, which is what arms do. One cycle per square, and the phase flips
-   on odd steps, or he would lead with the same leg every single time. */
+   throw, which is what arms do.
+
+   The phase is G.walkPh, which is free-running and shared with the bob, so
+   a second step picks up where the first left off instead of restarting the
+   cycle; the amplitude is G.walkAmt, which eases out over about a tenth of
+   a second so the legs settle rather than snap to attention. */
 var STRIDE_LIFT = 9, STRIDE_ARM = 5;
 function walkStride(){
-  if (G.state !== ST_PLAY || G.hop >= 1 || G.ride) return null;
+  if (G.state !== ST_PLAY || G.ride) return null;
   if (G.flyA > 0.05) return null;            // flight has no footfalls
-  var a = Math.sin((G.hop + (G.steps % 2) * 0.5) * Math.PI * 2);
-  var up = Math.max(0, a), dn = Math.max(0, -a);
+  var amt = G.walkAmt;
+  if (amt < 0.012) return null;              // standing still costs one blit
+  var a = Math.sin(G.walkPh);
+  var up = Math.max(0, a) * amt, dn = Math.max(0, -a) * amt;
   return { legL: -up * STRIDE_LIFT, legR: -dn * STRIDE_LIFT,
            armL: -dn * STRIDE_ARM,  armR: -up * STRIDE_ARM };
 }
@@ -4762,6 +4816,44 @@ function drawPax(cx2, feetY, seed, lit, sway, k){
   }
   ctx.globalAlpha = 1;
   ctx.restore();
+}
+
+/* Where a pedestrian actually is, once he is anywhere near them. They get
+   out of the way rather than being solid: a moving blocker would wreck the
+   one guarantee the generator makes - that no cell can ever be pinned - and
+   a person you cannot walk past is not a person, it is a bollard.
+
+   The dodge is a pure function of where he is standing this frame, so it
+   needs no state and eases in and out on its own as he closes and leaves.
+   Within 1.25 tiles they slide away from him, up to a tile and a quarter,
+   which is enough that the two sprites never share a column.
+
+   `hitAt` is the one piece of state: the moment he walked into the space
+   somebody was already in. For the next half second they stagger - further
+   aside and a few pixels off the ground - which is the acknowledgement. */
+var FOLK_DODGE = 1.25, FOLK_STAGGER = 0.45;
+function folkX(f, r){
+  var span = COLS + 3;
+  var x = ((f.x0 + f.v * G.t) % span + span) % span - 1.5;
+  var pp = playerPos();
+  if (Math.abs(pp.row - r) < 0.6){
+    var d = x - pp.col, ad = Math.abs(d);
+    if (ad < FOLK_DODGE){
+      var away = ad < 0.02 ? (f.v >= 0 ? 1 : -1) : (d > 0 ? 1 : -1);
+      x += away * (FOLK_DODGE - ad);
+    }
+  }
+  var age = G.t - (f.hitAt || -9);
+  if (age < FOLK_STAGGER){
+    var k = 1 - age / FOLK_STAGGER;
+    x += (f.hitSide || 1) * 0.42 * k * k;
+  }
+  return x;
+}
+function folkLift(f){
+  var age = G.t - (f.hitAt || -9);
+  if (age >= FOLK_STAGGER) return 0;
+  return Math.sin((age / FOLK_STAGGER) * Math.PI) * 7;
 }
 
 /* The same people, on the pavement. Baked rather than drawn live: a couple on
@@ -6056,6 +6148,26 @@ function update(dt){
   var movingNow = (G.state === ST_PLAY && G.hop < 1 && G.flyA > 0.05) ? 1 : 0;
   G.flyMove += (movingNow - G.flyMove) * Math.min(1, dt * (movingNow ? 8 : 4));
   if (G.flyMove < 0.002) G.flyMove = 0;
+  /* The gait runs on its own clock rather than on the step. Tying the cycle
+     to G.hop made every square its own little animation - the legs came up,
+     went down, snapped to attention, and then the next tap started the whole
+     thing again from zero, which is what was reading as stiff. A phase that
+     only advances while he is moving, and an amplitude that eases in and out
+     around it, chains the steps into one walk instead of a row of them.
+
+     HALF a cycle per square - one footfall - so the rate is pi over the step
+     time. A full cycle per square was two footfalls in 135ms, which is a
+     sprint, and worse: the phase advanced exactly 2pi every step and came
+     back to where it started, so he led with the same leg every single time
+     and the continuity bought nothing. Half means the legs alternate for
+     free. The amplitude rises fast and settles slower, which is how legs
+     work. */
+  var stepping = (G.state === ST_PLAY && G.hop < 1 && !G.ride && G.flyA <= 0.05)
+                 ? 1 : 0;
+  if (stepping) G.walkPh += dt * (Math.PI / (HOP_MS / 1000));
+  G.walkAmt += (stepping - G.walkAmt) * Math.min(1, dt * (stepping ? 24 : 9));
+  if (G.walkAmt < 0.002) G.walkAmt = 0;
+
   var fdx = G.col - G.fromCol;
   var fdir = fdx > 0 ? 1 : (fdx < 0 ? -1 : (G.facing > 0 ? 1 : -1));
   var ftar = fdir * (fdx !== 0 ? FLY_PITCH_SIDE : FLY_PITCH_FWD)
@@ -6951,18 +7063,16 @@ function drawWorld(){
       /* Before the props, so a hot dog stand stands in front of them. */
       if (row.folk && S.folk){
         for (i=0;i<row.folk.length;i++){
-          var fk = row.folk[i], fspan = COLS + 3;
-          var fx = ((fk.x0 + fk.v * G.t) % fspan + fspan) % fspan - 1.5;
+          var fk = row.folk[i];
           blit(S.folk[fk.seed % FOLK_N],
-               fx*TILE + TILE*0.5 + FOLK_Y*SKEW, sy - FOLK_Y*ROW_H);
+               folkX(fk, r)*TILE + TILE*0.5 + FOLK_Y*SKEW,
+               sy - FOLK_Y*ROW_H - folkLift(fk));
         }
       }
       for (i=0;i<row.props.length;i++){
         var pr2 = row.props[i];
-        if (pr2.kind === "kiosk" && pr2.used) ctx.globalAlpha = 0.4;  // spent
+        if (pr2.kind === "kiosk"){ drawKiosk(pr2.col, sy, pr2.used); continue; }
         blit(S["pr_"+pr2.kind], pr2.col*TILE, sy);
-        ctx.globalAlpha = 1;
-        if (pr2.kind === "kiosk" && !pr2.used) drawKioskLabel(pr2.col, sy);
       }
       if (row.pickup){
         if (row.pickup.kind === "tam") drawTamPickup(row.pickup.col, sy);
@@ -7075,16 +7185,80 @@ function drawBill(p){
    player nothing, and on a shared device most plays are a first play. */
 /* Terminals get the same floating label the pickups do, so it is obvious they
    are usable and not just scenery. */
+/* The terminal is the best thing you can walk into on the whole pavement -
+   a route and a hundred and fifty thousand - and it was drawn like a parking
+   meter with a caption. It gets the TAM's staging now, in its own colour: a
+   beam into the sky band so you can see it coming from blocks away, a pool
+   and two rings on the ground, and a card that says what it is worth rather
+   than only what it is called.
+
+   The sparks climbing out of it are the TRACE green, not the amber. They are
+   a preview of the thing it hands you, and they are the only green on the
+   street until you take it. */
+function drawKiosk(col, sy, used){
+  var cx = col*TILE + TILE*0.5, ground = sy - ROW_H*0.46;
+  if (used){                                   // spent: a box on the pavement
+    ctx.globalAlpha = 0.4;
+    blit(S.pr_kiosk, col*TILE, sy);
+    ctx.globalAlpha = 1;
+    return;
+  }
+  var phase = col * 1.7, pul = 0.5 + 0.5*Math.sin(G.t*2.4 + phase), i;
+
+  ctx.save();
+  ctx.translate(cx, ground);
+  ctx.globalAlpha = 0.70 + 0.30*pul;
+  ctx.fillStyle = addonBeamGrad;
+  ctx.fillRect(-42, -300, 84, 300);
+  ctx.globalAlpha = 0.26 + 0.20*pul;
+  ctx.fillRect(-12, -300, 24, 300);
+  ctx.restore();
+
+  ctx.globalAlpha = 0.18 + 0.14*pul; ctx.fillStyle = C.pw3;
+  ctx.beginPath();
+  ctx.ellipse(cx, ground, 50 + 8*pul, 19 + 3*pul, 0, 0, Math.PI*2);
+  ctx.fill();
+
+  ctx.lineWidth = 3;
+  for (i = 0; i < 2; i++){
+    var ph = (G.t*0.6 + i*0.5) % 1;
+    ctx.globalAlpha = (1 - ph) * 0.52;
+    ctx.strokeStyle = i ? TRACE.line : C.pw3;
+    ctx.beginPath();
+    ctx.ellipse(cx, ground, 24 + ph*42, 9 + ph*16, 0, 0, Math.PI*2);
+    ctx.stroke();
+  }
+  ctx.globalAlpha = 1;
+  blit(S.pr_kiosk, col*TILE, sy);
+
+  // packets leaving the terminal, in the colour of the route it hands you
+  ctx.fillStyle = TRACE.pale;
+  for (i = 0; i < 6; i++){
+    var t = ((G.t*0.5) + i/6) % 1;
+    var sz = 8 - t*4;
+    ctx.globalAlpha = (1 - t) * 0.85;
+    ctx.fillRect(cx + Math.sin(i*2.3 + G.t*0.7) * 24 - sz/2,
+                 ground - 34 - t*132 - sz/2, sz, sz);
+  }
+  ctx.globalAlpha = 1;
+  drawKioskLabel(col, sy);
+}
+
 function drawKioskLabel(col, sy){
-  var cx = col*TILE + TILE*0.5, y = sy - 142;
+  var cx = col*TILE + TILE*0.5, y = sy - 182;
   if (y < HORIZON + 10 || y > LOGICAL_H - 30) return;
-  var pulse = 0.72 + 0.28*Math.sin(G.t*3 + col);
-  ctx.font = 'bold 15px "Helvetica Neue",Helvetica,Arial,sans-serif';
-  var w = ctx.measureText("TE-ADDON").width + 28;
+  var pulse = 0.80 + 0.20*Math.sin(G.t*3 + col);
+  var bob = Math.sin(G.t*2.2 + col) * 4;
+  ctx.font = 'bold 22px "Helvetica Neue",Helvetica,Arial,sans-serif';
+  var w = ctx.measureText("TE-ADDON PACK").width + 44, top = y - 26 + bob;
   ctx.globalAlpha = pulse;
-  plate(cx - w/2, y - 15, w, 28, "rgba(8,5,3,0.86)", 7);
-  ctx.fillStyle = C.pw3; ctx.fillRect(cx - w/2, y - 15, 4, 28);
-  txt("TE-ADDON", cx + 2, y, 15, C.pw3);
+  plate(cx - w/2, top, w, 76, "rgba(8,5,3,0.90)", 9);
+  rr(cx - w/2, top, w, 76, 9);
+  ctx.strokeStyle = C.pw3; ctx.lineWidth = 2.5; ctx.stroke();
+  ctx.fillStyle = C.pw3; ctx.fillRect(cx - w/2, top, 5, 76);
+  txt("TE-ADDON PACK", cx + 2, top + 26, 22, C.pw3);
+  txt("+" + cash(ADDON_BONUS) + "   \u00B7   BEST PATH",
+      cx + 2, top + 58, 19, C.good);
   ctx.globalAlpha = 1;
 }
 
