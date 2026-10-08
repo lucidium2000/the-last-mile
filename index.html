@@ -3917,11 +3917,23 @@ function playerPos(){
    Arms run in opposition to the leg on the same side at a bit over half the
    throw, which is what arms do.
 
+   And the leg BENDS. A thigh and a shin that travel the same distance is a
+   wooden leg swinging from the hip, which is what still read as stiff after
+   the gait itself was fixed. Each leg is two bands rather than one, split at
+   the knee, and the shin comes up half again as far as the thigh - the leg
+   gets visibly shorter at the top of the swing, which in this projection is
+   exactly what a bent knee looks like.
+
+   The foot also kicks along the direction of travel, but only on a step
+   that HAS a direction the projection can show: a sideways one. Capped at
+   2.5px, because the gap between the inside edge of a trouser leg and the
+   middle of him is 3.6.
+
    The phase is G.walkPh, which is free-running and shared with the bob, so
    a second step picks up where the first left off instead of restarting the
    cycle; the amplitude is G.walkAmt, which eases out over about a tenth of
    a second so the legs settle rather than snap to attention. */
-var STRIDE_LIFT = 9, STRIDE_ARM = 5;
+var STRIDE_LIFT = 9, STRIDE_ARM = 6, STRIDE_KNEE = 1.5, STRIDE_KICK = 2.5;
 function walkStride(){
   if (G.state !== ST_PLAY || G.ride) return null;
   if (G.flyA > 0.05) return null;            // flight has no footfalls
@@ -3929,8 +3941,14 @@ function walkStride(){
   if (amt < 0.012) return null;              // standing still costs one blit
   var a = Math.sin(G.walkPh);
   var up = Math.max(0, a) * amt, dn = Math.max(0, -a) * amt;
-  return { legL: -up * STRIDE_LIFT, legR: -dn * STRIDE_LIFT,
-           armL: -dn * STRIDE_ARM,  armR: -up * STRIDE_ARM };
+  var dx = G.col - G.fromCol;
+  var kick = (dx > 0 ? 1 : (dx < 0 ? -1 : 0)) * STRIDE_KICK;
+  return {
+    legL: -up * STRIDE_LIFT, shinL: -up * STRIDE_LIFT * STRIDE_KNEE,
+    legR: -dn * STRIDE_LIFT, shinR: -dn * STRIDE_LIFT * STRIDE_KNEE,
+    kickL: up * kick, kickR: dn * kick,
+    armL: -dn * STRIDE_ARM, armR: -up * STRIDE_ARM
+  };
 }
 function burst(x, y, col){
   for (var i=0;i<G.parts.length;i++){
@@ -4898,9 +4916,15 @@ function folkLift(f){
 function drawFolkSay(f, sy){
   var age = G.t - (f.sayAt || -99);
   if (age < 0 || age >= FOLK_SAY) return;
-  var a = Math.min(1, age / 0.12) * Math.min(1, (FOLK_SAY - age) / 0.45);
+  /* Smoothstepped at both ends rather than ramped. A linear fade has a
+     corner at each end of it and the eye finds both; a cubic does not. The
+     rise is driven off the same curve as the fade, so it arrives rather
+     than appearing and then moving. */
+  var fin = Math.min(1, age / 0.26), fout = Math.min(1, (FOLK_SAY - age) / 0.55);
+  var ein = fin*fin*(3 - 2*fin), eout = fout*fout*(3 - 2*fout);
+  var a = Math.min(ein, eout);
   var x = folkX(f)*TILE + TILE*0.5 + FOLK_Y*SKEW;
-  var y = sy - FOLK_Y*ROW_H - 112 - folkLift(f) - Math.min(8, age * 26);
+  var y = sy - FOLK_Y*ROW_H - 112 - folkLift(f) - ein * 10;
   if (y < HORIZON + 6 || y > LOGICAL_H - 20) return;
   ctx.font = 'bold 19px "Helvetica Neue",Helvetica,Arial,sans-serif';
   var w = ctx.measureText(f.line).width + 34, h = 40;
@@ -8020,14 +8044,15 @@ function drawPlayer(pp){
        one unit above the top of the sleeve, so a sleeve on the way up loses
        its top edge to the clip instead of parting from the shoulder. */
     var hip   = dy - (0.45*ROW_H + 0.330*ZH) * ky;
+    var knee  = dy - (0.45*ROW_H + 0.210*ZH) * ky;
     var shldr = dy - (0.45*ROW_H + 0.560*ZH) * ky;
     var aL    = sx + (0.245*TILE + 0.45*SKEW) * kx;
     var aR    = sx + (0.755*TILE + 0.45*SKEW) * kx;
     var legM  = sx + (0.500*TILE + 0.45*SKEW) * kx;
-    function band(x0, y0, x1, y1, oy){
+    function band(x0, y0, x1, y1, oy, ox){
       ctx.save();
       ctx.beginPath(); ctx.rect(x0, y0, x1 - x0, y1 - y0); ctx.clip();
-      put(s, sx, dy + oy);
+      put(s, sx + (ox || 0), dy + oy);
       ctx.restore();
     }
     /* Head, shoulders and torso in one pass, as a T: the full width down to
@@ -8042,8 +8067,10 @@ function drawPlayer(pp){
     ctx.restore();
     band(lx - 2, shldr, aL,           bot, W2.armL);  // arm, hand, and the case
     band(aR,     shldr, lx + lw3 + 2, bot, W2.armR);
-    band(aL,     hip,   legM,         bot, W2.legL);
-    band(legM,   hip,   aR,           bot, W2.legR);
+    band(aL,     hip,   legM,         knee, W2.legL);   // thigh
+    band(legM,   hip,   aR,           knee, W2.legR);
+    band(aL,     knee,  legM,         bot,  W2.shinL, W2.kickL);   // shin, shoe
+    band(legM,   knee,  aR,           bot,  W2.shinR, W2.kickR);
     return;
   }
   put(s, sx, dy);

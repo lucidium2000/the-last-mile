@@ -885,6 +885,16 @@ footfalls in 135ms, which is a sprint, and worse, the phase came back to where
 it started every step so he led with the same leg every time. Half means they
 alternate for free. Verified: π a step, legL, legR, legL, legR.
 
+**And the leg bends.** A thigh and a shin that travel the same distance is a
+wooden leg swinging from the hip, which is what still read as stiff once the
+gait itself was right. Each leg is two bands rather than one, split at the knee
+(model z 0.21), and the shin comes up half again as far as the thigh — so the
+leg gets visibly shorter at the top of the swing, which in this projection is
+exactly what a bent knee looks like. The foot also kicks along the direction of
+travel, but only on a step that *has* a direction the projection can show: a
+sideways one, capped at 2.5px, because the gap between the inside edge of a
+trouser leg and the middle of him is 3.6. Six bands now, so six blits.
+
 And he breathes when he is not walking — 1.3px at about 0.25Hz, folded into the
 same `lift`. A figure perfectly still between taps is a statue, and a statue is
 the other half of what read as stiff. `walkStride` returns null while he is
@@ -1021,7 +1031,11 @@ yields on the second tap cannot pin anybody. And it only applies **while he is
 already on a pavement** — a man halfway across 42nd does not stop for a
 conversation, and a refused tap out there would be a death. Both get
 `AUDIO.jostle()`: cloth, then the low thud of two people meeting. The bubbles
-draw after the props, so a hot dog stand cannot sit on top of the words.
+draw after the props, so a hot dog stand cannot sit on top of the words, and
+they are smoothstepped in and out at both ends rather than ramped — a linear
+fade has a corner at each end of it and the eye finds both. The rise is driven
+off the same curve as the fade, so the bubble arrives rather than appearing and
+then moving.
 
 They are **baked**, not drawn live. A couple on every sidewalk on screen is
 twenty-odd figures a frame and each one is twenty-odd `fillRect`s, where the
