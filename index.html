@@ -9273,14 +9273,27 @@ if (CHUCK_SRC){
   CHUCK_IMG.onerror = function(){ CHUCK_IMG = null; };
   CHUCK_IMG.src = CHUCK_SRC;
 }
-var CHUCK_IN = 0.30, CHUCK_UP = 0.52, CHUCK_OUT = 2.30, CHUCK_GONE = 2.60;
+/* Toasty timings. He was up for 1.78 seconds, which is long enough to look
+   at and therefore not the joke: the whole effect in Mortal Kombat is that
+   he is gone before you can turn your head. In at 0.18, held for 0.62, out
+   in 0.18 - under a second end to end - and he overshoots the resting line
+   by six percent on the way up and settles back, which is the snap. */
+var CHUCK_IN = 0.42, CHUCK_UP = 0.60, CHUCK_OUT = 1.22, CHUCK_GONE = 1.40;
 function drawChuck(t){
   if (t < CHUCK_IN || t > CHUCK_GONE) return;
   var k;
-  if (t < CHUCK_UP){ k = (t - CHUCK_IN) / (CHUCK_UP - CHUCK_IN); k = 1 - (1-k)*(1-k); }
-  else if (t < CHUCK_OUT) k = 1;
-  else k = 1 - (t - CHUCK_OUT) / (CHUCK_GONE - CHUCK_OUT);
-  k = Math.max(0, Math.min(1, k));
+  if (t < CHUCK_UP){
+    k = (t - CHUCK_IN) / (CHUCK_UP - CHUCK_IN);
+    k = 1 - (1-k)*(1-k);
+    k *= 1.06;                                   // past it, then back
+  } else if (t < CHUCK_OUT){
+    var st = (t - CHUCK_UP) / 0.16;              // the settle
+    k = st >= 1 ? 1 : 1 + 0.06 * (1 - st) * Math.cos(st * Math.PI * 1.5);
+  } else {
+    k = 1 - (t - CHUCK_OUT) / (CHUCK_GONE - CHUCK_OUT);
+    k = k * k;                                   // drops faster than it rose
+  }
+  k = Math.max(0, Math.min(1.06, k));
 
   var w = 334, h = 325, x = LOGICAL_W - w - 26;   // 455:443, the photo's aspect
   /* He rises from a line 84px up, not from the very bottom: the full-screen
@@ -9311,6 +9324,22 @@ function drawChuck(t){
     ctx.fillStyle = "rgba(255,106,19,0.14)"; ctx.fillRect(x, y, w, h);
   }
   ctx.restore();
+
+  /* And the word. "Toasty!" is the whole gag - a face in the corner with
+     nothing shouted next to it is just a face in the corner. It arrives with
+     him, leaning, with its own shadow so it reads over the card behind it. */
+  ctx.save();
+  ctx.globalAlpha = Math.min(1, k * 1.8);
+  ctx.translate(x - 18, y + 108);
+  ctx.rotate(-0.075);
+  ctx.font = 'bold 58px "Helvetica Neue",Helvetica,Arial,sans-serif';
+  ctx.textAlign = "right"; ctx.textBaseline = "alphabetic";
+  ctx.fillStyle = "rgba(12,6,2,0.85)";
+  ctx.fillText("CHUCK BUCKS!", 5, 5);
+  ctx.fillStyle = C.brand;
+  ctx.fillText("CHUCK BUCKS!", 0, 0);
+  ctx.restore();
+  ctx.globalAlpha = 1;
 }
 
 /* A smile and what he is smiling at, over his head. At this scale his own

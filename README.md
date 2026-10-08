@@ -1726,6 +1726,14 @@ Mortal Kombat *Toasty* beat, which only works if it is fast, in the corner, and
 gone before you can look straight at it. It runs over the ticker card, with the
 voice line.
 
+**It was not fast enough.** He was up for 1.78 seconds, which is long enough to
+turn your head and look at him, and the whole effect is that you cannot. In at
+0.18s, held for 0.62, out in 0.18 — **under a second end to end** — overshooting
+the resting line by six percent on the way up and settling back, and dropping
+faster than he rose. And the **word**: `CHUCK BUCKS!` arrives with him in brand
+orange on a slight lean with its own shadow, because a face in the corner with
+nothing shouted next to it is just a face in the corner.
+
 That voice line is the **one recorded sound in the game**, inlined as base64 so
 the file still loads nothing over the network. Everything else is synthesised.
 It is decoded the moment the AudioContext exists rather than on first use, so
