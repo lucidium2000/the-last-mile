@@ -1173,8 +1173,17 @@ you three hundred thousand dollars does not then tell you to watch where you are
 going. Afterwards he does what everybody does once the business is done —
 *"I'll call you next week."*, *"I'll shoot you an email."*, *"Send me the deck,
 I'll look."* — and on the **fourth** walk into him he stops being polite about
-it: *"I said I'd call you."*, *"Alright — enough."*, *"We are done here."* Which
-is also true to life.
+it: *"I said I'd call you."*, *"Alright — enough."*, *"We are done here."*
+
+**On the fifth he takes it back.** *"Actually — let's hold off on that."* The
+deal was never signed — he said he *wanted* to add it, which is the most fragile
+thing in any pipeline and the first thing to go when the person who championed
+it stops wanting to see you. Same banner, same plate, in the red, with the rise
+running the other way (`−$300,000 / OFF THE PIPELINE`), and `bonusChamp` and the
+champion count both reversed. It is the only line in the game that takes money
+off the number for something the **player** did rather than something that
+happened to him. Verified over six bumps: +300,000, three pleasantries, one
+warning, then −300,000 and back to zero.
 
 **The money says so three ways at once.** A figure climbs out of him and fades
 (`+$300,000` over `ON THE PIPELINE`, rising 120px over 1.9s); the HUD readout
@@ -1266,6 +1275,14 @@ scenery; a man who steps into 42nd after you is the reason you keep walking. He
 is far slower than anything on the road, so it is not a chase he can win — it is
 a thing happening behind you. Verified: hr 13.44 on the pavement, 13.88 and
 14.32 in the road, flattened at 14.48.
+
+**He looks before he steps off.** `HOOD_LOOK` = 1.15 seconds of the lane's own
+traffic, swept forward from where each car is now: if any of that lands on him
+he waits on the kerb, and he never enters a motorcade row at all. Once he is
+committed he hurries (`HOOD_RUSH`, 1.9×), because stopping halfway across four
+lanes of 42nd is how you get hit, not how you avoid it. It is a lookahead, not a
+guarantee — he gets it wrong often enough to be worth watching, which is the
+point of him being out there.
 
 Because he can leave his row, he cannot be drawn by it: `HOOD_DRAW` gathers
 everybody in a hood once a frame and each is drawn in the row he is standing in,
