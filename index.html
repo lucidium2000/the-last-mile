@@ -2138,6 +2138,12 @@ var CHAMP_MAD = [
   "Do not make me regret this.",
   "We are done here."
 ];
+/* And on the fifth, he takes it back. The deal was never signed - he said he
+   wanted to add it, which is the most fragile thing in the pipeline and the
+   first thing to go when the person who championed it stops wanting to see
+   you. It is the only line in the game that takes money off the number for
+   something the player did rather than something that happened to him. */
+var CHAMP_PULL = "Actually \u2014 let's hold off on that.";
 
 /* ===================== CSCO TICKER CARD ===================================
    Chuck Bucks pays out, and the card is the celebration: a mock of the Google
@@ -2832,6 +2838,35 @@ function makeSweep(r, streetNo, dir){
    chase he can win. It is a thing happening behind you. */
 var HOOD_ODDS = 0.045, HOOD_CREEP = 0.42, HOOD_KEEP = 0.95;
 var HOOD_ROWV = 1.15, HOOD_REACH = 5, HOOD_KO = 3.2;
+/* He looks before he steps off. HOOD_LOOK seconds of the lane's own traffic
+   swept forward from where each car is now: if any of that lands on him, he
+   waits on the kerb. Once he is committed he hurries - HOOD_RUSH - because a
+   man who strolls across four lanes of 42nd is not avoiding anything.
+
+   It is a lookahead, not a guarantee. He gets it wrong often enough to be
+   worth watching, which is the point of him being out there at all. */
+var HOOD_LOOK = 1.15, HOOD_RUSH = 1.9;
+function hoodSafe(f, r){
+  var row = rows[r];
+  if (!row) return false;
+  if (row.type === "sweep") return false;           // never, under any odds
+  if (row.type !== "road" || !row.cars) return true;
+  var w = row.eff || HAZ[row.kind].w;
+  var ahead = (row.speed || 0) * HOOD_LOOK;
+  var fwd = (row.dir * (row.rv || 1)) > 0;
+  var h0 = f.hx - 0.30, h1 = f.hx + 1.10, i;
+  for (i = 0; i < row.cars.length; i++){
+    var cx = carX(row, row.cars[i]);
+    var lo = fwd ? cx : cx - ahead;
+    var hi = fwd ? cx + w + ahead : cx + w;
+    if (lo < h1 && hi > h0) return false;
+  }
+  if (row.rogue){
+    var rx = rogueX(row);
+    if (rx - ahead < h1 && rx + HAZ.ebike.w + ahead > h0) return false;
+  }
+  return true;
+}
 var CROWD_FROM = 42, CROWD_TO = 46;
 function crowdHere(st){ return st >= CROWD_FROM && st <= CROWD_TO; }
 
@@ -3588,6 +3623,19 @@ function act(dir){
         fo.blockAt = G.t;
         fo.sayAt = G.t;
         fo.chats = (fo.chats || 0) + 1;
+        if (fo.chats === 5 && !fo.pulled){
+          /* He withdraws it. Same banner, same plate, in the red - and the
+             money comes straight back off the number. */
+          fo.pulled = true;
+          fo.line = CHAMP_PULL;
+          G.champs = Math.max(0, G.champs - 1);
+          G.bonus -= CHAMP_BONUS; G.bonusChamp -= CHAMP_BONUS;
+          G.champWin = { life:4.6, max:4.6, pulled:true };
+          G.flash = null;
+          moneyRise(-CHAMP_BONUS);
+          AUDIO.nope(); AUDIO.hurt();
+          return;
+        }
         fo.line = fo.chats > 3
           ? CHAMP_MAD[(Math.random()*CHAMP_MAD.length)|0]
           : CHAMP_AFTER[(Math.random()*CHAMP_AFTER.length)|0];
@@ -5612,8 +5660,18 @@ function updateFolk(dt){
            his own pavement. */
         var want = (Math.abs(ppH.row - r) <= HOOD_REACH) ? ppH.row : r;
         var dR = want - f.hr;
-        if (Math.abs(dR) > 0.06)
-          f.hr += (dR > 0 ? 1 : -1) * Math.min(Math.abs(dR), HOOD_ROWV * dt);
+        if (Math.abs(dR) > 0.06){
+          var step = (dR > 0 ? 1 : -1);
+          var nextR = Math.round(f.hr + step * 0.55);
+          var onRoad = (rows[Math.round(f.hr)] || {}).type === "road";
+          /* He only steps into a lane he has looked at. Already in one, he
+             keeps going and gets a move on - stopping halfway across is how
+             you get hit, not how you avoid it. */
+          if (onRoad || nextR === Math.round(f.hr) || hoodSafe(f, nextR)){
+            var sp = HOOD_ROWV * (onRoad ? HOOD_RUSH : 1);
+            f.hr += step * Math.min(Math.abs(dR), sp * dt);
+          }
+        }
 
         /* Toward his column while he is anywhere near him, and never inside
            HOOD_KEEP - holding at arm's length is worse than arriving. */
@@ -10094,24 +10152,31 @@ function drawHud(){
     ctx.globalAlpha = Math.max(0, Math.min(1, cage/0.22, CW.life/0.5));
     var cw2 = 1280, cx3 = (LOGICAL_W - cw2)/2;
     var cy3 = MSG_Y - 14 - (1 - Math.min(1, cage/0.22)) * 26;
-    plate(cx3, cy3, cw2, 174, "rgba(5,9,18,0.90)", 18);
-    ctx.fillStyle = BLAZER; ctx.fillRect(cx3, cy3, 10, 174);
-    plate(cx3 + 36, cy3 + 30, 104, 50, BLAZER, 10);
-    txt("WHO", cx3 + 88, cy3 + 58, 26, "#eaf1ff");
-    txt("YOUR CHAMPION", cx3 + 172, cy3 + 56, 40, "#9dc0ff", "left", 700);
-    txt("Wants to add 300K of Cloud Insights.",
+    var pulled = !!CW.pulled, acc = pulled ? C.danger : BLAZER;
+    plate(cx3, cy3, cw2, 174, pulled ? "rgba(20,5,9,0.90)" : "rgba(5,9,18,0.90)", 18);
+    ctx.fillStyle = acc; ctx.fillRect(cx3, cy3, 10, 174);
+    plate(cx3 + 36, cy3 + 30, 104, 50, acc, 10);
+    txt("WHO", cx3 + 88, cy3 + 58, 26, pulled ? "#2a0206" : "#eaf1ff");
+    txt(pulled ? "CHAMPION PULLED IT" : "YOUR CHAMPION",
+        cx3 + 172, cy3 + 56, 40, pulled ? "#ffb3c0" : "#9dc0ff", "left", 700);
+    txt(pulled ? "You walked into him five times. He is holding off."
+               : "Wants to add 300K of Cloud Insights.",
         cx3 + 172, cy3 + 104, 26, C.text, "left", 760);
-    txt("YOU WALKED INTO THEM  \u00B7  RENEWAL #" + G.champs,
+    txt(pulled ? "NOBODY LIKES A CLOSE THAT HARD"
+               : "YOU WALKED INTO THEM  \u00B7  RENEWAL #" + G.champs,
         cx3 + 172, cy3 + 142, 20, C.textDim, "left");
     /* A filled block rather than a rule and two lines of text. This is the
        biggest single payment in the game and it was the quietest third of
        its own banner. */
     var mw = 356, mx2 = cx3 + cw2 - mw - 26;
-    plate(mx2, cy3 + 24, mw, 126, "#13602f", 10);
+    plate(mx2, cy3 + 24, mw, 126, pulled ? "#6b1222" : "#13602f", 10);
     rr(mx2, cy3 + 24, mw, 126, 10);
-    ctx.strokeStyle = "#5fe08c"; ctx.lineWidth = 2.5; ctx.stroke();
-    txt("ADDED TO PIPELINE", mx2 + mw/2, cy3 + 58, 24, "#bdf0cd");
-    txt("+" + cash(CHAMP_BONUS), mx2 + mw/2, cy3 + 122, 62, "#ffffff");
+    ctx.strokeStyle = pulled ? "#ff7d92" : "#5fe08c";
+    ctx.lineWidth = 2.5; ctx.stroke();
+    txt(pulled ? "TAKEN OFF THE PIPELINE" : "ADDED TO PIPELINE",
+        mx2 + mw/2, cy3 + 58, 24, pulled ? "#ffc9d2" : "#bdf0cd");
+    txt((pulled ? "\u2212" : "+") + cash(CHAMP_BONUS).replace("\u2212", ""),
+        mx2 + mw/2, cy3 + 122, 62, "#ffffff");
     ctx.globalAlpha = 1;
   }
   if (G.addonWin && !G.tamWin && !G.champWin){
@@ -10179,12 +10244,15 @@ function drawMoneyRise(){
   var e = 1 - Math.pow(1 - k, 2.2);
   var a = Math.min(1, R.life / 0.5) * Math.min(1, k * 7);
   var y = R.y - e * 120;
+  var up = R.amt >= 0;
+  var lab = (up ? "+" : "") + cash(R.amt);
   ctx.globalAlpha = a * 0.55;
-  txt("+" + cash(R.amt), R.x + 3, y + 3, 54, "#06130a");
+  txt(lab, R.x + 3, y + 3, 54, up ? "#06130a" : "#1a0406");
   ctx.globalAlpha = a;
-  txt("+" + cash(R.amt), R.x, y, 54, C.good);
+  txt(lab, R.x, y, 54, up ? C.good : C.danger);
   ctx.globalAlpha = a * 0.8;
-  txt("ON THE PIPELINE", R.x, y + 34, 22, "#bdf0cd");
+  txt(up ? "ON THE PIPELINE" : "OFF THE PIPELINE", R.x, y + 34, 22,
+      up ? "#bdf0cd" : "#ffc9d2");
   ctx.globalAlpha = 1;
 }
 
