@@ -1788,8 +1788,15 @@ function heroModel(dir, flying){
     { x:0.552, y:0.43, w:0.030, z:0.762, h:0.024, bg:"#241a12" },
     { x:0.408, y:0.43, w:0.044, z:0.794, h:0.011, bg:"#2b1f16" },
     { x:0.548, y:0.43, w:0.044, z:0.796, h:0.011, bg:"#2b1f16" },
-    { x:0.450, y:0.43, w:0.044, z:0.717, h:0.016, bg:"#6d3b2a" },
-    { x:0.494, y:0.43, w:0.056, z:0.723, h:0.016, bg:"#6d3b2a" }
+    /* A proper grin, not the near-level mouth the first pass gave him. Same
+       three-rect curve as the ordinary smile with the middle dropped, raised
+       to match the suit's head, plus colour in the cheeks: he is flying over
+       Midtown in an orange suit and should look like he is enjoying it. */
+    { x:0.448, y:0.43, w:0.026, z:0.726, h:0.018, bg:"#6d3b2a" },
+    { x:0.474, y:0.43, w:0.052, z:0.702, h:0.018, bg:"#6d3b2a" },
+    { x:0.526, y:0.43, w:0.026, z:0.726, h:0.018, bg:"#6d3b2a" },
+    { x:0.386, y:0.43, w:0.028, z:0.726, h:0.022, bg:"#e09a7e" },
+    { x:0.586, y:0.43, w:0.028, z:0.726, h:0.022, bg:"#e09a7e" }
   ], shadow:false, W:1 };
 }
 
@@ -6518,43 +6525,53 @@ function drawNeedFood(cx, topY){
   ctx.globalAlpha = 1;
 }
 
-/* An engaged TAM puts a cap on him: orange, worn backwards, with the strap
-   and the button at the front where the peak should be.
+/* Orange shoes while a TAM is engaged. Drawn ON the figure rather than over
+   it: each shoe is the same box the model bakes, re-projected through the
+   player's actual draw rect, so it lands on his feet at any scale and under
+   any of the seven faces without baking a single extra sprite.
 
-   Drawn over his head rather than baked, because baking it would have meant a
-   capped variant of all seven faces in both directions with and without the
-   shield - twenty-eight more sprites, on a device whose sprite memory is
-   already the thing to watch. */
-function drawCap(cx, topY){
-  var hx = cx + 0.43 * SKEW;
-  var y = topY + 4;
-  var orange = "#ff7a1f", deep = "#d14a09";
-
-  ctx.fillStyle = orange;                       // the crown
-  ctx.beginPath();
-  ctx.moveTo(hx - 17, y + 11);
-  ctx.quadraticCurveTo(hx, y - 6, hx + 17, y + 11);
-  ctx.closePath(); ctx.fill();
-  ctx.fillStyle = deep;                         // the band round the bottom
-  ctx.fillRect(hx - 17, y + 10, 34, 4);
-  ctx.fillStyle = shade(orange, 0.22);          // the panel seam
-  ctx.fillRect(hx - 1, y + 1, 2, 9);
-  // the peak, round the back, pointing the way he is not facing
-  var dir = G.facing > 0 ? -1 : 1;
-  ctx.fillStyle = deep;
-  ctx.fillRect(hx + dir * 17 - (dir > 0 ? 0 : 11), y + 9, 11, 5);
-  // the strap, and the button
-  ctx.fillStyle = "#2b1f16";
-  ctx.fillRect(hx - 5, y + 10, 10, 4);
-  ctx.fillStyle = shade(orange, 0.3);
-  ctx.fillRect(hx - 2, y - 2, 4, 4);
+   The alternative was a shod variant of every face in both directions with
+   and without the shield - twenty-eight more baked canvases on a device whose
+   sprite memory is already the thing to watch. */
+function drawTamShoes(){
+  var A = EAT_AT;
+  if (!A || A.px == null) return;
+  function at(x, y, z){
+    var q = proj(x, y, z);
+    return [A.px + q[0] * A.kx, A.py + q[1] * A.ky];
+  }
+  function box(x0, x1, y0, y1, z, top, side, front){
+    var a = at(x0, y0, z), b = at(x1, y0, z), c = at(x1, y1, z), d = at(x0, y1, z);
+    ctx.fillStyle = top;                       // the top of the shoe
+    ctx.beginPath();
+    ctx.moveTo(a[0], a[1]); ctx.lineTo(b[0], b[1]);
+    ctx.lineTo(c[0], c[1]); ctx.lineTo(d[0], d[1]);
+    ctx.closePath(); ctx.fill();
+    // and the sole below the near edge
+    var e = at(x0, y1, 0), f = at(x1, y1, 0);
+    ctx.fillStyle = front;
+    ctx.beginPath();
+    ctx.moveTo(d[0], d[1]); ctx.lineTo(c[0], c[1]);
+    ctx.lineTo(f[0], f[1]); ctx.lineTo(e[0], e[1]);
+    ctx.closePath(); ctx.fill();
+    // the outer cheek, which is what stops it reading as a flat tab
+    var g = at(x1, y0, 0);
+    ctx.fillStyle = side;
+    ctx.beginPath();
+    ctx.moveTo(b[0], b[1]); ctx.lineTo(c[0], c[1]);
+    ctx.lineTo(f[0], f[1]); ctx.lineTo(g[0], g[1]);
+    ctx.closePath(); ctx.fill();
+  }
+  var orange = "#ff7a1f";
+  box(0.28, 0.44, 0.46, 0.59, 0.065, orange, shade(orange, -0.22), "#f6efe2");
+  box(0.56, 0.72, 0.46, 0.59, 0.065, orange, shade(orange, -0.22), "#f6efe2");
 }
 
 function drawEatOverlay(){
   if (G.hp < HP_WORN && G.state === ST_PLAY && EAT_AT) drawWorn(EAT_AT.x, EAT_AT.y);
   if (G.needFood > 0 && G.state === ST_PLAY && EAT_AT) drawNeedFood(EAT_AT.x, EAT_AT.y);
-  // the cap goes on last, over whatever else is happening on his head
-  if (G.tam && G.state === ST_PLAY && G.flyA < 0.15 && EAT_AT) drawCap(EAT_AT.x, EAT_AT.y);
+  // and the orange shoes, if the subscription is live
+  if (G.tam && G.state === ST_PLAY && G.flyA < 0.15) drawTamShoes();
   if (G.yumT > 0 && EAT_AT) drawEat(EAT_AT.x, EAT_AT.y);
   if (G.cheerT > 0 && EAT_AT) drawCheer(EAT_AT.x, EAT_AT.y);
   EAT_AT = null;
@@ -6796,6 +6813,12 @@ function drawPlayer(pp){
      lungs as the chest and the screen edges. */
   function put(sprite, px, py){
     blitScaled(sprite, px, py, kx, ky);
+    /* Where the model's origin landed, and at what scale. A model point
+       (x, y, z) projects to (mx, my) and then sits at (px + mx*kx,
+       py + my*ky) on screen, because blitScaled offsets by the same ox/oy
+       the projection measured from. Anything that wants to draw ON the
+       figure rather than over it needs these four numbers. */
+    if (EAT_AT){ EAT_AT.px = px; EAT_AT.py = py; EAT_AT.kx = kx; EAT_AT.ky = ky; }
     var wk = wornK();
     if (!wk) return;
     var tc = tintCanvas(sprite, "#ff2130");

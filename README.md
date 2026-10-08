@@ -696,14 +696,17 @@ face is a read-out.
 | **Flat** | 50–75% | one level mouth, nothing else going on |
 | **Meh** | 25–50% | the frown with half the step in it |
 | **Worn** | under 25% | eyes half shut, heavy brows, mouth open, flushed |
-| **Proud** | the orange suit | baked into `heroModel` rather than selected here — it belongs to the moment, and on the ordinary sprite he wore it for the whole sixty seconds of an engagement, long after the flying had stopped being impressive. The first attempt lifted one corner four pixels and raised one brow, which on a head this size came out as a leer |
+| **Grinning** | the orange suit | baked into `heroModel` rather than selected here — it belongs to the moment, and on the ordinary sprite he wore it for the whole sixty seconds of an engagement, long after the flying had stopped being impressive. It took two goes: a four-pixel one-sided lift with a raised brow came out as a leer, and the level "proud" mouth that replaced it was too pleased with itself to be pleased at all. It is the ordinary smile curve now, with cheeks — he is flying over Midtown in an orange suit and should look like he is enjoying it |
 | **Chew** | while he is eating | jaw dropped, lower lip below it |
 | **Sad** | he walks into a cart he already bought from | middle *raised*, brows angled in |
 
-An **engaged TAM puts a backwards orange cap on him** instead of changing his
-face — drawn over his head rather than baked, because a capped variant of all
-seven faces in both directions with and without the shield is twenty-eight more
-sprites, on a device whose sprite memory is already the thing to watch.
+An **engaged TAM puts orange shoes on him** instead of changing his face. They
+are drawn *on* the figure rather than over it: each shoe is the same box the
+model bakes, re-projected through the player's actual draw rect, so it lands on
+his feet at any scale and under any of the seven faces. The alternative was a
+shod variant of every face in both directions with and without the shield —
+twenty-eight more baked canvases on a device whose sprite memory is already the
+thing to watch.
 
 Verified: 100/80/75 → smile, 74/55/50 → flat, 49/30/25 → meh, 24/5 → worn; a
 TAM at 60% leaves the health face alone, a TAM at 10% still shows worn, and a
