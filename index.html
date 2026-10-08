@@ -375,10 +375,25 @@ var AUDIO = (function(){
       hit({ f:1800, to:160, dur:0.45, g:0.26 });
     },
     /* two-tone wail for the motorcade warning */
+    /* A siren two blocks away, not one in the room. The old one was three
+       square-wave yelps at 740-980Hz with the filter wide open, which is the
+       frequency band the human ear is most sensitive to and about the most
+       irritating waveform there is - it read as an alarm clock.
+
+       Now: a triangle, a third lower, swept slowly rather than snapped, with
+       the filter down at 1100 so the harsh upper partials never arrive, a
+       quiet fifth under it for body, and the whole thing fading as it passes
+       rather than repeating at one level. */
     siren: function(){
       for (var i = 0; i < 3; i++){
-        tone({ f:740,  to:980, dur:0.19, type:"square", g:0.11, at:i*0.42, lp:2400 });
-        tone({ f:980,  to:740, dur:0.19, type:"square", g:0.11, at:i*0.42+0.20, lp:2400 });
+        var at = i * 0.74, fade = 1 - i * 0.22;
+        tone({ f:520, to:700, dur:0.36, type:"triangle", g:0.055 * fade,
+               at:at, lp:1100 });
+        tone({ f:700, to:520, dur:0.36, type:"triangle", g:0.055 * fade,
+               at:at + 0.37, lp:1100 });
+        // a fifth underneath, quiet, so it has size without getting shrill
+        tone({ f:347, to:467, dur:0.36, type:"sine", g:0.028 * fade, at:at });
+        tone({ f:467, to:347, dur:0.36, type:"sine", g:0.028 * fade, at:at + 0.37 });
       }
     },
     /* air-brake hiss when a bus pulls up */
@@ -1571,7 +1586,17 @@ var MODELS = {
 /* `shielded` is the Endpoint Agent look: blue blazer and sunglasses. Only the
    jacket, shoulders, sleeves and lapels change colour - the trousers stay dark,
    the way a blazer actually differs from the rest of a suit. */
-var FACE_SMILE = 1, FACE_CHEW = 2, FACE_SAD = 3, FACE_WORN = 4;
+/* He wears his health on his face. The reactions - chewing, the sad one for a
+   cart that has nothing left - still win, but the resting face now says where
+   he is: pleased above 75, level to 50, going downhill to 25, and finished
+   below that.
+
+   FACE_SAD is the reaction and keeps its angled brows; FACE_MEH is the resting
+   version of the same idea, which has to be milder or a man on 60% health
+   looks as if something has just gone wrong. */
+var FACE_SMILE = 1, FACE_CHEW = 2, FACE_SAD = 3, FACE_WORN = 4,
+    FACE_FLAT = 5, FACE_MEH = 6, FACE_SMIRK = 7;
+var HP_HAPPY = 75, HP_LEVEL = 50;
 function playerModel(dir, shielded, face){
   var skin = "#e9b98c";
   var suit = shielded ? BLAZER : "#232f44";
@@ -1647,6 +1672,22 @@ function playerModel(dir, shielded, face){
       dec.push({ x:0.448, y:0.43, w:0.026, z:0.706, h:0.018, bg:"#6d3b2a" });
       dec.push({ x:0.474, y:0.43, w:0.052, z:0.682, h:0.018, bg:"#6d3b2a" });
       dec.push({ x:0.526, y:0.43, w:0.026, z:0.706, h:0.018, bg:"#6d3b2a" });
+    } else if (face === FACE_SMIRK){
+      /* A smirk is asymmetric or it is just a smile. One corner up, the other
+         level, and a single raised brow over the side that moved. */
+      dec.push({ x:0.448, y:0.43, w:0.030, z:0.692, h:0.017, bg:"#6d3b2a" });
+      dec.push({ x:0.478, y:0.43, w:0.040, z:0.699, h:0.017, bg:"#6d3b2a" });
+      dec.push({ x:0.518, y:0.43, w:0.032, z:0.712, h:0.017, bg:"#6d3b2a" });
+      dec.push({ x:0.544, y:0.43, w:0.046, z:0.776, h:0.013, bg:"#2b1f16" });
+      dec.push({ x:0.584, y:0.43, w:0.030, z:0.704, h:0.022, bg:"#e09a7e" });
+    } else if (face === FACE_FLAT){
+      // a level mouth and nothing else going on
+      dec.push({ x:0.452, y:0.43, w:0.096, z:0.694, h:0.017, bg:"#6d3b2a" });
+    } else if (face === FACE_MEH){
+      // the same three rects as the frown, with half the step in them
+      dec.push({ x:0.450, y:0.43, w:0.028, z:0.690, h:0.017, bg:"#6d3b2a" });
+      dec.push({ x:0.476, y:0.43, w:0.048, z:0.701, h:0.017, bg:"#6d3b2a" });
+      dec.push({ x:0.522, y:0.43, w:0.028, z:0.690, h:0.017, bg:"#6d3b2a" });
     } else if (face === FACE_CHEW){
       // jaw down: a taller, narrower mouth, with the lower lip below it
       dec.push({ x:0.462, y:0.43, w:0.076, z:0.676, h:0.042, bg:"#5a2c1e" });
@@ -1666,7 +1707,7 @@ function playerModel(dir, shielded, face){
       dec.push({ x:0.474, y:0.43, w:0.052, z:0.706, h:0.018, bg:"#6d3b2a" });
       dec.push({ x:0.526, y:0.43, w:0.026, z:0.684, h:0.018, bg:"#6d3b2a" });
     }
-    if (face !== FACE_SAD && face !== FACE_WORN){
+    if (face === FACE_SMILE || face === FACE_CHEW){
       // a little colour in the cheeks, so it is not only the mouth that moved
       dec.push({ x:0.386, y:0.43, w:0.028, z:0.706, h:0.022, bg:"#e09a7e" });
       dec.push({ x:0.586, y:0.43, w:0.028, z:0.706, h:0.022, bg:"#e09a7e" });
@@ -2291,7 +2332,7 @@ function bakeAll(){
   S.player_l  = bake(playerModel(-1, false));
   S.playerS_r = bake(playerModel(1, true));
   S.playerS_l = bake(playerModel(-1, true));
-  for (var fc = 1; fc <= 4; fc++){
+  for (var fc = 1; fc <= 7; fc++){
     S["pf" + fc + "_r"]  = bake(playerModel(1, false, fc));
     S["pf" + fc + "_l"]  = bake(playerModel(-1, false, fc));
     S["pf" + fc + "S_r"] = bake(playerModel(1, true, fc));
@@ -2673,7 +2714,7 @@ function reset(){
     hop:1, facing:1, maxRow:0, camRow:0, street:START_ST,
     stage:-1, coach:-1, toast:null, flash:null,
     shield:false, slowT:0, revealT:0, invulnT:0, powersUsed:0,
-    hp:HP_MAX, hpGain:null, meals:0, sadT:0,
+    hp:HP_MAX, hpGain:null, meals:0, sadT:0, needFood:0, saidFood:false,
     bonusChuck:0, bonusTam:0, tally:null, booth:null,
     flyT:0, flyA:0, flyBeep:0, tam:false, tamT:0, tamWins:0, tamWin:null, hurtT:0, nahT:0,
     yumT:0, yumKind:null, yumDir:0, yumBite:0, wowT:0, cheerT:0,
@@ -2883,8 +2924,9 @@ function pipeline(){ return G.maxRow*DOLLARS_PER_ROW + G.bonus; }
 function flash(name, line, col){ G.flash = { life:2.2, name:name, line:line, col:col }; }
 /* A flash lives in the top strip and lasts two seconds. Some things need the
    middle of the screen and seven. */
-function notice(title, line, body, secs, col){
-  G.notice = { life:secs, max:secs, title:title, line:line, body:body, col:col || C.brand };
+function notice(title, line, body, secs, col, art){
+  G.notice = { life:secs, max:secs, title:title, line:line, body:body,
+               col:col || C.brand, art:art || null };
 }
 
 /* current street number, from the furthest road row crossed */
@@ -2950,6 +2992,13 @@ function progress(){
            being carried over the traffic is not walking. */
         var tiring = !(G.hp < HP_CRAWL || G.flyT > 0);
         G.hp -= tiring ? HP_PER_STREET : 1;
+        /* Once, the first time he drops into the worn band. The red pulse and
+           the face say he is in trouble but neither says what to do about it,
+           and the one thing a new player will not work out on their own is
+           that walking into a food cart is the fix. */
+        if (!G.saidFood && G.hp < HP_WORN && G.hp > 0){
+          G.saidFood = true; G.needFood = 2.6; AUDIO.nope();
+        }
         if (G.hp <= 0){ G.hp = 0; dieTired(); return; }
       }
       var table = G.leg > 0 ? SCENES : SCENES_BACK;
@@ -5145,7 +5194,8 @@ function updateScene(dt){
     turnBack();
   }
   if (sc.after)
-    notice(sc.after[0], sc.after[1], sc.after[2], 7.5, C.good);
+    notice(sc.after[0], sc.after[1], sc.after[2], 9.5, C.good,
+           sc.turn ? "downtown" : null);
   if (sc.win) winGame();
 }
 
@@ -5327,6 +5377,7 @@ function update(dt){
   }
   if (G.wowT > 0)  G.wowT  = Math.max(0, G.wowT - dt);
   if (G.sadT > 0)  G.sadT  = Math.max(0, G.sadT - dt);
+  if (G.needFood > 0) G.needFood = Math.max(0, G.needFood - dt);
   if (G.booth){
     G.booth.t += dt;
     if (!G.booth.rang && G.booth.t > 0.05){ G.booth.rang = 1; AUDIO.boothIn(); }
@@ -6372,8 +6423,33 @@ function drawCheer(cx, topY){
 }
 
 var EAT_AT = null;
+/* A speech bubble over his head, once, the first time he goes under. Drawn
+   with the overlays rather than baked, because it is a one-off and it has to
+   sit above everything he is wearing. */
+function drawNeedFood(cx, topY){
+  var a = Math.min(1, G.needFood / 0.3, (2.6 - G.needFood) * 6);
+  if (a <= 0) return;
+  var hx = cx + 0.43 * SKEW;
+  var rise = Math.min(1, (2.6 - G.needFood) * 5) * 8;
+  var bw = 150, bh = 46, bx = hx - bw / 2, by = topY - 64 - rise;
+
+  ctx.globalAlpha = a;
+  plate(bx, by, bw, bh, "#f6efe2", 10);
+  ctx.fillStyle = "#f6efe2";                       // the tail
+  ctx.beginPath();
+  ctx.moveTo(hx - 9, by + bh - 1);
+  ctx.lineTo(hx + 9, by + bh - 1);
+  ctx.lineTo(hx + 1, by + bh + 14);
+  ctx.closePath(); ctx.fill();
+  ctx.strokeStyle = C.danger; ctx.lineWidth = 3;
+  rr(bx, by, bw, bh, 10); ctx.stroke();
+  txt("NEED FOOD!", hx, by + 31, 26, "#1d1a16");
+  ctx.globalAlpha = 1;
+}
+
 function drawEatOverlay(){
   if (G.hp < HP_WORN && G.state === ST_PLAY && EAT_AT) drawWorn(EAT_AT.x, EAT_AT.y);
+  if (G.needFood > 0 && G.state === ST_PLAY && EAT_AT) drawNeedFood(EAT_AT.x, EAT_AT.y);
   if (G.yumT > 0 && EAT_AT) drawEat(EAT_AT.x, EAT_AT.y);
   if (G.cheerT > 0 && EAT_AT) drawCheer(EAT_AT.x, EAT_AT.y);
   EAT_AT = null;
@@ -6520,8 +6596,18 @@ function drawPlayer(pp){
       face = (eage >= EAT_BITE0 && Math.sin(eage * 19) > 0) ? FACE_CHEW : FACE_SMILE;
     }
     /* Lowest priority: a reaction to something in front of him beats the
-       state he is in, and eating is the thing that fixes it anyway. */
-    else if (G.hp < HP_WORN && G.state === ST_PLAY) face = FACE_WORN;
+       state he is in, and eating is the thing that fixes it anyway. Below
+       that, the resting face is just a read-out of his health. */
+    else if (G.state === ST_PLAY){
+      /* An engaged TAM outranks the health bands but not being half dead:
+         running on empty is the thing he most needs to be told about, and a
+         man smirking at 8% health is reassuring at exactly the wrong moment. */
+      face = G.hp < HP_WORN  ? FACE_WORN
+           : G.tam           ? FACE_SMIRK
+           : G.hp < HP_LEVEL ? FACE_MEH
+           : G.hp < HP_HAPPY ? FACE_FLAT
+           : FACE_SMILE;
+    }
     var suffix = (G.shield ? "S" : "") + (right ? "_r" : "_l");
     s = face ? S["pf" + face + suffix]
              : (G.shield ? (right ? S.playerS_r : S.playerS_l)
@@ -7253,6 +7339,7 @@ function drawHud(){
   txt(G.leg > 0 ? "BLOCK" : "BACK TO PENN 1", 538, 58, 26,
       G.leg > 0 ? C.textDim : C.good, "left");
   txt("W " + G.street + " ST", 538, 98, 42, C.amber, "left");
+
   if (G.leg < 0){
     /* Spell the countdown out: "W 68 ST" ticking down is only obvious if you
        were watching it tick up. It sits on the right of the top band - put
@@ -7261,6 +7348,22 @@ function drawHud(){
     var togo = Math.max(0, G.street - START_ST);
     txt("BLOCKS TO PENN 1", 1740, 58, 26, C.textDim, "right");
     txt(String(togo), 1740, 100, 46, togo <= 10 ? C.good : C.amber, "right");
+    /* The numbers fall while he still walks up the screen, and once the notice
+       has gone this is the only thing left saying so. On the right, under the
+       counter, where there is nothing else to collide with. */
+    var ay2 = 158 + Math.sin(G.t * 3) * 2;
+    ctx.fillStyle = C.good;
+    ctx.beginPath();
+    ctx.moveTo(1536, ay2 - 15);
+    ctx.lineTo(1547, ay2);
+    ctx.lineTo(1541, ay2);
+    ctx.lineTo(1541, ay2 + 15);
+    ctx.lineTo(1531, ay2 + 15);
+    ctx.lineTo(1531, ay2);
+    ctx.lineTo(1525, ay2);
+    ctx.closePath(); ctx.fill();
+    txt("STILL WALK UP", 1740, 152, 20, C.good, "right");
+    txt("the numbers count down", 1740, 176, 18, C.textDim, "right");
   }
 
   // the departure board - the real reason you are hurrying
@@ -7617,7 +7720,8 @@ function drawNotice(){
   var N = G.notice, age = N.max - N.life;
   var a = Math.max(0, Math.min(1, age/0.25, N.life/0.6));
   var pop = 1 - Math.min(1, age/0.18);
-  var w = 1340, h = 330, x = (LOGICAL_W - w)/2, y = (LOGICAL_H - h)/2 - 40 + pop*30;
+  var w = 1340, h = N.art ? 500 : 330;
+  var x = (LOGICAL_W - w)/2, y = (LOGICAL_H - h)/2 - 40 + pop*30;
 
   ctx.globalAlpha = a * 0.72; ctx.fillStyle = "#05060a";
   ctx.fillRect(0, 0, LOGICAL_W, LOGICAL_H);
@@ -7631,7 +7735,44 @@ function drawNotice(){
   ctx.fillRect(x + 90, y + 126, w - 180, 2);
   txt(N.line,  LOGICAL_W/2, y + 184, 42, C.text,    "center", w - 90);
   txt(N.body,  LOGICAL_W/2, y + 252, 27, C.textDim, "center", w - 120);
+  if (N.art === "downtown") drawDowntownArt(x, y + 296, w);
   ctx.globalAlpha = 1;
+}
+
+/* The one thing that genuinely confuses people at the turn: he still walks UP
+   the screen, but the street numbers now go DOWN. Said in words it reads as a
+   contradiction, so it is drawn - an arrow pointing the way he still moves,
+   and the numbers counting the other way underneath it. */
+function drawDowntownArt(x, y, w){
+  var cx = LOGICAL_W / 2, bob = Math.sin(G.t * 3) * 5;
+
+  plate(x + 60, y, w - 120, 150, "rgba(255,255,255,0.05)", 14);
+
+  // the arrow: still up the screen
+  var ax = x + 190, ay = y + 78 - bob;
+  ctx.fillStyle = C.good;
+  ctx.beginPath();
+  ctx.moveTo(ax, ay - 42);
+  ctx.lineTo(ax + 30, ay - 2);
+  ctx.lineTo(ax + 13, ay - 2);
+  ctx.lineTo(ax + 13, ay + 42);
+  ctx.lineTo(ax - 13, ay + 42);
+  ctx.lineTo(ax - 13, ay - 2);
+  ctx.lineTo(ax - 30, ay - 2);
+  ctx.closePath(); ctx.fill();
+  txt("KEEP WALKING", ax, y + 134, 22, C.good);
+
+  // and the numbers, running the other way
+  txt("THE NUMBERS NOW COUNT DOWN", cx + 110, y + 48, 24, C.textDim);
+  var seq = [G.street, G.street - 1, G.street - 2, G.street - 3];
+  for (var i = 0; i < seq.length; i++){
+    var n = Math.max(START_ST, seq[i]);
+    var bx2 = cx - 60 + i * 150;
+    plate(bx2, y + 68, 112, 46, i ? "rgba(255,255,255,0.06)" : "rgba(143,227,136,0.16)", 8);
+    txt("W " + n, bx2 + 56, y + 99, 26, i ? C.textDim : C.good);
+    if (i < seq.length - 1) txt("\u203a", bx2 + 131, y + 99, 28, C.textDim);
+  }
+  txt("\u2026 down to " + START_ST + ", and Penn 1", cx + 318, y + 134, 22, C.textDim);
 }
 
 /* ====================== INITIALS AND THE BOARD ============================ */

@@ -608,7 +608,11 @@ bar:
   panel is already up. Every blit of the player goes through one helper, so
   the pulse cannot be missed on a path that returns early.
 - **Red edges**, pulsing in time with that breathing and harder the lower he
-  gets. An edge pulse and not a full wash: a wash over the playfield is the one
+  gets.
+- **"NEED FOOD!"**, once, in a bubble over his head the first time he drops
+  into the band. The pulse and the face say he is in trouble; neither says what
+  to do about it, and the one thing a new player will not work out alone is
+  that walking into a cart is the fix. Checked: fires exactly once a run. An edge pulse and not a full wash: a wash over the playfield is the one
   thing that would make the crossing harder to read at exactly the moment he
   can least afford it. It stands down for a real hit, which owns the screen,
   and never appears off `ST_PLAY`.
@@ -638,11 +642,24 @@ painted on in screen space — the projection places the mouth on his face for
 free, and a guessed screen offset would have drifted the moment anything about
 the camera changed.
 
+He wears his health on his face. The reactions win; under them the resting
+face is a read-out.
+
 | | When | How |
 |---|---|---|
-| **Smile** | he pays, and between bites | three rects, middle one *lower* |
+| **Smile** | 75–100%, and he pays / between bites | three rects, middle one *lower*, cheeks |
+| **Flat** | 50–75% | one level mouth, nothing else going on |
+| **Meh** | 25–50% | the frown with half the step in it |
+| **Worn** | under 25% | eyes half shut, heavy brows, mouth open, flushed |
+| **Smirk** | an engaged TAM | asymmetric — one corner up, one brow raised. A smirk is asymmetric or it is just a smile |
 | **Chew** | while he is eating | jaw dropped, lower lip below it |
-| **Sad** | he walks into a cart he already bought from | three rects, middle *raised*, brows angled in |
+| **Sad** | he walks into a cart he already bought from | middle *raised*, brows angled in |
+
+The smirk outranks the health bands but **not** running on empty: a man
+smirking at 8% health is reassuring at exactly the wrong moment. Verified
+across all seven: 100/80/75 → smile, 74/55/50 → flat, 49/30/25 → meh, 24/5 →
+worn, TAM at 60% → smirk, TAM at 10% → worn, and a spent cart or a mouthful
+still beats all of it.
 
 Chewing alternates with the smile at about 3Hz once the bites start — a jaw
 working rather than a flicker; anything faster read as a glitch. The eyes are
@@ -883,7 +900,15 @@ the following week, and the walk is meant to be happening today.
 
 81st is the end of the walk: the handshake lands, and the message that follows
 says what a verbal is actually worth — *now get back to the office and lock it
-in.* **It also puts health back to 100%.** He has just sat down to a steak, and
+in.* **The direction confuses people, so it is drawn rather than written.** He still
+walks *up* the screen but the numbers now count *down*, which reads as a
+contradiction in words. The notice carries a diagram — an arrow pointing the
+way he still moves, labelled `KEEP WALKING`, and beside it `W 81 › W 80 › W 79
+› W 78 … down to 34, and Penn 1`. After the notice has gone, a small arrow and
+`STILL WALK UP / the numbers count down` sit under the blocks counter on the
+right for the whole walk home.
+
+**It also puts health back to 100%.** He has just sat down to a steak, and
 forty-seven blocks back to Penn 1 is a second run in all but name; starting it
 on whatever was left of the first one was a tax on having got there at all.
 
