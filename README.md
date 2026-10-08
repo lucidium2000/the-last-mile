@@ -371,12 +371,47 @@ screen so the tally still adds up, `cash()` is signed now (−$15, not $-15), an
 `pipeline()` is floored at zero because a man who buys a bagel on the first
 block should not owe the company seven dollars.
 
+### The newsstand prints a front page
+
+Walk into one and he reads it, and what is on it moves the number — because the
+thing that actually decides a quarter is almost never anything the seller did
+that week. Six stories that help and six that hurt, drawn flat, so a newsstand
+is a coin toss worth somewhere between a tenth and a third of a block of
+walking: *BGP LEAK SWALLOWS A REGION* (+$150,000), *ZERO-DAY LOOSE IN THE WILD*
+(−$50,000), *CFO ORDERS A SPEND REVIEW* (−$75,000), *RIVAL MISSES ITS NUMBER*
+(+$110,000).
+
+The card is the ticker card's contract: same size, 2.6s, and it **freezes the
+world** while it is up, because at the size it has to be to be readable it
+covers the traffic he is standing next to. Masthead, rule, today's date off the
+device clock, a photo box, three columns of unreadable grey and a coloured band
+at the foot of it with what the story did to the pipeline. Each stand can only
+be read once; a second visit gets the sad face.
+
+**The masthead is invented.** A real paper's name on a fabricated front page is
+a different kind of object entirely, and this is a joke about the industry, not
+about anybody's newsroom.
+
+**And the reaction is on his face now, not in a bubble.** `FACE_WOW` is an
+eighth baked expression — eyes wide open and round rather than the usual bars,
+brows up out of the way, mouth an O. The rays and the rings off the top of his
+head stayed; the speech bubble went, because a comic panel floating over
+somebody is a panel *about* him rather than a look on his face.
+
 ### The two best things in the game are ThousandEyes, so they arrive like it
 
 A TAM and an Add-On Pack used to land the same way a metrocard does: a line of
 text in a bar at the top of the screen. They are the two most valuable things a
 player can pick up and the moment was worth about a fifth of a second of
 attention.
+
+**Everything that is ThousandEyes by name gets it** — the TAM, the Add-On Pack,
+**Endpoint Agents**, **Traffic Insights** and **Internet Insights**, off one
+`BRAND_SKUS` table. A metrocard is a prop and Chuck Bucks is a gag; these are
+the product. Their copy says what they *do* rather than only what they do in
+the game: Traffic Insights is "Insight and control of traffic", Endpoint Agents
+is "the user's own experience, from their own chair", Internet Insights is
+"outages across the whole internet, before the tickets".
 
 `brandHit` is the opposite. The mark comes up out of the middle of the screen at
 the size of a dinner plate, two rings leave it, and the product is spelled out

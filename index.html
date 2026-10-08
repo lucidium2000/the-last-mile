@@ -1669,7 +1669,7 @@ var MODELS = {
    version of the same idea, which has to be milder or a man on 60% health
    looks as if something has just gone wrong. */
 var FACE_SMILE = 1, FACE_CHEW = 2, FACE_SAD = 3, FACE_WORN = 4,
-    FACE_FLAT = 5, FACE_MEH = 6, FACE_OK = 7;
+    FACE_FLAT = 5, FACE_MEH = 6, FACE_OK = 7, FACE_WOW = 8;
 var HP_HAPPY = 75, HP_LEVEL = 50;
 /* `shielded` is a LEVEL now, not a flag: 0 bare, 1 the blue Endpoint blazer
    and sunglasses, 2 the purple coat with the hat and the cane. The old
@@ -1797,6 +1797,20 @@ function playerModel(dir, shielded, face){
         dec.push({ x:0.414, y:0.43, w:0.034, z:0.772, h:0.013, bg:"#2b1f16" });
         dec.push({ x:0.554, y:0.43, w:0.034, z:0.766, h:0.013, bg:"#2b1f16" });
       }
+    }
+    if (face === FACE_WOW){
+      /* The headline. Eyes wide open and round rather than the usual bars,
+         brows up out of the way, and a mouth that is an O. It used to live
+         in a speech bubble over his head, which is a comic panel about him
+         rather than a look on his face. */
+      dec.push({ x:0.398, y:0.43, w:0.050, z:0.724, h:0.050, bg:"#f4efe6" });
+      dec.push({ x:0.552, y:0.43, w:0.050, z:0.724, h:0.050, bg:"#f4efe6" });
+      dec.push({ x:0.410, y:0.43, w:0.028, z:0.736, h:0.028, bg:"#1d1510" });
+      dec.push({ x:0.564, y:0.43, w:0.028, z:0.736, h:0.028, bg:"#1d1510" });
+      dec.push({ x:0.396, y:0.43, w:0.054, z:0.790, h:0.013, bg:"#2b1f16" });
+      dec.push({ x:0.550, y:0.43, w:0.054, z:0.790, h:0.013, bg:"#2b1f16" });
+      dec.push({ x:0.462, y:0.43, w:0.076, z:0.672, h:0.046, bg:"#5a2c1e" });
+      dec.push({ x:0.474, y:0.43, w:0.052, z:0.682, h:0.028, bg:"#3d1b12" });
     }
     if (face === FACE_SMILE){
       dec.push({ x:0.448, y:0.43, w:0.026, z:0.706, h:0.018, bg:"#6d3b2a" });
@@ -1959,11 +1973,14 @@ var BLAZER = "#2f62c4";   // the Endpoint blue: blazer, pickup and ring all matc
 var BLAZER2 = "#7b3fb5";
 var POWERS = {
   agent:  { col:BLAZER, letter:"E", name:"ENDPOINT AGENTS",
-            line:"A shield. Absorbs the next objection.", secs:0 },
+            line:"The user's own experience, from their own chair. A shield — it absorbs the next objection.",
+            secs:0 },
   insight:{ col:C.pw2, letter:"I", name:"INTERNET INSIGHTS",
-            line:"The whole grid drops into slow motion.", secs:11 },
+            line:"Outages across the whole internet, before the tickets. The grid drops into slow motion.",
+            secs:11 },
   traffic:{ col:"#8fd3e8", letter:"TI", name:"TRAFFIC INSIGHTS",
-            line:"Every lane risk-scored — and it turns away from you.", secs:15 },
+            line:"Insight and control of traffic. Every lane risk-scored — and it turns away from you.",
+            secs:15 },
   chuck:  { col:"#4f9c62", letter:"$", name:"CHUCK BUCKS",
             line:"Straight onto the number.", secs:0 },
   path:   { col:C.pw3,   letter:"P", name:"PATH VISUALIZATION",
@@ -1979,6 +1996,11 @@ var POWERS = {
   tam:    { col:C.pw5, letter:"T", name:"THOUSANDEYES TAM",
             line:"Technical Account Manager. Five seconds of flight — and they stay.",
             secs:5 }
+};
+var BRAND_SKUS = {
+  agent:   "ENDPOINT AGENTS",
+  traffic: "TRAFFIC INSIGHTS",
+  insight: "INTERNET INSIGHTS"
 };
 var POWER_KINDS = ["agent","insight","path","sponsor","metro","chuck","traffic"];
 /* Weighted draw rather than uniform: traces and metrocards carry three slots
@@ -2127,6 +2149,32 @@ var CSCO = {
    it is legible inside a second and the last of it was dead air over a
    frozen street. */
 var TICKER_SECS = 2.4;
+/* The newsstand. He reads the front page, and what is on it moves the
+   number - because the thing that actually decides a quarter is almost never
+   anything the seller did that week.
+
+   The masthead is invented. A real paper's name on a fabricated front page is
+   a different kind of object entirely, and this is a joke about the industry,
+   not about anybody's newsroom. Six that help and six that hurt, drawn flat,
+   so a newsstand is a coin toss worth somewhere between a tenth and a third
+   of a block of walking. */
+var NEWS_SECS = 2.6;
+var NEWS_GOOD = [
+  ["CISCO BEATS ON THE QUARTER", "Networking demand up across every segment.", 120000],
+  ["OUTAGE TAKES OUT A MAJOR CLOUD", "Three hours dark. Every CIO wants to see the path.", 180000],
+  ["BGP LEAK SWALLOWS A REGION", "The board asks who is watching the internet.", 150000],
+  ["BUDGETS UNFREEZE FOR Q4", "Finance signs off on the observability line.", 90000],
+  ["RIVAL MISSES ITS NUMBER", "Two of their accounts called you first.", 110000],
+  ["RETURN-TO-OFFICE MANDATE", "Branch performance is suddenly somebody's problem.", 70000]
+];
+var NEWS_BAD = [
+  ["ZERO-DAY LOOSE IN THE WILD", "Security eats the budget. Everything else waits.", -50000],
+  ["CFO ORDERS A SPEND REVIEW", "Every renewal goes back on the table.", -75000],
+  ["HIRING FREEZE ANNOUNCED", "Your champion's team just got smaller.", -60000],
+  ["MERGER PUTS IT ON HOLD", "Two stacks, one budget, no decisions until spring.", -65000],
+  ["CARRIER OUTAGE HITS THE DEMO", "Nobody saw the slides.", -55000],
+  ["PROCUREMENT ADDS A REVIEW CYCLE", "Six more weeks. Same signature.", -40000]
+];
 /* Google's card is set in regular and medium weights; everything else in this
    game is bold, so the card needs its own text helper or it reads as a poster
    rather than a quote. */
@@ -2578,7 +2626,7 @@ function bakeAll(){
   S.playerS_l = bake(playerModel(-1, 1));
   S.playerP_r = bake(playerModel(1, 2));
   S.playerP_l = bake(playerModel(-1, 2));
-  for (var fc = 1; fc <= 7; fc++){
+  for (var fc = 1; fc <= 8; fc++){
     S["pf" + fc + "_r"]  = bake(playerModel(1, 0, fc));
     S["pf" + fc + "_l"]  = bake(playerModel(-1, 0, fc));
     S["pf" + fc + "S_r"] = bake(playerModel(1, 1, fc));
@@ -2853,6 +2901,15 @@ function eatenFoodAt(row, col){
   }
   return false;
 }
+/* The prop object itself, by kind - foodPropAt's sibling, because marking
+   a newsstand as read needs the thing and not its name. */
+function propAtObj(row, col, kind){
+  if (!row || !row.props) return null;
+  for (var i = 0; i < row.props.length; i++){
+    if (row.props[i].col === col && row.props[i].kind === kind) return row.props[i];
+  }
+  return null;
+}
 function foodPropAt(row, col){
   if (!row || !row.props) return null;
   for (var i = 0; i < row.props.length; i++){
@@ -3001,6 +3058,7 @@ function reset(){
     shield:false, slowT:0, revealT:0, invulnT:0, powersUsed:0,
     hp:HP_MAX, hpGain:null, hpShow:0, meals:0, sadT:0, needFood:0, saidFood:false,
     bonusChuck:0, bonusTam:0, bonusAddon:0, bonusFood:0, bonusChamp:0,
+    bonusNews:0, news:0, paper:null,
     addons:0, champs:0, addonWin:null, champWin:null,
     tally:null, booth:null, deathPush:0,
     flyT:0, flyA:0, flyBeep:0, flyMove:0, flyTilt:0, walkPh:0, walkAmt:0,
@@ -3417,8 +3475,19 @@ function act(dir){
        pays and eats. It costs nothing - the step was already refused - and it
        is the only time anything on the pavement answers back. */
     var foodPr = foodPropAt(target, nc);
-    if (propAt(target, nc) === "newsstand"){
+    var newsPr = propAtObj(target, nc, "newsstand");
+    if (newsPr && newsPr.read){
+      G.sadT = 1.1; AUDIO.nope();          // he has already read this one
+    } else if (newsPr){
+      newsPr.read = true;
+      var good = Math.random() < 0.5;
+      var pool = good ? NEWS_GOOD : NEWS_BAD;
+      var it = pool[(Math.random()*pool.length)|0];
+      G.paper = { t:0, head:it[0], sub:it[1], amt:it[2], good:good };
+      G.bonus += it[2]; G.bonusNews += it[2];
+      G.news++;
       G.wowT = 1.3; AUDIO.wow();
+      if (good) AUDIO.chaChing(); else AUDIO.hurt();
     } else if (eatenFoodAt(target, nc)){
       /* He already bought from this one. The cart is still there, so without
          saying something the refusal looks like the controls ignoring him. */
@@ -3549,6 +3618,8 @@ function buildTally(){
     { label:"CHAMPIONS", note:G.champs +
         (G.champs === 1 ? " walked into" : " walked into"),
       amt:G.bonusChamp, col:BLAZER },
+    { label:"THE NEWS", note:G.news + (G.news === 1 ? " front page" : " front pages"),
+      amt:G.bonusNews, col:G.bonusNews < 0 ? C.danger : C.good },
     { label:"LUNCH", note:G.meals + (G.meals === 1 ? " bought" : " bought"),
       amt:G.bonusFood, col:C.textDim }
   ];
@@ -3760,6 +3831,12 @@ function collect(){
   row.pickup = null;
   G.powersUsed++;
   G.got[kind] = (G.got[kind] || 0) + 1;
+  /* Everything here that is ThousandEyes BY NAME gets the brand moment -
+     Endpoint Agents, Traffic Insights, Internet Insights, and the TAM, which
+     fires its own inside the booth. A metrocard is a prop and Chuck Bucks is
+     a gag; these are the product, and the entire point of the exercise is
+     that seeing the product should feel like something. */
+  if (BRAND_SKUS[kind]) brandHit(BRAND_SKUS[kind]);
   if (kind === "tam") AUDIO.tam();
   else if (kind === "agent") AUDIO.shieldUp();
   else AUDIO.power(kind);
@@ -6625,6 +6702,14 @@ function update(dt){
     if (G.ticker.t >= TICKER_SECS) G.ticker = null;
     if (G.ticker) return;
   }
+  /* Same contract as the ticker card: it freezes the world while it is up,
+     because at the size it has to be to be readable it covers the traffic he
+     is standing next to. */
+  if (G.paper){
+    G.paper.t += dt;
+    if (G.paper.t >= NEWS_SECS) G.paper = null;
+    if (G.paper) return;
+  }
   if (G.ride){ updateRide(dt); if (G.ride) return; } G.sweep += dt*0.4; if (G.sweep > 1.7) G.sweep -= 1.7;
   if (G.hop < 1){
     /* Tired legs. Up to 40% longer on a step once he is nearly out, which is
@@ -8406,7 +8491,8 @@ function drawPlayer(pp){
        3Hz once the bites start, which is a jaw working rather than a flicker;
        anything faster read as a glitch. */
     var face = 0;
-    if (G.sadT > 0) face = FACE_SAD;
+    if (G.wowT > 0) face = FACE_WOW;
+    else if (G.sadT > 0) face = FACE_SAD;
     else if (G.yumT > 0){
       var eage = EAT_SECS - G.yumT;
       face = (eage >= EAT_BITE0 && Math.sin(eage * 19) > 0) ? FACE_CHEW : FACE_SMILE;
@@ -8615,6 +8701,80 @@ function drawPlayer(pp){
     return;
   }
   put(s, sx, dy);
+}
+
+/* The front page. Masthead, rule, date, a photo box, the headline, the deck,
+   three columns of unreadable grey, and at the foot of it what the story did
+   to the number. */
+function drawPaper(){
+  var P = G.paper, t = P.t;
+  var fin = Math.min(1, t / 0.26), fout = Math.min(1, (NEWS_SECS - t) / 0.3);
+  var a = Math.max(0, Math.min(fin, fout));
+  var rise = (1 - fin) * 46, i;
+
+  ctx.globalAlpha = a * 0.74; ctx.fillStyle = "#05060a";
+  ctx.fillRect(0, 0, LOGICAL_W, LOGICAL_H);
+  ctx.globalAlpha = a;
+
+  var W = 1120, H = 730, X = (LOGICAL_W - W) / 2, Y = 176 + rise;
+  plate(X, Y, W, H, "#efe9dc", 10);                       // newsprint
+  ctx.globalAlpha = a * 0.30; ctx.fillStyle = "#c9c0ad";  // the fold
+  ctx.fillRect(X, Y + H*0.52, W, 3);
+  ctx.globalAlpha = a;
+
+  var L = X + 52, R = X + W - 52;
+  txt("THE MIDTOWN LEDGER", X + W/2, Y + 74, 54, "#17140f");
+  ctx.fillStyle = "#17140f"; ctx.fillRect(L, Y + 96, W - 104, 4);
+  ctx.fillStyle = "#17140f"; ctx.fillRect(L, Y + 126, W - 104, 1);
+  txt("NEW YORK  \u00B7  " + paperDate() + "  \u00B7  LATE EDITION",
+      X + W/2, Y + 118, 20, "#5c5547");
+
+  // the headline, wrapped onto two lines if it needs it
+  var hl = P.head, line2 = "";
+  ctx.font = 'bold 60px "Helvetica Neue",Helvetica,Arial,sans-serif';
+  if (ctx.measureText(hl).width > W - 150){
+    var cut = hl.lastIndexOf(" ", Math.floor(hl.length * 0.62));
+    if (cut > 0){ line2 = hl.slice(cut + 1); hl = hl.slice(0, cut); }
+  }
+  txt(hl, X + W/2, Y + 212, 60, "#17140f", "center", W - 110);
+  if (line2) txt(line2, X + W/2, Y + 276, 60, "#17140f", "center", W - 110);
+  txt(P.sub, X + W/2, Y + (line2 ? 334 : 272), 28, "#4a4336", "center", W - 150);
+
+  // a photo box and three columns of grey
+  var colY = Y + (line2 ? 376 : 314);
+  plate(L, colY, 360, 206, "#cfc7b4", 4);
+  ctx.fillStyle = "#b3a992";
+  ctx.fillRect(L + 22, colY + 150, 316, 8);
+  ctx.fillRect(L + 60, colY + 40, 240, 100);
+  ctx.fillStyle = "#9c9078";
+  for (i = 0; i < 2; i++){
+    var cx2 = L + 400 + i * 182;
+    for (var k = 0; k < 11; k++){
+      var ww = 162 - ((i * 7 + k * 5) % 5) * 11;
+      ctx.fillRect(cx2, colY + 10 + k * 18, ww, 5);
+    }
+  }
+  ctx.fillStyle = "#8d8269";
+  ctx.fillRect(L + 400, colY + 212, 348, 3);
+
+  // what it did to the number
+  var band = P.amt >= 0 ? "#1f6b3a" : "#8c1f2b";
+  plate(R - 356, Y + H - 128, 356, 86, band, 8);
+  txt(P.amt >= 0 ? "PIPELINE" : "PIPELINE", R - 178, Y + H - 96, 22, "#e8f2ea");
+  txt((P.amt >= 0 ? "+" : "") + cash(P.amt), R - 178, Y + H - 58, 44, "#ffffff");
+  txt(P.amt >= 0 ? "GOOD DAY TO BE SELLING THIS"
+                 : "NOT YOUR WEEK",
+      L + 10, Y + H - 62, 26, "#4a4336", "left", W - 420);
+  ctx.globalAlpha = 1;
+}
+/* Today, the way a masthead sets it. Off the device clock like the purchase
+   order, for the same reason: a date frozen at the day this was written looks
+   stale on a panel the following week. */
+function paperDate(){
+  var MON = ["JANUARY","FEBRUARY","MARCH","APRIL","MAY","JUNE","JULY",
+             "AUGUST","SEPTEMBER","OCTOBER","NOVEMBER","DECEMBER"];
+  var d = new Date();
+  return MON[d.getMonth()] + " " + d.getDate() + ", " + d.getFullYear();
 }
 
 function drawTicker(){
@@ -8859,26 +9019,6 @@ function drawWow(cx, topY, t){
     ctx.globalAlpha = (1 - rp) * 0.55;
     ctx.strokeStyle = "#ffd166"; ctx.lineWidth = 5;
     ctx.beginPath(); ctx.arc(cx, topY + 10, 24 + rp * 104, 0, Math.PI * 2); ctx.stroke();
-  }
-  ctx.globalAlpha = 1;
-  // and the face that goes with it
-  var b = bubble(cx, topY - 56, 148, 78, t, 1.3);
-  var fx = b.x + b.w / 2, fy = b.y + b.h / 2;
-  ctx.fillStyle = "#1d1a16";
-  for (i = -1; i <= 1; i += 2){
-    ctx.beginPath(); ctx.arc(fx + i * 30, fy - 8, 10, 0, Math.PI * 2); ctx.fill();
-  }
-  ctx.fillStyle = "#f6efe2";
-  for (i = -1; i <= 1; i += 2){
-    ctx.beginPath(); ctx.arc(fx + i * 30 + 3, fy - 11, 4, 0, Math.PI * 2); ctx.fill();
-  }
-  ctx.fillStyle = "#1d1a16";                       // the open mouth
-  ctx.beginPath(); ctx.ellipse(fx, fy + 18, 11, 14, 0, 0, Math.PI * 2); ctx.fill();
-  ctx.strokeStyle = "#1d1a16"; ctx.lineWidth = 3.4; ctx.lineCap = "round";
-  for (i = -1; i <= 1; i += 2){                    // raised brows
-    ctx.beginPath();
-    ctx.arc(fx + i * 30, fy - 6, 19, 1.15 * Math.PI, 1.85 * Math.PI);
-    ctx.stroke();
   }
   ctx.globalAlpha = 1;
 }
@@ -9926,6 +10066,7 @@ function render(){
   // cutscene, not an overlay
   if (G.scene) drawScene();
   if (G.ticker) drawTicker();
+  if (G.paper) drawPaper();
   if (G.notice && !G.ride) drawNotice();
   drawBrandHit();
   drawMuteBtn();
