@@ -795,7 +795,7 @@ var AUDIO = (function(){
     },
     /* The voice line, for Chuck. */
     dig: function(){ if (live()){ primeDig(); playDig(); } },
-    walkinHere: function(){ if (live()){ primeWalk(); playSample(walkBuf, 0.62); } },
+    walkinHere: function(){ if (live()){ primeWalk(); playSample(walkBuf, 0.465); } },
     /* Booked. */
     win: function(){
       var n = [523.25, 659.25, 783.99, 1046.50, 1318.51], i;
@@ -2173,6 +2173,8 @@ function hazDamage(kind){
   var score = h.w * Math.sqrt(Math.max(h.spd, 0.25)) * (HAZ_HARD[kind] || 1);
   return Math.max(15, Math.min(100, Math.round(HP_HIT * score / base)));
 }
+/* How often he shouts it after the first time. See hitPlayer. */
+var WALK_ODDS = 0.25;
 var HP_PER_STREET = 3;     // the walk itself
 var HP_LOW = 25;           // below this the bar starts shouting
 var HP_CRAWL = 5;          // and below this it only costs a point a street
@@ -3270,7 +3272,7 @@ function reset(){
     addons:0, champs:0, addonWin:null, champWin:null,
     tally:null, booth:null, deathPush:0,
     flyT:0, flyA:0, flyBeep:0, flyMove:0, flyTilt:0, walkPh:0, walkAmt:0,
-    brand:null, pipePop:0, rise:null, tam:false, tamT:0, tamWins:0, tamWin:null, hurtT:0, nahT:0, nahSay:null,
+    brand:null, pipePop:0, rise:null, tam:false, tamT:0, tamWins:0, tamWin:null, hurtT:0, nahT:0, nahSay:null, walkSaid:false,
     yumT:0, yumKind:null, yumDir:0, yumBite:0, wowT:0, cheerT:0,
     metro:0, ride:null, trace:null, rides:0, bonus:0, tamLeft:0, riskT:0,
     scene:null, scenesSeen:{}, ticker:null, notice:null, leg:1, po:false, won:false,
@@ -7401,8 +7403,17 @@ function hitPlayer(kind, pp){
     /* Everything in the road, which is everything that hits him except the
        crowd - a man who walks into a wall of people has nothing to shout
        about. It goes before the death check on purpose: going under a bus
-       still shouting it is the better version of the joke. */
-    if (kind !== "crowd") AUDIO.walkinHere();
+       still shouting it is the better version of the joke.
+
+       The FIRST one in a run always lands, because a recorded line you only
+       hear some of the time reads as a bug the first time you do not hear
+       it. After that it is one in four. A voice sample on every single hit
+       stops being the reaction and becomes the hit sound, and the whole
+       value of it is that it is him, not the game. */
+    if (kind !== "crowd" && (!G.walkSaid || Math.random() < WALK_ODDS)){
+      G.walkSaid = true;
+      AUDIO.walkinHere();
+    }
     G.hpFrom = hpDisplay();
     G.hp -= dmg;
     G.hpShow = HP_SHOW;

@@ -1955,6 +1955,16 @@ who walks into a wall of people has nothing to shout about — and it fires
 *before* the death check on purpose: going under a bus still shouting it is the
 better version of the joke. Verified: cab yes, bus yes, crowd no.
 
+**The first one in a run always lands; after that it is one in four.** A
+recorded line you only hear some of the time reads as a bug the first time you
+do not hear it, so the opening hit is guaranteed and `G.walkSaid` is what
+remembers. Past that, a voice sample on every single hit stops being the
+reaction and becomes the hit sound, and the whole value of it is that it is
+*him*, not the game. Measured over 40 runs of 40 hits: the first fired every
+time, and 10.13 fired per run against the 10.75 the odds predict. It plays at
+0.465 against the Chuck Bucks line's 0.54 — it is a shout, and it does not need
+to be the loudest thing in the mix to read as one.
+
 Adding it turned up the last two chains in the engine still wiring a gain to
 the master and walking away. The sample players were never reaped — the same
 leak every oscillator cue was fixed for, just rarer, because a sound you hear a
