@@ -960,8 +960,22 @@ small lift, so it reads as a stride across a moving floor rather than a sprite
 being dragged from one window to the next. `R.slot` is where he is going and is
 what the logic uses; `R.slotX` is where he *is*, and is what gets drawn.
 
-Both the slot he is heading for and the one he is leaving stay empty while he
-is mid-stride, or he walks straight through a stranger on the way.
+**Half a slot at a time, and nobody moves out of his way.** A full slot is a
+fifth of the car — a stride no man takes, and he teleported from window to
+window. `RIDE_SUB` is 0.5, and the stride duration scales with the distance
+(`RIDE_STEP * |ns - from|`, floored at 0.06s) so the walking speed is the same
+whatever the step size is set to: half a slot takes 0.10s. Measured over nine
+taps: 2.5, 3, 3.5, 4, held at 4 against the end of the car, then 3.5, 3, 2.5.
+
+The old rule emptied the slot he was heading for *and* the one he was leaving,
+to stop him walking through a stranger. What it actually did was blink one
+person out in front of him and another in behind, which read as the two of them
+swapping places every time he moved. Everybody stays put now; he is drawn after
+the loop, so he passes in front of them, which is what happens on a train.
+Picking things up is a proximity test rather than an equality one — within half
+a slot counts — because he no longer lands on the integers every time, and a
+roll of notes you walk past without taking is worse than one that was never
+there.
 
 **The man with the knife measures against the drawn position, not the logical
 one**, so the gap he is judging is the gap the player can see.

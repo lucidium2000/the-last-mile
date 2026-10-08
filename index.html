@@ -4024,6 +4024,11 @@ var RIDE_SLOTS = 5;
    game you are, and a mugger who moves on your grid looks like another
    commuter. Everything else here is the window you get once he is close. */
 var RIDE_STEP = 0.20;      // how long he takes to cross from one slot to the next
+/* And he does not have to cross a whole one. A full slot is a fifth of the
+   car, which is a stride a man cannot take - he teleported from window to
+   window. Half of that is a step, and because the stride time scales with
+   the distance he walks at the same speed either way. */
+var RIDE_SUB = 0.5;
 var SHADY_SPEED = 0.52;    // slots a second, when he means it
 /* Nine times in ten he is just a man on a train. He still gets on, he still
    watches, he may still drift up the car - but he does not draw anything and
@@ -4092,21 +4097,28 @@ function rideAct(dir){
     return;
   }
 
-  var ns = R.slot + d;
-  if (ns < 0 || ns > RIDE_SLOTS - 1){ AUDIO.bump(); return; }
+  var ns = R.slot + d * RIDE_SUB;
+  if (ns < -0.001 || ns > RIDE_SLOTS - 1 + 0.001){ AUDIO.bump(); return; }
+  ns = Math.max(0, Math.min(RIDE_SLOTS - 1, ns));
   /* The stride is a tween, not a jump. R.slot is where he is going and is
      what the logic uses; R.slotX is where he is, and is what gets drawn and
-     what the man with the knife measures against. */
+     what the man with the knife measures against. The duration scales with
+     the distance, so half a slot takes half as long and the walking speed
+     is the same whatever the step size is set to. */
   R.slotFrom = rideManX(R);
+  R.stepDur = Math.max(0.06, RIDE_STEP * Math.abs(ns - R.slotFrom));
   R.slot = ns; R.stepT = 0; R.face = d;
   // any step at all buys a moment: the grace clock restarts from here
   if (R.knife > 0) R.knife = 0.0001;
   AUDIO.step();
-  if (ns === R.cash && !R.cashGot){
+  /* Within half a slot counts, because he no longer lands on the integers
+     every time and a roll of notes you walk past without taking is worse
+     than one that is not there. */
+  if (R.cash >= 0 && !R.cashGot && Math.abs(ns - R.cash) <= RIDE_SUB){
     R.cashGot = true;
     chuckPayout("Someone left it on the seat.");
   }
-  if (ns === R.shady && !R.met){
+  if (R.shady >= 0 && !R.met && Math.abs(ns - R.shady) <= RIDE_SUB){
     R.met = true;
     flash("HE IS WATCHING YOUR BAG", "Keep walking. Eyes forward.", "#9aa0a6");
     AUDIO.nope();
@@ -4253,7 +4265,7 @@ function updateRide(dt){
   /* Ease out, so he leans off and settles rather than sliding at a constant
      rate - a figure crossing a train floor at a fixed speed looks towed. */
   if (R.stepT != null && R.stepT < 1){
-    R.stepT = Math.min(1, R.stepT + dt / RIDE_STEP);
+    R.stepT = Math.min(1, R.stepT + dt / (R.stepDur || RIDE_STEP));
     var e = 1 - Math.pow(1 - R.stepT, 3);
     R.slotX = R.slotFrom + (R.slot - R.slotFrom) * e;
   } else if (R.slotX == null){
@@ -4708,12 +4720,13 @@ function drawCar(ox, rock, lit){
     plate(wx+5, cy+71, ww-40, 122, lit ? "#1d3d4e" : "#121c24", 8);
     // grab pole
     ctx.fillStyle = "#8e969e"; ctx.fillRect(mx - 3, cy+66, 6, 132);
-    /* Both the slot he is heading for and the one he is leaving stay empty
-       while he is mid-stride, or he walks straight through a stranger on the
-       way. He is drawn after the loop, at his real position. */
-    if (i === R2.slot || (R2.stepT < 1 && i === Math.round(R2.slotFrom))){
-      // his, and nobody else's
-    } else if (i === R2.cash && !R2.cashGot){
+    /* Everybody stays where they are. The old rule emptied the slot he was
+       heading for AND the one he was leaving, so a stranger blinked out in
+       front of him and another blinked in behind - which read as the two of
+       them swapping places every time he moved. He is drawn after the loop,
+       so he simply passes in front of them, which is what happens on a
+       train. */
+    if (i === R2.cash && !R2.cashGot){
       // a roll of Chuck Bucks nobody has noticed yet
       var bob = Math.sin(G.t * 3.4) * 5, pul = 0.5 + 0.5*Math.sin(G.t * 5);
       ctx.globalAlpha = 0.16 + 0.12*pul; ctx.fillStyle = POWERS.chuck.col;
