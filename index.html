@@ -886,6 +886,7 @@ var cv = document.getElementById("c");
 var ctx = cv.getContext("2d", { alpha:false });
 var scale = 1, BAKE = 1, ready = false;
 var skyGrad = null, hazeGrad = null, tamBeamGrad = null, addonBeamGrad = null;
+var champBeamGrad = null;
 
 function layout(){
   var vw = window.innerWidth || LOGICAL_W, vh = window.innerHeight || LOGICAL_H;
@@ -941,6 +942,11 @@ function layout(){
   addonBeamGrad.addColorStop(0,    "rgba(255,217,135,0.30)");
   addonBeamGrad.addColorStop(0.35, "rgba(255,194,61,0.15)");
   addonBeamGrad.addColorStop(1,    "rgba(255,194,61,0)");
+  // and a narrow one for a champion, in the Endpoint blue
+  champBeamGrad = ctx.createLinearGradient(0, 0, 0, -250);
+  champBeamGrad.addColorStop(0,    "rgba(160,196,255,0.26)");
+  champBeamGrad.addColorStop(0.40, "rgba(47,98,196,0.13)");
+  champBeamGrad.addColorStop(1,    "rgba(47,98,196,0)");
 
   var nb = Math.max(0.5, Math.min(1, scale));
   /* Mid-burst, take the new scale but hold the re-bake. The settled call that
@@ -3365,7 +3371,7 @@ function act(dir){
         G.addonWin = { life:4.4, max:4.4 };
         G.flash = null;                    // the banner replaces it
         AUDIO.deal();
-        brandHit("ADD-ON PACK", C.pw3);
+        brandHit("ADD-ON PACK");
         burst(nc*TILE + TILE/2, rowScreenY(nr) - 40, POWERS.path.col);
         return;
       }
@@ -3766,7 +3772,7 @@ function collect(){
   else if (kind === "tam"){
     /* He does not simply take off. He gets changed first - see drawBooth.
        The flight is handed out when the booth opens, not here. */
-    brandHit("TAM", C.pw5);
+    brandHit("TAM");
     G.booth = { t:0, col:G.col, row:G.row };
     G.invulnT = Math.max(G.invulnT, BOOTH_SECS + 0.5);
     G.tam = true;
@@ -5127,9 +5133,124 @@ var FOLK_LINES_LOW = [
   "You gonna make it?",
   "Eat something. Seriously."
 ];
+/* What they say to each other, and what they say at a cart. Short, because
+   two people passing on a pavement exchange about four words. */
+var FOLK_CHAT = [
+  "Ayy! Long time.", "How's the family?", "You still over on Ninth?",
+  "Lookin' sharp.", "Call me, yeah?", "Cold enough for ya?",
+  "Did you see that game?", "Tell your mother I said hi.",
+  "Same time Thursday?", "Running late, running late."
+];
+var FOLK_ORDER = [
+  "Two slices.", "Everything bagel, toasted.", "One with mustard.",
+  "Coffee, light and sweet.", "Make it two.", "Keep the change."
+];
+
+/* Their own clock. A person who is standing still - talking, or in a line -
+   has their walk clock stopped rather than their position overwritten, so
+   when they set off again they carry on from exactly where they were rather
+   than jumping to wherever the world clock has got to. `frozen` is the total
+   time they have spent not walking.
+
+   `lane` is how far back on the pavement each of them walks, 0.80 to 0.92
+   rather than all on 0.86. It is what lets two people pass each other
+   instead of occupying the same pixels, and it costs nothing - the
+   projection already shifts x and y by it. */
 function folkRaw(f){
+  if (f.q) return f.qx;                       // standing in a line
   var span = COLS + 3;
-  return ((f.x0 + f.v * G.t) % span + span) % span - 1.5;
+  return ((f.x0 + f.v * (G.t - (f.frozen || 0))) % span + span) % span - 1.5;
+}
+function folkLane(f){ return f.lane || FOLK_Y; }
+
+/* Everybody on a pavement near the camera, once a frame. Two people who
+   meet stop and have four words about it; somebody passing a cart may stop
+   and buy something, and if the cart is busy they stand behind whoever got
+   there first. */
+var FOLK_CHAT_NEAR = 0.85, FOLK_CHAT_FOR = 1.6, FOLK_CHAT_GAP = 7;
+var FOLK_BUY_NEAR = 0.40, FOLK_BUY_ODDS = 1.1, FOLK_QMAX = 4;
+var FOOD_KINDS = { bagel:1, pizza:1, hotdog:1 };
+function updateFolk(dt){
+  var lo = Math.floor(G.camRow) - ROWS_BEHIND, hi = Math.floor(G.camRow) + ROWS_AHEAD;
+  for (var r = lo; r <= hi; r++){
+    var row = rows[r];
+    if (!row || row.type !== "safe" || !row.folk || !row.folk.length) continue;
+    var i, j, f, g;
+
+    for (i = 0; i < row.folk.length; i++){
+      f = row.folk[i];
+      if (f.lane == null) f.lane = 0.80 + ((f.seed % 7) / 6) * 0.12;
+      if (f.holdT > 0){ f.holdT -= dt; f.frozen = (f.frozen || 0) + dt; }
+      if (f.q){
+        f.frozen = (f.frozen || 0) + dt;
+        continue;                              // queues are stepped below
+      }
+      if (f.coolT > 0) f.coolT -= dt;
+    }
+
+    /* Two of them meeting. Only once a pair, only when they are closing, and
+       with a long cooldown each so the same two do not talk every time they
+       drift past one another. */
+    for (i = 0; i < row.folk.length; i++){
+      f = row.folk[i];
+      if (f.holdT > 0 || f.q || G.t - (f.chatAt || -99) < FOLK_CHAT_GAP) continue;
+      for (j = i + 1; j < row.folk.length; j++){
+        g = row.folk[j];
+        if (g.holdT > 0 || g.q || G.t - (g.chatAt || -99) < FOLK_CHAT_GAP) continue;
+        var d = folkRaw(f) - folkRaw(g);
+        if (Math.abs(d) > FOLK_CHAT_NEAR) continue;
+        if ((f.v - g.v) * d > 0) continue;      // drifting apart, leave them
+        f.holdT = g.holdT = FOLK_CHAT_FOR + Math.random() * 0.8;
+        f.chatAt = g.chatAt = G.t;
+        f.sayAt = G.t;
+        f.line = FOLK_CHAT[(Math.random()*FOLK_CHAT.length)|0];
+        g.sayAt = G.t + 0.75;                   // the reply, half a beat later
+        g.line = FOLK_CHAT[(Math.random()*FOLK_CHAT.length)|0];
+        break;
+      }
+    }
+
+    // and the carts
+    if (!row.props) continue;
+    for (var pi = 0; pi < row.props.length; pi++){
+      var pr = row.props[pi];
+      if (!FOOD_KINDS[pr.kind]) continue;
+      if (!pr.q) pr.q = [];
+      // anybody who has wandered off, or whose row is being reused, drops out
+      for (i = pr.q.length - 1; i >= 0; i--){
+        if (row.folk.indexOf(pr.q[i]) < 0){ pr.q[i].q = null; pr.q.splice(i, 1); }
+      }
+      for (i = 0; i < row.folk.length; i++){
+        f = row.folk[i];
+        if (f.q || f.holdT > 0 || f.coolT > 0 || pr.q.length >= FOLK_QMAX) continue;
+        if (Math.abs(folkRaw(f) - (pr.col + 0.5)) > FOLK_BUY_NEAR) continue;
+        if (Math.random() > FOLK_BUY_ODDS * dt) continue;
+        f.q = pr; pr.q.push(f);
+      }
+      /* The line itself: the head is served, everybody else is a step
+         further back, and when the head leaves the queue shuffles up. */
+      for (i = 0; i < pr.q.length; i++){
+        f = pr.q[i];
+        f.qx = pr.col + 0.5 - i * 0.62;
+        if (i === 0){
+          if (f.waitT == null){
+            f.waitT = 1.8 + Math.random() * 2.4;
+            f.sayAt = G.t;
+            f.line = FOLK_ORDER[(Math.random()*FOLK_ORDER.length)|0];
+          }
+          f.waitT -= dt;
+          if (f.waitT <= 0){
+            f.q = null; f.waitT = null; f.coolT = 9;
+            /* They leave from where they were standing, not from where the
+               world clock thinks they are. */
+            f.x0 = f.qx - f.v * (G.t - (f.frozen || 0));
+            pr.q.shift();
+            i--;
+          }
+        }
+      }
+    }
+  }
 }
 function folkX(f){
   var x = folkRaw(f);
@@ -5175,22 +5296,64 @@ function drawFolkFront(){
    if you are looking, not enough to read as a pickup. Once the conversation
    has happened they are just somebody in a suit. */
 function drawOneFolk(f, sy){
-  var x = folkX(f)*TILE + TILE*0.5 + FOLK_Y*SKEW;
-  var y = sy - FOLK_Y*ROW_H - folkLift(f);
+  var ln = folkLane(f);
+  var x = folkX(f)*TILE + TILE*0.5 + ln*SKEW;
+  var y = sy - ln*ROW_H - folkLift(f);
   if (f.champ && !f.spent){
-    var pul = 0.5 + 0.5*Math.sin(G.t*2.2 + f.seed);
-    ctx.globalAlpha = 0.13 + 0.10*pul;
+    /* A halo on its own was not enough - two percent of people is two
+       percent, and a player who walks past the only one in the run has been
+       robbed of the best thing in it. So: a beam, a ring on the pavement,
+       the body glow, and a labelled chip over their head with a caret
+       pointing down at them. It is the loudest marker in the game after the
+       TAM's, which is right, because it is worth twice as much. */
+    var pul = 0.5 + 0.5*Math.sin(G.t*2.4 + f.seed);
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.globalAlpha = 0.52 + 0.30*pul;
+    ctx.fillStyle = champBeamGrad;
+    ctx.fillRect(-26, -250, 52, 250);
+    ctx.restore();
+
+    ctx.globalAlpha = 0.16 + 0.12*pul;
     ctx.fillStyle = BLAZER;
     ctx.beginPath();
-    ctx.ellipse(x, y - 42, 34 + 5*pul, 48 + 5*pul, 0, 0, Math.PI*2);
+    ctx.ellipse(x, y - 44, 32 + 5*pul, 50 + 5*pul, 0, 0, Math.PI*2);
     ctx.fill();
-    ctx.globalAlpha = 0.22 + 0.16*pul;
-    ctx.beginPath();
-    ctx.ellipse(x, y - 2, 26 + 5*pul, 9 + 2*pul, 0, 0, Math.PI*2);
-    ctx.fill();
+
+    for (var cr = 0; cr < 2; cr++){
+      var rk = (G.t*0.7 + cr*0.5) % 1;
+      ctx.globalAlpha = (1 - rk) * 0.50;
+      ctx.strokeStyle = cr ? "#cfe0ff" : BLAZER;
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.ellipse(x, y - 2, 18 + rk*34, 7 + rk*13, 0, 0, Math.PI*2);
+      ctx.stroke();
+    }
     ctx.globalAlpha = 1;
   }
   blit((f.champ ? S.champ[f.seed % CHAMP_N] : S.folk[f.seed % FOLK_N]), x, y);
+  if (f.champ && !f.spent) drawChampTag(x, y - 104);
+}
+
+/* The chip over a champion's head. Bobs, and the caret under it points at
+   whose head it is, because a label floating in a crowd belongs to nobody. */
+function drawChampTag(x, topY){
+  if (topY < HORIZON + 4 || topY > LOGICAL_H - 20) return;
+  var bob = Math.sin(G.t*2.6 + x*0.01) * 4;
+  var y = topY + bob;
+  ctx.font = 'bold 18px "Helvetica Neue",Helvetica,Arial,sans-serif';
+  var w = ctx.measureText("CHAMPION").width + 30;
+  var bx = Math.max(8, Math.min(LOGICAL_W - w - 8, x - w/2));
+  ctx.globalAlpha = 0.86 + 0.14*Math.sin(G.t*3.4);
+  plate(bx, y - 26, w, 30, "rgba(6,10,22,0.92)", 7);
+  rr(bx, y - 26, w, 30, 7);
+  ctx.strokeStyle = BLAZER; ctx.lineWidth = 2; ctx.stroke();
+  txt("CHAMPION", bx + w/2, y - 5, 18, "#bcd4ff");
+  ctx.fillStyle = BLAZER;
+  ctx.beginPath();
+  ctx.moveTo(x - 8, y + 4); ctx.lineTo(x + 8, y + 4); ctx.lineTo(x, y + 15);
+  ctx.closePath(); ctx.fill();
+  ctx.globalAlpha = 1;
 }
 
 function drawFolkSay(f, sy){
@@ -5204,8 +5367,9 @@ function drawFolkSay(f, sy){
   var fin = Math.min(1, age / 0.26), fout = Math.min(1, (SAY - age) / 0.55);
   var ein = fin*fin*(3 - 2*fin), eout = fout*fout*(3 - 2*fout);
   var a = Math.min(ein, eout);
-  var x = folkX(f)*TILE + TILE*0.5 + FOLK_Y*SKEW;
-  var y = sy - FOLK_Y*ROW_H - 112 - folkLift(f) - ein * 10;
+  var ln = folkLane(f);
+  var x = folkX(f)*TILE + TILE*0.5 + ln*SKEW;
+  var y = sy - ln*ROW_H - 112 - folkLift(f) - ein * 10;
   if (y < HORIZON + 6 || y > LOGICAL_H - 20) return;
   ctx.font = 'bold 19px "Helvetica Neue",Helvetica,Arial,sans-serif';
   var w = ctx.measureText(f.line).width + 34, h = 40;
@@ -6824,6 +6988,7 @@ function update(dt){
       pt.x += pt.vx*dt; pt.y += pt.vy*dt;
     }
   }
+  updateFolk(dt);
   pruneRows(Math.floor(G.camRow) - ROWS_BEHIND - 4);
 }
 
@@ -7447,7 +7612,7 @@ function drawWorld(){
          unless they are nearer the camera than he is, in which case they
          wait until after he has been drawn. */
       var folkAhead = row.folk && row.folk.length &&
-                      (r + FOLK_Y) < (pp.row + 0.46);
+                      (r + 0.80) < (pp.row + 0.46);
       if (row.folk && S.folk && !folkAhead){
         for (i=0;i<row.folk.length;i++){
           var fk = row.folk[i];
@@ -9270,8 +9435,12 @@ function drawHud(){
    to read next are not, and a celebration that hides the traffic is a
    celebration that kills you. */
 var BRAND_HIT = 1.10;
-function brandHit(what, col){
-  G.brand = { life:BRAND_HIT, max:BRAND_HIT, what:what, col:col };
+/* Always the brand orange, whatever the product's own chip colour is. The
+   first version took the colour from the SKU - pale for a TAM, amber for the
+   pack - which made the one moment that is supposed to be ThousandEyes
+   itself look like two different things. */
+function brandHit(what){
+  G.brand = { life:BRAND_HIT, max:BRAND_HIT, what:what, col:C.brand };
   AUDIO.chaChing();
 }
 function drawBrandHit(){

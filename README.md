@@ -381,7 +381,10 @@ attention.
 `brandHit` is the opposite. The mark comes up out of the middle of the screen at
 the size of a dinner plate, two rings leave it, and the product is spelled out
 in full underneath — **THOUSANDEYES** over **TAM** or **ADD-ON PACK** — over a
-**cash register**. The mechanism first, two short noise bursts, one bright and
+**cash register**. Always in the brand orange, whatever the SKU's own chip
+colour is: the first version took it from the product, pale for a TAM and amber
+for the pack, which made the one moment that is supposed to be ThousandEyes
+*itself* look like two different things. The mechanism first, two short noise bursts, one bright and
 one dull, which is the *cha*; then the bell a twentieth of a second later, four
 partials at inharmonic intervals because a real bell is not a chord and a sine
 on its own is a doorbell; then the drawer coming out and stopping. Eight chains
@@ -1108,8 +1111,11 @@ only thing in the game that rewards walking **into** somebody, which is the
 opposite of everything else it has taught you. They keep the square, because he
 has stopped to talk, and afterwards they are just somebody in a suit.
 
-Until then they carry a soft Endpoint-blue halo: enough to pick them out at the
-far end of a block if you are looking, not enough to read as a pickup. Six baked
+Until then they are the loudest thing on the pavement: a blue beam, a body
+glow, two rings leaving their feet, and a `CHAMPION` chip over their head with
+a caret pointing down at *which* head. A halo on its own was tried and was not
+enough — two percent of people is two percent, and a player who walks past the
+only one in the run has been robbed of the best thing in it. Six baked
 variants, the same skin tones and hairstyles as everybody else, a charcoal or
 navy suit, a shirt, an orange tie and a bag. The banner is the third of the
 three money banners — same plate, same rule — in the Endpoint blue, because this
@@ -1117,6 +1123,26 @@ one is a *person* rather than a product, and it outranks the add-on for the same
 reason. `CHAMPIONS` gets a tally row, a figure in the stats strip, two cards in
 the report, a board column, a field on the run record and a clamped field on the
 val.
+
+**They have their own lives.** Two of them meeting on the same pavement stop
+and have four words about it — *"Ayy! Long time."*, *"Cold enough for ya?"* — one
+speaking and the other replying three quarters of a second later, then both
+walking on. Only when they are actually closing on each other, and with a seven
+second cooldown each, so the same two do not talk every time they drift past.
+
+And they **buy lunch**. Anybody passing within 0.4 tiles of a cart may stop and
+order (*"Two slices."*, *"Coffee, light and sweet."*), and if somebody is
+already there they stand 0.62 of a tile behind them — a real line, up to four
+deep, which shuffles up when the head is served.
+
+Standing still **stops their walk clock** rather than overwriting their
+position: `frozen` accumulates while they are held and `x0 + v * (G.t - frozen)`
+carries them on from exactly where they were, instead of snapping to wherever
+the world clock has got to. Leaving a queue folds the queue position back into
+`x0` for the same reason. And each of them walks their own **lane**, 0.80 to
+0.92 rather than all on 0.86, which is what lets two people pass each other
+instead of occupying the same pixels — the projection already shifts both x and
+y by it, so depth comes free.
 
 **They hold their ground, and they tell you about it.** The first version had
 them slide out of the way as he closed. It stopped the sprites overlapping and
