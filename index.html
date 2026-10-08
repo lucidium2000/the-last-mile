@@ -2739,7 +2739,17 @@ function makeSweep(r, streetNo, dir){
            cars:[], parked:[], blocked:{}, rogue:null, speed:SWEEP_SPEED };
 }
 
-function makeWalk(r, park){
+/* The five blocks north of 42nd. Times Square does not stop at the kerb -
+   the pavements either side of it are the most crowded in the country - and a
+   cutscene about being stuck in the crush followed by an empty street was the
+   game contradicting itself one row later. Three times the people through
+   there, with the roll floored at one so none of those blocks can come up
+   deserted. It keys on the street number rather than the leg, so the walk
+   home is just as bad. */
+var CROWD_FROM = 42, CROWD_TO = 46;
+function crowdHere(st){ return st >= CROWD_FROM && st <= CROWD_TO; }
+
+function makeWalk(r, park, crowd){
   var props = [], blocked = {}, chosen = [];
   /* Frontage goes down first and is seeded into the separation list, because a
      building at column 0 plus a prop at column 2 would strand column 1 between
@@ -2805,7 +2815,8 @@ function makeWalk(r, park){
      front of them. */
   var folk = [];
   if (r >= 4){
-    var nf = [0,1,1,2,2][(Math.random()*5)|0];
+    var nf = crowd ? [1,1,2,2,2][(Math.random()*5)|0] * 3
+                   : [0,1,1,2,2][(Math.random()*5)|0];
     for (var fq = 0; fq < nf; fq++){
       folk.push({ x0: Math.random() * COLS,
                   v: (Math.random() < 0.5 ? -1 : 1) * (0.14 + Math.random()*0.26),
@@ -2896,7 +2907,7 @@ function ensureRows(upTo){
     else                     wantRoad = Math.random() < 0.62;
 
     if (!wantRoad){
-      pushRow(makeWalk(r, inPark(curStreet)));
+      pushRow(makeWalk(r, inPark(curStreet), crowdHere(curStreet)));
       safeRun++; roadRun = 0; prevWasSafe = true;
       continue;
     }
@@ -5369,7 +5380,10 @@ function drawFolkSay(f, sy){
   var a = Math.min(ein, eout);
   var ln = folkLane(f);
   var x = folkX(f)*TILE + TILE*0.5 + ln*SKEW;
-  var y = sy - ln*ROW_H - 112 - folkLift(f) - ein * 10;
+  /* Three bubble heights off the seed. On an ordinary block it never
+     matters; on the five crowded ones past 42nd, four people talking at once
+     all at the same altitude is one illegible stack. */
+  var y = sy - ln*ROW_H - 112 - folkLift(f) - ein * 10 - (f.seed % 3) * 24;
   if (y < HORIZON + 6 || y > LOGICAL_H - 20) return;
   ctx.font = 'bold 19px "Helvetica Neue",Helvetica,Arial,sans-serif';
   var w = ctx.measureText(f.line).width + 34, h = 40;

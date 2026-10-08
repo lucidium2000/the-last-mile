@@ -1144,6 +1144,16 @@ the world clock has got to. Leaving a queue folds the queue position back into
 instead of occupying the same pixels — the projection already shifts both x and
 y by it, so depth comes free.
 
+**Times Square does not stop at the kerb.** The five blocks north of 42nd —
+`CROWD_FROM` to `CROWD_TO` — carry **three times the people**, with the roll
+floored at one so none of them can come up deserted. A cutscene about being
+stuck in the crush followed by an empty street was the game contradicting
+itself one row later. Measured over 240 rows: 4.13 people a pavement inside the
+band against 1.13 outside it, minimum 3. It keys on the street number rather
+than the leg, so the walk home is just as bad — and speech bubbles take one of
+three heights off the seed, because four people talking at once all at the same
+altitude is one illegible stack.
+
 **They hold their ground, and they tell you about it.** The first version had
 them slide out of the way as he closed. It stopped the sprites overlapping and
 looked like nothing that happens on a New York pavement: people do not glide
