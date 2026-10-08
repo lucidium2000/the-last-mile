@@ -1640,12 +1640,14 @@ function playerModel(dir, shielded, face){
     P(0.16, 0.45, 0.08, 0.12, 0.34,  0.21,  shade(suit,-0.24)),// sleeves
     P(0.76, 0.45, 0.08, 0.12, 0.34,  0.21,  shade(suit,-0.24)),
     P(0.42, 0.44, 0.16, 0.14, 0.615, 0.04,  shade(skin,-0.30)),// neck
-    /* 0.170 tall, not 0.145. The eyes sit at 0.742-0.766 and the mouth is
-       below them, so on the old skull there were 1.4px between the brow and
-       the top of his head and no amount of moving the hairline was going to
-       find a forehead that was not there. The extra 2.5px go above the eyes,
-       where a minifig keeps its head anyway. */
-    P(0.37, 0.43, 0.26, 0.15, 0.655, 0.170, skin),           // head
+    /* 0.200 tall. It was 0.145, then 0.170, and this is the third pass at
+       the same problem: the eyes sit at 0.742-0.766 and the mouth is below
+       them, so the only place a forehead can come from is above the eyes,
+       and the only way to get more of it is a taller skull. Every bit of
+       the extra 5.5px goes up there - a minifig keeps its head that way
+       anyway, and at 31px wide against 20 tall it is still wider than it is
+       high. */
+    P(0.37, 0.43, 0.26, 0.15, 0.655, 0.200, skin),           // head
     /* Parts are sorted on their BACK edge, y+d, and ties are broken by z.
        The hair used to reach 0.59 against the head's 0.58, which made it one
        step further away and put it behind him - a dark slab hanging off the
@@ -1663,14 +1665,15 @@ function playerModel(dir, shielded, face){
        over the brow and the whole thing read as a board balanced on him; a
        flush front leaves one crisp horizontal hairline instead.
 
-       And the hairline is at 0.818 against a skull that now stops at 0.825,
-       so there is no fringe at all: the forehead is the whole 0.766-0.818
-       band, 5.2px of it, against the 1.4px it had when the hair came down to
-       0.78. The sideburns are what stop that reading as a receding hairline
-       - they run past the eye line, so the hair is short, not absent. */
-    P(0.362, 0.424, 0.276, 0.156, 0.818, 0.048, HAIR),       // the crown
-    P(0.362, 0.424, 0.024, 0.156, 0.730, 0.088, HAIR),       // sideburns
-    P(0.614, 0.424, 0.024, 0.156, 0.730, 0.088, HAIR)
+       And the hairline is at 0.848 against a skull that stops at 0.855, so
+       there is no fringe at all: the forehead is the whole 0.766-0.848
+       band, 8.2px of it, against 5.2 at the last size and 1.4 when the hair
+       still came down to 0.78. The sideburns are what stop that reading as
+       a receding hairline - they run from the hairline past the eye line,
+       so the hair is short, not absent. */
+    P(0.362, 0.424, 0.276, 0.156, 0.848, 0.048, HAIR),       // the crown
+    P(0.362, 0.424, 0.024, 0.156, 0.730, 0.118, HAIR),       // sideburns
+    P(0.614, 0.424, 0.024, 0.156, 0.730, 0.118, HAIR)
   ];
   parts.push(P(dir > 0 ? 0.82 : 0.05, 0.46, 0.15, 0.13, 0.17, 0.14, "#17202c"));
   var dec = [
@@ -1690,10 +1693,10 @@ function playerModel(dir, shielded, face){
        it on z alone and stack upwards instead of standing behind him. The
        brim is allowed to reach further FORWARD - smaller y - because that is
        the only direction a brim can overhang without going behind his head. */
-    parts.push(P(0.275, 0.40, 0.45, 0.18, 0.874, 0.032, felt));        // brim
-    parts.push(P(0.360, 0.43, 0.28, 0.15, 0.906, 0.100, shade(felt, 0.10))); // crown
-    parts.push(P(0.360, 0.43, 0.28, 0.15, 0.906, 0.026, band));        // hatband
-    parts.push(P(0.600, 0.43, 0.05, 0.15, 0.994, 0.075, gold));        // the feather
+    parts.push(P(0.275, 0.40, 0.45, 0.18, 0.904, 0.032, felt));        // brim
+    parts.push(P(0.360, 0.43, 0.28, 0.15, 0.936, 0.100, shade(felt, 0.10))); // crown
+    parts.push(P(0.360, 0.43, 0.28, 0.15, 0.936, 0.026, band));        // hatband
+    parts.push(P(0.600, 0.43, 0.05, 0.15, 1.024, 0.075, gold));        // the feather
     var cx2 = dir > 0 ? 0.845 : 0.11;
     parts.push(P(cx2, 0.455, 0.035, 0.05, 0.02, 0.46, "#2b1a12"));    // the cane
     parts.push(P(cx2 - 0.012, 0.45, 0.06, 0.06, 0.47, 0.045, gold));  // its head
@@ -1858,13 +1861,13 @@ function heroModel(dir, flying){
     parts.push(P(0.77, 0.45, 0.09, 0.12, 0.38,  0.20,  shade(suit,-0.22)));
   }
   parts.push(P(0.42, 0.44, 0.16, 0.14, 0.635, 0.04,  shade(skin,-0.30))); // neck
-  parts.push(P(0.37, 0.43, 0.26, 0.15, 0.675, 0.170, skin));
+  parts.push(P(0.37, 0.43, 0.26, 0.15, 0.675, 0.200, skin));
   /* The same moulded cap as the walking sprite, lifted the 0.02 this head
      sits higher. Same back edge as the head, so the z tiebreak puts it on
      top of him rather than behind. */
-  parts.push(P(0.362, 0.424, 0.276, 0.156, 0.838, 0.048, "#2b1d14"));
-  parts.push(P(0.362, 0.424, 0.024, 0.156, 0.750, 0.088, "#2b1d14"));
-  parts.push(P(0.614, 0.424, 0.024, 0.156, 0.750, 0.088, "#2b1d14"));
+  parts.push(P(0.362, 0.424, 0.276, 0.156, 0.868, 0.048, "#2b1d14"));
+  parts.push(P(0.362, 0.424, 0.024, 0.156, 0.750, 0.118, "#2b1d14"));
+  parts.push(P(0.614, 0.424, 0.024, 0.156, 0.750, 0.118, "#2b1d14"));
 
   return { parts:parts, decals:[
     // shield: wide top, tapered bottom, with the T across it
@@ -3263,6 +3266,13 @@ function act(dir){
     for (var pi = 0; pi < target.props.length; pi++){
       var sw = target.props[pi];
       if (sw.kind === "subway" && sw.col === nc){
+        if (sw.exit){
+          G.nahT = 0.85;
+          AUDIO.bump(); AUDIO.nope();
+          flash("YOU JUST CAME UP THOSE",
+                "Walk a few blocks. There is another station.", "#ffd24a");
+          return;
+        }
         if (G.metro > 0){ startRide(nr, nc); return; }
         G.nahT = 0.85;                       // he looks at the turnstile and no
         AUDIO.bump();
@@ -3967,7 +3977,11 @@ function startRide(enterRow, enterCol){
   for (i = dw.props.length - 1; i >= 0; i--){
     if (dw.props[i].kind === "subway") dw.props.splice(i, 1);
   }
-  dw.props.push({ col:exitCol, kind:"subway" });
+  /* Flagged as the one he came up. Stepping straight back into it put him
+     on another train before he had taken a single step on the street, which
+     is not a decision, it is a loop - and the ride is supposed to cost you
+     the walk, not replace it. */
+  dw.props.push({ col:exitCol, kind:"subway", exit:true });
   delete dw.blocked[exitCol];
 
   G.metro--;                             // one swipe, one fare
@@ -4578,77 +4592,94 @@ var PAX_COAT = ["#3b4a56","#55404a","#3f5547","#4a4660","#5b4a3c","#2f4a5c"];
 var PAX_SKIN = ["#c79a74","#a87f5f","#e2b58f","#8b6246","#d7a37c"];
 var PAX_HAIR = ["#241a12","#4a3526","#141414","#6b5a3f","#2b2b33"];
 var PAX_WOOL = ["#8c4a4a","#3d6b7a","#6a6a3d","#54406b"];
-function drawPax(cx2, floorY, seed, lit, sway){
+/* Where a passenger's feet go and how big they are, both off the hero's own
+   sprite rather than guessed. The bake pads every sprite by 14 on each side,
+   so the hero's VISIBLE figure is (h - 28) * 0.92 tall and his soles are
+   14 * 0.92 above the bottom of the image that drawRider places. Everything
+   here is expressed against a base figure 102 units tall and then scaled, so
+   the people in the car are the same height as the man walking through it
+   and standing on the same floor. */
+function paxFit(){
+  var ph = S.player_r.h;
+  return { tall:(ph - 28) * 0.92, feet:78 + (ph - 14) * 0.92 };
+}
+function drawPax(cx2, feetY, seed, lit, sway, k){
   var coat = PAX_COAT[seed % 6], skin = PAX_SKIN[(seed * 3) % 5];
   var hair = PAX_HAIR[(seed * 5) % 5], wool = PAX_WOOL[(seed * 2) % 4];
   var doing = (seed * 7) % 5;                 // phone, bag, cans, scarf, asleep
   var beanie = (seed % 4) === 0;
-  var tall = 102 + (seed % 3) * 7;
   var longCoat = (seed % 2) === 0;
-  var x = Math.round(cx2 + sway);
-  var headH = 23, headW = 21;
-  var top = floorY - tall + headH;            // the shoulders
-  var hem = floorY - (longCoat ? 30 : 46);
+  /* Four percent either side of the hero's height, which is enough that a
+     carriage is not a row of identical people and not enough that anybody
+     looks like they belong to a different game. */
+  var H = 102 * (0.96 + (seed % 3) * 0.04);
+  var headH = 26, headW = 28, bodyW = 50;
+  var top = -(H - headH);                     // the shoulder line, feet-relative
+  var hem = -(longCoat ? 30 : 46);
   var slump = doing === 4 ? 4 : 0;            // asleep: the head goes forward
-  function R3(rx, ry, rw, rh, c){ ctx.fillStyle = c; ctx.fillRect(x + rx, ry, rw, rh); }
+
+  ctx.save();
+  ctx.translate(Math.round(cx2 + sway), feetY);
+  ctx.scale(k, k);
+  function R3(rx, ry, rw, rh, c){ ctx.fillStyle = c; ctx.fillRect(rx, ry, rw, rh); }
 
   ctx.globalAlpha = lit ? 0.92 : 0.52;
 
   if (doing === 1){                            // a backpack, behind the shoulder
-    R3(-24, top + 10, 11, 40, shade(coat, -0.30));
-    R3(-24, top + 10, 11, 5,  shade(coat, -0.12));
+    R3(-bodyW/2 - 13, top + 12, 14, 46, shade(coat, -0.30));
+    R3(-bodyW/2 - 13, top + 12, 14, 6,  shade(coat, -0.12));
   }
   // trousers and shoes
-  R3(-11, floorY - 36, 9, 32, shade(coat, -0.38));
-  R3(  2, floorY - 36, 9, 32, shade(coat, -0.38));
-  R3(-14, floorY -  7, 14, 7, "#15181e");
-  R3(  0, floorY -  7, 14, 7, "#15181e");
+  R3(-15, -40, 13, 36, shade(coat, -0.38));
+  R3(  2, -40, 13, 36, shade(coat, -0.38));
+  R3(-19,  -9, 19,  9, "#15181e");
+  R3(  0,  -9, 19,  9, "#15181e");
   // the coat
-  R3(-15, top, 30, hem - top, coat);
-  R3(-15, top, 30, 7, shade(coat, 0.14));                 // light on the shoulders
-  R3( -1, top + 8, 2, hem - top - 8, shade(coat, -0.22)); // the opening
-  R3(-21, top + 5, 7, (hem - top) - 11, shade(coat, -0.24));   // arms
-  R3( 14, top + 5, 7, (hem - top) - 11, shade(coat, -0.24));
-  if (longCoat) R3(-15, hem - 4, 30, 4, shade(coat, -0.16));
+  R3(-bodyW/2, top, bodyW, hem - top, coat);
+  R3(-bodyW/2, top, bodyW, 8, shade(coat, 0.14));            // light on the shoulders
+  R3(-1.5, top + 9, 3, hem - top - 9, shade(coat, -0.22));   // the opening
+  R3(-bodyW/2 - 9, top + 6, 9, (hem - top) - 13, shade(coat, -0.24));   // arms
+  R3( bodyW/2,     top + 6, 9, (hem - top) - 13, shade(coat, -0.24));
+  if (longCoat) R3(-bodyW/2, hem - 5, bodyW, 5, shade(coat, -0.16));
 
   // head, and whatever is on it
   var hy = top - headH + slump;
   R3(-headW/2, hy, headW, headH, skin);
   if (beanie){
-    R3(-headW/2 - 1, hy - 7, headW + 2, 11, wool);
-    R3(-headW/2 - 1, hy - 7, headW + 2, 3,  shade(wool, 0.16));
+    R3(-headW/2 - 2, hy - 8, headW + 4, 13, wool);
+    R3(-headW/2 - 2, hy - 8, headW + 4, 4,  shade(wool, 0.16));
   } else {
-    R3(-headW/2 - 1, hy - 5, headW + 2, 9, hair);
-    R3(-headW/2 - 1, hy + 4, 3, 7, hair);                 // sideburns
-    R3( headW/2 - 2, hy + 4, 3, 7, hair);
+    R3(-headW/2 - 2, hy - 6, headW + 4, 10, hair);
+    R3(-headW/2 - 2, hy + 4, 4, 9, hair);                    // sideburns
+    R3( headW/2 - 2, hy + 4, 4, 9, hair);
   }
-  if (doing !== 4){                                        // eyes, if awake
+  if (doing !== 4){                                           // eyes, if awake
     ctx.globalAlpha *= 0.85;
-    R3(-6, hy + 11, 3, 3, "#1d1510");
-    R3( 3, hy + 11, 3, 3, "#1d1510");
+    R3(-8, hy + 12, 4, 4, "#1d1510");
+    R3( 4, hy + 12, 4, 4, "#1d1510");
     ctx.globalAlpha = lit ? 0.92 : 0.52;
   } else {
-    R3(-6, hy + 12, 4, 2, "#1d1510");                      // shut
-    R3( 2, hy + 12, 4, 2, "#1d1510");
+    R3(-8, hy + 14, 5, 2, "#1d1510");                         // shut
+    R3( 3, hy + 14, 5, 2, "#1d1510");
   }
 
   if (doing === 0){                            // a phone, and the light off it
-    R3(2, top + 16, 10, 15, "#0d1117");
-    R3(3, top + 17, 8,  13, "#9fd8ff");
-    ctx.globalAlpha *= 0.30; R3(-8, hy + 14, 16, 8, "#9fd8ff");
+    R3(3, top + 18, 12, 17, "#0d1117");
+    R3(4, top + 19, 10, 15, "#9fd8ff");
+    ctx.globalAlpha *= 0.30; R3(-10, hy + 15, 20, 9, "#9fd8ff");
     ctx.globalAlpha = lit ? 0.92 : 0.52;
   } else if (doing === 2){                     // headphones
-    R3(-headW/2 - 4, hy + 4, 4, 9, "#1d2026");
-    R3( headW/2,     hy + 4, 4, 9, "#1d2026");
-    ctx.fillStyle = "#1d2026"; ctx.lineWidth = 3;
-    ctx.strokeStyle = "#1d2026";
+    R3(-headW/2 - 5, hy + 4, 5, 11, "#1d2026");
+    R3( headW/2,     hy + 4, 5, 11, "#1d2026");
+    ctx.strokeStyle = "#1d2026"; ctx.lineWidth = 4;
     ctx.beginPath();
-    ctx.arc(x, hy + 2, headW/2 + 2, Math.PI, 0); ctx.stroke();
+    ctx.arc(0, hy + 2, headW/2 + 3, Math.PI, 0); ctx.stroke();
   } else if (doing === 3){                     // a scarf, and its tail
-    R3(-13, top - 2, 26, 8, wool);
-    R3(  4, top + 5, 7, 18, shade(wool, -0.12));
+    R3(-15, top - 3, 30, 9, wool);
+    R3(  5, top + 6, 8, 20, shade(wool, -0.12));
   }
   ctx.globalAlpha = 1;
+  ctx.restore();
 }
 
 function drawCar(ox, rock, lit){
@@ -4700,8 +4731,11 @@ function drawCar(ox, rock, lit){
          the straps are, or a carriage of people looks welded together. */
       var psw = Math.sin(G.t * 1.9 + i * 1.37) * (R2.phase === "run" ? 2.4 : 0.8);
       /* Off the pole, alternate sides. Centred, the pole came up through the
-         middle of their heads. */
-      drawPax(mx + ((i % 2) ? 36 : -36), cy + 190, i * 7 + 3, lit, psw);
+         middle of their heads. Height and floor line both come off the
+         hero's sprite, so everybody in the car is the same size as him. */
+      var pfit = paxFit();
+      drawPax(mx + ((i % 2) ? 36 : -36), cy + pfit.feet, i * 7 + 3, lit, psw,
+              pfit.tall / 102);
     }
     /* Straps, swinging with the car and each on its own slight delay down the
        length of it - a carriage of straps moving in lockstep looks welded. */

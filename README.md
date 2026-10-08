@@ -803,11 +803,14 @@ crisp horizontal hairline instead.
 0.742–0.766 and the mouth is below them, so on a head that stopped at 0.800
 there were 1.4px between the brow and the top of him and no amount of moving
 the hairline was going to find a forehead that was not there. The head is
-0.170 tall rather than 0.145; the extra 2.5px go above the eyes, where a
-minifig keeps its head anyway. The hairline then sits at 0.818 against a skull
-that stops at 0.825, which makes the forehead the whole 0.766–0.818 band —
-**5.2px, against 1.4px** — and there is no fringe at all. The pimp hat rides
-0.019 higher to clear it.
+**0.200 tall** rather than 0.145 — by way of 0.170, because this is the third
+pass at the same problem. All of the extra goes above the eyes, where a minifig
+keeps its head anyway, and at 31px wide against 20 tall it is still wider than
+it is high. The hairline sits at 0.848 against a skull that stops at 0.855,
+which makes the forehead the whole 0.766–0.848 band — **8.2px, against 5.2 at
+the previous size and 1.4 when the hair still came down to 0.78** — and there
+is no fringe at all. The sideburns grew with it, from the hairline down past
+the eye line. The pimp hat rides higher again to clear the lot.
 
 **Hats and hair sort on the back edge.** Parts are drawn furthest-first by
 `y + d`, with ties broken on `z`. The hair reached 0.59 against the head's
@@ -919,6 +922,13 @@ know that.
   a question the game refuses to answer, and this is the part of him that
   cannot be read as a tell at all.
 
+**You cannot go straight back down the stairs you came up.** The exit is
+flagged on the prop it plants, and walking into it gets `YOU JUST CAME UP
+THOSE` rather than another train. Stepping back in put the player on a second
+ride without a single step on the street in between, which is not a decision,
+it is a loop — and the ride is meant to cost you the walk, not replace it. Any
+other staircase still works; verified both ways.
+
 **The other people in the car were two rectangles and a head**, which at this
 size read as furniture — and a hooded man standing among furniture has nobody
 to be a stranger among. One rider per slot now rather than two, at the hero's
@@ -928,6 +938,16 @@ face, a backpack, headphones, a scarf, or asleep with their eyes shut.
 Everything derives from an integer seed, so nobody changes clothes between
 frames, and they stand to one side of the grab pole rather than having it
 come up through their heads.
+
+**They are the hero's size, off his own sprite.** `bake` pads every sprite by
+14 a side, so the hero's *visible* figure is `(h - 28) * 0.92` tall and his
+soles sit `14 * 0.92` above the bottom of the image `drawRider` places — 90.4px
+and a floor line at `cy + 181.3`. A passenger is authored against a base figure
+102 units tall and then scaled by `tall / 102`, with four percent either side
+for variety: enough that a carriage is not a row of identical people, not
+enough that anybody looks like they belong to a different game. Before this
+they were 102–116px tall standing at `cy + 190`, which is both taller than the
+man walking past them and standing in the floor.
 
 **The CSCO card is 2.4s, not 3.4.** It is a celebration, not a document:
 everything on it is legible inside a second and the last of it was dead air
