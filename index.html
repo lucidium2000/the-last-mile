@@ -3062,7 +3062,7 @@ function reset(){
     addons:0, champs:0, addonWin:null, champWin:null,
     tally:null, booth:null, deathPush:0,
     flyT:0, flyA:0, flyBeep:0, flyMove:0, flyTilt:0, walkPh:0, walkAmt:0,
-    brand:null, tam:false, tamT:0, tamWins:0, tamWin:null, hurtT:0, nahT:0,
+    brand:null, pipePop:0, rise:null, tam:false, tamT:0, tamWins:0, tamWin:null, hurtT:0, nahT:0,
     yumT:0, yumKind:null, yumDir:0, yumBite:0, wowT:0, cheerT:0,
     metro:0, ride:null, trace:null, rides:0, bonus:0, tamLeft:0, riskT:0,
     scene:null, scenesSeen:{}, ticker:null, notice:null, leg:1, po:false, won:false,
@@ -3282,7 +3282,7 @@ function cash(v){
 function pipeline(){ return Math.max(0, G.maxRow*DOLLARS_PER_ROW + G.bonus); }
 function flash(name, line, col){ G.flash = { life:2.2, name:name, line:line, col:col }; }
 /* A flash lives in the top strip and lasts two seconds. Some things need the
-   middle of the screen and seven. */
+   middle of the screen and a few more. */
 function notice(title, line, body, secs, col, art){
   G.notice = { life:secs, max:secs, title:title, line:line, body:body,
                col:col || C.brand, art:art || null };
@@ -3439,6 +3439,7 @@ function act(dir){
         G.bonus += ADDON_BONUS; G.bonusAddon += ADDON_BONUS;
         G.addonWin = { life:4.4, max:4.4 };
         G.flash = null;                    // the banner replaces it
+        moneyRise(ADDON_BONUS);
         AUDIO.deal();
         brandHit("ADD-ON PACK");
         burst(nc*TILE + TILE/2, rowScreenY(nr) - 40, POWERS.path.col);
@@ -3540,7 +3541,8 @@ function act(dir){
         G.bonus += CHAMP_BONUS; G.bonusChamp += CHAMP_BONUS;
         G.champWin = { life:4.6, max:4.6 };
         G.flash = null;
-        AUDIO.deal();
+        moneyRise(CHAMP_BONUS);
+        AUDIO.deal(); AUDIO.chaChing();
         return;
       }
       /* Somebody at a cart does not yield, ever. They are buying something
@@ -6722,7 +6724,10 @@ function updateScene(dt){
     turnBack();
   }
   if (sc.after)
-    notice(sc.after[0], sc.after[1], sc.after[2], 9.5, C.good,
+    /* 4.75, not 9.5. Three lines and a U-turn arrow are read in about two
+       seconds, and the other seven were the player standing still on a
+       pavement waiting to be allowed to walk. */
+    notice(sc.after[0], sc.after[1], sc.after[2], 4.75, C.good,
            sc.turn ? "downtown" : null);
   if (sc.win) winGame();
 }
@@ -7256,6 +7261,8 @@ function update(dt){
   if (G.addonWin){ G.addonWin.life -= dt; if (G.addonWin.life <= 0) G.addonWin = null; }
   if (G.champWin){ G.champWin.life -= dt; if (G.champWin.life <= 0) G.champWin = null; }
   if (G.brand){ G.brand.life -= dt; if (G.brand.life <= 0) G.brand = null; }
+  if (G.pipePop > 0) G.pipePop = Math.max(0, G.pipePop - dt);
+  if (G.rise){ G.rise.life -= dt; if (G.rise.life <= 0) G.rise = null; }
   if (G.notice){ G.notice.life -= dt; if (G.notice.life <= 0) G.notice = null; }
   if (G.hpGain){ G.hpGain.life -= dt; if (G.hpGain.life <= 0) G.hpGain = null; }
   if (G.hpShow > 0) G.hpShow = Math.max(0, G.hpShow - dt);
@@ -9559,9 +9566,20 @@ function drawHealth(x, y, w, h){
 }
 
 function drawHud(){
+  /* The readout swells and turns green for a moment whenever something has
+     just been added to it. It is the one number on the screen anybody cares
+     about and it used to change in total silence. */
+  var pk = G.pipePop > 0 ? Math.min(1, G.pipePop / PIPE_POP) : 0;
+  var pe = pk > 0 ? Math.sin(Math.min(1, pk * 1.25) * Math.PI) : 0;
   plate(28, 26, 470, 104, C.ink);
-  txt("PIPELINE", 52, 58, 26, C.textDim, "left");
-  txt(cash(pipeline()), 52, 98, 56, C.text, "left");
+  if (pe > 0){
+    ctx.globalAlpha = pe * 0.30; ctx.fillStyle = C.good;
+    rr(28, 26, 470, 104, 10); ctx.fill();
+    ctx.globalAlpha = 1;
+  }
+  txt("PIPELINE", 52, 58, 26, pe > 0 ? C.good : C.textDim, "left");
+  txt(cash(pipeline()), 52, 98, Math.round(56 + pe * 12),
+      pe > 0 ? C.good : C.text, "left");
 
   // where you are, in blocks
   plate(514, 26, 250, 104, C.ink);
@@ -9731,10 +9749,15 @@ function drawHud(){
         cx3 + 172, cy3 + 104, 26, C.text, "left", 760);
     txt("YOU WALKED INTO THEM  \u00B7  RENEWAL #" + G.champs,
         cx3 + 172, cy3 + 142, 20, C.textDim, "left");
-    ctx.fillStyle = "rgba(255,255,255,0.14)";
-    ctx.fillRect(cx3 + cw2 - 332, cy3 + 28, 2, 118);
-    txt("ADDED TO PIPELINE", cx3 + cw2 - 166, cy3 + 56, 20, C.textDim);
-    txt("+" + cash(CHAMP_BONUS), cx3 + cw2 - 166, cy3 + 108, 48, C.good);
+    /* A filled block rather than a rule and two lines of text. This is the
+       biggest single payment in the game and it was the quietest third of
+       its own banner. */
+    var mw = 356, mx2 = cx3 + cw2 - mw - 26;
+    plate(mx2, cy3 + 24, mw, 126, "#13602f", 10);
+    rr(mx2, cy3 + 24, mw, 126, 10);
+    ctx.strokeStyle = "#5fe08c"; ctx.lineWidth = 2.5; ctx.stroke();
+    txt("ADDED TO PIPELINE", mx2 + mw/2, cy3 + 58, 24, "#bdf0cd");
+    txt("+" + cash(CHAMP_BONUS), mx2 + mw/2, cy3 + 122, 62, "#ffffff");
     ctx.globalAlpha = 1;
   }
   if (G.addonWin && !G.tamWin && !G.champWin){
@@ -9783,6 +9806,34 @@ var BRAND_HIT = 1.10;
    first version took the colour from the SKU - pale for a TAM, amber for the
    pack - which made the one moment that is supposed to be ThousandEyes
    itself look like two different things. */
+/* Money going onto the number, said three ways at once: a figure that climbs
+   out of him and fades, the HUD readout swelling and turning green, and the
+   banner. One of those on its own is a line of text in a bar; the three
+   together are the only reason anybody notices a number in the corner
+   changing. */
+var PIPE_POP = 1.4, RISE_SECS = 1.9;
+function moneyRise(amt){
+  var pp = playerPos();
+  G.rise = { life:RISE_SECS, max:RISE_SECS, amt:amt,
+             x:pp.col*TILE + TILE*0.5, y:rowScreenY(pp.row) - 96 };
+  G.pipePop = PIPE_POP;
+}
+function drawMoneyRise(){
+  var R = G.rise;
+  if (!R) return;
+  var k = 1 - R.life / R.max;
+  var e = 1 - Math.pow(1 - k, 2.2);
+  var a = Math.min(1, R.life / 0.5) * Math.min(1, k * 7);
+  var y = R.y - e * 120;
+  ctx.globalAlpha = a * 0.55;
+  txt("+" + cash(R.amt), R.x + 3, y + 3, 54, "#06130a");
+  ctx.globalAlpha = a;
+  txt("+" + cash(R.amt), R.x, y, 54, C.good);
+  ctx.globalAlpha = a * 0.8;
+  txt("ON THE PIPELINE", R.x, y + 34, 22, "#bdf0cd");
+  ctx.globalAlpha = 1;
+}
+
 function brandHit(what){
   G.brand = { life:BRAND_HIT, max:BRAND_HIT, what:what, col:C.brand };
   AUDIO.chaChing();
@@ -10254,6 +10305,7 @@ function render(){
   if (G.ticker) drawTicker();
   if (G.paper) drawPaper();
   if (G.notice && !G.ride) drawNotice();
+  if (G.rise && !G.ride) drawMoneyRise();
   drawBrandHit();
   drawMuteBtn();
   if (SHOW_FPS){

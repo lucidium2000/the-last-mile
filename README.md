@@ -1159,6 +1159,15 @@ reason. `CHAMPIONS` gets a tally row, a figure in the stats strip, two cards in
 the report, a board column, a field on the run record and a clamped field on the
 val.
 
+**The money says so three ways at once.** A figure climbs out of him and fades
+(`+$300,000` over `ON THE PIPELINE`, rising 120px over 1.9s); the HUD readout
+swells 12px and turns green for 1.4s; and the banner's right-hand third is a
+filled green block with the number at 62px rather than a rule and two lines of
+grey. Any one of those on its own is a line of text in a bar — the three
+together are the only reason anybody notices a number in the corner changing.
+The Add-On Pack gets the rise and the swell too, because it is the same kind of
+event.
+
 **They have their own lives.** Two of them meeting on the same pavement stop
 and have four words about it — *"Ayy! Long time."*, *"Cold enough for ya?"* — one
 speaking and the other replying three quarters of a second later, then both
@@ -1607,7 +1616,9 @@ the following week, and the walk is meant to be happening today.
 says what a verbal is actually worth — *now get back to the office and lock it
 in.* **The direction confuses people, so it is drawn rather than written.** He still
 walks *up* the screen but the numbers now count *down*, which reads as a
-contradiction in words. The notice carries a U-turn beside the line: a
+contradiction in words. It hangs for **4.75 seconds**, not 9.5: three lines and an arrow are read in
+about two, and the other seven were the player standing still on a pavement
+waiting to be allowed to walk. The notice carries a U-turn beside the line: a
 stroke down the right, round the bottom and back up the left, finishing in a
 head that points **up**. An earlier version spelled the same thing out with a
 captioned arrow and a strip reading `W 81 › W 80 › W 79 › W 78 …`, and it was
