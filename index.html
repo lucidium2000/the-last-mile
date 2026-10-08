@@ -2379,17 +2379,31 @@ function facadeModel(kind){
   return { parts:parts, decals:dec, W:1 };
 }
 
+/* The TE-ADDON pack. It used to be a terminal - a tall dark slab with a
+   screen in it - which read as a parking meter at any speed at all, and a
+   parking meter is not something anybody crosses four lanes for.
+
+   It is a parcel now, in the TAM's language rather than the street
+   furniture's: a box with the name on the face, a lid that overhangs, and
+   two emissive straps across it in the trace green, because green is what it
+   hands you. Everything that made the TAM feel like the premium drop - the
+   beam, the pool, the rings, the bob, the eye over the top - it gets too.
+   It floats, like the TAM does. A pallet was tried under it and a pallet
+   that bobs nine pixels off the pavement is worse than no pallet at all. */
 function kioskModel(){
+  var box = C.pw3, lid = shade(box, 0.20), dark = shade(box, -0.34);
   return { parts:[
-    P(0.30, 0.40, 0.42, 0.16, 0,    0.07, "#1b2230"),
-    P(0.31, 0.41, 0.40, 0.14, 0.07, 0.78, "#10202c"),
-    E(0.295, 0.405, 0.43, 0.03, 0.85, 0.045, C.brand)
+    P(0.275, 0.355, 0.45, 0.29, 0.06, 0.035, shade(box,-0.52)), // the underside
+    P(0.26, 0.340, 0.48, 0.32, 0.09,  0.42,  box),              // the box
+    P(0.24, 0.325, 0.52, 0.35, 0.51,  0.07,  lid),              // the lid, overhanging
+    E(0.46, 0.325, 0.08, 0.35, 0.51,  0.076, TRACE.line),       // strapping
+    E(0.24, 0.455, 0.52, 0.09, 0.51,  0.076, TRACE.line)
   ], decals:[
-    { x:0.325, y:0.41, w:0.37, z:0.26, h:0.54, bg:"#06212e", core:"#0a3348", glow:true },
-    { x:0.335, y:0.41, w:0.35, z:0.58, h:0.12, bg:"#06212e", fg:"#ffffff",
-      text:"TE-ADD", size:13 },
-    { x:0.345, y:0.41, w:0.33, z:0.33, h:0.16, bg:C.brand, core:shade(C.brand,0.35),
-      glow:true, fg:"#1a0a02", text:"PACK", size:14 }
+    { x:0.285, y:0.34, w:0.43, z:0.26, h:0.17, bg:dark,
+      core:shade(box, 0.38), glow:true, fg:"#2a1400",
+      text:"TE-ADDON", size:12 },
+    { x:0.285, y:0.34, w:0.43, z:0.135, h:0.105, bg:shade(box, -0.14),
+      fg:"#2a1400", text:"PACK", size:12 }
   ], W:1 };
 }
 /* "subway" twice, so entrances turn up about twice as often - there is no
@@ -7203,54 +7217,66 @@ function drawKiosk(col, sy, used){
     ctx.globalAlpha = 1;
     return;
   }
-  var phase = col * 1.7, pul = 0.5 + 0.5*Math.sin(G.t*2.4 + phase), i;
+  var phase = col * 1.7, pul = 0.5 + 0.5*Math.sin(G.t*2.6 + phase), i;
+  var bob = Math.sin(G.t*2.1 + phase) * 9;
 
   ctx.save();
   ctx.translate(cx, ground);
-  ctx.globalAlpha = 0.70 + 0.30*pul;
+  ctx.globalAlpha = 0.74 + 0.26*pul;
   ctx.fillStyle = addonBeamGrad;
-  ctx.fillRect(-42, -300, 84, 300);
-  ctx.globalAlpha = 0.26 + 0.20*pul;
-  ctx.fillRect(-12, -300, 24, 300);
+  ctx.fillRect(-44, -300, 88, 300);
+  ctx.globalAlpha = 0.28 + 0.22*pul;
+  ctx.fillRect(-13, -300, 26, 300);
   ctx.restore();
 
-  ctx.globalAlpha = 0.18 + 0.14*pul; ctx.fillStyle = C.pw3;
+  ctx.globalAlpha = 0.20 + 0.14*pul; ctx.fillStyle = C.pw3;
   ctx.beginPath();
-  ctx.ellipse(cx, ground, 50 + 8*pul, 19 + 3*pul, 0, 0, Math.PI*2);
+  ctx.ellipse(cx, ground, 52 + 8*pul, 20 + 3*pul, 0, 0, Math.PI*2);
   ctx.fill();
 
   ctx.lineWidth = 3;
   for (i = 0; i < 2; i++){
     var ph = (G.t*0.6 + i*0.5) % 1;
-    ctx.globalAlpha = (1 - ph) * 0.52;
+    ctx.globalAlpha = (1 - ph) * 0.55;
     ctx.strokeStyle = i ? TRACE.line : C.pw3;
     ctx.beginPath();
-    ctx.ellipse(cx, ground, 24 + ph*42, 9 + ph*16, 0, 0, Math.PI*2);
+    ctx.ellipse(cx, ground, 25 + ph*44, 9 + ph*17, 0, 0, Math.PI*2);
     ctx.stroke();
   }
   ctx.globalAlpha = 1;
-  blit(S.pr_kiosk, col*TILE, sy);
+  blit(S.pr_kiosk, col*TILE, sy - bob);
 
-  // packets leaving the terminal, in the colour of the route it hands you
+  // packets leaving the pack, in the colour of the route it hands you
   ctx.fillStyle = TRACE.pale;
   for (i = 0; i < 6; i++){
     var t = ((G.t*0.5) + i/6) % 1;
     var sz = 8 - t*4;
     ctx.globalAlpha = (1 - t) * 0.85;
-    ctx.fillRect(cx + Math.sin(i*2.3 + G.t*0.7) * 24 - sz/2,
-                 ground - 34 - t*132 - sz/2, sz, sz);
+    ctx.fillRect(cx + Math.sin(i*2.3 + G.t*0.7) * 26 - sz/2,
+                 ground - 70 - t*120 - sz/2, sz, sz);
   }
   ctx.globalAlpha = 1;
-  drawKioskLabel(col, sy);
+
+  /* The eye over the top of it, exactly as the TAM has, and then the card
+     over the eye. Everything is stacked up the screen from the ground now
+     rather than measured down from the row: the card used to be pinned
+     182px above sy, which is where the box is, and the two of them sat on
+     top of each other. */
+  var eyeY = ground - 128 - bob * 0.6;
+  ctx.globalAlpha = 0.88 + 0.12*pul;
+  drawEye(cx, eyeY, 23 + 3*pul, C.pw3, "#2a1400", C.brand);
+  ctx.globalAlpha = 1;
+  drawKioskLabel(col, eyeY - 34, bob);
 }
 
-function drawKioskLabel(col, sy){
-  var cx = col*TILE + TILE*0.5, y = sy - 182;
-  if (y < HORIZON + 10 || y > LOGICAL_H - 30) return;
+/* `botY` is where the BOTTOM of the card goes, so it can be stacked above
+   whatever is under it rather than guessing a clearance. */
+function drawKioskLabel(col, botY, bob){
+  var cx = col*TILE + TILE*0.5, top = botY - 76 + bob * 0.4;
+  if (top < HORIZON - 6 || top > LOGICAL_H - 40) return;
   var pulse = 0.80 + 0.20*Math.sin(G.t*3 + col);
-  var bob = Math.sin(G.t*2.2 + col) * 4;
   ctx.font = 'bold 22px "Helvetica Neue",Helvetica,Arial,sans-serif';
-  var w = ctx.measureText("TE-ADDON PACK").width + 44, top = y - 26 + bob;
+  var w = ctx.measureText("TE-ADDON PACK").width + 44;
   ctx.globalAlpha = pulse;
   plate(cx - w/2, top, w, 76, "rgba(8,5,3,0.90)", 9);
   rr(cx - w/2, top, w, 76, 9);

@@ -308,15 +308,28 @@ after the traffic, so the lane passes on the far side of it the way it does on
 a real street. 20px is inside the range the lane already moves things through:
 a car swerving round the player travels up to `SWERVE_PX`, 26.
 
-**The terminal is staged like the TAM.** It is the best thing on the whole
-pavement — a route and a hundred and fifty thousand — and it was drawn like a
-parking meter with a caption. It gets a beam into the sky band so you can see
-it coming from blocks away, a glow pool and two rings on the ground, and a card
-reading `TE-ADDON PACK` over `+$150,000 · BEST PATH`, because what it is worth
-matters more than what it is called. The sparks climbing out of it are the
-**trace green**, not the amber: they are a preview of the thing it hands you,
-and the only green on the street until you take it. Spent, it drops to 0.4
-alpha and loses all of it.
+**The TE-ADDON pack is staged like the TAM, because it is that kind of drop.**
+It used to be a terminal — a tall dark slab with a screen in it — which read as
+a parking meter at any speed at all, and nobody crosses four lanes for a
+parking meter. It is a **parcel** now: a box in the path amber with the name on
+the face, a lid that overhangs and two emissive straps across it in the trace
+green, floating the way the TAM cube floats. (A pallet was tried under it. A
+pallet that bobs nine pixels off the pavement is worse than no pallet.)
+
+Everything that makes the TAM feel like the premium drop it gets too: a beam
+into the sky band so you can see it coming from blocks away, a glow pool and
+two expanding rings on the ground, the bob, the **eye** over the top of it, and
+then a card reading `TE-ADDON PACK` over `+$150,000 · BEST PATH` — what it is
+worth matters more than what it is called. The sparks leaving it are the trace
+green rather than the amber: they are a preview of the thing it hands you, and
+the only green on the street until you take it. Spent, it drops to 0.4 alpha
+and loses all of it.
+
+**The stack is measured up from the ground, not down from the row.** The card
+was pinned 182px above `sy`, which is exactly where the box is, so the two of
+them sat on top of each other. `drawKioskLabel` takes the y its *bottom* goes
+at now, and the ground, the pack, the eye and the card are stacked in that
+order.
 
 **And lunch comes off the number.** Three dollars against a seven-figure
 pipeline is not a mechanic, it is a joke that lands because the last three
