@@ -1603,6 +1603,7 @@ var HP_HAPPY = 75, HP_LEVEL = 50;
    and true coerces to 1. */
 function playerModel(dir, shielded, face){
   var skin = "#e9b98c";
+  var HAIR = "#2b1d14";
   var lvl = shielded === true ? 1 : (shielded | 0);
   var suit = lvl >= 2 ? BLAZER2 : (lvl ? BLAZER : "#232f44");
   var suitDark = lvl >= 2 ? "#4e2375" : "#19222f";
@@ -1616,13 +1617,37 @@ function playerModel(dir, shielded, face){
     P(0.16, 0.45, 0.08, 0.12, 0.34,  0.21,  shade(suit,-0.24)),// sleeves
     P(0.76, 0.45, 0.08, 0.12, 0.34,  0.21,  shade(suit,-0.24)),
     P(0.42, 0.44, 0.16, 0.14, 0.615, 0.04,  shade(skin,-0.30)),// neck
-    P(0.37, 0.43, 0.26, 0.15, 0.655, 0.145, skin),           // head
+    /* 0.170 tall, not 0.145. The eyes sit at 0.742-0.766 and the mouth is
+       below them, so on the old skull there were 1.4px between the brow and
+       the top of his head and no amount of moving the hairline was going to
+       find a forehead that was not there. The extra 2.5px go above the eyes,
+       where a minifig keeps its head anyway. */
+    P(0.37, 0.43, 0.26, 0.15, 0.655, 0.170, skin),           // head
     /* Parts are sorted on their BACK edge, y+d, and ties are broken by z.
        The hair used to reach 0.59 against the head's 0.58, which made it one
        step further away and put it behind him - a dark slab hanging off the
        back of his skull. Matching the head's back edge drops it onto the z
-       tiebreak, and a higher z is what "on top" means here. */
-    P(0.355, 0.42, 0.29, 0.16, 0.78, 0.075, "#2b1d14")       // hair
+       tiebreak, and a higher z is what "on top" means here.
+
+       It is a moulded cap rather than a block of hair, and it is cut short
+       and swept back: a thin crown sitting ON the skull rather than over the
+       brow, and a sideburn down each side. One colour throughout, so the
+       cuboid shading is the only thing separating the faces - which is what
+       makes a minifig's hair read as a piece clicked on rather than paint.
+
+       The crown is flush with the front of the head (0.424 against 0.430 is
+       a sixth of a pixel) on purpose. Standing it forward gave a lit ledge
+       over the brow and the whole thing read as a board balanced on him; a
+       flush front leaves one crisp horizontal hairline instead.
+
+       And the hairline is at 0.818 against a skull that now stops at 0.825,
+       so there is no fringe at all: the forehead is the whole 0.766-0.818
+       band, 5.2px of it, against the 1.4px it had when the hair came down to
+       0.78. The sideburns are what stop that reading as a receding hairline
+       - they run past the eye line, so the hair is short, not absent. */
+    P(0.362, 0.424, 0.276, 0.156, 0.818, 0.048, HAIR),       // the crown
+    P(0.362, 0.424, 0.024, 0.156, 0.730, 0.088, HAIR),       // sideburns
+    P(0.614, 0.424, 0.024, 0.156, 0.730, 0.088, HAIR)
   ];
   parts.push(P(dir > 0 ? 0.82 : 0.05, 0.46, 0.15, 0.13, 0.17, 0.14, "#17202c"));
   var dec = [
@@ -1642,10 +1667,10 @@ function playerModel(dir, shielded, face){
        it on z alone and stack upwards instead of standing behind him. The
        brim is allowed to reach further FORWARD - smaller y - because that is
        the only direction a brim can overhang without going behind his head. */
-    parts.push(P(0.275, 0.40, 0.45, 0.18, 0.855, 0.032, felt));        // brim
-    parts.push(P(0.360, 0.43, 0.28, 0.15, 0.887, 0.100, shade(felt, 0.10))); // crown
-    parts.push(P(0.360, 0.43, 0.28, 0.15, 0.887, 0.026, band));        // hatband
-    parts.push(P(0.600, 0.43, 0.05, 0.15, 0.975, 0.075, gold));        // the feather
+    parts.push(P(0.275, 0.40, 0.45, 0.18, 0.874, 0.032, felt));        // brim
+    parts.push(P(0.360, 0.43, 0.28, 0.15, 0.906, 0.100, shade(felt, 0.10))); // crown
+    parts.push(P(0.360, 0.43, 0.28, 0.15, 0.906, 0.026, band));        // hatband
+    parts.push(P(0.600, 0.43, 0.05, 0.15, 0.994, 0.075, gold));        // the feather
     var cx2 = dir > 0 ? 0.845 : 0.11;
     parts.push(P(cx2, 0.455, 0.035, 0.05, 0.02, 0.46, "#2b1a12"));    // the cane
     parts.push(P(cx2 - 0.012, 0.45, 0.06, 0.06, 0.47, 0.045, gold));  // its head
@@ -1796,9 +1821,13 @@ function heroModel(dir, flying){
   parts.push(P(0.14, 0.45, 0.09, 0.12, 0.38,  0.20,  shade(suit,-0.22)));// arms
   parts.push(P(0.77, 0.45, 0.09, 0.12, 0.38,  0.20,  shade(suit,-0.22)));
   parts.push(P(0.42, 0.44, 0.16, 0.14, 0.635, 0.04,  shade(skin,-0.30))); // neck
-  parts.push(P(0.37, 0.43, 0.26, 0.15, 0.675, 0.145, skin));
-  // same back edge as the head, so the z tiebreak puts it on top of him
-  parts.push(P(0.355, 0.42, 0.29, 0.16, 0.80, 0.075, "#2b1d14"));
+  parts.push(P(0.37, 0.43, 0.26, 0.15, 0.675, 0.170, skin));
+  /* The same moulded cap as the walking sprite, lifted the 0.02 this head
+     sits higher. Same back edge as the head, so the z tiebreak puts it on
+     top of him rather than behind. */
+  parts.push(P(0.362, 0.424, 0.276, 0.156, 0.838, 0.048, "#2b1d14"));
+  parts.push(P(0.362, 0.424, 0.024, 0.156, 0.750, 0.088, "#2b1d14"));
+  parts.push(P(0.614, 0.424, 0.024, 0.156, 0.750, 0.088, "#2b1d14"));
 
   return { parts:parts, decals:[
     // shield: wide top, tapered bottom, with the T across it
@@ -2811,7 +2840,8 @@ function reset(){
     ini:[0,0,0], iniAt:0,
     t:0, sweep:0
   };
-  for (var i=0;i<30;i++) G.parts.push({ life:0, x:0, y:0, vx:0, vy:0, s:0, c:"#fff" });
+  for (var i=0;i<30;i++) G.parts.push({ life:0, x:0, y:0, vx:0, vy:0, s:0,
+                                        c:"#fff", bill:false, rot:0, spin:0 });
   AUDIO.resetLadder();
 }
 
@@ -3239,12 +3269,18 @@ function muteBtnActive(){
 
    Built once here rather than in the draw, so the figures cannot drift between
    frames and the audio and the rendering are reading the same object. */
-/* Half a second between the hit and the paperwork. The end screen used to
+/* A full second between the hit and the paperwork. The end screen used to
    drop over the top of the frame he died on, so the one thing the player most
    wants to see - what actually got him - was covered before he could see it.
-   The world keeps running underneath: the burst, the shake and the figure all
-   stay up. */
-var DEATH_HOLD = 0.85;
+   The world keeps running underneath: the money, the shake and the figure all
+   stay up.
+
+   It has been lengthened twice. 0.50 was enough to register the hit; 0.85
+   got the fall onto the ground; 1.00 lets the notes come back down, which
+   is the part worth watching. The fall finishes at 0.55 and the spray at
+   about 0.95, so this is the length of the whole thing rather than a pause
+   bolted on the end of it. */
+var DEATH_HOLD = 1.00;
 var TALLY_T0 = 1.15, TALLY_GAP = 0.80, TALLY_RUN = 0.66, TALLY_TOTAL = 1.15;
 function buildTally(){
   var base = G.maxRow * DOLLARS_PER_ROW;
@@ -3687,7 +3723,35 @@ function burst(x, y, col){
     p.x = x; p.y = y;
     p.vx = (Math.random()-0.5)*560; p.vy = -120 - Math.random()*420;
     p.s = 6 + Math.random()*13;
+    p.bill = false;
     p.c = col || ((Math.random()<0.5) ? C.brand : C.danger);
+  }
+}
+/* What comes out of him when he goes down is money. He has been carrying
+   that number in the HUD the whole way up Midtown, and the spray reads as
+   blood for about a tenth of a second before you see what it actually is -
+   which is the joke, and the point: the pipeline is what he bleeds.
+
+   Notes are not sparks. They have a face, they tumble, and they do not drop
+   like gravel, so a bill gets a third of the gravity, some drag, a spin and
+   a sideways flutter. The pool is the same thirty objects either way; only
+   the physics and the drawing fork on p.bill. */
+var BILL_G = 470, BILL_DRAG = 1.5;
+function burstMoney(x, y){
+  for (var i=0;i<G.parts.length;i++){
+    var p = G.parts[i];
+    p.life = 0.80 + Math.random()*0.70;
+    p.x = x + (Math.random()-0.5)*26;
+    p.y = y + (Math.random()-0.5)*18;
+    // up and out, but weighted upward - it is coming off him, not kicked
+    var a = -Math.PI/2 + (Math.random()-0.5)*2.3;
+    var sp = 200 + Math.random()*440;
+    p.vx = Math.cos(a)*sp; p.vy = Math.sin(a)*sp;
+    p.s = 12 + Math.random()*9;
+    p.bill = true;
+    p.rot = Math.random()*Math.PI*2;
+    p.spin = (Math.random() < 0.5 ? -1 : 1) * (5 + Math.random()*9);
+    p.c = Math.random() < 0.28 ? "#4e9c62" : "#73c483";
   }
 }
 function die(kind){
@@ -3697,7 +3761,7 @@ function die(kind){
   G.deathName = hazName(kind);
   G.deathObj = pair[0]; G.deathFix = pair[1];
   var pp = playerPos();
-  burst(pp.col*TILE + TILE/2, rowScreenY(pp.row) - 36);
+  burstMoney(pp.col*TILE + TILE/2, rowScreenY(pp.row) - 36);
   saveBest(pipeline()); endRun();
 }
 /* Not hit by anything - just out of road. The one death with no hazard
@@ -3710,7 +3774,7 @@ function dieTired(){
   G.deathObj = "You worked the whole block list on an empty stomach.";
   G.deathFix = "Eat something. Long deals are won by the people still standing.";
   var pp = playerPos();
-  burst(pp.col*TILE + TILE/2, rowScreenY(pp.row) - 36, "#ff8c2b");
+  burstMoney(pp.col*TILE + TILE/2, rowScreenY(pp.row) - 36);
   saveBest(pipeline()); endRun();
 }
 function missTrain(){
@@ -5150,7 +5214,11 @@ function scenePenn(t, a){
   ctx.fillStyle = "#f2f4f6"; ctx.fillRect(px + 38, 470, 16, 64);
   ctx.fillStyle = C.brand;   ctx.fillRect(px + 41, 486, 10, 50);
   ctx.fillStyle = "#e9b98c"; ctx.fillRect(px + 22, 414, 48, 58);
-  ctx.fillStyle = "#2b1d14"; ctx.fillRect(px + 20, 406, 52, 18);
+  // the cap, and a sideburn down each side: the same piece, drawn flat
+  ctx.fillStyle = "#2b1d14";
+  ctx.fillRect(px + 20, 404, 52, 10);
+  ctx.fillRect(px + 20, 414, 6, 26);
+  ctx.fillRect(px + 66, 414, 6, 26);
   // the paper: carried, then laid on the desk
   var lay = Math.max(0, Math.min(1, (t - 2.1) / 0.9));
   var dx = px + 92 + lay * 160, dy = 530 + lay * 62;
@@ -5774,8 +5842,19 @@ function update(dt){
   for (i=0;i<G.parts.length;i++){
     var pt = G.parts[i];
     if (pt.life <= 0) continue;
-    pt.life -= dt; pt.vy += 1500*dt;
-    pt.x += pt.vx*dt; pt.y += pt.vy*dt;
+    pt.life -= dt;
+    if (pt.bill){
+      pt.vy += BILL_G*dt;
+      var drag = Math.max(0, 1 - BILL_DRAG*dt);
+      pt.vx *= drag; pt.vy *= drag;
+      pt.rot += pt.spin*dt;
+      // the sideways wander a flat thing does on the way down
+      pt.x += pt.vx*dt + Math.sin(pt.rot*0.9) * 46 * dt;
+      pt.y += pt.vy*dt;
+    } else {
+      pt.vy += 1500*dt;
+      pt.x += pt.vx*dt; pt.y += pt.vy*dt;
+    }
   }
   pruneRows(Math.floor(G.camRow) - ROWS_BEHIND - 4);
 }
@@ -6311,10 +6390,34 @@ function drawWorld(){
       var p = G.parts[i];
       if (p.life <= 0) continue;
       ctx.globalAlpha = Math.max(0, Math.min(1, p.life*2));
+      if (p.bill){ drawBill(p); continue; }
       ctx.fillStyle = p.c;
       ctx.fillRect(p.x - p.s/2, p.y - p.s/2, p.s, p.s);
     }
     ctx.globalAlpha = 1;
+  }
+  ctx.restore();
+}
+
+/* One note, tumbling. The flip is faked with a horizontal squash - cos of
+   the angle takes it edge-on and back again - which is the whole reason it
+   reads as paper rather than as a green square. The pale panel and the dark
+   centre only go on while the note is wide enough for them to be more than
+   one pixel; edge-on it is a bare sliver, which is correct. */
+function drawBill(p){
+  var w = p.s, h = p.s*0.56;
+  var fl = Math.abs(Math.cos(p.rot*0.8)) * 0.86 + 0.14;
+  var bw = w*fl;
+  ctx.save();
+  ctx.translate(p.x, p.y);
+  ctx.rotate(p.rot*0.3);
+  ctx.fillStyle = p.c;
+  ctx.fillRect(-bw/2, -h/2, bw, h);
+  if (bw > 7){
+    ctx.fillStyle = "#d4ead6";
+    ctx.fillRect(-bw/2 + 1.4, -h/2 + 1.4, bw - 2.8, h - 2.8);
+    ctx.fillStyle = p.c;
+    ctx.fillRect(-bw*0.13, -h*0.19, bw*0.26, h*0.38);
   }
   ctx.restore();
 }
@@ -6785,6 +6888,33 @@ function deathTilt(){
   return (e * Math.PI * 0.5 - 0.14 * (1 - e)) * dir;
 }
 
+/* The tilt on its own was a hinge: his feet stayed exactly where they were
+   and he swung down like a gate. Getting hit by something moving does not
+   leave you standing in the same spot - it takes you with it. So he also
+   travels, and he leaves the ground on the way.
+
+   Both run off the same push direction the tilt uses, which means they are
+   always AWAY from whatever caught him rather than whichever way he happened
+   to be facing. The slide eases out - all the speed is in the contact and
+   the rest is scrubbing off against the road - and the hop is half a sine,
+   up off the impact and back down well before he lands flat. */
+var DEATH_SLIDE = 36;      // px between where he was standing and where he lies
+var DEATH_HOP   = 11;      // px of air at the top of it
+function deathPushDir(){
+  return G.deathPush || (G.facing > 0 ? 1 : -1);
+}
+function deathSlideX(){
+  if (G.state !== ST_DEAD) return 0;
+  var k = Math.max(0, Math.min(1, G.deadFor / 0.52));
+  return deathPushDir() * DEATH_SLIDE * (1 - Math.pow(1 - k, 2.6));
+}
+function deathSlideY(){
+  if (G.state !== ST_DEAD) return 0;
+  var t = G.deadFor;
+  if (t >= 0.30) return 0;
+  return -DEATH_HOP * Math.sin((t / 0.30) * Math.PI);
+}
+
 function drawPlayer(pp){
   /* The cape follows FLIGHT, not the TAM. He suits back up the moment the
      initial five seconds lapse, and only transforms again when a TAM win hands
@@ -6901,11 +7031,13 @@ function drawPlayer(pp){
      missed on one of the paths that returns early. It beats with the same
      lungs as the chest and the screen edges. */
   function put(sprite, px, py){
-    var tilt = deathTilt();
-    if (tilt){
+    /* Gated on the state rather than on the tilt being non-zero: the tilt is
+       exactly 0 on the first frame of the fall, and the slide and the hop
+       have already started by then. */
+    if (G.state === ST_DEAD){
       ctx.save();
-      ctx.translate(px, py);
-      ctx.rotate(tilt);
+      ctx.translate(px + deathSlideX(), py + deathSlideY());
+      ctx.rotate(deathTilt());
       blitScaled(sprite, 0, 0, kx, ky);
       ctx.restore();
       return;                       // nothing else belongs on a man on the floor
@@ -7962,8 +8094,7 @@ function drawNotice(){
   var N = G.notice, age = N.max - N.life;
   var a = Math.max(0, Math.min(1, age/0.25, N.life/0.6));
   var pop = 1 - Math.min(1, age/0.18);
-  var w = 1340, h = N.art ? 500 : 330;
-  var x = (LOGICAL_W - w)/2, y = (LOGICAL_H - h)/2 - 40 + pop*30;
+  var w = 1340, h = 330, x = (LOGICAL_W - w)/2, y = (LOGICAL_H - h)/2 - 40 + pop*30;
 
   ctx.globalAlpha = a * 0.72; ctx.fillStyle = "#05060a";
   ctx.fillRect(0, 0, LOGICAL_W, LOGICAL_H);
@@ -7977,45 +8108,41 @@ function drawNotice(){
   ctx.fillRect(x + 90, y + 126, w - 180, 2);
   txt(N.line,  LOGICAL_W/2, y + 184, 42, C.text,    "center", w - 90);
   txt(N.body,  LOGICAL_W/2, y + 252, 27, C.textDim, "center", w - 120);
-  if (N.art === "downtown") drawDowntownArt(x, y + 296, w);
+  /* One glyph instead of a diagram: he turns round, and then he keeps going
+     the same way up the screen. The first version spelled that out with an
+     arrow, a caption and four street numbers in a box, which was more
+     explaining than the idea needed. */
+  if (N.art === "downtown"){
+    ctx.font = "bold 42px \"Helvetica Neue\",Helvetica,Arial,sans-serif";
+    var lw = ctx.measureText(N.line).width;
+    drawUTurn(LOGICAL_W/2 - lw/2 - 60, y + 170, C.good);
+  }
   ctx.globalAlpha = 1;
 }
 
-/* The one thing that genuinely confuses people at the turn: he still walks UP
-   the screen, but the street numbers now go DOWN. Said in words it reads as a
-   contradiction, so it is drawn - an arrow pointing the way he still moves,
-   and the numbers counting the other way underneath it. */
-function drawDowntownArt(x, y, w){
-  var cx = LOGICAL_W / 2, bob = Math.sin(G.t * 3) * 5;
-
-  plate(x + 60, y, w - 120, 150, "rgba(255,255,255,0.05)", 14);
-
-  // the arrow: still up the screen
-  var ax = x + 190, ay = y + 78 - bob;
-  ctx.fillStyle = C.good;
+/* A U-turn that finishes pointing UP: down the right side, round the bottom,
+   back up the left, head on top. He has turned round and he is still walking
+   the same way across the screen, which is the one thing about the second
+   half that catches people out. */
+function drawUTurn(cx, cy, col){
+  // sized against the 42px line it sits beside, not against nothing
+  var r = 16, top = cy - 24, bot = cy + 16;
+  ctx.strokeStyle = col; ctx.lineWidth = 8;
+  ctx.lineCap = "round"; ctx.lineJoin = "round";
   ctx.beginPath();
-  ctx.moveTo(ax, ay - 42);
-  ctx.lineTo(ax + 30, ay - 2);
-  ctx.lineTo(ax + 13, ay - 2);
-  ctx.lineTo(ax + 13, ay + 42);
-  ctx.lineTo(ax - 13, ay + 42);
-  ctx.lineTo(ax - 13, ay - 2);
-  ctx.lineTo(ax - 30, ay - 2);
+  ctx.moveTo(cx + r, top + 6);                 // the tail, coming down
+  ctx.lineTo(cx + r, bot - r);
+  ctx.arc(cx, bot - r, r, 0, Math.PI, false);  // round the bottom
+  ctx.lineTo(cx - r, top + 13);                // and back up
+  ctx.stroke();
+  ctx.fillStyle = col;                         // the head, pointing up
+  ctx.beginPath();
+  ctx.moveTo(cx - r, top - 9);
+  ctx.lineTo(cx - r + 14, top + 13);
+  ctx.lineTo(cx - r - 14, top + 13);
   ctx.closePath(); ctx.fill();
-  txt("KEEP WALKING", ax, y + 134, 22, C.good);
-
-  // and the numbers, running the other way
-  txt("THE NUMBERS NOW COUNT DOWN", cx + 110, y + 48, 24, C.textDim);
-  var seq = [G.street, G.street - 1, G.street - 2, G.street - 3];
-  for (var i = 0; i < seq.length; i++){
-    var n = Math.max(START_ST, seq[i]);
-    var bx2 = cx - 60 + i * 150;
-    plate(bx2, y + 68, 112, 46, i ? "rgba(255,255,255,0.06)" : "rgba(143,227,136,0.16)", 8);
-    txt("W " + n, bx2 + 56, y + 99, 26, i ? C.textDim : C.good);
-    if (i < seq.length - 1) txt("\u203a", bx2 + 131, y + 99, 28, C.textDim);
-  }
-  txt("\u2026 down to " + START_ST + ", and Penn 1", cx + 318, y + 134, 22, C.textDim);
 }
+
 
 /* ====================== INITIALS AND THE BOARD ============================ */
 var BOARD_BTN = { x:60, y:LOGICAL_H - 176, w:360, h:88 };

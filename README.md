@@ -734,6 +734,28 @@ The curve needs a step of about 3px across a 14.5px head or the three rects line
 up and read as a straight bar. The first attempt used 1.3px and did exactly
 that.
 
+**The hair is a moulded piece, and the hairline is nowhere near the brow.**
+It is cut short and swept back: a thin crown sitting *on* the skull rather
+than over it, and a sideburn down each side running past the eye line — which
+is what stops a high hairline reading as a receding one. One colour
+throughout, so the cuboid shading is the only thing separating the faces, the
+way a minifig's hair piece is one lump of plastic with light on it.
+
+The crown is **flush with the front of the head** (0.424 against 0.430 is a
+sixth of a pixel) on purpose. Standing it forward gave a lit ledge over the
+brow and the whole thing read as a board balanced on him; flush leaves one
+crisp horizontal hairline instead.
+
+**The skull had to grow for any of that to be visible.** The eyes sit at
+0.742–0.766 and the mouth is below them, so on a head that stopped at 0.800
+there were 1.4px between the brow and the top of him and no amount of moving
+the hairline was going to find a forehead that was not there. The head is
+0.170 tall rather than 0.145; the extra 2.5px go above the eyes, where a
+minifig keeps its head anyway. The hairline then sits at 0.818 against a skull
+that stops at 0.825, which makes the forehead the whole 0.766–0.818 band —
+**5.2px, against 1.4px** — and there is no fringe at all. The pimp hat rides
+0.019 higher to clear it.
+
 **Hats and hair sort on the back edge.** Parts are drawn furthest-first by
 `y + d`, with ties broken on `z`. The hair reached 0.59 against the head's
 0.58, which made it one step further away and hung it off the back of his
@@ -889,6 +911,18 @@ the point under his feet, so he swings round his heels rather than round his
 middle. Sampled off the live canvas: 0.00s 0°, 0.08s −7° (the jolt), 0.20s 39°,
 0.34s 75°, 0.50s flat.
 
+**And it takes him with it.** The tilt on its own was a hinge — his feet
+stayed exactly where they were and he swung down like a gate. Getting hit by
+something moving does not leave you standing in the same spot, so he also
+travels 36px in the push direction and leaves the ground for a moment on the
+way: an ease-out slide, because all the speed is in the contact and the rest
+is scrubbing off against the road, and half a sine of hop that is over before
+he lands flat. Both run off the same push direction the tilt uses, so they
+are always *away* from whatever caught him. Measured: 0.05s 8px across and
+5.5px up, 0.15s 21px and 11px (the top of the hop), 0.30s 32px and back on
+the deck, 0.52s the full 36px with the tilt at 90°. The same sample with the
+push reversed comes out at −36px.
+
 **He falls the way he was hit**, not the way he was facing. The collision
 records the direction the thing that got him was travelling — which a path
 trace can have reversed, so it reads `dir * rv` rather than `dir`. Two
@@ -899,13 +933,32 @@ definition. A death with no hazard behind it — exhaustion, or missing the trai
 cannot inherit the last collision's. Checked both lane directions, both
 facings, and that running out of road comes out with no push at all.
 
+**What comes out of him is money.** The spray used to be orange and red
+sparks. He has been carrying that number in the HUD the whole way up Midtown,
+and now it comes out of him when something takes him off his feet — it reads
+as blood for about a tenth of a second and then you see what it actually is.
+Money sweat.
+
+Notes are not sparks, so the pool of thirty forks on `p.bill`: a third of the
+gravity, drag, a spin, and a sideways wander on the way down. Each one is
+drawn as a green note with a pale panel and a dark centre, and the tumble is
+faked with a horizontal squash — `cos` of the angle takes it edge-on and back
+again, which is the whole reason it reads as paper rather than as a green
+square. The panel and the centre are skipped below 7px wide, so edge-on it is
+a bare sliver, which is correct.
+
 **The death gets its own moment first.** The end screen used to drop over the
 top of the frame he died on, so the one thing the player most wants to see —
 what actually got him — was covered before he could see it. The world keeps
-running underneath for `DEATH_HOLD`, 0.85s so the fall finishes: the burst,
-the shake and the figure all
+running underneath for `DEATH_HOLD`: the money, the shake and the figure all
 stay up, and the tally clock does not start until the screen is actually there,
 or the first rows would be half counted by the time anybody saw them.
+
+`DEATH_HOLD` has been lengthened twice. 0.50s was enough to register the hit;
+0.85s got the fall onto the ground; **1.00s** lets the notes come back down,
+which is the part worth watching. The fall finishes at 0.55s and the spray at
+about 0.95s, so it is the length of the whole thing rather than a pause bolted
+on the end of it.
 
 **It can be skipped.** The first tap runs the tally out at once, the second
 moves on to the initials. Making a player sit through four seconds of counting
@@ -1001,9 +1054,11 @@ the following week, and the walk is meant to be happening today.
 says what a verbal is actually worth — *now get back to the office and lock it
 in.* **The direction confuses people, so it is drawn rather than written.** He still
 walks *up* the screen but the numbers now count *down*, which reads as a
-contradiction in words. The notice carries a diagram — an arrow pointing the
-way he still moves, labelled `KEEP WALKING`, and beside it `W 81 › W 80 › W 79
-› W 78 … down to 34, and Penn 1`. After the notice has gone, a small arrow and
+contradiction in words. The notice carries a U-turn beside the line: a
+stroke down the right, round the bottom and back up the left, finishing in a
+head that points **up**. An earlier version spelled the same thing out with a
+captioned arrow and a strip reading `W 81 › W 80 › W 79 › W 78 …`, and it was
+too much panel for one idea. After the notice has gone, a small arrow and
 `STILL WALK UP / the numbers count down` sit under the blocks counter on the
 right for the whole walk home.
 
