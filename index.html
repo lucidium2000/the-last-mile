@@ -6287,12 +6287,23 @@ function wornK(){
   if (G.hp >= HP_WORN || G.state !== ST_PLAY) return 0;
   return Math.max(0, Math.min(1, (HP_WORN - G.hp) / HP_WORN));
 }
-/* He sinks on his feet and his chest works. Small numbers: a figure 110px tall
-   that visibly bounces reads as a bug, not as exhaustion. */
+/* One breath clock, so the chest, the puff of breath and the red pulse are
+   all on the same lungs. Quick in, long out - about 37 a minute, which is a
+   man who has been walking too far too fast, not a man asleep.
+
+   Returns 1 at the top of the inhale and 0 at the bottom of the exhale. */
+function wornBreath(){
+  var bp = (G.t * 0.62) % 1;
+  return bp < 0.34 ? Math.sin((bp / 0.34) * Math.PI * 0.5)
+                   : Math.cos(((bp - 0.34) / 0.66) * Math.PI * 0.5);
+}
+/* He sinks on his feet, and his chest lifts him on every breath. The first
+   pass used a flat sine worth a couple of pixels, which read as a man gently
+   bobbing rather than one fighting for air. */
 function wornSag(){
   var k = wornK();
   if (!k) return 0;
-  return -(2 + k * 4) + Math.sin(G.t * 2.1) * (1 + k * 1.6);
+  return -(3 + k * 5) + wornBreath() * (2.5 + k * 5.5);
 }
 
 /* Running on empty. The face is baked (see FACE_WORN); this is everything
@@ -6328,9 +6339,11 @@ function drawWorn(cx, topY){
     ctx.globalAlpha = 1;
   }
 
-  // breath, in the cold, on the side he is facing
-  var br = (G.t * 0.62) % 1;
-  ctx.globalAlpha = a * 0.26 * (1 - br);
+  /* The puff leaves on the EXHALE, not on a clock of its own - watching a man
+     heave and breathe out on different beats is worse than no breath at all. */
+  var bp = (G.t * 0.62) % 1;
+  var br = bp < 0.34 ? 0 : (bp - 0.34) / 0.66;
+  ctx.globalAlpha = a * (bp < 0.34 ? 0 : 0.34 * (1 - br));
   ctx.fillStyle = "#dfe9f2";
   var dir = G.facing > 0 ? 1 : -1;
   for (i = 0; i < 3; i++){
@@ -6848,6 +6861,33 @@ function drawEat(cx, topY){
        He smiles himself now - see the `smiling` variant in playerModel - so
        there is nothing to draw here. */
   }
+  ctx.globalAlpha = 1;
+}
+
+/* The screen edges pulse red once he is under 20%, in time with his own
+   breathing, and harder the lower he gets. It is the only thing in the game
+   that tells him off continuously, which is the point: the health bar is at
+   the bottom of the screen and his eyes are on the traffic.
+
+   An edge pulse rather than a full wash, because a wash over the whole
+   playfield is the one thing that would make the crossing harder to read at
+   exactly the moment he can least afford it. */
+function drawLowHealth(){
+  var k = wornK();
+  if (!k || G.hurtT > 0) return;               // a real hit owns the screen
+  var beat = 0.35 + 0.65 * wornBreath();
+  var a = (0.16 + k * 0.40) * beat;
+  var w = 26 + k * 54;
+
+  ctx.globalAlpha = a * 0.5;
+  ctx.fillStyle = "#8c0a1c";
+  ctx.fillRect(0, 0, LOGICAL_W, w); ctx.fillRect(0, LOGICAL_H - w, LOGICAL_W, w);
+  ctx.fillRect(0, 0, w, LOGICAL_H); ctx.fillRect(LOGICAL_W - w, 0, w, LOGICAL_H);
+  ctx.globalAlpha = a;
+  ctx.fillStyle = "#ff1f3a";
+  var t2 = w * 0.42;
+  ctx.fillRect(0, 0, LOGICAL_W, t2); ctx.fillRect(0, LOGICAL_H - t2, LOGICAL_W, t2);
+  ctx.fillRect(0, 0, t2, LOGICAL_H); ctx.fillRect(LOGICAL_W - t2, 0, t2, LOGICAL_H);
   ctx.globalAlpha = 1;
 }
 
@@ -7566,6 +7606,7 @@ function render(){
   drawSlowTint();
   if (G.ride) drawRide();
   drawHurt();
+  drawLowHealth();
   drawHud();
   if (G.state === ST_PLAY) drawLockup();
   if (G.state === ST_TITLE) drawTitle();

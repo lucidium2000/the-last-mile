@@ -583,9 +583,19 @@ bar:
   its own cycle so they never drip in step. Two at 20%, four near zero.
 - **Breath**, on the side he is facing.
 - **Heat** coming off him, above his head, below about 11%.
-- **A slump** — he sinks 2 to 6px on his feet with his chest working. Small
-  numbers on purpose: a figure 110px tall that visibly bounces reads as a bug,
-  not as exhaustion.
+- **Laboured breathing** — one breath clock drives the chest, the puff of
+  breath and the red pulse, so they are all on the same lungs. Quick in, long
+  out, **37 a minute**: a man who has walked too far too fast, not a man
+  asleep. Measured 136 frames rising against 263 falling. His chest lifts him
+  **7.4px** at 2% health and 2.8px at 19% — the first pass used a flat sine
+  worth a couple of pixels and read as gentle bobbing rather than fighting for
+  air. The puff leaves on the *exhale*, because watching a man heave and
+  breathe out on different beats is worse than no breath at all.
+- **Red edges**, pulsing in time with that breathing and harder the lower he
+  gets. An edge pulse and not a full wash: a wash over the playfield is the one
+  thing that would make the crossing harder to read at exactly the moment he
+  can least afford it. It stands down for a real hit, which owns the screen,
+  and never appears off `ST_PLAY`.
 - **Tired legs** — up to **40% longer on a step**. A real cost, since the
   crossing windows do not widen to match, but that is the point: he is
   supposed to be struggling, and the fix is lunch. Flight overrides it.
