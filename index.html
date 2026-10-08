@@ -4691,11 +4691,18 @@ function rideAct(dir){
 
   var ns = R.slot + d * RIDE_SUB;
   if (ns < -0.001 || ns > RIDE_SLOTS - 1 + 0.001){ AUDIO.bump(); return; }
-  /* Walking into somebody on a train. Same rule as the pavement: the first
-     attempt gets a mouthful and no step, the second goes through - and after
-     that that particular passenger has made their point and lets him by for
-     the rest of the ride. Only on a landing that puts him squarely in
-     somebody's slot; a half step between two of them is the aisle. */
+  /* Walking past somebody on a train. It used to be the pavement rule - the
+     first attempt got a mouthful and no step, the second went through - and
+     on a five-slot car that is a wall, not a crowd. The pavement is a street
+     he has a choice about; the car is five feet wide with a man at the end of
+     it closing on him, and a passenger who eats a tap is a passenger who got
+     him robbed. Nobody on the train blocks him now and nothing is a hit: he
+     passes straight through and they overlap for the step.
+
+     They still SAY something the first time he goes by, because that is the
+     carriage talking and it costs him nothing. The one exception is the man
+     with the blade, and that is handled above - walking into HIM while it is
+     out is the swing, and it is the only hit on the train. */
   var si = Math.round(ns);
   if (Math.abs(ns - si) < 0.26){
     var px2 = carPaxAt(R, si);
@@ -4705,8 +4712,7 @@ function rideAct(dir){
       px2.line = G.hp <= HP_WORN
                ? FOLK_LINES_LOW[(Math.random()*FOLK_LINES_LOW.length)|0]
                : TRAIN_BUMP[(Math.random()*TRAIN_BUMP.length)|0];
-      AUDIO.jostle(); AUDIO.mutter(px2.seed);
-      return;
+      AUDIO.mutter(px2.seed);
     }
   }
   ns = Math.max(0, Math.min(RIDE_SLOTS - 1, ns));

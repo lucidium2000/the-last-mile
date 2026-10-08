@@ -1484,10 +1484,22 @@ there.
 **The carriage has people in it with opinions.** The passengers get the same
 lives as the people on the pavement: one per slot, seeded the way the drawing
 seeds them so the man who speaks is the man you can see. Walking into one gets
-a mouthful and no step; the second attempt goes through, and after that that
-particular passenger has made their point and lets him by for the rest of the
-ride. Only on a landing that puts him squarely in somebody's slot — a half step
-between two of them is the aisle. And two of them next to each other exchange
+a mouthful **and the step still goes through** — he passes straight past them
+and they overlap for it. It used to be the pavement rule: first tap a refusal,
+second tap through. On a five-slot car that is a wall rather than a crowd. The
+pavement is a street he has a choice about; the carriage is five feet wide with
+a man at the far end of it closing on him, and a passenger who eats a tap is a
+passenger who got him robbed. Nobody on the train blocks him now, nothing in
+there is a hit, and the only exception is the man with the blade — walking into
+*him* while it is out is the briefcase swing, which is handled before the step
+is even considered. Verified: every slot occupied, he walks 2.0 → 4.0 without a
+refused tap and stops only at the end of the car, and the swing still fires for
++$250,000 with the knife cleared.
+
+They still say it the first time he goes by, because that is the carriage
+talking and it costs him nothing — only on a landing that puts him squarely in
+somebody's slot, since a half step between two of them is the aisle. And two of
+them next to each other exchange
 four words every three to six seconds, the reply three quarters of a second
 after the opener, the same beat the pavement uses.
 
@@ -1495,8 +1507,8 @@ after the opener, the same beat the pavement uses.
 pavement — *"I'm walkin' here"* means nothing to somebody holding a pole — so
 the carriage has its own set: *"Signal problems. Again."*, *"Express is runnin'
 local today."*, *"Don't miss your stop."*, *"Hold the pole, not me."* Fourteen of
-those, eight brush-offs for the bump (*"There is a whole car, pal."*, *"That is
-my foot."*), and three rare ones at **one in eight** — *"It smells like pee in
+those, eight brush-offs for being walked past (*"There is a whole car, pal."*,
+*"That is my foot."*), and three rare ones at **one in eight** — *"It smells like pee in
 here."* A joke you hear every ride is not a joke, it is the smell. The
 low-health pool still overrides both, because somebody grey in the face gets
 concern wherever he is standing.
