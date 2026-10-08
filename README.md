@@ -311,10 +311,18 @@ a car swerving round the player travels up to `SWERVE_PX`, 26.
 **The TE-ADDON pack is staged like the TAM, because it is that kind of drop.**
 It used to be a terminal — a tall dark slab with a screen in it — which read as
 a parking meter at any speed at all, and nobody crosses four lanes for a
-parking meter. It is a **parcel** now: a box in the path amber with the name on
-the face, a lid that overhangs and two emissive straps across it in the trace
-green, floating the way the TAM cube floats. (A pallet was tried under it. A
-pallet that bobs nine pixels off the pavement is worse than no pallet.)
+parking meter. It is a **present** now: a gift box in the path amber with a trace-green
+ribbon crossing the lid, a bow on top and the name on the front, floating the
+way the TAM cube floats. **Sized against the TAM to the unit** — pedestal at
+z 0.02, crown topping out at 0.85, core 0.54 across — because the first parcel
+was two thirds of its height standing next to it and looked like the
+consolation prize. (A pallet was tried under it. A pallet that bobs nine pixels
+off the pavement is worse than no pallet.)
+
+The ribbon's front-to-back run shares the lid's back edge, so it sorts against
+it on `z` alone and sits *on* the lid rather than behind it; the left-to-right
+run is nearer the camera than either and needs no help. Both stand 0.004
+higher than the lid so they are proud of it.
 
 Everything that makes the TAM feel like the premium drop it gets too: a beam
 into the sky band so you can see it coming from blocks away, a glow pool and
@@ -1025,6 +1033,17 @@ lines in a speech bubble (*"Hey! I'm walkin' here!"*, *"Step back, Jack."*,
 goes through**, and they shuffle over 1.15 tiles with bad grace, eased out of
 the displacement rather than animated into it so `x0` can move immediately and
 the walk carries on from the new line.
+
+**Anybody nearer the camera than he is draws after him.** The player is
+deliberately painted over the whole world — he is the one thing that must never
+be ambiguous, and a car in the lane he had just left used to be drawn over him
+so he looked like he was wading through it — but that blanket rule put him in
+front of people plainly a row closer to you than he is, and what should have
+read as depth read as him standing inside somebody. Depth here is row plus the
+model y the figure stands on: he walks the 0.46 line and they walk 0.86 at the
+back of the pavement, so *within* a row he is always the nearer of the two and
+nothing changes. Only the rows in front of him defer, and they carry their
+speech bubbles with them.
 
 That is also what keeps the generator's guarantee intact: a blocker that always
 yields on the second tap cannot pin anybody. And it only applies **while he is

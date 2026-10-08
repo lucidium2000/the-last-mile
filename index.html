@@ -2380,30 +2380,41 @@ function facadeModel(kind){
 }
 
 /* The TE-ADDON pack. It used to be a terminal - a tall dark slab with a
-   screen in it - which read as a parking meter at any speed at all, and a
-   parking meter is not something anybody crosses four lanes for.
+   screen in it - which read as a parking meter at any speed at all, and
+   nobody crosses four lanes for a parking meter.
 
-   It is a parcel now, in the TAM's language rather than the street
-   furniture's: a box with the name on the face, a lid that overhangs, and
-   two emissive straps across it in the trace green, because green is what it
-   hands you. Everything that made the TAM feel like the premium drop - the
-   beam, the pool, the rings, the bob, the eye over the top - it gets too.
-   It floats, like the TAM does. A pallet was tried under it and a pallet
-   that bobs nine pixels off the pavement is worse than no pallet at all. */
+   It is a PRESENT: a gift box in the path amber with a trace-green ribbon
+   crossing the lid, a bow on top and the name on the front. Sized against
+   the TAM to the unit - base at z 0.02, crown topping out at 0.85, core
+   0.54 across - because the first parcel was two thirds of its height
+   standing next to it and looked like the consolation prize.
+
+   It floats, the way the TAM cube floats. A pallet was tried under it and a
+   pallet that bobs nine pixels off the pavement is worse than no pallet. */
 function kioskModel(){
-  var box = C.pw3, lid = shade(box, 0.20), dark = shade(box, -0.34);
+  var box = C.pw3, lid = shade(box, 0.22), rib = TRACE.line;
+  var ribL = shade(rib, 0.26);
   return { parts:[
-    P(0.275, 0.355, 0.45, 0.29, 0.06, 0.035, shade(box,-0.52)), // the underside
-    P(0.26, 0.340, 0.48, 0.32, 0.09,  0.42,  box),              // the box
-    P(0.24, 0.325, 0.52, 0.35, 0.51,  0.07,  lid),              // the lid, overhanging
-    E(0.46, 0.325, 0.08, 0.35, 0.51,  0.076, TRACE.line),       // strapping
-    E(0.24, 0.455, 0.52, 0.09, 0.51,  0.076, TRACE.line)
+    P(0.37, 0.37, 0.26, 0.26, 0.02, 0.12, shade(box, -0.58)),   // the pedestal
+    P(0.23, 0.27, 0.54, 0.46, 0.14, 0.50, box),                 // the box
+    P(0.20, 0.24, 0.60, 0.52, 0.64, 0.09, lid),                 // the lid, proud
+    /* The ribbon. The front-to-back run shares the lid's back edge, so it
+       sorts against it on z alone and sits ON the lid rather than behind
+       it; the left-to-right run is nearer the camera than either and needs
+       no help. Both are a shade taller than the lid so they stand off it. */
+    E(0.44, 0.24, 0.12, 0.52, 0.642, 0.094, rib),
+    E(0.20, 0.42, 0.60, 0.12, 0.642, 0.094, rib),
+    // the bow: two loops, a knot between them, and two tails off the back
+    E(0.335, 0.405, 0.13, 0.15, 0.730, 0.100, rib),
+    E(0.535, 0.405, 0.13, 0.15, 0.730, 0.100, rib),
+    E(0.452, 0.395, 0.10, 0.17, 0.722, 0.128, ribL),
+    E(0.300, 0.415, 0.08, 0.13, 0.690, 0.060, shade(rib, -0.14)),
+    E(0.620, 0.415, 0.08, 0.13, 0.690, 0.060, shade(rib, -0.14))
   ], decals:[
-    { x:0.285, y:0.34, w:0.43, z:0.26, h:0.17, bg:dark,
-      core:shade(box, 0.38), glow:true, fg:"#2a1400",
-      text:"TE-ADDON", size:12 },
-    { x:0.285, y:0.34, w:0.43, z:0.135, h:0.105, bg:shade(box, -0.14),
-      fg:"#2a1400", text:"PACK", size:12 }
+    { x:0.265, y:0.27, w:0.47, z:0.33, h:0.22, bg:shade(box, -0.34),
+      core:shade(box, 0.40), glow:true, fg:"#2a1400",
+      text:"TE-ADDON", size:14 },
+    { x:0.23, y:0.27, w:0.54, z:0.185, h:0.085, bg:rib, glow:true }
   ], W:1 };
 }
 /* "subway" twice, so entrances turn up about twice as often - there is no
@@ -4913,6 +4924,33 @@ function folkLift(f){
 
 /* What somebody says, over their head, for FOLK_SAY seconds. Drawn after the
    props so a hot dog stand cannot sit on top of the words. */
+/* Anybody standing NEARER the camera than he is gets held back and drawn
+   after him. The player is deliberately painted over the whole world - it
+   is the one thing in the game that must never be ambiguous, and a car in
+   the lane he had just left used to be drawn over him and he looked like he
+   was wading through it - but that blanket rule put him in front of people
+   who are plainly a row closer to you than he is, and what should have read
+   as depth read as him standing inside somebody.
+
+   Depth here is row plus the model y the figure stands on: he walks the
+   0.46 line and they walk the 0.86 line at the back of the pavement, so
+   within a single row he is always the nearer of the two and nothing
+   changes. It is only the rows in front of him that defer. */
+var FOLK_FRONT = [];
+function drawFolkFront(){
+  for (var i = 0; i < FOLK_FRONT.length; i++){
+    var e = FOLK_FRONT[i], j;
+    for (j = 0; j < e.row.folk.length; j++){
+      var fk = e.row.folk[j];
+      blit(S.folk[fk.seed % FOLK_N],
+           folkX(fk)*TILE + TILE*0.5 + FOLK_Y*SKEW,
+           e.sy - FOLK_Y*ROW_H - folkLift(fk));
+    }
+    for (j = 0; j < e.row.folk.length; j++) drawFolkSay(e.row.folk[j], e.sy);
+  }
+  FOLK_FRONT.length = 0;
+}
+
 function drawFolkSay(f, sy){
   var age = G.t - (f.sayAt || -99);
   if (age < 0 || age >= FOLK_SAY) return;
@@ -7143,14 +7181,20 @@ function drawWorld(){
     if (sy < HORIZON - 60 || sy - ROW_H > LOGICAL_H + 80) continue;
 
     if (row.type === "safe"){
-      /* Before the props, so a hot dog stand stands in front of them. */
-      if (row.folk && S.folk){
+      /* Before the props, so a hot dog stand stands in front of them -
+         unless they are nearer the camera than he is, in which case they
+         wait until after he has been drawn. */
+      var folkAhead = row.folk && row.folk.length &&
+                      (r + FOLK_Y) < (pp.row + 0.46);
+      if (row.folk && S.folk && !folkAhead){
         for (i=0;i<row.folk.length;i++){
           var fk = row.folk[i];
           blit(S.folk[fk.seed % FOLK_N],
                folkX(fk)*TILE + TILE*0.5 + FOLK_Y*SKEW,
                sy - FOLK_Y*ROW_H - folkLift(fk));
         }
+      } else if (folkAhead && S.folk){
+        FOLK_FRONT.push({ row:row, sy:sy });
       }
       for (i=0;i<row.props.length;i++){
         var pr2 = row.props[i];
@@ -7166,8 +7210,9 @@ function drawWorld(){
         }
       }
       /* And what anybody is saying goes on last, so a hot dog stand cannot
-         sit on top of the words. */
-      if (row.folk){
+         sit on top of the words. The deferred ones carry their bubbles with
+         them. */
+      if (row.folk && !folkAhead){
         for (i=0;i<row.folk.length;i++) drawFolkSay(row.folk[i], sy);
       }
     } else {
@@ -7225,6 +7270,7 @@ function drawWorld(){
   drawTrace();
   /* He stays on screen through the hold, so you can see what hit him. */
   if (G.state !== ST_DEAD || G.deadFor < DEATH_HOLD){ drawPlayer(pp); drawEatOverlay(); }
+  drawFolkFront();
   if (G.booth && G.state !== ST_DEAD) drawBooth(pp);
 
   if (G.state === ST_DEAD){
@@ -7336,7 +7382,7 @@ function drawKiosk(col, sy, used){
      rather than measured down from the row: the card used to be pinned
      182px above sy, which is where the box is, and the two of them sat on
      top of each other. */
-  var eyeY = ground - 128 - bob * 0.6;
+  var eyeY = ground - 136 - bob * 0.6;
   ctx.globalAlpha = 0.88 + 0.12*pul;
   drawEye(cx, eyeY, 23 + 3*pul, C.pw3, "#2a1400", C.brand);
   ctx.globalAlpha = 1;
