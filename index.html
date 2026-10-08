@@ -2200,13 +2200,13 @@ var CSCO = {
    it is legible inside a second and the last of it was dead air over a
    frozen street. */
 var TICKER_SECS = 2.4;
-/* The card does not own the screen any more. It sits high, it is drawn at
-   TICKER_K of the size it was laid out at, and the whole thing is a quarter
-   transparent so the lane behind it still reads - he is still walking while
-   it is up, and a card he cannot see past is a card that kills him. A tenth
-   is enough: the street shows through as movement rather than as detail,
-   which is all he needs to know something is coming. */
-var TICKER_Y = 110, TICKER_K = 0.70, TICKER_A = 0.90;
+/* The card does not own the screen any more. It sits high and it is drawn at
+   TICKER_K of the size it was laid out at, which is what keeps the lane in
+   front of him visible - he is still walking while it is up, and a card he
+   cannot see past is a card that kills him. It is NOT transparent: the street
+   showing through a Google Finance card made it look broken rather than
+   light, and the card is small enough now that it does not need the help. */
+var TICKER_Y = 110, TICKER_K = 0.70;
 /* The newsstand. He reads the front page, and what is on it moves the
    number - because the thing that actually decides a quarter is almost never
    anything the seller did that week.
@@ -9406,7 +9406,7 @@ function drawTicker(){
   var axis = [pct, pct * 0.5, 0];
   var LO = -0.16 * pct - 0.3, HI = 1.16 * pct + 0.4;
   var fin = Math.min(1, t / 0.28), fout = Math.min(1, (TICKER_SECS - t) / 0.3);
-  var a = TICKER_A * Math.max(0, Math.min(fin, fout));
+  var a = Math.max(0, Math.min(fin, fout));
   var rise = (1 - fin) * 46;                       // slides up as it fades in
 
   /* No scrim. Dimming the street said "stop playing", and the game no longer

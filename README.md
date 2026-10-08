@@ -1805,15 +1805,17 @@ moving under it — verified that `G.t` advances 0.4s over 0.4s of wall clock
 with the card up, and the test run took a bus to the face while reading it.
 
 Which means the card has to earn its space instead of taking the screen. It
-sits at **y 110** instead of 176, it is drawn at **0.70** of the size it was
-laid out at, and it is **10% transparent**. The scale is a transform about the
-card's own top edge rather than a re-layout, so every measurement inside it —
-margins, tabs, chart box, tooltip clamp — still holds exactly as written.
-1120×730 from y 176 reached y 906 and buried him; 0.70 from y 110 ends at
-**621**, above his head at ~680, so he and the rows he is about to walk into
-are never behind it at all. A tenth of transparency is enough that the street
-shows through as movement rather than as detail, which is all he needs to know
-something is coming.
+sits at **y 110** instead of 176 and it is drawn at **0.70** of the size it was
+laid out at. The scale is a transform about the card's own top edge rather than
+a re-layout, so every measurement inside it — margins, tabs, chart box, tooltip
+clamp — still holds exactly as written. 1120×730 from y 176 reached y 906 and
+buried him; 0.70 from y 110 ends at **621**, above his head at ~680, so he and
+the rows he is about to walk into are never behind it at all.
+
+**It is not transparent.** Letting the street through it was tried at a quarter
+and at a tenth, and both read as a rendering fault rather than as a light
+touch — a Google Finance card is an opaque object or it is nothing. At 0.70 and
+y 110 it is small enough that it does not need the help.
 
 Each pickup **rolls its own move, between 0 and 10 percent**, and the whole
 series is scaled to it, so the chart, the axis, the headline and the tooltip
