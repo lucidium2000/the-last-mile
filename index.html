@@ -3670,6 +3670,10 @@ window.addEventListener("keydown", function(e){
       }
     }
   }
+  /* Enter is "go on, then" everywhere that is not the game itself - the
+     title, the end screen, the board. The name screen takes it first, above,
+     where it means submit. */
+  if (k === "Enter" && G.state !== ST_PLAY){ act("f"); e.preventDefault(); return; }
   if (k==="ArrowUp"    || k==="w" || k===" "){ act("f"); e.preventDefault(); }
   if (k==="ArrowDown"  || k==="s"){ act("b"); e.preventDefault(); }
   if (k==="ArrowLeft"  || k==="a"){ act("l"); e.preventDefault(); }

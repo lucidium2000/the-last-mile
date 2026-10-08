@@ -118,7 +118,10 @@ small ones, so the step is a threshold on an accumulator rather than one per
 event; `deltaMode` can be lines or pages rather than pixels, so it is
 normalised first; and the accumulator is dumped if nothing arrives for a fifth
 of a second, or the tail of one flick adds itself to the head of the next.
-Vertical moves the letter, horizontal moves between the three. Verified: one
+Vertical moves the letter, horizontal moves between the three, and **Enter**
+is "go on, then" on every screen that is not the game itself — the title, the
+end screen, the board. The name screen takes Enter first, where it means
+submit. Verified: one
 notch up steps one letter, two down steps two back, a ten-event trackpad flick
 steps two, sideways moves the slot, and it does nothing at all on any other
 screen.
