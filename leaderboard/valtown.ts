@@ -95,6 +95,7 @@ export default async function (request: Request): Promise<Response> {
       rides: clampInt(body.rides, 0, 500, 0),
       tamWins: clampInt(body.tamWins, 0, 2000, 0),
       addons: clampInt(body.addons, 0, 2000, 0),
+      champs: clampInt(body.champs, 0, 2000, 0),
       secs: clampInt(body.secs, 0, 86400, 0),
       won: !!body.won,
       cause: String(body.cause || "").replace(/[^\x20-\x7E]/g, "").slice(0, 28),
@@ -137,7 +138,7 @@ function cleanPowers(p: any) {
 function blankStats() {
   return {
     plays: 0, wins: 0, deaths: 0, bestScore: 0,
-    steps: 0, rows: 0, rides: 0, tamWins: 0, addons: 0, secs: 0,
+    steps: 0, rows: 0, rides: 0, tamWins: 0, addons: 0, champs: 0, secs: 0,
     players: 0, seen: {} as Record<string, number>,
     powers: cleanPowers(null), first: Date.now(), last: 0,
   };
@@ -156,6 +157,7 @@ function bump(st: any, rec: any, id: string) {
   st.tamWins += rec.tamWins;
   // the stats blob predates this field, so it starts from whatever is there
   st.addons = (st.addons || 0) + (rec.addons || 0);
+  st.champs = (st.champs || 0) + (rec.champs || 0);
   st.secs += rec.secs; st.last = rec.at;
   if (!st.seen) st.seen = {};
   if (!st.seen[id]) st.players = Object.keys(st.seen).length + 1;

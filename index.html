@@ -2061,6 +2061,16 @@ var CHUCK_BONUS = 250000;
    150k on the number, its own banner, the handshake chord, and a line of its
    own on the end screen and in the report. */
 var ADDON_BONUS = 150000;
+/* One in fifty people on the pavement is somebody who already knows you.
+   Walk into them and it is not an argument, it is a renewal: 300k of Cloud
+   Insights, from a champion who had been meaning to call.
+
+   The odds are the whole design. Two percent means a player can walk forty
+   blocks and never meet one, which is what makes meeting one an event - and
+   it is the only thing in the game that rewards walking INTO somebody, which
+   is the opposite of everything else it has taught you. */
+var CHAMP_BONUS = 300000, CHAMP_ODDS = 0.02;
+var CHAMP_LINE = "Hey! Good to see you \u2014 I've been meaning to reach out.";
 
 /* ===================== CSCO TICKER CARD ===================================
    Chuck Bucks pays out, and the card is the celebration: a mock of the Google
@@ -2775,7 +2785,8 @@ function makeWalk(r, park){
     for (var fq = 0; fq < nf; fq++){
       folk.push({ x0: Math.random() * COLS,
                   v: (Math.random() < 0.5 ? -1 : 1) * (0.14 + Math.random()*0.26),
-                  seed: (Math.random()*9999)|0 });
+                  seed: (Math.random()*9999)|0,
+                  champ: Math.random() < CHAMP_ODDS });
     }
   }
   return { type:"safe", park:!!park, props:props, blocked:blocked,
@@ -2954,7 +2965,8 @@ function reset(){
     stage:-1, coach:-1, toast:null, flash:null,
     shield:false, slowT:0, revealT:0, invulnT:0, powersUsed:0,
     hp:HP_MAX, hpGain:null, hpShow:0, meals:0, sadT:0, needFood:0, saidFood:false,
-    bonusChuck:0, bonusTam:0, bonusAddon:0, bonusFood:0, addons:0, addonWin:null,
+    bonusChuck:0, bonusTam:0, bonusAddon:0, bonusFood:0, bonusChamp:0,
+    addons:0, champs:0, addonWin:null, champWin:null,
     tally:null, booth:null, deathPush:0,
     flyT:0, flyA:0, flyBeep:0, flyMove:0, flyTilt:0, walkPh:0, walkAmt:0, tam:false, tamT:0, tamWins:0, tamWin:null, hurtT:0, nahT:0,
     yumT:0, yumKind:null, yumDir:0, yumBite:0, wowT:0, cheerT:0,
@@ -3046,7 +3058,7 @@ function statsRead(){
   var st = lsGet(LS_STATS, null);
   if (!st || !st.powers){
     st = { plays:0, wins:0, deaths:0, bestScore:0, bestRows:0,
-           steps:0, rows:0, rides:0, tamWins:0, addons:0, secs:0,
+           steps:0, rows:0, rides:0, tamWins:0, addons:0, champs:0, secs:0,
            powers:blankPowers(), first:Date.now(), last:0 };
   }
   return st;
@@ -3063,6 +3075,7 @@ function runRecord(ini){
     rides: G.rides,
     tamWins: G.tamWins,
     addons: G.addons,
+    champs: G.champs,
     powers: G.got,
     won:   !!G.won,
     cause: G.won ? "" : (G.missedTrain ? "MISSED TRAIN" : G.deathName),
@@ -3080,6 +3093,7 @@ function statsBump(rec){
   if (rec.rows  > st.bestRows)  st.bestRows  = rec.rows;
   st.steps += rec.steps; st.rows += rec.rows; st.rides += rec.rides;
   st.tamWins += rec.tamWins; st.addons += (rec.addons || 0);
+  st.champs = (st.champs || 0) + (rec.champs || 0);
   st.secs += rec.secs; st.last = rec.at;
   for (i = 0; i < POWER_ORDER.length; i++){
     k = POWER_ORDER[i];
@@ -3143,7 +3157,8 @@ function boardPOST(rec){
       body: JSON.stringify({                     // request: no CORS preflight
         id: playerId().id, ini: rec.ini, score: rec.score, rows: rec.rows,
         steps: rec.steps, streets: rec.streets, rides: rec.rides,
-        tamWins: rec.tamWins, addons: rec.addons, powers: rec.powers, won: rec.won,
+        tamWins: rec.tamWins, addons: rec.addons, champs: rec.champs,
+        powers: rec.powers, won: rec.won,
         cause: rec.cause, secs: rec.secs
       })
     }).then(function(r){ return r.ok ? r.json() : null; })
@@ -3407,6 +3422,21 @@ function act(dir){
     for (var fb = 0; fb < target.folk.length; fb++){
       var fo = target.folk[fb];
       if (Math.abs(folkRaw(fo) - nc) >= 0.62) continue;
+      /* The one in fifty. Walking into them is not an argument, it is the
+         renewal: the only place in the game where bumping into somebody is
+         the right move. They still keep the square - he has stopped to
+         talk - and after that they are just somebody in a suit. */
+      if (fo.champ && !fo.spent){
+        fo.spent = true;
+        fo.sayAt = G.t; fo.line = CHAMP_LINE;
+        fo.blockAt = G.t;
+        G.champs++;
+        G.bonus += CHAMP_BONUS; G.bonusChamp += CHAMP_BONUS;
+        G.champWin = { life:4.6, max:4.6 };
+        G.flash = null;
+        AUDIO.deal();
+        return;
+      }
       if (G.t - (fo.blockAt || -99) > FOLK_GRACE){
         fo.blockAt = G.t;
         fo.sayAt = G.t;
@@ -3478,6 +3508,9 @@ function buildTally(){
       amt:G.bonusTam, col:C.pw5 },
     { label:"TE-ADDONS", note:G.addons + (G.addons === 1 ? " terminal" : " terminals"),
       amt:G.bonusAddon, col:POWERS.path.col },
+    { label:"CHAMPIONS", note:G.champs +
+        (G.champs === 1 ? " walked into" : " walked into"),
+      amt:G.bonusChamp, col:BLAZER },
     { label:"LUNCH", note:G.meals + (G.meals === 1 ? " bought" : " bought"),
       amt:G.bonusFood, col:C.textDim }
   ];
@@ -3490,6 +3523,7 @@ function buildTally(){
       ["STEPS", G.steps],
       ["SUBWAY", G.rides],
       ["ADD-ONS", G.addons],
+      ["CHAMPIONS", G.champs],
       ["MEALS", G.meals],
       ["POWER-UPS", powers],
       ["FURTHEST", "W " + Math.max(START_ST, G.street) + " ST"]
@@ -4835,14 +4869,15 @@ var PAX_WOOL = ["#8c4a4a","#3d6b7a","#6a6a3d","#54406b","#9a6a36","#2f6b57"];
 function paxFit(){
   return { tall:carVis(), feet:carSole() };
 }
-function drawPax(cx2, feetY, seed, lit, sway, k){
+function drawPax(cx2, feetY, seed, lit, sway, k, champ){
   /* The tone cycles straight off the seed rather than through a multiple of
      seven. `(seed * 3) % 7` looks like a spread until the seeds themselves
      are a multiple of seven apart, which is exactly what both callers were
      handing it - so every passenger in the car had the same complexion and
      so did every pedestrian on the street. */
   var tone = seed % 7;
-  var coat = PAX_COAT[(seed * 3) % 8], skin = PAX_SKIN[tone];
+  var coat = champ ? (seed % 2 ? "#2f3a52" : "#3a3340") : PAX_COAT[(seed * 3) % 8];
+  var skin = PAX_SKIN[tone];
   var hair = PAX_HAIR[HAIR_FOR[tone][(seed * 5) % HAIR_FOR[tone].length]];
   var wool = PAX_WOOL[(seed * 2) % 6];
   var doing = (seed * 11) % 5;                // phone, bag, cans, scarf, asleep
@@ -4850,6 +4885,9 @@ function drawPax(cx2, feetY, seed, lit, sway, k){
      Between those, seven skin tones and seven hair colours there are enough
      people here that nobody has to stand for a category. */
   var style = STYLE_FOR[tone][(seed * 7) % STYLE_FOR[tone].length];
+  /* A champion is in a suit and carrying a bag, and is not on their phone -
+     they are looking for you. */
+  if (champ) doing = 5;
   var skirt = ((seed * 13) % 3) === 0;
   var tights = (seed % 2) === 0;
   var longCoat = (seed % 2) === 0;
@@ -4893,6 +4931,14 @@ function drawPax(cx2, feetY, seed, lit, sway, k){
   R3(-bodyW/2 - 9, top + 6, 9, (hem - top) - 13, shade(coat, -0.24));   // arms
   R3( bodyW/2,     top + 6, 9, (hem - top) - 13, shade(coat, -0.24));
   if (longCoat && !skirt) R3(-bodyW/2, hem - 5, bodyW, 5, shade(coat, -0.16));
+  if (champ){
+    // shirt, tie and a bag: the uniform, at twenty-eight pixels across
+    R3(-7, top + 2, 14, 30, "#f2f4f6");
+    R3(-3, top + 6, 6, 24, C.brand);
+    R3(-bodyW/2 - 2, top + 4, bodyW + 4, 5, shade(coat, 0.22));   // the lapels
+    R3(bodyW/2 + 7, top + 30, 16, 13, "#2b2119");                 // the case
+    R3(bodyW/2 + 11, top + 26, 8, 5, "#2b2119");
+  }
 
   // head, and whatever is on it
   var hy = top - headH + slump;
@@ -4987,6 +5033,7 @@ function drawPax(cx2, feetY, seed, lit, sway, k){
    displacement rather than animated into one, so x0 can move immediately
    and the walk continues from the new line). */
 var FOLK_SAY = 2.1, FOLK_GRACE = 2.6, FOLK_ASIDE = 1.15, FOLK_SLIDE = 0.5;
+var CHAMP_SAY = 3.4;       // a greeting is worth more screen time than a shove
 var FOLK_LINES = [
   "Hey! I'm walkin' here!",
   "Step back, Jack.",
@@ -5040,25 +5087,44 @@ var FOLK_FRONT = [];
 function drawFolkFront(){
   for (var i = 0; i < FOLK_FRONT.length; i++){
     var e = FOLK_FRONT[i], j;
-    for (j = 0; j < e.row.folk.length; j++){
-      var fk = e.row.folk[j];
-      blit(S.folk[fk.seed % FOLK_N],
-           folkX(fk)*TILE + TILE*0.5 + FOLK_Y*SKEW,
-           e.sy - FOLK_Y*ROW_H - folkLift(fk));
-    }
+    for (j = 0; j < e.row.folk.length; j++) drawOneFolk(e.row.folk[j], e.sy);
     for (j = 0; j < e.row.folk.length; j++) drawFolkSay(e.row.folk[j], e.sy);
   }
   FOLK_FRONT.length = 0;
 }
 
+/* One person on the pavement. A champion who has not been spoken to yet gets
+   a soft halo - enough that you can pick them out at the far end of a block
+   if you are looking, not enough to read as a pickup. Once the conversation
+   has happened they are just somebody in a suit. */
+function drawOneFolk(f, sy){
+  var x = folkX(f)*TILE + TILE*0.5 + FOLK_Y*SKEW;
+  var y = sy - FOLK_Y*ROW_H - folkLift(f);
+  if (f.champ && !f.spent){
+    var pul = 0.5 + 0.5*Math.sin(G.t*2.2 + f.seed);
+    ctx.globalAlpha = 0.13 + 0.10*pul;
+    ctx.fillStyle = BLAZER;
+    ctx.beginPath();
+    ctx.ellipse(x, y - 42, 34 + 5*pul, 48 + 5*pul, 0, 0, Math.PI*2);
+    ctx.fill();
+    ctx.globalAlpha = 0.22 + 0.16*pul;
+    ctx.beginPath();
+    ctx.ellipse(x, y - 2, 26 + 5*pul, 9 + 2*pul, 0, 0, Math.PI*2);
+    ctx.fill();
+    ctx.globalAlpha = 1;
+  }
+  blit((f.champ ? S.champ[f.seed % CHAMP_N] : S.folk[f.seed % FOLK_N]), x, y);
+}
+
 function drawFolkSay(f, sy){
   var age = G.t - (f.sayAt || -99);
-  if (age < 0 || age >= FOLK_SAY) return;
+  var SAY = (f.champ && f.spent) ? CHAMP_SAY : FOLK_SAY;
+  if (age < 0 || age >= SAY) return;
   /* Smoothstepped at both ends rather than ramped. A linear fade has a
      corner at each end of it and the eye finds both; a cubic does not. The
      rise is driven off the same curve as the fade, so it arrives rather
      than appearing and then moving. */
-  var fin = Math.min(1, age / 0.26), fout = Math.min(1, (FOLK_SAY - age) / 0.55);
+  var fin = Math.min(1, age / 0.26), fout = Math.min(1, (SAY - age) / 0.55);
   var ein = fin*fin*(3 - 2*fin), eout = fout*fout*(3 - 2*fout);
   var a = Math.min(ein, eout);
   var x = folkX(f)*TILE + TILE*0.5 + FOLK_Y*SKEW;
@@ -5085,10 +5151,22 @@ function drawFolkSay(f, sy){
 
    0.86 of the carriage scale, because they stand at the BACK of the pavement
    rather than on the line the player walks. */
-var FOLK_N = 16, FOLK_K = 0.86, FOLK_Y = 0.86;
+var FOLK_N = 16, CHAMP_N = 6, FOLK_K = 0.86, FOLK_Y = 0.86;
 function bakeFolk(){
   var W = 150, H = 150, i;
-  S.folk = [];
+  S.folk = []; S.champ = [];
+  for (i = 0; i < CHAMP_N; i++){
+    var coff = document.createElement("canvas");
+    coff.width  = Math.max(1, Math.ceil(W * BAKE));
+    coff.height = Math.max(1, Math.ceil(H * BAKE));
+    var cg = coff.getContext("2d");
+    cg.setTransform(BAKE, 0, 0, BAKE, 0, 0);
+    var csaved = ctx;
+    ctx = cg;
+    drawPax(W / 2, H - 8, i * 13 + 2, true, 0, FOLK_K, true);
+    ctx = csaved;
+    S.champ.push({ img:coff, ox:W / 2, oy:H - 8, w:W, h:H });
+  }
   for (i = 0; i < FOLK_N; i++){
     var off = document.createElement("canvas");
     off.width  = Math.max(1, Math.ceil(W * BAKE));
@@ -6646,6 +6724,7 @@ function update(dt){
   if (G.flash){ G.flash.life -= dt; if (G.flash.life <= 0) G.flash = null; }
   if (G.tamWin){ G.tamWin.life -= dt; if (G.tamWin.life <= 0) G.tamWin = null; }
   if (G.addonWin){ G.addonWin.life -= dt; if (G.addonWin.life <= 0) G.addonWin = null; }
+  if (G.champWin){ G.champWin.life -= dt; if (G.champWin.life <= 0) G.champWin = null; }
   if (G.notice){ G.notice.life -= dt; if (G.notice.life <= 0) G.notice = null; }
   if (G.hpGain){ G.hpGain.life -= dt; if (G.hpGain.life <= 0) G.hpGain = null; }
   if (G.hpShow > 0) G.hpShow = Math.max(0, G.hpShow - dt);
@@ -7294,9 +7373,7 @@ function drawWorld(){
       if (row.folk && S.folk && !folkAhead){
         for (i=0;i<row.folk.length;i++){
           var fk = row.folk[i];
-          blit(S.folk[fk.seed % FOLK_N],
-               folkX(fk)*TILE + TILE*0.5 + FOLK_Y*SKEW,
-               sy - FOLK_Y*ROW_H - folkLift(fk));
+          drawOneFolk(fk, sy);
         }
       } else if (folkAhead && S.folk){
         FOLK_FRONT.push({ row:row, sy:sy });
@@ -9004,7 +9081,8 @@ function drawHud(){
      over the road. They used to sit at y=380, in the clear part of the
      playfield, which hid the traffic you were about to cross. A flash
      suppresses the milestone banner rather than stacking on top of it. */
-  if (G.toast && G.toast.a > 0.01 && !G.flash && !G.tamWin && !G.addonWin){
+  if (G.toast && G.toast.a > 0.01 && !G.flash && !G.tamWin && !G.addonWin &&
+      !G.champWin){
     ctx.globalAlpha = G.toast.a;
     var w = 820, x = (LOGICAL_W-w)/2;
     plate(x, MSG_Y, w, 118, "rgba(255,106,19,0.16)");
@@ -9042,7 +9120,30 @@ function drawHud(){
      rule, same ADDED TO PIPELINE on the right - because they are the same
      kind of event and the player should not have to learn a second layout to
      read a number. The TAM outranks it if both land on the same frame. */
-  if (G.addonWin && !G.tamWin){
+  /* The champion. The third of the three money banners, same plate and same
+     rule, in the Endpoint blue because this one is a PERSON rather than a
+     product - and it outranks the add-on for the same reason. */
+  if (G.champWin && !G.tamWin){
+    var CW = G.champWin, cage = CW.max - CW.life;
+    ctx.globalAlpha = Math.max(0, Math.min(1, cage/0.22, CW.life/0.5));
+    var cw2 = 1280, cx3 = (LOGICAL_W - cw2)/2;
+    var cy3 = MSG_Y - 14 - (1 - Math.min(1, cage/0.22)) * 26;
+    plate(cx3, cy3, cw2, 174, "rgba(5,9,18,0.90)", 18);
+    ctx.fillStyle = BLAZER; ctx.fillRect(cx3, cy3, 10, 174);
+    plate(cx3 + 36, cy3 + 30, 104, 50, BLAZER, 10);
+    txt("WHO", cx3 + 88, cy3 + 58, 26, "#eaf1ff");
+    txt("YOUR CHAMPION", cx3 + 172, cy3 + 56, 40, "#9dc0ff", "left", 700);
+    txt("Wants to add 300K of Cloud Insights.",
+        cx3 + 172, cy3 + 104, 26, C.text, "left", 760);
+    txt("YOU WALKED INTO THEM  \u00B7  RENEWAL #" + G.champs,
+        cx3 + 172, cy3 + 142, 20, C.textDim, "left");
+    ctx.fillStyle = "rgba(255,255,255,0.14)";
+    ctx.fillRect(cx3 + cw2 - 332, cy3 + 28, 2, 118);
+    txt("ADDED TO PIPELINE", cx3 + cw2 - 166, cy3 + 56, 20, C.textDim);
+    txt("+" + cash(CHAMP_BONUS), cx3 + cw2 - 166, cy3 + 108, 48, C.good);
+    ctx.globalAlpha = 1;
+  }
+  if (G.addonWin && !G.tamWin && !G.champWin){
     var A = G.addonWin, aage = A.max - A.life;
     ctx.globalAlpha = Math.max(0, Math.min(1, aage/0.22, A.life/0.5));
     var aw2 = 1280, ax = (LOGICAL_W - aw2)/2;
@@ -9060,7 +9161,7 @@ function drawHud(){
     txt("+" + cash(ADDON_BONUS), ax + aw2 - 166, ay + 108, 48, C.good);
     ctx.globalAlpha = 1;
   }
-  if (G.flash && !G.tamWin && !G.addonWin){
+  if (G.flash && !G.tamWin && !G.addonWin && !G.champWin){
     ctx.globalAlpha = Math.min(1, G.flash.life/0.4);
     var fw = 880, fx = (LOGICAL_W-fw)/2;
     plate(fx, MSG_Y, fw, 96, C.ink);
