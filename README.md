@@ -381,9 +381,10 @@ walking: *BGP LEAK SWALLOWS A REGION* (+$150,000), *ZERO-DAY LOOSE IN THE WILD*
 (−$50,000), *CFO ORDERS A SPEND REVIEW* (−$75,000), *RIVAL MISSES ITS NUMBER*
 (+$110,000).
 
-The card is the ticker card's contract: same size, 2.6s, and it **freezes the
-world** while it is up, because at the size it has to be to be readable it
-covers the traffic he is standing next to. Masthead, rule, today's date off the
+The card is 2.6s and it **freezes the world** while it is up, because at the
+size a front page has to be to be readable it covers the traffic he is standing
+next to. The ticker card used to do the same and no longer does — the paper is
+the only pickup left that stops the street. Masthead, rule, today's date off the
 device clock, a photo box, three columns of unreadable grey and a coloured band
 at the foot of it with what the story did to the pipeline. Each stand can only
 be read once; a second visit gets the sad face.
@@ -404,6 +405,16 @@ A TAM and an Add-On Pack used to land the same way a metrocard does: a line of
 text in a bar at the top of the screen. They are the two most valuable things a
 player can pick up and the moment was worth about a fifth of a second of
 attention.
+
+**The two Insights hold half a second longer** than the rest — 1.6s against 1.1.
+They are the ones that change how the street itself behaves rather than handing
+him something, and that takes a beat more to land. Internet Insights also
+carries an **hourglass** above the mark: two bowls meeting at a waist, the sand
+draining from one into the other over the life of the burst with three grains in
+the air between them. It is drawn slowly on purpose — an hourglass running fast
+says the opposite of what that SKU means. It is 78px and centred at y 270,
+because the pickup banner ends at 230 and the eye starts around 311, and
+anything bigger sits on one or the other.
 
 **Everything that is ThousandEyes by name gets it** — the TAM, the Add-On Pack,
 **Endpoint Agents**, **Traffic Insights** and **Internet Insights**, off one
@@ -992,6 +1003,24 @@ travel, but only on a step that *has* a direction the projection can show: a
 sideways one, capped at 2.5px, because the gap between the inside edge of a
 trouser leg and the middle of him is 3.6. Six bands now, so six blits.
 
+**Eating does not move the bar immediately.** It holds at what he had for
+`HP_HOLD` = 0.5s so the player reads the number he was *on* before the food
+lands, then fills to the new one over `HP_FILL` = 0.35s. A bar that jumps while
+the man is still handing over the money never shows you what the meal was worth
+— it shows you the answer and nothing else. The percentage counts with it, or
+the two disagree for a beat. **Damage reads the same way.** Getting hit holds
+the bar at what he had and then empties it to the new number, so the player
+watches the bite come out rather than finding it already gone. Measured on a
+bus: shown 100 through 498ms, then 54, 19, 6, 1 by 833ms.
+
+That one needed a fix in `update` before it worked at all. The hold and the
+fill counted down *below* the hit-stop return — the `G.hurtT > 0.46` guard that
+freezes the world for a beat on impact — so for the first third of a second
+after a hit, which is precisely the window the delay exists for, neither timer
+moved. The bar sat at the old number and then sat there some more. The two
+ticks now run **above** the guard. Before the move: shown 100 at every sample
+out to 960ms.
+
 **A health bar over his head under 25%,** and for three seconds after either
 of the two things that move the number — eating, or getting hit — at any health
 at all, because those are the moments the figure is what you are looking at and
@@ -1436,11 +1465,12 @@ concern wherever he is standing.
 **The man with the knife measures against the drawn position, not the logical
 one**, so the gap he is judging is the gap the player can see.
 
-Collecting Chuck Bucks on the train **does not raise the ticker card**. It takes
-the whole screen and freezes the world behind it, and the ride is already a
-scene — stacking a second one on top threw the player out of the carriage
-mid-stride, which is exactly when the man at the other end is walking towards
-him. The money, the sound and the flash all still land.
+Collecting Chuck Bucks on the train **does not raise the ticker card**. It is
+laid out against the street — it sits high and clear of where the walking
+figure stands, and the carriage puts him somewhere else entirely — and the ride
+is already a scene. Stacking a second one on top threw the player out of the
+carriage mid-stride, which is exactly when the man at the other end is walking
+towards him. The money, the sound and the flash all still land.
 
 ### The carriage
 
@@ -1767,6 +1797,24 @@ have given; metro at 16/30 is still by far the most common pickup. Measured over
 16,000 sampled pickups per arm: 4.47% → 9.26%, a ratio of **2.07** (95% CI
 1.90–2.26).
 
+**The card does not stop the game.** It used to: a 72%-opacity scrim over the
+whole screen and an early return out of `update`, so the street froze, input
+piled up and he came out of it mid-stride. Chuck Bucks is good news, not a
+cutscene. The scrim is gone, the early return is gone, and the world keeps
+moving under it — verified that `G.t` advances 0.4s over 0.4s of wall clock
+with the card up, and the test run took a bus to the face while reading it.
+
+Which means the card has to earn its space instead of taking the screen. It
+sits at **y 110** instead of 176, it is drawn at **0.70** of the size it was
+laid out at, and it is **10% transparent**. The scale is a transform about the
+card's own top edge rather than a re-layout, so every measurement inside it —
+margins, tabs, chart box, tooltip clamp — still holds exactly as written.
+1120×730 from y 176 reached y 906 and buried him; 0.70 from y 110 ends at
+**621**, above his head at ~680, so he and the rows he is about to walk into
+are never behind it at all. A tenth of transparency is enough that the street
+shows through as movement rather than as detail, which is all he needs to know
+something is coming.
+
 Each pickup **rolls its own move, between 0 and 10 percent**, and the whole
 series is scaled to it, so the chart, the axis, the headline and the tooltip
 always agree. `CSCO.session` is the shape of the trading day normalised to a
@@ -1799,9 +1847,15 @@ it reads as a bug.
 twice in two sizes. He is the gag, the card is the caption.
 
 **The timing.** He was up for 1.78 seconds, which is long enough to
-turn your head and look at him, and the whole effect is that you cannot. In at
-0.18s, **held for 1.12**, out in 0.18 — 1.48s end to end — overshooting by six
-percent on the way in and settling back, and leaving faster than he arrived.
+turn your head and look at him, and the whole effect is that you cannot. The
+slide is 0.18s in and 0.18s out, overshooting by six percent on the way in and
+settling back, and leaving faster than he arrived.
+
+**He starts early.** He used to wait until 0.42s, by which point the chart had
+drawn itself in and settled and the card looked finished — so he read as a
+second thing that happened afterwards. He now starts at **0.16s**, while the
+card is still fading up, and is fully in at 0.34. The joke is that he turns up
+uninvited, and that only works if he is already there.
 
 That voice line is the **one recorded sound in the game**, inlined as base64 so
 the file still loads nothing over the network. Everything else is synthesised.

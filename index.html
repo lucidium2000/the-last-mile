@@ -2096,6 +2096,30 @@ var HP_LOW = 25;           // below this the bar starts shouting
 var HP_CRAWL = 5;          // and below this it only costs a point a street
 var HP_WORN  = 25;         // and below this it starts to show on him
 var HP_SHOW  = 3.0;        // how long the bar over his head stays up otherwise
+/* Eating does not move the bar immediately. It holds at what he had for
+   HP_HOLD, so the player reads the number he was ON before the food lands,
+   and then fills to the new one over HP_FILL. A bar that jumps while the
+   man is still handing over the money never shows you what the meal was
+   worth; it shows you the answer and nothing else.
+
+   Damage reads the same way round: the bar holds at what he had, so you see
+   the number the bus took him from, and then it empties. The FIGURE does not
+   wait - the red pulse, the sweat and the stoop all run off G.hp directly -
+   so he reacts and the bar confirms it half a second later, which is the
+   right order for both.
+
+   A second change inside the window starts from what is being SHOWN rather
+   than from G.hp, so two hits in quick succession step down rather than
+   snapping back up to a number he no longer has. */
+var HP_HOLD = 0.5, HP_FILL = 0.35;
+function hpDisplay(){
+  if (G.hpHold > 0) return G.hpFrom;
+  if (G.hpFill > 0){
+    var k = 1 - G.hpFill / HP_FILL;
+    return G.hpFrom + (G.hp - G.hpFrom) * (1 - Math.pow(1 - k, 3));
+  }
+  return G.hp;
+}
 
 /* A fifth less often: it was 0.52, and a run that opens with a TAM is a
    different game from one that does not. */
@@ -2176,6 +2200,13 @@ var CSCO = {
    it is legible inside a second and the last of it was dead air over a
    frozen street. */
 var TICKER_SECS = 2.4;
+/* The card does not own the screen any more. It sits high, it is drawn at
+   TICKER_K of the size it was laid out at, and the whole thing is a quarter
+   transparent so the lane behind it still reads - he is still walking while
+   it is up, and a card he cannot see past is a card that kills him. A tenth
+   is enough: the street shows through as movement rather than as detail,
+   which is all he needs to know something is coming. */
+var TICKER_Y = 110, TICKER_K = 0.70, TICKER_A = 0.90;
 /* The newsstand. He reads the front page, and what is on it moves the
    number - because the thing that actually decides a quarter is almost never
    anything the seller did that week.
@@ -3150,7 +3181,8 @@ function reset(){
     hop:1, facing:1, maxRow:0, camRow:0, street:START_ST,
     stage:-1, coach:-1, toast:null, flash:null,
     shield:false, slowT:0, revealT:0, invulnT:0, powersUsed:0,
-    hp:HP_MAX, hpGain:null, hpShow:0, meals:0, sadT:0, needFood:0, saidFood:false,
+    hp:HP_MAX, hpGain:null, hpShow:0, hpFrom:HP_MAX, hpHold:0, hpFill:0,
+    meals:0, sadT:0, needFood:0, saidFood:false,
     bonusChuck:0, bonusTam:0, bonusAddon:0, bonusFood:0, bonusChamp:0,
     bonusNews:0, news:0, paper:null,
     addons:0, champs:0, addonWin:null, champWin:null,
@@ -3594,6 +3626,7 @@ function act(dir){
       // the only thing in the game that puts health back
       var was = G.hp;
       G.hp = Math.min(HP_MAX, G.hp + foodValue(foodPr.kind));
+      G.hpFrom = hpDisplay(); G.hpHold = HP_HOLD; G.hpFill = HP_FILL;
       G.meals = (G.meals || 0) + 1;
       /* And he pays for it. Three dollars against a seven-figure pipeline is
          not a mechanic, it is a joke that lands because the last three digits
@@ -3978,7 +4011,16 @@ function collect(){
      fires its own inside the booth. A metrocard is a prop and Chuck Bucks is
      a gag; these are the product, and the entire point of the exercise is
      that seeing the product should feel like something. */
-  if (BRAND_SKUS[kind]) brandHit(BRAND_SKUS[kind]);
+  /* The two Insights hold half a second longer than the rest: they are the
+     ones that change how the street itself behaves rather than handing him
+     something, and that takes a beat more to land. Internet Insights also
+     carries the glass, because its effect is a change in the speed of the
+     world and that is worth saying before it happens. */
+  if (BRAND_SKUS[kind]){
+    if (kind === "insight") brandHit(BRAND_SKUS[kind], BRAND_HIT + 0.5, "hourglass");
+    else if (kind === "traffic") brandHit(BRAND_SKUS[kind], BRAND_HIT + 0.5);
+    else brandHit(BRAND_SKUS[kind]);
+  }
   if (kind === "tam") AUDIO.tam();
   else if (kind === "agent") AUDIO.shieldUp();
   else AUDIO.power(kind);
@@ -7221,8 +7263,10 @@ function hitPlayer(kind, pp){
        him and he can carry on - once. The shield still absorbs completely,
        which is what keeps it worth having. */
     var dmg = hazDamage(kind);
+    G.hpFrom = hpDisplay();
     G.hp -= dmg;
     G.hpShow = HP_SHOW;
+    G.hpHold = HP_HOLD; G.hpFill = HP_FILL;
     if (G.hp <= 0){ G.hp = 0; die(kind); return; }
     /* The shake scales with the hit, so a bus and a pedicab do not land the
        same way even before you read the number. */
@@ -7237,14 +7281,16 @@ function hitPlayer(kind, pp){
 function update(dt){
   G.t += dt;
   if (G.scene){ updateScene(dt); if (G.scene) return; }
+  /* The ticker does NOT freeze the world. It is good news, not a cutscene -
+     the street keeps moving under it and he keeps walking, which is why the
+     card sits high and small enough to see the lane in front of him. */
   if (G.ticker){
     G.ticker.t += dt;
     if (G.ticker.t >= TICKER_SECS) G.ticker = null;
-    if (G.ticker) return;
   }
-  /* Same contract as the ticker card: it freezes the world while it is up,
-     because at the size it has to be to be readable it covers the traffic he
-     is standing next to. */
+  /* The paper DOES freeze the world: it is a full front page and at the size
+     it has to be to be readable it covers the traffic he is standing next
+     to. */
   if (G.paper){
     G.paper.t += dt;
     if (G.paper.t >= NEWS_SECS) G.paper = null;
@@ -7396,6 +7442,12 @@ function update(dt){
     G.trainT -= dt;
     if (G.trainT <= 0){ G.trainT = 0; missTrain(); }
   }
+
+  /* The bar's hold and fill run ABOVE the hit-stop, because the whole point
+     of the delay is the half second after the bus and the hit-stop owns the
+     first third of it. Below the return they never counted down at all. */
+  if (G.hpHold > 0) G.hpHold = Math.max(0, G.hpHold - dt);
+  else if (G.hpFill > 0) G.hpFill = Math.max(0, G.hpFill - dt);
 
   // hit-stop - the world holds for a beat on impact
   if (G.hurtT > 0.46){ G.camRow += (pp.row - G.camRow) * Math.min(1, dt*11); return; }
@@ -8879,7 +8931,7 @@ function drawHeadHp(cx, topY){
   var a = Math.max(worn ? Math.min(1, (HP_WORN - G.hp) / 3) : 0,
                    G.hpShow > 0 ? Math.min(1, G.hpShow / 0.5) : 0);
   if (a <= 0.01) return;
-  var k = Math.max(0, Math.min(1, G.hp / HP_MAX));
+  var k = Math.max(0, Math.min(1, hpDisplay() / HP_MAX));
   ctx.globalAlpha = a * (worn ? 0.78 + 0.22 * wornBreath() : 1);
   plate(hx - w/2 - 2, y - 2, w + 4, h + 4, "rgba(6,4,3,0.80)", 3);
   ctx.fillStyle = "rgba(255,255,255,0.14)";
@@ -9354,14 +9406,23 @@ function drawTicker(){
   var axis = [pct, pct * 0.5, 0];
   var LO = -0.16 * pct - 0.3, HI = 1.16 * pct + 0.4;
   var fin = Math.min(1, t / 0.28), fout = Math.min(1, (TICKER_SECS - t) / 0.3);
-  var a = Math.max(0, Math.min(fin, fout));
+  var a = TICKER_A * Math.max(0, Math.min(fin, fout));
   var rise = (1 - fin) * 46;                       // slides up as it fades in
 
-  ctx.globalAlpha = a * 0.72; ctx.fillStyle = "#05060a";
-  ctx.fillRect(0, 0, LOGICAL_W, LOGICAL_H);
+  /* No scrim. Dimming the street said "stop playing", and the game no longer
+     stops - so the card has to earn its space instead of taking the screen. */
   ctx.globalAlpha = a;
 
-  var W = 1120, H = 730, X = (LOGICAL_W - W) / 2, Y = 176 + rise;
+  /* Higher and smaller than it was. Drawn at its old coordinates inside a
+     scale about its own top edge, so every measurement inside it still
+     holds: 1120x730 from y 176 reached y 906 and buried him, where 0.70
+     about y 110 ends at 621 - above his head at ~680, so he and the rows he
+     is about to walk into are never behind it at all. */
+  var W = 1120, H = 730, X = (LOGICAL_W - W) / 2, Y = TICKER_Y + rise;
+  ctx.save();
+  ctx.translate(LOGICAL_W / 2, Y);
+  ctx.scale(TICKER_K, TICKER_K);
+  ctx.translate(-LOGICAL_W / 2, -Y);
   plate(X, Y, W, H, "#131314", 26);
   rr(X, Y, W, H, 26); ctx.strokeStyle = "#35373b"; ctx.lineWidth = 2; ctx.stroke();
 
@@ -9464,6 +9525,7 @@ function drawTicker(){
   // the one line that is ours, not Google's
   gtxt("CHUCK BUCKS  \u00B7  +" + cash(CHUCK_BONUS) + " ON THE NUMBER",
        X + W / 2, Y + H - 34, 26, C.brand, "bold", "center");
+  ctx.restore();
   ctx.globalAlpha = 1;
   drawChuck(t);
 }
@@ -9491,7 +9553,10 @@ if (CHUCK_SRC){
    by six percent on the way in and settles back, which is the snap. Held
    half a second longer than that first pass - long enough to land, still
    short enough that he is gone before you have turned your head. */
-var CHUCK_IN = 0.42, CHUCK_UP = 0.60, CHUCK_OUT = 1.72, CHUCK_GONE = 1.90;
+/* He comes in early. The slide itself is the same 0.18s, it just starts
+   while the chart is still drawing itself in rather than after it has
+   settled - the joke is that he turns up uninvited. */
+var CHUCK_IN = 0.16, CHUCK_UP = 0.34, CHUCK_OUT = 1.72, CHUCK_GONE = 1.90;
 function drawChuck(t){
   if (t < CHUCK_IN || t > CHUCK_GONE) return;
   var k;
@@ -9973,9 +10038,10 @@ function drawShieldBadge(x, y, w, h){
 }
 
 function drawHealth(x, y, w, h){
-  var f = Math.max(0, Math.min(1, G.hp / HP_MAX));
-  var low = G.hp <= HP_LOW;
-  var col = G.hp > 50 ? C.good : (low ? C.danger : C.amber);
+  var shown = hpDisplay();
+  var f = Math.max(0, Math.min(1, shown / HP_MAX));
+  var low = shown <= HP_LOW;
+  var col = shown > 50 ? C.good : (low ? C.danger : C.amber);
   if (low && Math.sin(G.t * 9) < 0) col = C.text;
 
   plate(x, y, w, h, C.ink, 12);
@@ -9990,7 +10056,8 @@ function drawHealth(x, y, w, h){
      down without doing arithmetic mid-crossing. */
   ctx.fillStyle = "rgba(10,6,4,0.55)";
   for (var m = 1; m < 4; m++) ctx.fillRect(bx + bw * (m / 4) - 1, by, 2, bh);
-  txt(Math.round(G.hp) + "%", x + w - 22, y + 41, 30, col, "right");
+  // the number counts with the bar, or the two of them disagree for a beat
+  txt(Math.round(shown) + "%", x + w - 22, y + 41, 30, col, "right");
 
   // what the last meal was worth, floating off the bar
   if (G.hpGain){
@@ -10280,9 +10347,54 @@ function drawMoneyRise(){
   ctx.globalAlpha = 1;
 }
 
-function brandHit(what){
-  G.brand = { life:BRAND_HIT, max:BRAND_HIT, what:what, col:C.brand };
+function brandHit(what, secs, icon){
+  var len = secs || BRAND_HIT;
+  G.brand = { life:len, max:len, what:what, col:C.brand, icon:icon || null };
   AUDIO.chaChing();
+}
+
+/* An hourglass, for the one SKU whose whole effect is that the world slows
+   down. Two bowls meeting at a waist, a frame top and bottom, the sand
+   draining from one into the other and three grains in the air between them
+   - and it is drawn SLOWLY, a full drain over the life of the burst, because
+   an hourglass running fast says the opposite of what this one means. */
+function drawHourglass(cx, cy, h, k){
+  var w = h * 0.58, hw = w / 2, hh = h / 2, waist = h * 0.055;
+  var glass = "#2a1a0c", sand = "#ffd9a0";
+  ctx.fillStyle = C.brand;
+  ctx.fillRect(cx - hw - 6, cy - hh - 10, w + 12, 11);     // the caps
+  ctx.fillRect(cx - hw - 6, cy + hh - 1, w + 12, 11);
+  // the two bowls
+  ctx.fillStyle = glass;
+  ctx.beginPath();
+  ctx.moveTo(cx - hw, cy - hh); ctx.lineTo(cx + hw, cy - hh);
+  ctx.lineTo(cx + waist, cy); ctx.lineTo(cx - waist, cy);
+  ctx.closePath(); ctx.fill();
+  ctx.beginPath();
+  ctx.moveTo(cx - waist, cy); ctx.lineTo(cx + waist, cy);
+  ctx.lineTo(cx + hw, cy + hh); ctx.lineTo(cx - hw, cy + hh);
+  ctx.closePath(); ctx.fill();
+  // the sand left in the top, falling to the level of what has run out
+  var top = Math.max(0, 1 - k);
+  ctx.fillStyle = sand;
+  var ty = cy - hh * top, tw = waist + (hw - waist) * top;
+  ctx.beginPath();
+  ctx.moveTo(cx - tw, ty); ctx.lineTo(cx + tw, ty);
+  ctx.lineTo(cx + waist, cy); ctx.lineTo(cx - waist, cy);
+  ctx.closePath(); ctx.fill();
+  // and the heap in the bottom
+  var bh = hh * k * 0.82, bw2 = waist + (hw - waist) * Math.min(1, k * 1.2);
+  ctx.beginPath();
+  ctx.moveTo(cx - bw2, cy + hh); ctx.lineTo(cx + bw2, cy + hh);
+  ctx.lineTo(cx + waist * 0.6, cy + hh - bh); ctx.lineTo(cx - waist * 0.6, cy + hh - bh);
+  ctx.closePath(); ctx.fill();
+  // three grains in the air
+  if (k > 0.02 && k < 0.98){
+    for (var g = 0; g < 3; g++){
+      var gp = ((G.t * 1.1) + g / 3) % 1;
+      ctx.fillRect(cx - 2, cy + 4 + gp * (hh - bh - 8), 4, 7);
+    }
+  }
 }
 function drawBrandHit(){
   var B = G.brand;
@@ -10313,6 +10425,15 @@ function drawBrandHit(){
      celebration that hides the traffic is a celebration that kills you. */
   ctx.globalAlpha = out * 0.86;
   drawEye(cx, cy, 74 + e * 70, B.col, "#2a1400", "#ffffff");
+
+  if (B.icon === "hourglass"){
+    /* In the gap between the pickup banner and the mark. The flash bar ends
+       at MSG_Y + 96 = 230 and the eye starts around 311, so the glass is 78
+       tall and centred at 270 - any bigger and it sits on one or the other. */
+    ctx.globalAlpha = out * Math.min(1, k * 3);
+    drawHourglass(cx, cy - 113 - (1 - e) * 18, 78, Math.min(1, k * 1.15));
+    ctx.globalAlpha = 1;
+  }
 
   ctx.globalAlpha = out * Math.min(1, k * 5);
   txt("THOUSANDEYES", cx, cy + 232 + (1 - e) * 26, 62, "#ffffff");
