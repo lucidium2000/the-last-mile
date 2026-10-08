@@ -2760,7 +2760,7 @@ function reset(){
     stage:-1, coach:-1, toast:null, flash:null,
     shield:false, slowT:0, revealT:0, invulnT:0, powersUsed:0,
     hp:HP_MAX, hpGain:null, meals:0, sadT:0, needFood:0, saidFood:false,
-    bonusChuck:0, bonusTam:0, tally:null, booth:null,
+    bonusChuck:0, bonusTam:0, tally:null, booth:null, deathPush:0,
     flyT:0, flyA:0, flyBeep:0, tam:false, tamT:0, tamWins:0, tamWin:null, hurtT:0, nahT:0,
     yumT:0, yumKind:null, yumDir:0, yumBite:0, wowT:0, cheerT:0,
     metro:0, ride:null, trace:null, rides:0, bonus:0, tamLeft:0, riskT:0,
@@ -3659,6 +3659,7 @@ function die(kind){
 /* Not hit by anything - just out of road. The one death with no hazard
    attached, so it gets its own copy rather than a hazard's objection pair. */
 function dieTired(){
+  G.deathPush = 0;                 // nothing threw him; he just stopped
   AUDIO.die();
   G.state = ST_DEAD; G.deadFor = 0; G.shake = 14;
   G.deathName = "EXHAUSTION";
@@ -3669,6 +3670,7 @@ function dieTired(){
   saveBest(pipeline()); endRun();
 }
 function missTrain(){
+  G.deathPush = 0;
   AUDIO.missedTrain();
   G.state = ST_DEAD; G.deadFor = 0; G.shake = 10; G.missedTrain = true;
   G.deathName = "THE " + pad2(G.trainHH % 12 || 12) + ":" + pad2(G.trainMM);
@@ -5662,25 +5664,43 @@ function update(dt){
     var crow = rows[cr];
     if (crow && (crow.type === "road" || crow.type === "sweep")){
       var p0 = pp.col+0.14, p1 = pp.col+0.86, hitKind = null;
+      /* Which way the thing that got him was travelling, so he can be thrown
+         the way he was actually hit rather than the way he happened to be
+         facing. Lanes carry their own direction, and a trace can have turned
+         one round. */
+      var push = 0;
       for (i=0;i<crow.cars.length;i++){
         // a car far enough off the lane centre has gone round him, not through
         if (Math.abs(crow.cars[i].sw || 0) >= SWERVE_CLEAR) continue;
         var cx = carX(crow, crow.cars[i]);
-        if (cx < p1 && cx + (crow.eff || HAZ[crow.kind].w) > p0){ hitKind = crow.kind; break; }
+        if (cx < p1 && cx + (crow.eff || HAZ[crow.kind].w) > p0){
+          hitKind = crow.kind;
+          push = (crow.dir * (crow.rv || 1)) > 0 ? 1 : -1;
+          break;
+        }
       }
       if (!hitKind && crow.parked){
         for (i=0;i<crow.parked.length;i++){
           var px0 = crow.parked[i].col;
-          if (px0 < p1 && px0 + HAZ.boxtruck.w > p0){ hitKind = "boxtruck"; break; }
+          if (px0 < p1 && px0 + HAZ.boxtruck.w > p0){
+            hitKind = "boxtruck";
+            /* Nothing hit him - he walked into a parked truck - so he goes
+               over backwards, away from the way he was going. */
+            push = G.facing > 0 ? -1 : 1;
+            break;
+          }
         }
       }
       if (!hitKind && crow.rogue){
         var rx = rogueX(crow);
-        if (rx < p1 && rx + HAZ.ebike.w > p0) hitKind = "ebike";
+        if (rx < p1 && rx + HAZ.ebike.w > p0){
+          hitKind = "ebike";
+          push = crow.dir > 0 ? -1 : 1;     // the wrong-way bike, by definition
+        }
       }
       // the traced route is genuine safe passage, not a hint
       if (hitKind && G.revealT > 0 && onTrace(cr, G.col)) hitKind = null;
-      if (hitKind) hitPlayer(hitKind, pp);
+      if (hitKind){ G.deathPush = push; hitPlayer(hitKind, pp); }
     }
   }
 
@@ -6705,11 +6725,15 @@ return TINT_CV;
    round his middle. */
 function deathTilt(){
   if (G.state !== ST_DEAD) return 0;
+  /* Thrown the way the thing that hit him was going. Only a death with no
+     hazard behind it - running out of road, or missing the train - falls back
+     on the way he was facing, because there is nothing else to go on. */
+  var dir = G.deathPush || (G.facing > 0 ? 1 : -1);
   var t = G.deadFor;
-  if (t < 0.09) return -0.14 * (t / 0.09) * (G.facing > 0 ? 1 : -1);  // the jolt
+  if (t < 0.09) return -0.14 * (t / 0.09) * dir;        // the jolt, against it
   var k = Math.max(0, Math.min(1, (t - 0.09) / 0.46));
   var e = 1 - Math.pow(1 - k, 2.4);
-  return (e * Math.PI * 0.5 - 0.14 * (1 - e)) * (G.facing > 0 ? 1 : -1);
+  return (e * Math.PI * 0.5 - 0.14 * (1 - e)) * dir;
 }
 
 function drawPlayer(pp){

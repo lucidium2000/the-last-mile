@@ -868,6 +868,16 @@ the point under his feet, so he swings round his heels rather than round his
 middle. Sampled off the live canvas: 0.00s 0°, 0.08s −7° (the jolt), 0.20s 39°,
 0.34s 75°, 0.50s flat.
 
+**He falls the way he was hit**, not the way he was facing. The collision
+records the direction the thing that got him was travelling — which a path
+trace can have reversed, so it reads `dir * rv` rather than `dir`. Two
+exceptions: the parked box truck throws him *backwards*, because nothing hit
+him, he walked into it; and the wrong-way bike throws him against its lane, by
+definition. A death with no hazard behind it — exhaustion, or missing the train
+— clears the push and falls back on the facing, and clears it explicitly so it
+cannot inherit the last collision's. Checked both lane directions, both
+facings, and that running out of road comes out with no push at all.
+
 **The death gets its own moment first.** The end screen used to drop over the
 top of the frame he died on, so the one thing the player most wants to see —
 what actually got him — was covered before he could see it. The world keeps
