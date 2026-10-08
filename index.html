@@ -3988,7 +3988,7 @@ function startRide(enterRow, enterCol){
              shadyX:shady, knife:0, knifeSide:0, ko:0, koT:0, swing:0, brace:0,
              robbed:0, clack:0,
              hostile: Math.random() < SHADY_HOSTILE,
-             tell:0, look:0, lurch:0,
+             tell:0, look:0, lurch:0, eyes:0,
              pause: 1 + Math.random() * 2 };
   G.col = enterCol; G.fromCol = enterCol;
   G.row = enterRow; G.fromRow = enterRow; G.hop = 1;
@@ -4018,6 +4018,11 @@ var SHADY_SPEED = 0.52;    // slots a second, when he means it
 var SHADY_HOSTILE = 0.10;
 var SHADY_CREEP = 0.13;    // slots a second when he is only being odd about it
 var SHADY_KEEP  = 1.35;    // and he never comes closer than this
+/* The red eyes: how long one showing lasts, how much of that is the fade
+   up, and how often one starts. 0.09 a second against a run phase of 5.4
+   works out at a bit over a third of rides - often enough that it is a
+   thing the game does, rare enough that it is never a cue. */
+var EYES_SECS = 2.0, EYES_UP = 0.35, EYES_RATE = 0.09;
 var KNIFE_NEAR  = 0.95;    // how close before the blade comes out
 var KNIFE_GRACE = 1.70;    // how long you have to do something about it
 var SWING_REACH = 1.30;    // how far the briefcase carries
@@ -4137,6 +4142,10 @@ function updateShady(dt){
   if (R.swing > 0) R.swing = Math.max(0, R.swing - dt);
   if (R.brace > 0) R.brace = Math.max(0, R.brace - dt);
   if (R.ko){ R.koT += dt; return; }
+
+  // the red eyes, which are not a tell and are not connected to anything
+  if (R.eyes > 0) R.eyes = Math.max(0, R.eyes - dt);
+  else if (Math.random() < EYES_RATE * dt) R.eyes = EYES_SECS;
 
   /* The nine-in-ten version: he drifts up the car and stops a yard and a half
      short, with long pauses in between. Nothing happens. That is the whole
@@ -4354,7 +4363,7 @@ function hoodFit(){
   var scl = hh / 153;
   return { scl:scl, dy:(78 + hh) - 223 * scl };
 }
-function drawHoodie(mx, cy, scl, alert, look){
+function drawHoodie(mx, cy, scl, alert, look, red){
   function R2(x, y, w, h, col){
     ctx.fillStyle = col;
     ctx.fillRect(mx + x * scl, cy + y * scl, w * scl, h * scl);
@@ -4416,6 +4425,29 @@ function drawHoodie(mx, cy, scl, alert, look){
     ctx.globalAlpha = 1;
   }
 
+  /* And now and then, nothing to do with the knife and nothing to do with
+     whether he is coming: two red points come up inside the hood, hold, and
+     go out again. They never mean anything. They are not supposed to - the
+     whole man is a question the game refuses to answer, and this is the
+     part of him that cannot be read as a tell at all.
+
+     A soft disc behind each one first, because a flat rect in a black
+     opening reads as a sticker; two sizes of the same colour reads as
+     something lit. */
+  if (red > 0.01){
+    var ey = cy + 95 * scl;
+    ctx.globalAlpha = red * 0.22; ctx.fillStyle = "#ff2a2a";
+    ctx.beginPath(); ctx.arc(mx + lk - 6.5*scl, ey + 2*scl, 7.5*scl, 0, Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.arc(mx + lk + 6.5*scl, ey + 2*scl, 7.5*scl, 0, Math.PI*2); ctx.fill();
+    ctx.globalAlpha = red * 0.92; ctx.fillStyle = "#ff4040";
+    ctx.fillRect(mx + lk - 10 * scl, ey, 6 * scl, 4 * scl);
+    ctx.fillRect(mx + lk +  4 * scl, ey, 6 * scl, 4 * scl);
+    ctx.globalAlpha = red; ctx.fillStyle = "#ffb0a4";
+    ctx.fillRect(mx + lk - 9 * scl, ey + 1 * scl, 2 * scl, 2 * scl);
+    ctx.fillRect(mx + lk +  5 * scl, ey + 1 * scl, 2 * scl, 2 * scl);
+    ctx.globalAlpha = 1;
+  }
+
   // drawstrings
   R2(-9, 118, 2, 16, "#cfd6dd");
   R2(7,  118, 2, 13, "#cfd6dd");
@@ -4446,7 +4478,7 @@ function drawShady(cx0, cw, cy){
     ctx.rotate(ease * Math.PI * 0.5 * away);
     ctx.translate(0, -(196 + (1 - ease) * 6) * K);
     ctx.globalAlpha = 1;
-    drawHoodie(0, 0, K, false, 0);
+    drawHoodie(0, 0, K, false, 0, 0);
     ctx.restore();
 
     if (land > 0){
@@ -4480,7 +4512,14 @@ function drawShady(cx0, cw, cy){
      happen. The look is how far the opening has turned toward him. */
   var alert = R.knife > 0 ? 1 : ((R.tell || 0) > 0 ? 2 : 0);
   var look = (R.look || 0) * (rideManX(R) > R.shadyX ? 1 : -1);
-  drawHoodie(mx + sw, cy + F.dy, K, alert, look);
+  /* Up over EYES_UP and back down over the rest of it, so they arrive and
+     leave rather than switching on. */
+  var red = 0;
+  if ((R.eyes || 0) > 0){
+    var ep = 1 - R.eyes / EYES_SECS;
+    red = ep < EYES_UP ? ep / EYES_UP : Math.max(0, (1 - ep) / (1 - EYES_UP));
+  }
+  drawHoodie(mx + sw, cy + F.dy, K, alert, look, red);
 
   /* A hand coming out of the pocket with something in it - and then not.
      It is the same metal as the blade and it lasts under a second. */

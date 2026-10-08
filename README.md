@@ -911,6 +911,14 @@ know that.
   menace standing still. A head that snapped round would be a jump scare, and
   this is supposed to be worse than that.
 
+- and, now and then, **red eyes**. Two points come up inside the hood over
+  0.7s, hold, and go out again over 1.3s, with a soft disc behind each one
+  because a flat rect in a black opening reads as a sticker. They start at
+  0.09 a second against a run phase of 5.4, so a bit over a third of rides
+  get one. They never mean anything, and that is deliberate: the whole man is
+  a question the game refuses to answer, and this is the part of him that
+  cannot be read as a tell at all.
+
 **The other people in the car were two rectangles and a head**, which at this
 size read as furniture — and a hooded man standing among furniture has nobody
 to be a stranger among. One rider per slot now rather than two, at the hero's
