@@ -1315,6 +1315,16 @@ between two of them is the aisle. And two of them next to each other exchange
 four words every three to six seconds, the reply three quarters of a second
 after the opener, the same beat the pavement uses.
 
+**On the train they talk about the train.** The pavement's lines are about the
+pavement — *"I'm walkin' here"* means nothing to somebody holding a pole — so
+the carriage has its own set: *"Signal problems. Again."*, *"Express is runnin'
+local today."*, *"Don't miss your stop."*, *"Hold the pole, not me."* Fourteen of
+those, eight brush-offs for the bump (*"There is a whole car, pal."*, *"That is
+my foot."*), and three rare ones at **one in eight** — *"It smells like pee in
+here."* A joke you hear every ride is not a joke, it is the smell. The
+low-health pool still overrides both, because somebody grey in the face gets
+concern wherever he is standing.
+
 **The man with the knife measures against the drawn position, not the logical
 one**, so the gap he is judging is the gap the player can see.
 

@@ -4501,7 +4501,9 @@ function rideAct(dir){
     if (px2 && !px2.used){
       px2.used = true;
       px2.sayAt = R.t;
-      px2.line = FOLK_LINES[(Math.random()*FOLK_LINES.length)|0];
+      px2.line = G.hp <= HP_WORN
+               ? FOLK_LINES_LOW[(Math.random()*FOLK_LINES_LOW.length)|0]
+               : TRAIN_BUMP[(Math.random()*TRAIN_BUMP.length)|0];
       AUDIO.jostle(); AUDIO.mutter(px2.seed);
       return;
     }
@@ -4697,10 +4699,8 @@ function updateRide(dt){
       var b0 = a0 + (Math.random() < 0.5 ? -1 : 1);
       var pa = carPaxAt(R, a0), pb = carPaxAt(R, b0);
       if (pa && pb && a0 !== R.slot && b0 !== R.slot){
-        pa.sayAt = R.t;
-        pa.line = FOLK_CHAT[(Math.random()*FOLK_CHAT.length)|0];
-        pb.sayAt = R.t + 0.75;
-        pb.line = FOLK_CHAT[(Math.random()*FOLK_CHAT.length)|0];
+        pa.sayAt = R.t; pa.line = trainChat();
+        pb.sayAt = R.t + 0.75; pb.line = trainChat();
       }
     }
   }
@@ -5331,6 +5331,49 @@ var FOLK_CHAT = [
   "Did you see that game?", "Tell your mother I said hi.",
   "Same time Thursday?", "Running late, running late."
 ];
+/* On the train they talk about the train. The pavement's lines are about
+   the pavement - "I'm walkin' here" means nothing to somebody holding a
+   pole - so the carriage gets its own set, and one of them is the thing
+   everybody thinks and nobody says. That one is rare on purpose: a joke you
+   hear every ride is not a joke, it is the smell. */
+var TRAIN_CHAT = [
+  "Can you believe this train?",
+  "Twenty minutes on that platform.",
+  "Don't miss your stop.",
+  "This is the local, right?",
+  "Express is runnin' local today.",
+  "Signal problems. Again.",
+  "They never announce anything.",
+  "Is this goin' uptown?",
+  "Next stop is mine.",
+  "Move in, there's room.",
+  "Hold the pole, not me.",
+  "You got service down here?",
+  "I used to take the bus.",
+  "Thirty-four was a zoo."
+];
+var TRAIN_CHAT_RARE = [
+  "It smells like pee in here.",
+  "Somebody is eating fish.",
+  "Do not sit on that seat."
+];
+var TRAIN_BUMP = [
+  "Hey. Watch the shoes.",
+  "There is a whole car, pal.",
+  "Move down, move down.",
+  "You gettin' off or not?",
+  "Sir.",
+  "Easy, easy.",
+  "That is my foot.",
+  "Plenty of room that way."
+];
+/* One in eight is the rare one. */
+function trainChat(){
+  if (Math.random() < 0.125)
+    return TRAIN_CHAT_RARE[(Math.random()*TRAIN_CHAT_RARE.length)|0];
+  return TRAIN_CHAT[(Math.random()*TRAIN_CHAT.length)|0];
+}
+
 var FOLK_ORDER = [
   "Two slices.", "Everything bagel, toasted.", "One with mustard.",
   "Coffee, light and sweet.", "Make it two.", "Keep the change."
