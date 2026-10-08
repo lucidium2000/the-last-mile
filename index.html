@@ -9295,16 +9295,25 @@ function drawChuck(t){
   }
   k = Math.max(0, Math.min(1.06, k));
 
-  var w = 334, h = 325, x = LOGICAL_W - w - 26;   // 455:443, the photo's aspect
-  /* He rises from a line 84px up, not from the very bottom: the full-screen
-     control lives in that corner and was cutting across his collar. */
-  var base = LOGICAL_H - 84, y = base - h * k;
+  /* Matched to the reference frame rather than to a guess. He comes IN FROM
+     THE RIGHT, he is BIG - most of the bottom corner - and the screen edges
+     crop him: the bottom third of the picture is below the bottom of the
+     canvas and he is flush to the right edge once he arrives. Nobody in
+     Mortal Kombat is standing in a tidy bordered box in the corner; the
+     frame is the screen.
+
+     The edge of the photograph still gets a hairline and a shadow, because
+     the asset is a rectangular halftone rather than a cut-out and a hard
+     rectangle with nothing on it reads as a bug. */
+  var w = 452, h = 440;                           // 455:443, the photo's aspect
+  var x = LOGICAL_W - w * k;
+  var y = LOGICAL_H - h + 118;                    // cropped by the bottom
 
   ctx.save();
-  ctx.beginPath(); ctx.rect(x - 14, 0, w + 28, base); ctx.clip();
-  ctx.fillStyle = "rgba(0,0,0,0.5)"; ctx.fillRect(x + 8, y + 10, w, h);
-  ctx.fillStyle = "#0d0b10";          ctx.fillRect(x - 10, y - 10, w + 20, h + 20);
-  ctx.fillStyle = C.brand;            ctx.fillRect(x - 10, y - 10, w + 20, 8);
+  ctx.beginPath(); ctx.rect(0, 0, LOGICAL_W, LOGICAL_H); ctx.clip();
+  ctx.fillStyle = "rgba(0,0,0,0.45)"; ctx.fillRect(x - 12, y + 10, w, h);
+  ctx.fillStyle = "#0d0b10";          ctx.fillRect(x - 6, y - 6, w + 12, h + 12);
+  ctx.fillStyle = C.brand;            ctx.fillRect(x - 6, y - 6, w + 12, 7);
 
   if (CHUCK_IMG && CHUCK_IMG.complete && CHUCK_IMG.naturalWidth > 0){
     ctx.drawImage(CHUCK_IMG, x, y, w, h);
@@ -9330,7 +9339,7 @@ function drawChuck(t){
      him, leaning, with its own shadow so it reads over the card behind it. */
   ctx.save();
   ctx.globalAlpha = Math.min(1, k * 1.8);
-  ctx.translate(x - 18, y + 108);
+  ctx.translate(x - 22, y + 150);
   ctx.rotate(-0.075);
   ctx.font = 'bold 58px "Helvetica Neue",Helvetica,Arial,sans-serif';
   ctx.textAlign = "right"; ctx.textBaseline = "alphabetic";

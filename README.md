@@ -1726,7 +1726,17 @@ Mortal Kombat *Toasty* beat, which only works if it is fast, in the corner, and
 gone before you can look straight at it. It runs over the ticker card, with the
 voice line.
 
-**It was not fast enough.** He was up for 1.78 seconds, which is long enough to
+**He comes in from the right, and the screen crops him.** He used to rise out
+of the floor inside a tidy bordered box floating 84px above the bottom edge.
+Checked against the reference frame: Dan Forden slides in from the right, he is
+*big* — most of the bottom corner — and the screen edges cut him off, bottom and
+right. So does this one: 452px wide, the bottom 118 of him below the canvas, and
+he arrives from off the right edge rather than from under the floor. The
+hairline and the shadow stay on the picture's edge because the asset is a
+rectangular halftone rather than a cut-out, and a hard rectangle with nothing on
+it reads as a bug.
+
+**It was not fast enough either.** He was up for 1.78 seconds, which is long enough to
 turn your head and look at him, and the whole effect is that you cannot. In at
 0.18s, held for 0.62, out in 0.18 — **under a second end to end** — overshooting
 the resting line by six percent on the way up and settling back, and dropping
