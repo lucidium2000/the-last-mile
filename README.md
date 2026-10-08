@@ -48,6 +48,48 @@ would eat playable columns.
 
 Parameters combine, e.g. `?safe=1&mute=1`.
 
+## The audio graph, and why a panel died and a laptop did not
+
+Every cue built an oscillator (or a noise source), a gain and usually a filter,
+wired them to the master gain, and walked away. Chromium releases a *source*
+node once it has finished — but the gain and the filter behind it are still
+connected to the destination, so they stay reachable, stay in the graph, and
+get pulled by the audio thread every 128-sample quantum for the rest of the
+page's life.
+
+A round creates about **2,900 nodes**, of which roughly 2,000 are gains and
+filters that never leave. Measured over five rounds, counting nodes still wired
+to the graph:
+
+| | before | after |
+|---|---|---|
+| after round 1 | 1,725 | 217 |
+| after round 2 | 3,355 | 214 |
+| after round 3 | 4,848 | 214 |
+| after round 4 | 6,606 | 220 |
+| after round 5 | 8,275 | 214 |
+| settled | **8,278** | **111** |
+
+Ten thousand live nodes summed 375 times a second is something a laptop shrugs
+off and a room panel does not — which is exactly why this only ever showed up
+on the Desk Pro. Every chain is now torn down on its source's `onended`, with a
+sweeper for the cue that was in flight when the context got suspended (somebody
+taking a call) and never came back to say so, plus a hard ceiling of 400 live
+chains so the graph cannot grow without bound even if `onended` never fires.
+
+**Re-bakes are debounced.** `resize` fires in bursts — a panel raising its own
+UI can send a dozen in a second — and `layout()` re-bakes all 96 sprites
+whenever the scale moves far enough, which at 1:1 is **13.5 MB of canvas
+allocated and discarded per burst**. The view still follows immediately; only
+the re-bake waits 180ms for the resizing to stop.
+
+**Sprite memory is up.** 96 baked canvases come to **13.46 MB at 1:1**, against
+the ~6 MB this file used to claim — the nine bus liveries alone are 3.77 MB,
+and the faces, trees, parcel van and pedicab account for most of the rest. It
+is not what was crashing the panel, but it is worth knowing: the liveries could
+be cut to one bus body plus nine small sign strips composited at draw time,
+which would give back about 3.5 MB.
+
 ## RoomOS notes
 
 - Must be served over HTTPS with a valid certificate. RoomOS will not load a
@@ -527,6 +569,23 @@ centre of that row is the one piece of furniture-free space on the board. It is
 ticked every 25%, one meal a tick, so you can read how many lunches you are down
 without doing arithmetic mid-crossing. Amber below half, red below 25%, and it
 flashes.
+
+### Running on empty
+
+Below **20% health** it starts to show on him, and it gets worse the lower he
+goes, so the state is readable without looking away from the road to check the
+bar:
+
+- **The face** — a fourth baked expression. Eyes half shut, flat heavy brows,
+  mouth open to breathe, and colour in the cheeks that has nothing to do with
+  being pleased about anything.
+- **Sweat** — beads that hang at the brow, swell, flick off and fall, each on
+  its own cycle so they never drip in step. Two at 20%, four near zero.
+- **Breath**, on the side he is facing.
+- **Heat** coming off him, below about 11%.
+
+It is the lowest-priority face: a reaction to something in front of him beats
+the state he is in, and eating is what fixes it anyway.
 
 ### His face
 

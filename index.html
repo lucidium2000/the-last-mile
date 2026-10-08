@@ -235,6 +235,53 @@ var AUDIO = (function(){
     } catch (e){}
   }
 
+  /* ------------------------------------------------------- THE REAPER ---
+     Every cue built an oscillator (or a noise source), a gain and often a
+     filter, wired them to the master gain, and walked away. Chromium releases
+     a SOURCE node once it has finished, but the gain and the filter behind it
+     are still connected to the destination, so they stay reachable, stay in
+     the graph, and get pulled by the audio thread every 128-sample quantum
+     for the rest of the page's life.
+
+     A round of this game creates about 2,900 nodes, of which roughly 2,000
+     are gains and filters that never left. Five rounds is ten thousand live
+     nodes being summed 375 times a second. A desktop browser has the headroom
+     to shrug that off for a long time. A room panel does not: it was running
+     out of audio-thread budget and taking the page with it.
+
+     So every chain is now torn down when its source ends, and a sweeper
+     catches anything whose `onended` never arrived - a context suspended
+     mid-cue, which is exactly what happens when somebody takes a call. */
+  var LIVE_CHAINS = [];
+  function reap(src, nodes, endsAt){
+    var done = false;
+    function cut(){
+      if (done) return;
+      done = true;
+      try { src.disconnect(); } catch (e){}
+      for (var i = 0; i < nodes.length; i++){
+        try { nodes[i].disconnect(); } catch (e){}
+      }
+    }
+    src.onended = cut;
+    LIVE_CHAINS.push({ at:endsAt, cut:cut, isDone:function(){ return done; } });
+    /* Hard ceiling. If something ever stops firing onended entirely, this is
+       what keeps the graph from growing without bound: the oldest chains are
+       cut on the spot rather than waiting for a sweep. */
+    while (LIVE_CHAINS.length > 400) LIVE_CHAINS.shift().cut();
+  }
+  function sweepAudio(){
+    if (!ac || !LIVE_CHAINS.length) return;
+    var now = ac.currentTime, keep = [], i;
+    for (i = 0; i < LIVE_CHAINS.length; i++){
+      var c = LIVE_CHAINS[i];
+      if (c.isDone()) continue;
+      if (now > c.at + 0.5) c.cut();
+      else keep.push(c);
+    }
+    LIVE_CHAINS = keep;
+  }
+
   function live(){
     if (!avail || muted || !ac) return false;
     if (ac.state === "closed") return false;
@@ -253,12 +300,15 @@ var AUDIO = (function(){
       g.gain.exponentialRampToValueAtTime(o.g || 0.25, t + Math.min(0.02, dur * 0.3));
       g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
       osc.connect(g);
+      var tail = [g];
       if (o.lp){
         var f = ac.createBiquadFilter();
         f.type = "lowpass"; f.frequency.value = o.lp;
         g.connect(f); f.connect(master);
+        tail.push(f);
       } else g.connect(master);
       osc.start(t); osc.stop(t + dur + 0.02);
+      reap(osc, tail, t + dur + 0.02);
     } catch (e){}
   }
   function hit(o){
@@ -274,6 +324,7 @@ var AUDIO = (function(){
       g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
       src.connect(f); f.connect(g); g.connect(master);
       src.start(t); src.stop(t + dur + 0.02);
+      reap(src, [f, g], t + dur + 0.02);
     } catch (e){}
   }
   function arp(notes, type, gain, lp){
@@ -290,6 +341,11 @@ var AUDIO = (function(){
 
   return {
     unlock: function(){ ensure(); if (ac && ac.state === "suspended"){ try { ac.resume(); } catch (e){} } },
+    /* Called from the frame loop a couple of times a second. The onended
+       handlers do almost all of this; the sweep is for the cue that was in
+       flight when the context got suspended and never came back to say so. */
+    sweep: sweepAudio,
+    liveNodes: function(){ return LIVE_CHAINS.length; },
     suspend: function(){ if (ac && ac.state === "running"){ try { ac.suspend(); } catch (e){} } },
     available: function(){ return avail; },
     isMuted: function(){ return muted; },
@@ -760,7 +816,12 @@ function layout(){
   tamBeamGrad.addColorStop(1,    "rgba(255,170,60,0)");
 
   var nb = Math.max(0.5, Math.min(1, scale));
-  if (!ready || Math.abs(nb - BAKE) > 0.02){ BAKE = nb; if (ready) bakeAll(); }
+  /* Mid-burst, take the new scale but hold the re-bake. The settled call that
+     follows does it once. */
+  if (!ready || Math.abs(nb - BAKE) > 0.02){
+    BAKE = nb;
+    if (ready && !reflowT) bakeAll();
+  }
 }
 /* ------------------------------------------------------------ full screen */
 var fsBtn = document.getElementById("fs");
@@ -803,8 +864,19 @@ if (fsCan()){
   document.addEventListener("msfullscreenchange", fsSync);
 }
 
-window.addEventListener("resize", layout);
-window.addEventListener("orientationchange", layout);
+/* Resize fires in bursts - a panel bringing up its own UI can send a dozen in
+   a second - and layout() re-bakes all 96 sprites whenever the scale moves far
+   enough. At 1:1 that is thirteen megabytes of canvas allocated and thrown
+   away per burst. The view still follows immediately; only the re-bake waits
+   for the resizing to stop. */
+var reflowT = null;
+function onReflow(){
+  layout();
+  if (reflowT) clearTimeout(reflowT);
+  reflowT = setTimeout(function(){ reflowT = null; layout(); }, 180);
+}
+window.addEventListener("resize", onReflow);
+window.addEventListener("orientationchange", onReflow);
 
 /* ------------------------------------------------------- voxel draw kernel */
 function proj(x, y, z){ return [ x * TILE + y * SKEW, -(y * ROW_H) - z * ZH ]; }
@@ -1455,7 +1527,7 @@ var MODELS = {
 /* `shielded` is the Endpoint Agent look: blue blazer and sunglasses. Only the
    jacket, shoulders, sleeves and lapels change colour - the trousers stay dark,
    the way a blazer actually differs from the rest of a suit. */
-var FACE_SMILE = 1, FACE_CHEW = 2, FACE_SAD = 3;
+var FACE_SMILE = 1, FACE_CHEW = 2, FACE_SAD = 3, FACE_WORN = 4;
 function playerModel(dir, shielded, face){
   var skin = "#e9b98c";
   var suit = shielded ? BLAZER : "#232f44";
@@ -1511,8 +1583,16 @@ function playerModel(dir, shielded, face){
   if (face){
     if (!shielded){
       var eyeZ = face === FACE_SAD ? 0.738 : 0.742;
-      dec.push({ x:0.420, y:0.43, w:0.030, z:eyeZ, h:0.024, bg:"#241a12" });
-      dec.push({ x:0.552, y:0.43, w:0.030, z:eyeZ, h:0.024, bg:"#241a12" });
+      if (face === FACE_WORN){
+        // half shut: wider and flatter, sitting low, under a heavy brow
+        dec.push({ x:0.414, y:0.43, w:0.042, z:0.734, h:0.013, bg:"#241a12" });
+        dec.push({ x:0.546, y:0.43, w:0.042, z:0.734, h:0.013, bg:"#241a12" });
+        dec.push({ x:0.410, y:0.43, w:0.046, z:0.756, h:0.012, bg:"#2b1f16" });
+        dec.push({ x:0.544, y:0.43, w:0.046, z:0.756, h:0.012, bg:"#2b1f16" });
+      } else {
+        dec.push({ x:0.420, y:0.43, w:0.030, z:eyeZ, h:0.024, bg:"#241a12" });
+        dec.push({ x:0.552, y:0.43, w:0.030, z:eyeZ, h:0.024, bg:"#241a12" });
+      }
       if (face === FACE_SAD){
         // brows angled in, the only thing that stops a frown reading as a pout
         dec.push({ x:0.414, y:0.43, w:0.034, z:0.772, h:0.013, bg:"#2b1f16" });
@@ -1528,13 +1608,21 @@ function playerModel(dir, shielded, face){
       dec.push({ x:0.462, y:0.43, w:0.076, z:0.676, h:0.042, bg:"#5a2c1e" });
       dec.push({ x:0.470, y:0.43, w:0.060, z:0.680, h:0.024, bg:"#3d1b12" });
       dec.push({ x:0.462, y:0.43, w:0.076, z:0.668, h:0.010, bg:"#b8745c" });
+    } else if (face === FACE_WORN){
+      /* Running on empty. The mouth hangs open to breathe, the brows go flat
+         and heavy, and there is colour in the face that is nothing to do with
+         being pleased about anything. */
+      dec.push({ x:0.466, y:0.43, w:0.068, z:0.676, h:0.030, bg:"#5a2c1e" });
+      dec.push({ x:0.472, y:0.43, w:0.056, z:0.680, h:0.018, bg:"#3d1b12" });
+      dec.push({ x:0.372, y:0.43, w:0.036, z:0.702, h:0.030, bg:"#d08a74" });
+      dec.push({ x:0.592, y:0.43, w:0.036, z:0.702, h:0.030, bg:"#d08a74" });
     } else {
       // the frown: the same three rects with the middle RAISED instead
       dec.push({ x:0.448, y:0.43, w:0.026, z:0.684, h:0.018, bg:"#6d3b2a" });
       dec.push({ x:0.474, y:0.43, w:0.052, z:0.706, h:0.018, bg:"#6d3b2a" });
       dec.push({ x:0.526, y:0.43, w:0.026, z:0.684, h:0.018, bg:"#6d3b2a" });
     }
-    if (face !== FACE_SAD){
+    if (face !== FACE_SAD && face !== FACE_WORN){
       // a little colour in the cheeks, so it is not only the mouth that moved
       dec.push({ x:0.386, y:0.43, w:0.028, z:0.706, h:0.022, bg:"#e09a7e" });
       dec.push({ x:0.586, y:0.43, w:0.028, z:0.706, h:0.022, bg:"#e09a7e" });
@@ -1700,6 +1788,7 @@ var HP_HIT = 75;           // an objection you did not see coming
 var HP_PER_STREET = 3;     // the walk itself
 var HP_LOW = 25;           // below this the bar starts shouting
 var HP_CRAWL = 5;          // and below this it only costs a point a street
+var HP_WORN  = 20;         // and below this it starts to show on him
 
 /* A fifth less often: it was 0.52, and a run that opens with a TAM is a
    different game from one that does not. */
@@ -2158,7 +2247,7 @@ function bakeAll(){
   S.player_l  = bake(playerModel(-1, false));
   S.playerS_r = bake(playerModel(1, true));
   S.playerS_l = bake(playerModel(-1, true));
-  for (var fc = 1; fc <= 3; fc++){
+  for (var fc = 1; fc <= 4; fc++){
     S["pf" + fc + "_r"]  = bake(playerModel(1, false, fc));
     S["pf" + fc + "_l"]  = bake(playerModel(-1, false, fc));
     S["pf" + fc + "S_r"] = bake(playerModel(1, true, fc));
@@ -5949,9 +6038,61 @@ function drawCheer(cx, topY){
 
 var EAT_AT = null;
 function drawEatOverlay(){
+  if (G.hp < HP_WORN && G.state === ST_PLAY && EAT_AT) drawWorn(EAT_AT.x, EAT_AT.y);
   if (G.yumT > 0 && EAT_AT) drawEat(EAT_AT.x, EAT_AT.y);
   if (G.cheerT > 0 && EAT_AT) drawCheer(EAT_AT.x, EAT_AT.y);
   EAT_AT = null;
+}
+
+/* Running on empty. The face is baked (see FACE_WORN); this is everything
+   that has to move: sweat coming off him, laboured breath, and the heat
+   coming off a man who has walked sixty blocks without eating.
+
+   It gets heavier the lower he goes, so the player can read how bad it is
+   without looking away from the road to check the bar. */
+function drawWorn(cx, topY){
+  var k = Math.max(0, Math.min(1, (HP_WORN - G.hp) / HP_WORN));   // 0 at 20%, 1 at 0
+  var a = 0.35 + k * 0.5;
+
+  /* Sweat. Each bead hangs at the brow, swells, then flicks off and falls -
+     restarting on its own cycle so they never drip in step. */
+  var beads = 2 + Math.round(k * 2), i;
+  for (i = 0; i < beads; i++){
+    var ph = (G.t * (0.75 + i * 0.13) + i * 0.37) % 1;
+    var side = i % 2 ? 1 : -1;
+    var bx = cx + side * (13 + (i >> 1) * 7);
+    var by = topY + 26 + ph * ph * 62;
+    ctx.globalAlpha = a * (1 - ph * ph);
+    ctx.fillStyle = "#cfe6f4";
+    var r = ph < 0.25 ? 2 + ph * 8 : 4;
+    ctx.fillRect(bx - r / 2, by, r, r * 1.6);
+    ctx.globalAlpha = 1;
+  }
+
+  // breath, in the cold, on the side he is facing
+  var br = (G.t * 0.62) % 1;
+  ctx.globalAlpha = a * 0.26 * (1 - br);
+  ctx.fillStyle = "#dfe9f2";
+  var dir = G.facing > 0 ? 1 : -1;
+  for (i = 0; i < 3; i++){
+    var pr = br + i * 0.06;
+    ctx.beginPath();
+    ctx.ellipse(cx + dir * (22 + pr * 46), topY + 44 - pr * 12,
+                7 + pr * 16, 5 + pr * 11, 0, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+
+  // and the heat, a thin shimmer that only shows when it is really bad
+  if (k > 0.45){
+    ctx.globalAlpha = (k - 0.45) * 0.30;
+    ctx.fillStyle = "#ff8c6a";
+    for (i = 0; i < 4; i++){
+      var wv = Math.sin(G.t * 5 + i * 1.7) * 5;
+      ctx.fillRect(cx - 20 + wv, topY + 6 + i * 9, 40, 2);
+    }
+    ctx.globalAlpha = 1;
+  }
 }
 function drawPlayer(pp){
   /* The cape follows FLIGHT, not the TAM. He suits back up the moment the
@@ -5973,6 +6114,9 @@ function drawPlayer(pp){
       var eage = EAT_SECS - G.yumT;
       face = (eage >= EAT_BITE0 && Math.sin(eage * 19) > 0) ? FACE_CHEW : FACE_SMILE;
     }
+    /* Lowest priority: a reaction to something in front of him beats the
+       state he is in, and eating is the thing that fixes it anyway. */
+    else if (G.hp < HP_WORN && G.state === ST_PLAY) face = FACE_WORN;
     var suffix = (G.shield ? "S" : "") + (right ? "_r" : "_l");
     s = face ? S["pf" + face + suffix]
              : (G.shield ? (right ? S.playerS_r : S.playerS_l)
@@ -7194,7 +7338,10 @@ function frame(now){
   var guard = 0;
   while (accum >= STEP && guard++ < 6){ update(STEP); accum -= STEP; }
   fps.frames++; fps.acc += delta;
-  if (fps.acc >= 0.5){ fps.value = fps.frames/fps.acc; fps.frames = 0; fps.acc = 0; }
+  if (fps.acc >= 0.5){
+    fps.value = fps.frames/fps.acc; fps.frames = 0; fps.acc = 0;
+    AUDIO.sweep();            // twice a second, and it almost never has work
+  }
   render();
 }
 
