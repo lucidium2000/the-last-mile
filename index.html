@@ -376,6 +376,20 @@ var AUDIO = (function(){
       hit({ f:1400, to:500, dur:0.10, g:0.055 });
       tone({ f:132, to:112, dur:0.11, type:"sine", g:0.085 });
     },
+    /* Somebody saying something. Not words - two or three short formant
+       blips through a low-pass, which is roughly what speech is across a
+       pavement and is the oldest trick in the book for a reason. The seed
+       moves the pitch and the count, so the man in the beanie does not
+       sound like the woman with the tote. */
+    mutter: function(seed){
+      var base = 142 + (seed % 6) * 31, n = 2 + (seed % 2), i;
+      for (i = 0; i < n; i++){
+        var f = base * (1 + ((seed >> i) % 3) * 0.17);
+        tone({ f:f, to:f * (i % 2 ? 0.84 : 1.22), dur:0.085, type:"square",
+               g:0.042, at:i * 0.105, lp:820 });
+      }
+      hit({ f:700, dur:0.05, g:0.02, at:0.01 });
+    },
     traceHop: function(){
       if (ladder < 12) ladder++;
       var i = ladder % PENT.length, oct = Math.floor(ladder / PENT.length);
@@ -2035,6 +2049,7 @@ var HP_PER_STREET = 3;     // the walk itself
 var HP_LOW = 25;           // below this the bar starts shouting
 var HP_CRAWL = 5;          // and below this it only costs a point a street
 var HP_WORN  = 25;         // and below this it starts to show on him
+var HP_SHOW  = 3.0;        // how long the bar over his head stays up otherwise
 
 /* A fifth less often: it was 0.52, and a run that opens with a TAM is a
    different game from one that does not. */
@@ -2938,7 +2953,7 @@ function reset(){
     hop:1, facing:1, maxRow:0, camRow:0, street:START_ST,
     stage:-1, coach:-1, toast:null, flash:null,
     shield:false, slowT:0, revealT:0, invulnT:0, powersUsed:0,
-    hp:HP_MAX, hpGain:null, meals:0, sadT:0, needFood:0, saidFood:false,
+    hp:HP_MAX, hpGain:null, hpShow:0, meals:0, sadT:0, needFood:0, saidFood:false,
     bonusChuck:0, bonusTam:0, bonusAddon:0, bonusFood:0, addons:0, addonWin:null,
     tally:null, booth:null, deathPush:0,
     flyT:0, flyA:0, flyBeep:0, flyMove:0, flyTilt:0, walkPh:0, walkAmt:0, tam:false, tamT:0, tamWins:0, tamWin:null, hurtT:0, nahT:0,
@@ -3370,6 +3385,7 @@ function act(dir){
       var price = foodPrice(foodPr.kind);
       G.bonus -= price; G.bonusFood -= price;
       G.hpGain = { life:1.5, amt:Math.round(G.hp - was) };
+      G.hpShow = HP_SHOW;                  // and the bar over his head, briefly
       AUDIO.pay();
     } else AUDIO.bump();
     return;
@@ -3396,6 +3412,7 @@ function act(dir){
         fo.sayAt = G.t;
         fo.line = FOLK_LINES[(Math.random()*FOLK_LINES.length)|0];
         AUDIO.jostle();
+        AUDIO.mutter(fo.seed);
         return;                              // he does not get the square
       }
       /* Second go. They give it up, and shuffle over about it. */
@@ -3596,6 +3613,42 @@ cv.addEventListener("pointerup", function(e){
   }
   ptr = null;
 }, { passive:false });
+/* The wheel, and a two-finger scroll, which is the same event. A column of
+   letters with an arrow at each end is a wheel drawn on the screen, so it
+   should answer to one.
+
+   Three things have to be reconciled. A mouse notch is one big delta and a
+   trackpad is a stream of small ones, so the step is a threshold on an
+   accumulator rather than one step per event. `deltaMode` can be lines or
+   pages rather than pixels, so it is normalised first. And the accumulator
+   is dumped if nothing arrives for a fifth of a second, or the tail of one
+   flick adds itself to the head of the next.
+
+   Vertical moves the letter, horizontal moves between the three - which is
+   free on a trackpad and costs a mouse nothing, since it never sends one. */
+var WHEEL_STEP = 80, wheelAcc = 0, wheelAt = 0;
+cv.addEventListener("wheel", function(e){
+  if (G.state !== ST_NAME) return;
+  e.preventDefault();
+  AUDIO.unlock();
+  var k = e.deltaMode === 1 ? 33 : (e.deltaMode === 2 ? 300 : 1);
+  var dy = e.deltaY * k, dx = e.deltaX * k;
+  var now = performance.now();
+  if (now - wheelAt > 200) wheelAcc = 0;
+  wheelAt = now;
+
+  var sideways = Math.abs(dx) > Math.abs(dy) * 1.4;
+  wheelAcc += sideways ? dx : dy;
+  var guard = 0;
+  while (Math.abs(wheelAcc) >= WHEEL_STEP && guard++ < 8){
+    var d = wheelAcc > 0 ? 1 : -1;
+    wheelAcc -= d * WHEEL_STEP;
+    if (sideways){ G.iniAt = (G.iniAt + d + 3) % 3; AUDIO.step(); }
+    else iniStep(-d);          // scrolling up runs the letters up, like the arrow
+  }
+  if (guard >= 8) wheelAcc = 0;
+}, { passive:false });
+
 cv.addEventListener("pointercancel", function(){ ptr = null; });
 cv.addEventListener("contextmenu", function(e){ e.preventDefault(); });
 
@@ -4747,6 +4800,25 @@ var PAX_SKIN = ["#f0cdae","#e2b58f","#d7a37c","#c79a74","#a87f5f","#8b6246",
 // black, dark brown, auburn, mid brown, blonde, grey, white
 var PAX_HAIR = ["#141414","#241a12","#5a2f1c","#4a3526","#9a7a44","#8d8d93",
                 "#d6d2cb"];
+/* Which hair colours go with which skin tone. Not a rule about people - it
+   is a rule about what reads at twenty-eight pixels across. Everybody can go
+   grey or white, which is why 5 and 6 are in every row. */
+var HAIR_FOR = [[0,1,2,3,4,5,6], [0,1,2,3,4,5,6], [0,1,2,3,5,6],
+                [0,1,3,5,6],    [0,1,3,5,6],      [0,1,5,6], [0,1,5,6]];
+/* And which hairstyles. 0 cropped, 1 short, 2 long, 3 top knot, 4 beanie,
+   5 headscarf, 6 natural/afro, 7 locs, 8 turban. The common ones are in
+   every row; the textured ones and the turban sit where they read, which is
+   the whole reason for having the table at all. Penn 1 to 81st is the most
+   mixed stretch of pavement in the country and it should look like it. */
+var STYLE_FOR = [
+  [0,1,2,3,4,5],
+  [0,1,2,3,4,5],
+  [0,1,2,3,4,5,8],
+  [0,1,2,3,4,5,6,8],
+  [0,1,2,3,4,5,6,7,8],
+  [0,1,3,4,5,6,7,8],
+  [0,1,3,4,5,6,7]
+];
 var PAX_WOOL = ["#8c4a4a","#3d6b7a","#6a6a3d","#54406b","#9a6a36","#2f6b57"];
 /* Where a passenger's feet go and how big they are, both off the hero's own
    sprite rather than guessed. The bake pads every sprite by 14 on each side,
@@ -4760,14 +4832,20 @@ function paxFit(){
   return { tall:carVis(), feet:carSole() };
 }
 function drawPax(cx2, feetY, seed, lit, sway, k){
-  var coat = PAX_COAT[seed % 8], skin = PAX_SKIN[(seed * 3) % 7];
-  var hair = PAX_HAIR[(seed * 5) % 7], wool = PAX_WOOL[(seed * 2) % 6];
-  var doing = (seed * 7) % 5;                 // phone, bag, cans, scarf, asleep
+  /* The tone cycles straight off the seed rather than through a multiple of
+     seven. `(seed * 3) % 7` looks like a spread until the seeds themselves
+     are a multiple of seven apart, which is exactly what both callers were
+     handing it - so every passenger in the car had the same complexion and
+     so did every pedestrian on the street. */
+  var tone = seed % 7;
+  var coat = PAX_COAT[(seed * 3) % 8], skin = PAX_SKIN[tone];
+  var hair = PAX_HAIR[HAIR_FOR[tone][(seed * 5) % HAIR_FOR[tone].length]];
+  var wool = PAX_WOOL[(seed * 2) % 6];
+  var doing = (seed * 11) % 5;                // phone, bag, cans, scarf, asleep
   /* Six ways of wearing your hair and a coat that may or may not be a skirt.
      Between those, seven skin tones and seven hair colours there are enough
      people here that nobody has to stand for a category. */
-  var style = (seed * 11) % 6;                // 0 cropped 1 short 2 long
-                                              // 3 top knot 4 beanie 5 wrap
+  var style = STYLE_FOR[tone][(seed * 7) % STYLE_FOR[tone].length];
   var skirt = ((seed * 13) % 3) === 0;
   var tights = (seed % 2) === 0;
   var longCoat = (seed % 2) === 0;
@@ -4814,20 +4892,38 @@ function drawPax(cx2, feetY, seed, lit, sway, k){
 
   // head, and whatever is on it
   var hy = top - headH + slump;
-  /* Long hair goes on BEFORE the face, so it sits behind the head and
-     reads as falling past it rather than across it. */
-  if (style === 2){
+  /* Anything that falls BEHIND the head goes on before the face, so it
+     reads as framing it rather than painted across it. */
+  if (style === 2){                                          // long, straight
     R3(-headW/2 - 6, hy - 5, headW + 12, headH + 26, hair);
+  } else if (style === 6){                                   // natural / afro
+    ctx.fillStyle = hair;
+    ctx.beginPath(); ctx.arc(0, hy + 7, headW * 0.78, 0, Math.PI*2); ctx.fill();
+  } else if (style === 7){                                   // locs, braided back
+    R3(-headW/2 - 4, hy - 7, headW + 8, 13, hair);
+    for (var lk = 0; lk < 4; lk++){
+      R3(-headW/2 - 3 + lk * ((headW + 6) / 4), hy + 4, 5, headH + 20, hair);
+    }
   }
   R3(-headW/2, hy, headW, headH, skin);
   if (style === 4){                                          // a beanie
     R3(-headW/2 - 2, hy - 8, headW + 4, 13, wool);
     R3(-headW/2 - 2, hy - 8, headW + 4, 4,  shade(wool, 0.16));
-  } else if (style === 5){                                   // a headwrap
+  } else if (style === 5){                                   // a headscarf
     R3(-headW/2 - 3, hy - 7, headW + 6, 14, wool);
-    R3(-headW/2 - 3, hy + 5, 6, headH - 2, wool);
-    R3( headW/2 - 3, hy + 5, 6, headH - 2, wool);
+    R3(-headW/2 - 4, hy + 5, 7, headH + 12, wool);           // down to the shoulder
+    R3( headW/2 - 3, hy + 5, 7, headH + 12, wool);
     R3(-headW/2 - 3, hy - 7, headW + 6, 4, shade(wool, 0.14));
+  } else if (style === 8){                                   // a turban
+    R3(-headW/2 - 4, hy - 13, headW + 8, 17, wool);
+    R3(-headW/2 - 4, hy - 13, headW + 8, 5, shade(wool, 0.18));
+    R3(-headW/2 - 4, hy - 2, headW + 8, 4, shade(wool, -0.16)); // the wrap line
+    R3(-4, hy - 13, 8, 17, shade(wool, 0.10));                  // the front fold
+  } else if (style === 6){
+    // the afro's own fringe, so the hairline is not a bare arc
+    R3(-headW/2 - 1, hy - 5, headW + 2, 8, hair);
+  } else if (style === 7){
+    R3(-headW/2 - 1, hy - 4, headW + 2, 7, hair);
   } else {
     R3(-headW/2 - 2, hy - (style === 0 ? 4 : 6), headW + 4,
        style === 0 ? 7 : 10, hair);
@@ -4985,7 +5081,7 @@ function drawFolkSay(f, sy){
 
    0.86 of the carriage scale, because they stand at the BACK of the pavement
    rather than on the line the player walks. */
-var FOLK_N = 12, FOLK_K = 0.86, FOLK_Y = 0.86;
+var FOLK_N = 16, FOLK_K = 0.86, FOLK_Y = 0.86;
 function bakeFolk(){
   var W = 150, H = 150, i;
   S.folk = [];
@@ -4997,7 +5093,10 @@ function bakeFolk(){
     g.setTransform(BAKE, 0, 0, BAKE, 0, 0);
     var saved = ctx;
     ctx = g;
-    drawPax(W / 2, H - 8, i * 7 + 5, true, 0, FOLK_K);
+    /* 13, not 7. Seven is the number of skin tones, so seeds a multiple of
+       seven apart all landed on the same one and the whole street was one
+       complexion. */
+    drawPax(W / 2, H - 8, i * 13 + 3, true, 0, FOLK_K);
     ctx = saved;
     S.folk.push({ img:off, ox:W / 2, oy:H - 8, w:W, h:H });
   }
@@ -5056,7 +5155,7 @@ function drawCar(ox, rock, lit){
          middle of their heads. Height and floor line both come off the
          hero's sprite, so everybody in the car is the same size as him. */
       var pfit = paxFit();
-      drawPax(mx + ((i % 2) ? 36 : -36), cy + pfit.feet, i * 7 + 3, lit, psw,
+      drawPax(mx + ((i % 2) ? 36 : -36), cy + pfit.feet, i * 13 + 5, lit, psw,
               pfit.tall / 102);
     }
     /* Straps, swinging with the car and each on its own slight delay down the
@@ -6165,6 +6264,7 @@ function hitPlayer(kind, pp){
        which is what keeps it worth having. */
     var dmg = hazDamage(kind);
     G.hp -= dmg;
+    G.hpShow = HP_SHOW;
     if (G.hp <= 0){ G.hp = 0; die(kind); return; }
     /* The shake scales with the hit, so a bus and a pedicab do not land the
        same way even before you read the number. */
@@ -6544,6 +6644,7 @@ function update(dt){
   if (G.addonWin){ G.addonWin.life -= dt; if (G.addonWin.life <= 0) G.addonWin = null; }
   if (G.notice){ G.notice.life -= dt; if (G.notice.life <= 0) G.notice = null; }
   if (G.hpGain){ G.hpGain.life -= dt; if (G.hpGain.life <= 0) G.hpGain = null; }
+  if (G.hpShow > 0) G.hpShow = Math.max(0, G.hpShow - dt);
 
   for (i=0;i<G.parts.length;i++){
     var pt = G.parts[i];
@@ -7703,6 +7804,8 @@ function drawTamShoes(){
 
 function drawEatOverlay(){
   if (G.hp < HP_WORN && G.state === ST_PLAY && EAT_AT) drawWorn(EAT_AT.x, EAT_AT.y);
+  if (G.state === ST_PLAY && EAT_AT && (G.hp < HP_WORN || G.hpShow > 0))
+    drawHeadHp(EAT_AT.x, EAT_AT.y);
   if (G.needFood > 0 && G.state === ST_PLAY && EAT_AT) drawNeedFood(EAT_AT.x, EAT_AT.y);
   // and the orange shoes, if the subscription is live
   if (G.tam && G.state === ST_PLAY && G.flyA < 0.15) drawTamShoes();
@@ -7743,6 +7846,49 @@ function wornSag(){
 
    It gets heavier the lower he goes, so the player can read how bad it is
    without looking away from the road to check the bar. */
+/* A health bar over his head, under 25% only. The HUD bar is at the bottom
+   of the screen and the whole point of the worn state is that the player is
+   looking at HIM - the sweat, the stoop, the red pulse - so the number he
+   needs lives where his eyes already are.
+
+   Same anchor correction as the sweat: the overlay anchor is the middle of
+   his TILE, which is the model at x=0.5 on the y=0 plane, and his head is on
+   the face plane at y=0.43, so the projection puts it about twelve pixels to
+   the right. It reads against HP_MAX rather than against the threshold,
+   because a bar that is full at 24% health is a lie.
+
+   It is also raised for HP_SHOW seconds by the two things that move the
+   number - eating and getting hit - at any health at all, because those are
+   the moments the figure is what you are looking at and the HUD bar at the
+   bottom of the screen is not. */
+function drawHeadHp(cx, topY){
+  /* topY is the top of the IMAGE, and bake pads every sprite by 14, so his
+     actual head is 14 below it. Sixteen above that read as a bar floating in
+     the air on its own. */
+  var hx = cx + 0.43 * SKEW, w = 54, h = 9;
+  var y = topY - 3;
+  if (y < HORIZON - 10 || y > LOGICAL_H - 10) return;
+  /* Below the line it fades in over three points, so crossing it is not a
+     thing appearing out of nowhere; above it, it is whatever is left of the
+     three seconds, fading out over the last half of one. */
+  var worn = G.hp < HP_WORN;
+  var a = Math.max(worn ? Math.min(1, (HP_WORN - G.hp) / 3) : 0,
+                   G.hpShow > 0 ? Math.min(1, G.hpShow / 0.5) : 0);
+  if (a <= 0.01) return;
+  var k = Math.max(0, Math.min(1, G.hp / HP_MAX));
+  ctx.globalAlpha = a * (worn ? 0.78 + 0.22 * wornBreath() : 1);
+  plate(hx - w/2 - 2, y - 2, w + 4, h + 4, "rgba(6,4,3,0.80)", 3);
+  ctx.fillStyle = "rgba(255,255,255,0.14)";
+  ctx.fillRect(hx - w/2, y, w, h);
+  // the same three bands the HUD bar uses, so the two never disagree
+  ctx.fillStyle = G.hp > 50 ? C.good : (G.hp < HP_LOW ? C.danger : C.amber);
+  ctx.fillRect(hx - w/2, y, Math.max(2, w * k), h);
+  // the ticks, so a quarter of a bar reads as a quarter rather than a sliver
+  ctx.fillStyle = "rgba(0,0,0,0.45)";
+  for (var t = 1; t < 4; t++) ctx.fillRect(hx - w/2 + w*t/4, y, 1, h);
+  ctx.globalAlpha = 1;
+}
+
 function drawWorn(cx, topY){
   var k = wornK();
   var a = 0.35 + k * 0.5;

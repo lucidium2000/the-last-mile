@@ -110,7 +110,18 @@ which would give back about 3.5 MB.
 
 ## The leaderboard
 
-Three initials, arcade style, on every finished run — won or lost.
+Three initials, arcade style, on every finished run — won or lost. Tap the
+arrows, type them, or **scroll**: a column of letters with an arrow at each end
+is a wheel drawn on the screen, so it answers to one. Three things have to be
+reconciled there — a mouse notch is one big delta and a trackpad is a stream of
+small ones, so the step is a threshold on an accumulator rather than one per
+event; `deltaMode` can be lines or pages rather than pixels, so it is
+normalised first; and the accumulator is dumped if nothing arrives for a fifth
+of a second, or the tail of one flick adds itself to the head of the next.
+Vertical moves the letter, horizontal moves between the three. Verified: one
+notch up steps one letter, two down steps two back, a ten-event trackpad flick
+steps two, sideways moves the slot, and it does nothing at all on any other
+screen.
 
 **GitHub Pages is static hosting: there is no server.** A board shared by
 everyone who opens the link needs one somewhere, so the game is written against
@@ -903,6 +914,16 @@ travel, but only on a step that *has* a direction the projection can show: a
 sideways one, capped at 2.5px, because the gap between the inside edge of a
 trouser leg and the middle of him is 3.6. Six bands now, so six blits.
 
+**A health bar over his head under 25%,** and for three seconds after either
+of the two things that move the number — eating, or getting hit — at any health
+at all, because those are the moments the figure is what you are looking at and
+the HUD bar at the bottom of the screen is not. Same three colour bands as the
+HUD so the two never disagree, ticked at the quarters so a quarter of a bar
+reads as a quarter rather than a sliver, and measured against `HP_MAX` rather
+than against the threshold, because a bar that is full at 24% health is a lie.
+It fades in over the three points below the line and out over the last half
+second of the three.
+
 And he breathes when he is not walking — 1.3px at about 0.25Hz, folded into the
 same `lift`. A figure perfectly still between taps is a statue, and a statue is
 the other half of what read as stiff. `walkStride` returns null while he is
@@ -1005,13 +1026,25 @@ frames, and they stand to one side of the grab pole rather than having it
 come up through their heads.
 
 **There are enough people here that nobody has to stand for a category.**
-Seven skin tones across the whole range rather than three browns; seven hair
-colours including grey and white; six ways of wearing it — cropped, short,
-shoulder-length, a top knot, a beanie, a headwrap — and a coat that may or may
-not be a skirt, with tights or without. Penn 1 to 81st is about as mixed a
-stretch of pavement as there is, and a carriage of one complexion was a
-decision whether or not anybody meant to make it. Long hair is drawn *before*
-the face so it falls behind the head rather than across it.
+Seven skin tones across the whole range; seven hair colours including grey and
+white; **nine ways of wearing it** — cropped, short, shoulder-length, a top knot,
+a beanie, a headscarf, a natural, locs, a turban — and a coat that may or may
+not be a skirt, with tights or without. Penn 1 to 81st is the most mixed
+stretch of pavement in the country and it should look like it. Anything that
+falls *behind* the head (long hair, the afro, locs) is drawn before the face so
+it frames it rather than being painted across it.
+
+Two tables pair them up: `HAIR_FOR` says which hair colours go with which tone,
+and `STYLE_FOR` which styles. Neither is a rule about people — they are rules
+about what reads at twenty-eight pixels across. Everybody can go grey or white;
+the common styles are in every row; the textured ones and the turban sit where
+they read.
+
+**And every one of them had the same complexion until this landed.** The tone
+came off `(seed * 3) % 7`, which looks like a spread right up until the seeds
+themselves are a multiple of seven apart — which is exactly what both callers
+were handing it, `i * 7 + 5` for the street and `i * 7 + 3` for the car. The
+tone is `seed % 7` now and the seeds step by 13.
 
 **And they are out on the street too.** Nought to two on every pavement,
 walking, wrapping round the ends. They carry no state at all: the position is
@@ -1048,8 +1081,11 @@ speech bubbles with them.
 That is also what keeps the generator's guarantee intact: a blocker that always
 yields on the second tap cannot pin anybody. And it only applies **while he is
 already on a pavement** — a man halfway across 42nd does not stop for a
-conversation, and a refused tap out there would be a death. Both get
-`AUDIO.jostle()`: cloth, then the low thud of two people meeting. The bubbles
+conversation, and a refused tap out there would be a death. Both get `AUDIO.jostle()` — cloth, then the low thud of two people meeting —
+and the refusal also gets `AUDIO.mutter(seed)`: two or three short formant
+blips through an 820Hz low-pass, which is roughly what speech is across a
+pavement. The seed moves the pitch and the count, so the man in the beanie does
+not sound like the woman with the tote. The bubbles
 draw after the props, so a hot dog stand cannot sit on top of the words, and
 they are smoothstepped in and out at both ends rather than ramped — a linear
 fade has a corner at each end of it and the eye finds both. The rise is driven
