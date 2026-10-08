@@ -1195,6 +1195,16 @@ cannot be pushed past on the second tap — *"I'm in line here."*, *"Wait your
 turn."*, *"Go around, go around."* — which is safe because it is on a pavement,
 it clears itself in five seconds, and forward and back are both still open.
 
+**And the cart sells what the cart sells.** A bagel counter does not do slices
+and a slice counter does not do bagels — but both of them will sell you a
+drink, which is why the **soda** and the **coffee** (the blue-and-white cup;
+nothing else on a New York pavement looks like it) are the only two things that
+cross over. The order they say matches the counter too: *"Pepperoni, hot."* at
+the pizza place, *"Sesame, cream cheese."* at the bagel place, *"Mustard, no
+kraut."* at the dog cart, with *"Make it two."* and *"Keep the change."* as the
+three anybody says anywhere. The first item on each menu is listed twice, so
+most people buy the thing the place is named after.
+
 And they **eat it walking**, like everybody else in this city: four seconds of
 it, the glyph up at the mouth on the side away from the figure, a bite about
 every 0.85s and a small dip of the whole body on each one. Same trick the

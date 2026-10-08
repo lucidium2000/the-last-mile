@@ -5459,10 +5459,32 @@ function trainChat(){
   return TRAIN_CHAT[(Math.random()*TRAIN_CHAT.length)|0];
 }
 
-var FOLK_ORDER = [
-  "Two slices.", "Everything bagel, toasted.", "One with mustard.",
-  "Coffee, light and sweet.", "Make it two.", "Keep the change."
-];
+/* What each cart actually sells. A bagel counter does not do slices and a
+   slice counter does not do bagels, but both of them will sell you a drink,
+   which is why the soda and the coffee are the only things that cross over.
+   The first entry is weighted by being listed twice - most people buy the
+   thing the place is named after. */
+var FOOD_MENU = {
+  pizza:  ["pizza", "pizza", "soda"],
+  bagel:  ["bagel", "bagel", "coffee"],
+  hotdog: ["hotdog", "hotdog", "soda"]
+};
+var FOOD_ORDERS = {
+  pizza:  ["Two slices.", "One plain, to go.", "Slice and a Coke.",
+           "Pepperoni, hot."],
+  bagel:  ["Everything bagel, toasted.", "Sesame, cream cheese.",
+           "Regular coffee.", "Coffee, light and sweet."],
+  hotdog: ["One with mustard.", "Two dogs, onions.", "Mustard, no kraut.",
+           "Dog and a soda."]
+};
+// and the things anybody says at any counter
+var FOLK_ORDER = ["Make it two.", "Keep the change.", "That's it, thanks."];
+function folkOrder(kind){
+  var own = FOOD_ORDERS[kind] || [];
+  if (!own.length || Math.random() < 0.22)
+    return FOLK_ORDER[(Math.random()*FOLK_ORDER.length)|0];
+  return own[(Math.random()*own.length)|0];
+}
 
 /* Their own clock. A person who is standing still - talking, or in a line -
    has their walk clock stopped rather than their position overwritten, so
@@ -5606,12 +5628,14 @@ function updateFolk(dt){
                a choice rather than the only option. */
             f.waitT = FOLK_BUY_SECS;
             f.sayAt = G.t;
-            f.line = FOLK_ORDER[(Math.random()*FOLK_ORDER.length)|0];
+            f.line = folkOrder(pr.kind);
           }
           f.waitT -= dt;
           if (f.waitT <= 0){
             f.q = null; f.waitT = null; f.coolT = 9;
-            f.eatT = FOLK_EAT_SECS; f.ate = pr.kind;
+            f.eatT = FOLK_EAT_SECS;
+            var menu = FOOD_MENU[pr.kind] || [pr.kind];
+            f.ate = menu[(Math.random()*menu.length)|0];
             /* Not every time. They have already said their order; saying
                something again on the way out makes them a chatterbox. */
             if (Math.random() < 0.4){
@@ -9391,6 +9415,30 @@ function foodGlyph(kind, fx, fy, k){
     ctx.beginPath(); ctx.arc(8, 5, 4.2, 0, Math.PI * 2); ctx.fill();
     ctx.beginPath(); ctx.arc(1, -8, 3.6, 0, Math.PI * 2); ctx.fill();
     ctx.fillStyle = "#b5752e"; plate(-22, 10, 44, 9, "#b5752e", 4);
+  } else if (kind === "soda"){
+    /* A fountain cup: tapered, lid, straw. */
+    ctx.fillStyle = "#e4e7ea";
+    ctx.beginPath();
+    ctx.moveTo(-11, -14); ctx.lineTo(11, -14);
+    ctx.lineTo(8, 16); ctx.lineTo(-8, 16);
+    ctx.closePath(); ctx.fill();
+    ctx.fillStyle = "#c9243f"; ctx.fillRect(-10, -5, 20, 7);
+    ctx.fillStyle = "#b9bec6"; plate(-13, -18, 26, 6, "#b9bec6", 2);
+    ctx.fillStyle = "#e05a2b"; ctx.fillRect(3, -32, 4, 16);
+  } else if (kind === "coffee"){
+    /* The blue-and-white cup. Nothing else on a New York pavement looks
+       like it and nothing else needs to. */
+    ctx.fillStyle = "#f2f4f6";
+    ctx.beginPath();
+    ctx.moveTo(-10, -13); ctx.lineTo(10, -13);
+    ctx.lineTo(8, 15); ctx.lineTo(-8, 15);
+    ctx.closePath(); ctx.fill();
+    ctx.fillStyle = "#1b4fa8"; ctx.fillRect(-9, -7, 18, 9);
+    ctx.fillStyle = "#f2f4f6"; ctx.fillRect(-5, -5, 10, 5);
+    ctx.fillStyle = "#d8dde3"; plate(-12, -17, 24, 6, "#d8dde3", 2);
+    ctx.globalAlpha *= 0.5; ctx.fillStyle = "#cfd6dd";
+    ctx.fillRect(-3, -27, 3, 9); ctx.fillRect(2, -24, 3, 7);
+    ctx.globalAlpha /= 0.5;
   } else {
     /* A bagel is a ring, and a ring has to be stroked - a filled circle with a
        hole would need to know what is behind it. */
