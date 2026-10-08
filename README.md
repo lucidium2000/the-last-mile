@@ -1168,7 +1168,25 @@ second cooldown each, so the same two do not talk every time they drift past.
 And they **buy lunch**. Anybody passing within 0.4 tiles of a cart may stop and
 order (*"Two slices."*, *"Coffee, light and sweet."*), and if somebody is
 already there they stand 0.62 of a tile behind them — a real line, up to four
-deep, which shuffles up when the head is served.
+deep, which shuffles up when the head is served. The head waits **five seconds
+flat**: long enough that a queue is a real obstacle rather than a decoration,
+short enough that walking round it is a choice rather than the only option.
+
+**A queue does not move for you.** It is the one obstacle in the game that
+cannot be pushed past on the second tap — *"I'm in line here."*, *"Wait your
+turn."*, *"Go around, go around."* — which is safe because it is on a pavement,
+it clears itself in five seconds, and forward and back are both still open.
+
+And they **eat it walking**, like everybody else in this city: four seconds of
+it, the glyph up at the mouth on the side away from the figure, a bite about
+every 0.85s and a small dip of the whole body on each one. Same trick the
+hero's chew uses, one extra draw call per person.
+
+**They used to teleport a tile and a half to the left the moment they were
+served.** Leaving the queue folds the standing position back into `x0`, and
+`folkRaw` returns `((u % span) + span) % span - 1.5` — so solving for the
+unwrapped `u` that lands on `qx` means aiming at **`qx + 1.5`**, not at `qx`.
+Measured after the fix: 0.000 tiles of jump.
 
 Standing still **stops their walk clock** rather than overwriting their
 position: `frozen` accumulates while they are held and `x0 + v * (G.t - frozen)`
@@ -1286,6 +1304,16 @@ Picking things up is a proximity test rather than an equality one — within hal
 a slot counts — because he no longer lands on the integers every time, and a
 roll of notes you walk past without taking is worse than one that was never
 there.
+
+**The carriage has people in it with opinions.** The passengers get the same
+lives as the people on the pavement: one per slot, seeded the way the drawing
+seeds them so the man who speaks is the man you can see. Walking into one gets
+a mouthful and no step; the second attempt goes through, and after that that
+particular passenger has made their point and lets him by for the rest of the
+ride. Only on a landing that puts him squarely in somebody's slot — a half step
+between two of them is the aisle. And two of them next to each other exchange
+four words every three to six seconds, the reply three quarters of a second
+after the opener, the same beat the pavement uses.
 
 **The man with the knife measures against the drawn position, not the logical
 one**, so the gap he is judging is the gap the player can see.

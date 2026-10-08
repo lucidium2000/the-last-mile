@@ -3543,6 +3543,20 @@ function act(dir){
         AUDIO.deal();
         return;
       }
+      /* Somebody at a cart does not yield, ever. They are buying something
+         and he is not the mayor. It is the only obstacle in the game that
+         cannot be pushed past, which is safe because it is on a pavement, it
+         clears itself in five seconds, and forward and back are both still
+         open. */
+      if (fo.q){
+        if (G.t - (fo.blockAt || -99) > 1.2){
+          fo.blockAt = G.t;
+          fo.sayAt = G.t;
+          fo.line = FOLK_LINES_BUSY[(Math.random()*FOLK_LINES_BUSY.length)|0];
+          AUDIO.jostle(); AUDIO.mutter(fo.seed);
+        } else AUDIO.bump();
+        return;
+      }
       if (G.t - (fo.blockAt || -99) > FOLK_GRACE){
         fo.blockAt = G.t;
         fo.sayAt = G.t;
@@ -4368,6 +4382,18 @@ function startRide(enterRow, enterCol){
              robbed:0, clack:0,
              hostile: Math.random() < SHADY_HOSTILE,
              tell:0, look:0, lurch:0, eyes:0,
+             /* The people in the car get the same lives as the people on the
+                pavement: they are in his way until he says excuse me, and
+                they talk to each other while he is doing it. One per slot,
+                seeded the same way the drawing seeds them so the man who
+                speaks is the man you can see. */
+             pax: (function(){
+               var a = [], i;
+               for (i = 0; i < RIDE_SLOTS; i++)
+                 a.push({ seed:i * 13 + 5, sayAt:-99, line:null, used:false });
+               return a;
+             })(),
+             chatT: 1.6 + Math.random() * 2.4,
              pause: 1 + Math.random() * 2 };
   G.col = enterCol; G.fromCol = enterCol;
   G.row = enterRow; G.fromRow = enterRow; G.hop = 1;
@@ -4464,6 +4490,22 @@ function rideAct(dir){
 
   var ns = R.slot + d * RIDE_SUB;
   if (ns < -0.001 || ns > RIDE_SLOTS - 1 + 0.001){ AUDIO.bump(); return; }
+  /* Walking into somebody on a train. Same rule as the pavement: the first
+     attempt gets a mouthful and no step, the second goes through - and after
+     that that particular passenger has made their point and lets him by for
+     the rest of the ride. Only on a landing that puts him squarely in
+     somebody's slot; a half step between two of them is the aisle. */
+  var si = Math.round(ns);
+  if (Math.abs(ns - si) < 0.26){
+    var px2 = carPaxAt(R, si);
+    if (px2 && !px2.used){
+      px2.used = true;
+      px2.sayAt = R.t;
+      px2.line = FOLK_LINES[(Math.random()*FOLK_LINES.length)|0];
+      AUDIO.jostle(); AUDIO.mutter(px2.seed);
+      return;
+    }
+  }
   ns = Math.max(0, Math.min(RIDE_SLOTS - 1, ns));
   /* The stride is a tween, not a jump. R.slot is where he is going and is
      what the logic uses; R.slotX is where he is, and is what gets drawn and
@@ -4497,6 +4539,14 @@ function rideAct(dir){
    Everything that asks "how close is he" reads this rather than R.slot, so the
    man with the knife is measuring the same gap the player can see. */
 function rideManX(R){ return R.slotX == null ? R.slot : R.slotX; }
+/* Somebody is standing in every slot except the one with the roll of notes
+   on the seat. The hooded man is drawn at his own floating position rather
+   than in a slot, so he does not take one out. */
+function carPaxAt(R, i){
+  if (!R.pax || i < 0 || i >= RIDE_SLOTS) return null;
+  if (i === R.cash && !R.cashGot) return null;
+  return R.pax[i];
+}
 
 /* Where a slot sits on screen. One place, so the man and the people standing
    in the slots cannot disagree about it. */
@@ -4635,6 +4685,24 @@ function updateRide(dt){
     R.slotX = R.slotFrom + (R.slot - R.slotFrom) * e;
   } else if (R.slotX == null){
     R.slotX = R.slot;
+  }
+  /* Two of them, next to each other, exchanging four words. The reply lands
+     three quarters of a second after the opener, the same beat the pavement
+     uses. */
+  if (R.pax){
+    R.chatT -= dt;
+    if (R.chatT <= 0){
+      R.chatT = 3.0 + Math.random() * 3.5;
+      var a0 = (Math.random() * RIDE_SLOTS) | 0;
+      var b0 = a0 + (Math.random() < 0.5 ? -1 : 1);
+      var pa = carPaxAt(R, a0), pb = carPaxAt(R, b0);
+      if (pa && pb && a0 !== R.slot && b0 !== R.slot){
+        pa.sayAt = R.t;
+        pa.line = FOLK_CHAT[(Math.random()*FOLK_CHAT.length)|0];
+        pb.sayAt = R.t + 0.75;
+        pb.line = FOLK_CHAT[(Math.random()*FOLK_CHAT.length)|0];
+      }
+    }
   }
   updateShady(dt);
   updateRideSound(dt);
@@ -5021,6 +5089,29 @@ var PAX_WOOL = ["#8c4a4a","#3d6b7a","#6a6a3d","#54406b","#9a6a36","#2f6b57"];
 function paxFit(){
   return { tall:carVis(), feet:carSole() };
 }
+/* A speech bubble in the carriage. The street's version is anchored off a
+   row and a lane; this one has neither, so it takes the point it should sit
+   above and gets on with it. Same cream, same tail, same smoothstep. */
+function drawCarSay(x, topY, line, age){
+  if (age < 0 || age >= FOLK_SAY) return;
+  var fin = Math.min(1, age / 0.26), fout = Math.min(1, (FOLK_SAY - age) / 0.55);
+  var ein = fin*fin*(3 - 2*fin), eout = fout*fout*(3 - 2*fout);
+  var a = Math.min(ein, eout);
+  var y = topY - ein * 8;
+  if (y < 60 || y > LOGICAL_H - 20) return;
+  ctx.font = 'bold 19px "Helvetica Neue",Helvetica,Arial,sans-serif';
+  var w = ctx.measureText(line).width + 34, h = 40;
+  var bx = Math.max(10, Math.min(LOGICAL_W - w - 10, x - w/2));
+  ctx.globalAlpha = a;
+  plate(bx, y - h, w, h, "rgba(246,239,226,0.94)", 10);
+  ctx.fillStyle = "rgba(246,239,226,0.94)";
+  ctx.beginPath();
+  ctx.moveTo(x - 9, y - 2); ctx.lineTo(x + 9, y - 2); ctx.lineTo(x, y + 13);
+  ctx.closePath(); ctx.fill();
+  txt(line, bx + w/2, y - h/2 + 7, 19, "#1a1410");
+  ctx.globalAlpha = 1;
+}
+
 function drawPax(cx2, feetY, seed, lit, sway, k, champ){
   /* The tone cycles straight off the seed rather than through a multiple of
      seven. `(seed * 3) % 7` looks like a spread until the seeds themselves
@@ -5202,6 +5293,17 @@ var FOLK_LINES = [
   "Got a dollar?",
   "Yeah, yeah, movin'."
 ];
+/* And what somebody standing in a line says. They do not step aside for him
+   at all - a queue that parts for a stranger is not a queue - so this is the
+   one obstacle in the game he has to wait out or walk round. */
+var FOLK_LINES_BUSY = [
+  "I'm in line here.",
+  "One second, pal.",
+  "Wait your turn.",
+  "I was here first.",
+  "Almost done.",
+  "Go around, go around."
+];
 /* And what they say when he is in the red. Walking into somebody is the same
    action either way, but a man grey in the face and dripping does not get
    told to watch where he is going - he gets concern, or he gets avoided, and
@@ -5257,6 +5359,13 @@ function folkLane(f){ return f.lane || FOLK_Y; }
    there first. */
 var FOLK_CHAT_NEAR = 0.85, FOLK_CHAT_FOR = 1.6, FOLK_CHAT_GAP = 7;
 var FOLK_BUY_NEAR = 0.40, FOLK_BUY_ODDS = 1.1, FOLK_QMAX = 4;
+var FOLK_BUY_SECS = 5;
+/* And they eat it walking, like everybody else in this city. Four seconds of
+   it, the glyph up at the mouth, a bite about every 0.85s and a small dip of
+   the whole figure on each one - which is the same trick the hero's chew uses
+   and costs one extra draw call per person. */
+var FOLK_EAT_SECS = 4.2;
+var FOLK_EAT_LINES = ["Mm.", "That's the stuff.", "Needed that.", "Still hot."];
 var FOOD_KINDS = { bagel:1, pizza:1, hotdog:1 };
 function updateFolk(dt){
   var lo = Math.floor(G.camRow) - ROWS_BEHIND, hi = Math.floor(G.camRow) + ROWS_AHEAD;
@@ -5274,6 +5383,10 @@ function updateFolk(dt){
         continue;                              // queues are stepped below
       }
       if (f.coolT > 0) f.coolT -= dt;
+      if (f.eatT > 0){
+        f.eatT -= dt;
+        if (f.eatT <= 0){ f.eatT = 0; f.ate = null; }
+      }
     }
 
     /* Two of them meeting. Only once a pair, only when they are closing, and
@@ -5322,16 +5435,31 @@ function updateFolk(dt){
         f.qx = pr.col + 0.5 - i * 0.62;
         if (i === 0){
           if (f.waitT == null){
-            f.waitT = 1.8 + Math.random() * 2.4;
+            /* Five seconds flat. Long enough that a line is a real obstacle
+               rather than a decoration, short enough that walking round it is
+               a choice rather than the only option. */
+            f.waitT = FOLK_BUY_SECS;
             f.sayAt = G.t;
             f.line = FOLK_ORDER[(Math.random()*FOLK_ORDER.length)|0];
           }
           f.waitT -= dt;
           if (f.waitT <= 0){
             f.q = null; f.waitT = null; f.coolT = 9;
+            f.eatT = FOLK_EAT_SECS; f.ate = pr.kind;
+            /* Not every time. They have already said their order; saying
+               something again on the way out makes them a chatterbox. */
+            if (Math.random() < 0.4){
+              f.sayAt = G.t;
+              f.line = FOLK_EAT_LINES[(Math.random()*FOLK_EAT_LINES.length)|0];
+            }
             /* They leave from where they were standing, not from where the
-               world clock thinks they are. */
-            f.x0 = f.qx - f.v * (G.t - (f.frozen || 0));
+               world clock thinks they are.
+
+               The +1.5 is the wrap. folkRaw returns ((u % span) + span) % span
+               - 1.5, so solving for the UNWRAPPED u that lands on qx means
+               aiming at qx + 1.5, not at qx - which is why they used to jump
+               a tile and a half to the left the instant they were served. */
+            f.x0 = (f.qx + 1.5) - f.v * (G.t - (f.frozen || 0));
             pr.q.shift();
             i--;
           }
@@ -5419,7 +5547,19 @@ function drawOneFolk(f, sy){
     }
     ctx.globalAlpha = 1;
   }
-  blit((f.champ ? S.champ[f.seed % CHAMP_N] : S.folk[f.seed % FOLK_N]), x, y);
+  /* Mid-bite the whole figure dips a couple of pixels. It is the cheapest
+     chew there is and at this size it is the only one that reads. */
+  var bite = (f.eatT > 0 && f.ate)
+             ? Math.max(0, Math.sin((FOLK_EAT_SECS - f.eatT) * 7.4)) : 0;
+  blit((f.champ ? S.champ[f.seed % CHAMP_N] : S.folk[f.seed % FOLK_N]),
+       x, y + bite * 2);
+  if (f.eatT > 0 && f.ate){
+    /* Held up at the mouth on the side away from the middle of the figure,
+       and pulled in to it on each bite. */
+    var side = (f.seed % 2) ? 1 : -1;
+    foodGlyph(f.ate, x + side * (16 - bite * 5) * FOLK_K,
+              y - (70 - bite * 3) * FOLK_K, 0.46 * FOLK_K);
+  }
   if (f.champ && !f.spent) drawChampTag(x, y - 104);
 }
 
@@ -5569,8 +5709,11 @@ function drawCar(ox, rock, lit){
          middle of their heads. Height and floor line both come off the
          hero's sprite, so everybody in the car is the same size as him. */
       var pfit = paxFit();
-      drawPax(mx + ((i % 2) ? 36 : -36), cy + pfit.feet, i * 13 + 5, lit, psw,
-              pfit.tall / 102);
+      var pxx = mx + ((i % 2) ? 36 : -36);
+      drawPax(pxx, cy + pfit.feet, i * 13 + 5, lit, psw, pfit.tall / 102);
+      var pp2 = carPaxAt(R2, i);
+      if (pp2 && pp2.line) drawCarSay(pxx, cy + pfit.feet - pfit.tall - 16,
+                                      pp2.line, R2.t - pp2.sayAt);
     }
     /* Straps, swinging with the car and each on its own slight delay down the
        length of it - a carriage of straps moving in lockstep looks welded. */
