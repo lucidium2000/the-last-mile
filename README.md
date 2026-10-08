@@ -482,7 +482,8 @@ the step was already refused.
 |---|---|
 | Bagel cart, pizza counter, hot dog stand | Pays and eats — see below |
 | Newsstand | The headline takes the top of his head off — rays, rings and a face to match |
-| Subway entrance with no MetroCard | Shakes his head, throws both hands up, and says so: **NO METRO CARD** |
+| Subway entrance with no MetroCard | Shakes his head, throws both hands up, and says so: **NEED METRO CARD** |
+| Stairs he just came up, holding a card | Same shrug, different reason: **NO ROUTE** |
 
 At this scale his own face is twenty pixels of baked voxel, so the expression
 lives in a bubble and the body supplies the gesture: two sleeves and two hands
@@ -644,9 +645,38 @@ it. Two fixes, because two things were wrong. The ride is capped — going up it
 may not carry you past the restaurant, coming back it may not carry you past
 Penn, and a ride that wanted to go further gets out as close as it can. And
 `progress()` sweeps every street *passed* rather than testing only the one
-landed on, since a ride covers ten to twenty crossings at once and a sponsor
+landed on, since a ride covers seven to fifteen crossings at once and a sponsor
 carries three rows. After: **0 rides land past 81**, and a three-rows-at-a-time
 walk fires all eleven milestones and the dinner in order.
+
+**Seven to fifteen streets, and the run takes 0.75s a street.** Both of those
+moved. It was ten to twenty, and twenty streets is a third of the walk gone on
+one swipe — the far end of that range made the metrocard *the game* rather than
+a thing in it, where the best run was the one that drew the most of them. Seven
+to fifteen still skips a real stretch of Midtown and still beats walking,
+without deciding the run on its own. Measured over 400 rides: 7–15, every value
+present, none refused.
+
+And the run was a flat 5.4s whatever it carried, so a seven-stop hop and a
+fifteen-stop haul cost the same. It is now `RIDE_PER_ST` × streets — 5.25s for
+seven, 11.25s for fifteen — so the ride costs exactly what it covers. The
+departs clock ticks through the whole thing (it runs above the ride's own
+return in `update`), which is what makes that time real. The floor of 1.0s is
+for the truncated ones: a ride stopped short by the turn at 81 or by Penn can
+be a single street, and the camera racing fifty rows in a blink is a smear with
+no doors-close in front of it and no stop behind it. The other four beats —
+down, platform, arrive, up — are fixed, because the stairs and the doors take
+as long as they take. Measured: 8 streets, 6.00s asked, 6.04s on the clock.
+
+**`n TO GO` counted rows, not streets.** It read `R.toRow - camRow`, which is
+the distance in *generated rows* — three or more to a crossing once the avenues
+and the multi-lane streets are in — so an eleven-street ride opened by
+promising thirty-odd to go, and the two numbers on the same line disagreed by a
+factor of three. It is taken off the run clock now instead of off the camera,
+which makes it exact rather than merely right: the run is 0.75s a street, so it
+drops by one every 750ms and lands on zero as the doors open. Measured on an
+eight-street ride: 8 at 17ms, then 7, 6, 5, 4, 3, 2, 1 at 750, 1550, 2283,
+3017, 3767, 4550, 5283.
 
 **The subway used to die at the turn.** `startRide` looked for a street
 `>= from + 10`, but numbers descend after the signature, so the test could
@@ -784,7 +814,7 @@ change.
 
 Three exemptions, each for a reason:
 
-- **The subway is free.** A ride covers ten to twenty streets sitting down,
+- **The subway is free.** A ride covers seven to fifteen streets sitting down,
   which is the opposite of tiring, and charging for them turned the best
   power-up in the game into a trap. `progress()` is called from inside the ride
   while `G.ride` is still set, so that is the test.
@@ -1119,8 +1149,9 @@ know that.
 - and, now and then, **red eyes**. Two points come up inside the hood over
   0.7s, hold, and go out again over 1.3s, with a soft disc behind each one
   because a flat rect in a black opening reads as a sticker. They start at
-  0.09 a second against a run phase of 5.4, so a bit over a third of rides
-  get one. They never mean anything, and that is deliberate: the whole man is
+  0.09 a second against a run phase of 5.25-11.25s, so between a third and
+  two thirds of rides get one. They never mean anything, and that is
+  deliberate: the whole man is
   a question the game refuses to answer, and this is the part of him that
   cannot be read as a tell at all.
 
@@ -1130,6 +1161,14 @@ THOSE` rather than another train. Stepping back in put the player on a second
 ride without a single step on the street in between, which is not a decision,
 it is a loop — and the ride is meant to cost you the walk, not replace it. Any
 other staircase still works; verified both ways.
+
+**The bubble over his head says which of the two things is wrong.** It used to
+say `NO METRO CARD` either way, so a player standing at the stairs he had just
+walked out of, holding four of them, was told he had none — which reads as a
+bug in the counter rather than as a closed route. A card in hand at a dead
+entrance now gets **NO ROUTE**; an empty wallet anywhere gets **NEED METRO
+CARD**. Verified all three branches: no card at a live stair, card at the exit,
+no card at the exit.
 
 **The other people in the car were two rectangles and a head**, which at this
 size read as furniture — and a hooded man standing among furniture has nobody
@@ -1702,6 +1741,12 @@ straight ahead and widen as they come towards you, and each step is drawn as two
 faces, the tread you see the top of and the riser below it, instead of one flat
 bar. Measured down the flight: 520, 544, 600, 624, 680, 704, 760, 784, 795 px
 wide, every row wider than the one above it.
+
+**No lettering on the booth.** The band across the top of the flight used to
+read *TKTS*. The red steps already *are* the picture — the shape is the
+landmark — and the word was the one thing up there claiming to be a named
+business. The band stays and reads as the booth's glazing, which is what it
+looks like from the street anyway.
 
 **30 Rock** was a flat wall of window rectangles that could have been any office
 block in any city. It is recognised by its *shape*, so it is built as a

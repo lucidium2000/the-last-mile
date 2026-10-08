@@ -3188,7 +3188,7 @@ function reset(){
     addons:0, champs:0, addonWin:null, champWin:null,
     tally:null, booth:null, deathPush:0,
     flyT:0, flyA:0, flyBeep:0, flyMove:0, flyTilt:0, walkPh:0, walkAmt:0,
-    brand:null, pipePop:0, rise:null, tam:false, tamT:0, tamWins:0, tamWin:null, hurtT:0, nahT:0,
+    brand:null, pipePop:0, rise:null, tam:false, tamT:0, tamWins:0, tamWin:null, hurtT:0, nahT:0, nahSay:null,
     yumT:0, yumKind:null, yumDir:0, yumBite:0, wowT:0, cheerT:0,
     metro:0, ride:null, trace:null, rides:0, bonus:0, tamLeft:0, riskT:0,
     scene:null, scenesSeen:{}, ticker:null, notice:null, leg:1, po:false, won:false,
@@ -3581,7 +3581,12 @@ function act(dir){
       var sw = target.props[pi];
       if (sw.kind === "subway" && sw.col === nc){
         if (sw.exit){
+          /* The bubble has to say which of the two things is wrong. It said
+             NO METRO CARD at a turnstile the player had just walked out of
+             holding four of them, which reads as a bug in the counter rather
+             than as a closed route. */
           G.nahT = 0.85;
+          G.nahSay = G.metro > 0 ? "NO ROUTE" : "NEED METRO CARD";
           AUDIO.bump(); AUDIO.nope();
           flash("YOU JUST CAME UP THOSE",
                 "Walk a few blocks. There is another station.", "#ffd24a");
@@ -3589,8 +3594,9 @@ function act(dir){
         }
         if (G.metro > 0){ startRide(nr, nc); return; }
         G.nahT = 0.85;                       // he looks at the turnstile and no
+        G.nahSay = "NEED METRO CARD";
         AUDIO.bump();
-        flash("NO METROCARD", "Find one to ride the subway.", "#ffd24a");
+        flash("NEED METRO CARD", "Find one to ride the subway.", "#ffd24a");
       AUDIO.nope();
         return;
       }
@@ -4479,16 +4485,22 @@ function ord(n){
    out of the stairwell rather than into it. Removing a blocker can never
    create a pin, so the generation guarantees still hold. */
 function startRide(enterRow, enterCol){
-  /* Ten to twenty streets, so the generator has to run far enough ahead to
-     hold them: twenty crossings is sixty-odd rows once the multi-lane streets
+  /* Seven to fifteen streets, so the generator has to run far enough ahead to
+     hold them: fifteen crossings is fifty-odd rows once the multi-lane streets
      are counted, and the search has to outrun that with room to spare. */
   ensureRows(G.maxRow + 160);
   var fromSt = streetAt(enterRow);
-  /* Ten to twenty streets IN THE DIRECTION OF TRAVEL. On the way back the
+  /* Seven to fifteen streets IN THE DIRECTION OF TRAVEL. On the way back the
      numbers descend, and the old test - streetAt(r) >= fromSt + 10 - could
      never be satisfied, so every ride on the return leg was refused with a
-     bump. The subway was dead for the whole second half of the game. */
-  var span = 10 + ((Math.random()*11) | 0);
+     bump. The subway was dead for the whole second half of the game.
+
+     It was ten to twenty. Twenty streets is a third of the walk gone in one
+     swipe, and the far end of that range made the metrocard the game rather
+     than a thing in it - the best run was the one that drew the most of them.
+     Seven to fifteen still skips a real stretch of Midtown and still beats
+     walking, without deciding the run on its own. */
+  var span = 7 + ((Math.random()*9) | 0);
   var wantSt = fromSt + legDir * span;
   /* Both ends of the walk are hard stops. Going up, the train may not carry
      you past the dinner at 81 - it is the pivot of the whole game, and a ride
@@ -4550,6 +4562,8 @@ function startRide(enterRow, enterCol){
   G.ride = { t:0, phase:"down", fromRow:enterRow, fromCol:enterCol,
              toRow:dest, toCol:exitCol, camFrom:G.camRow,
              streets:Math.abs(streetAt(dest) - fromSt),
+             runDur:Math.max(RIDE_RUN_MIN,
+                             RIDE_PER_ST * Math.abs(streetAt(dest) - fromSt)),
              rock:0, slot:2, slotX:2, slotFrom:2, stepT:1,
              face:1, shady:shady, cash:cash, cashGot:false, met:false,
              shadyX:shady, knife:0, knifeSide:0, ko:0, koT:0, swing:0, brace:0,
@@ -4583,6 +4597,19 @@ function startRide(enterRow, enterCol){
      up       back out into the street
    Each beat has its own sound. The camera races uptown through `run`. */
 var RIDE_PHASES = { down:1.0, platform:1.5, run:5.4, arrive:1.0, up:0.7 };
+/* The run is no longer a flat 5.4 for every ride. It is THREE QUARTERS OF A
+   SECOND PER STREET, so a seven-stop hop is 5.25s and a fifteen is 11.25 -
+   the ride costs exactly what it carries, and the counter above the window
+   ticks a street off every 750ms while it does. The departs clock runs through the whole thing (it ticks
+   above the ride's own return in update), so that second a street is real
+   money off the countdown and a long ride is a decision rather than a free
+   teleport. The floor is for the truncated ones: a ride stopped short by the
+   turn at 81 or by Penn can be a single street, and the camera racing fifty
+   rows in a blink is a smear with no doors-close in front of it and no stop
+   behind it. The other four beats are fixed because the stairs, the platform
+   and the doors take as long as they take. */
+var RIDE_PER_ST = 0.75, RIDE_RUN_MIN = 1.0;
+function rideRun(R){ return (R && R.runDur) || RIDE_PHASES.run; }
 var RIDE_SLOTS = 5;
 /* The man at the far end of the car. He closes on you in a straight line at
    his own pace rather than in slot-sized hops - he is not playing the same
@@ -4910,10 +4937,11 @@ function updateRide(dt){
       R.phase = "run"; R.t = 0; AUDIO.doorsClose(); AUDIO.trainRun();
     }
   } else if (R.phase === "run"){
-    var f = Math.min(1, R.t / RIDE_PHASES.run);
+    var rd = rideRun(R);
+    var f = Math.min(1, R.t / rd);
     var e = f < 0.5 ? 2*f*f : 1 - Math.pow(-2*f + 2, 2)/2;
     G.camRow = R.camFrom + (R.toRow - R.camFrom) * e;
-    if (R.t >= RIDE_PHASES.run){ R.phase = "arrive"; R.t = 0; AUDIO.trainStop(); }
+    if (R.t >= rd){ R.phase = "arrive"; R.t = 0; AUDIO.trainStop(); }
   } else if (R.phase === "arrive"){
     if (!R.opened && R.t > 0.35){ R.opened = true; AUDIO.doorsOpen(); }
     if (R.t >= RIDE_PHASES.arrive){
@@ -6210,7 +6238,7 @@ function drawCar(ox, rock, lit){
     ctx.fillStyle = "#6e767e";
     ctx.beginPath(); ctx.arc(mpX + 18 + stp * 40, mpY + 13, 4, 0, Math.PI*2); ctx.fill();
   }
-  var prog = R2.phase === "run" ? Math.min(1, R2.t / RIDE_PHASES.run) : (R2.phase === "arrive" ? 1 : 0);
+  var prog = R2.phase === "run" ? Math.min(1, R2.t / rideRun(R2)) : (R2.phase === "arrive" ? 1 : 0);
   ctx.fillStyle = C.brand;
   ctx.beginPath(); ctx.arc(mpX + 18 + prog * 240, mpY + 13, 6, 0, Math.PI*2); ctx.fill();
 
@@ -6335,9 +6363,13 @@ function sceneTimes(t, a){
   ctx.fillRect(stMid - hwFar - 14, stTop - 46, (hwFar + 14) * 2, 46);
   ctx.fillStyle = "#e8333f";
   ctx.fillRect(stMid - hwFar - 14, stTop - 10, (hwFar + 14) * 2, 10);
+  /* The band across the booth stays, the word on it does not. TKTS is a
+     named business sitting on a landmark that is already recognisable from
+     its shape - the red steps ARE the picture - and the lettering was the one
+     thing up there claiming to be somebody. Without it the band reads as the
+     booth's glazing, which is what it looks like from the street anyway. */
   ctx.fillStyle = "#2a1013";
   ctx.fillRect(stMid - 150, stTop - 38, 300, 24);
-  txt("TKTS", stMid, stTop - 19, 21, "#ff6b74");
 
   for (var st = 0; st < STN; st++){
     var hwT = stepHW(st), hwB = stepHW(st + 1);
@@ -7200,7 +7232,16 @@ function drawRide(){
     plate(LOGICAL_W - st, 330, 150, 46, "#0d1117", 5);
     txt("EXPRESS", LOGICAL_W - st + 75, 358, 20, "#8d99a6");
     ctx.globalAlpha = 1;
-    var left = Math.max(0, R.toRow - Math.round(G.camRow));
+    /* STREETS to go, not rows. It counted R.toRow - camRow, which is the
+       distance in generated rows - three or more of them to a crossing once
+       the avenues and the multi-lane streets are in - so an eleven-street
+       ride opened by promising thirty-odd to go and the two numbers on the
+       same line disagreed by a factor of three.
+
+       Taken off the run clock rather than off the camera, which makes it
+       exact: the run is 0.75s a street, so this drops by one every 750ms and
+       lands on zero as the doors open. */
+    var left = Math.max(0, Math.ceil(R.streets * (1 - Math.min(1, R.t / rideRun(R)))));
     txt(R.streets + " STREETS  \u00B7  " + left + " TO GO", LOGICAL_W/2, 300, 26, "#ffd24a");
     ctx.globalAlpha = 0.45 + 0.25*Math.sin(G.t*3);
     txt("TAP OR SWIPE TO WALK THROUGH THE CAR", LOGICAL_W/2, 862, 22, "#8d99a6");
@@ -9188,7 +9229,7 @@ function drawPlayer(pp){
   }
   if (G.wowT > 0) drawWow(sx + TILE * 0.5, topY, G.wowT);
   if (G.nahT > 0){
-    drawSay("NO METRO CARD", sx + TILE * 0.5, topY, G.nahT);
+    drawSay(G.nahSay || "NEED METRO CARD", sx + TILE * 0.5, topY, G.nahT);
     drawHandsUp(sx + TILE * 0.5, topY, G.nahT);
   }
   if (G.hurtT > 0){
@@ -9643,7 +9684,7 @@ function bubble(cx, topY, bw, bh, t, hold){
   return { x:bx, y:by, w:bw, h:bh, a:a };
 }
 
-/* "NO METRO CARD", with his hands in the air under it */
+/* "NEED METRO CARD" or "NO ROUTE", with his hands in the air under it */
 function drawSay(str, cx, topY, t){
   ctx.font = 'bold 27px "Helvetica Neue",Helvetica,Arial,sans-serif';
   var bw = ctx.measureText(str).width + 52;
