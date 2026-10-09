@@ -120,6 +120,11 @@ var HOP_MS = 135, DOLLARS_PER_ROW = 15000;   // row 70 ~= $1.05M
    which is not a power-up, it is a cutscene - the leap is where the speed
    comes from and the clock stays where it is. */
 var DASH_K = 1, DASH_JUMP = 3, DASH_AIR = 15;
+/* How long a leap keeps him off the hook: the flight itself plus a moment
+   the far side of the landing. Short on purpose - it is the jump that is
+   forgiven, not the standing around afterwards. A 135ms hop inside a 0.26s
+   window leaves about an eighth of a second on the ground. */
+var LEAP_GRACE = 0.26;
 function dashK(){ return G.dashT > 0 ? DASH_K : 1; }
 
 var SHOW_FPS  = /[?&]fps=1/.test(location.search);
@@ -2350,7 +2355,25 @@ function hazDamage(kind){
 }
 /* How often he shouts it after the first time. See hitPlayer. */
 var WALK_ODDS = 0.25;
-var HP_PER_STREET = 3;     // the walk itself
+/* WHAT THE WALK COSTS, in the two currencies he is actually spending.
+
+   It was 3% a street crossed, which is a lumpy proxy for both: a four-lane
+   canyon and a one-lane side street took the same off him, standing still
+   cost nothing at all, and a step sideways to dodge a bus was free.
+
+   Now: a point for every box he covers on foot, and half a point for every
+   second the run is live. The first makes distance the price of distance -
+   a sideways dodge is ground travelled and is charged for, which is what
+   makes the traced route and the swerve worth something. The second means
+   standing on a corner reading the traffic is never free, which is the one
+   behaviour the old model actively rewarded.
+
+   The subway is still free of the per-box charge: he is sitting down, and
+   charging forty boxes for a ride would make the metrocard a trap. The
+   clock keeps running though - time passes on a train like anywhere else. */
+var HP_PER_BOX  = 1;
+var HP_PER_SEC  = 0.5;
+var HP_PER_STREET = 0;     // retired; the drain is per box and per second
 var HP_LOW = 25;           // below this the bar starts shouting
 var HP_CRAWL = 5;          // and below this it only costs a point a street
 var HP_WORN  = 25;         // and below this it starts to show on him
@@ -2594,6 +2617,40 @@ function powerModel(kind){
         text:"CHUCK", size:13 },
       { x:0.40, y:0.345, w:0.22, z:0.17, h:0.085, bg:"#e8c97a", fg:"#4a3310",
         text:"$", size:15 }
+    ], shadow:false, W:1 };
+  }
+  if (kind === "sponsor"){
+    /* A CLOUD WITH THE LIGHTNING COMING OUT OF IT. The SKU is Cloud
+       Insights and the power is a man running at three squares a step, and
+       a storm cloud is the one object that is both at once - nobody needs
+       the label explained.
+
+       A cloud out of axis-aligned boxes is a flat underside with lumps of
+       different heights sitting on it, which is also how a cloud is drawn
+       in every pixel game there has ever been: the flat bottom is what
+       stops it reading as a pile of rocks. Three lumps and a puff, the
+       middle one tallest, each a shade apart so the projection has
+       something to light.
+
+       It is the same envelope as the rest of the pool - footprint inside
+       x 0.16-0.84 and 0.66 tall against the metrocard's 0.43 and the TAM's
+       0.72 - so it does not read as a different class of thing. */
+    var cl1 = "#e8eef7", cl2 = "#f7fafd", cl3 = "#cfdbe9";
+    var bolt = "#ffd24a";
+    return { parts:[
+      P(0.40, 0.40, 0.20, 0.20, 0,    0.05, shade(k.col,-0.55)),  // the stand
+      /* The bolt first, so the cloud sits in front of its top end. */
+      P(0.465, 0.38, 0.085, 0.22, 0.185, 0.090, bolt),
+      P(0.525, 0.38, 0.085, 0.22, 0.115, 0.080, bolt),
+      P(0.455, 0.38, 0.085, 0.22, 0.050, 0.080, shade(bolt,-0.12)),
+      P(0.16, 0.36, 0.68, 0.26, 0.275, 0.115, cl3),               // flat base
+      P(0.20, 0.34, 0.24, 0.30, 0.370, 0.130, cl1),               // left lump
+      P(0.38, 0.32, 0.30, 0.34, 0.370, 0.205, cl2),               // centre
+      P(0.60, 0.34, 0.24, 0.30, 0.370, 0.150, cl1),               // right lump
+      P(0.44, 0.33, 0.18, 0.32, 0.575, 0.080, cl2)                // top puff
+    ], decals:[
+      // one soft shadow under the near lip, so the base is not a flat slab
+      { x:0.20, y:0.355, w:0.60, z:0.282, h:0.035, bg:"#b9c6d6" }
     ], shadow:false, W:1 };
   }
   if (kind === "metro"){
@@ -3490,6 +3547,7 @@ function reset(){
     brand:null, pipePop:0, rise:null, tam:false, tamT:0, tamWins:0, tamWin:null, hurtT:0, nahT:0, nahSay:null, walkSaid:false,
     yumT:0, yumKind:null, yumDir:0, yumBite:0, wowT:0, cheerT:0,
     metro:0, ride:null, trace:null, rides:0, bonus:0, tamLeft:0, riskT:0, dashT:0,
+    leapT:0,
     scene:null, scenesSeen:{}, ticker:null, notice:null, southT:0,
     leg:1, po:false, won:false,
     trainT:TRAIN_MAX, trainLine:tr[0], trainDest:tr[1],
@@ -3762,28 +3820,11 @@ function progress(){
        its own coaching - the uptown ones are all about getting the meeting,
        which has already happened. */
     for (n = prev + step; ; n += step){
-      /* Three percent a crossing - but only for crossings he actually walked.
-         A subway ride covers ten to twenty streets sitting down, which is the
-         opposite of tiring, and charging him for them made the ride a trap.
-         progress() is called from the ride while G.ride is still set, so that
-         is the test. */
-      if (G.state === ST_PLAY && !G.ride){
-        /* A point a street instead of three in two cases. Below 5%, because
-           the last few blocks are where a run is lost and a hard floor of two
-           crossings turned "nearly out" into "already out" with no chance of
-           reaching the next cart. And while he is in the air on a TAM, because
-           being carried over the traffic is not walking. */
-        var tiring = !(G.hp < HP_CRAWL || G.flyT > 0);
-        G.hp -= tiring ? HP_PER_STREET : 1;
-        /* Once, the first time he drops into the worn band. The red pulse and
-           the face say he is in trouble but neither says what to do about it,
-           and the one thing a new player will not work out on their own is
-           that walking into a food cart is the fix. */
-        if (!G.saidFood && G.hp < HP_WORN && G.hp > 0){
-          G.saidFood = true; G.needFood = 2.6; AUDIO.nope();
-        }
-        if (G.hp <= 0){ G.hp = 0; dieTired(); return; }
-      }
+      /* Nothing is charged per CROSSING any more. It is a point a box and
+         a half a point a second now - see spendHp() - which is the same
+         idea measured in the two things he actually spends: ground and
+         time. A street was a lumpy proxy for both, and it meant a
+         four-lane canyon and a one-lane side street cost him the same. */
       var table = G.leg > 0 ? SCENES : SCENES_BACK;
       if (table[n] && !G.scenesSeen["L" + G.leg + "_" + n] &&
           G.state === ST_PLAY && !G.scene) startScene(n);
@@ -4081,9 +4122,19 @@ function act(dir){
       reach = G.row + jq;
     }
     nr = reach;
+    /* The grace starts HERE, not on touchdown. The collision check hands
+       him to the destination row from halfway through the hop, so a leap
+       aimed at a lane was being hit while he was still in the air over it -
+       which is the one thing sailing over two lanes is supposed to rule
+       out. It covers the flight and the moment after it; standing there is
+       still standing there. */
+    if (nr > G.row + 1) G.leapT = LEAP_GRACE;
   }
 
   G.steps++;
+  /* A point a box, counting every square the step covers - a three-row leap
+     costs three, a sideways dodge costs one. */
+  spendHp(HP_PER_BOX * Math.max(1, Math.abs(nr - G.row) + Math.abs(nc - G.col)));
   G.fromRow = G.row; G.fromCol = G.col;
   G.row = nr; G.col = nc; G.hop = 0;
   if (nr > G.maxRow){ G.maxRow = nr; progress(); }
@@ -4791,6 +4842,29 @@ function burst(x, y, col){
    a sideways flutter. The pool is the same thirty objects either way; only
    the physics and the drawing fork on p.bill. */
 var BILL_G = 470, BILL_DRAG = 1.5;
+/* One door for every drain, so the worn-band prompt and the death can never
+   be missed by a path that forgot to check. Returns true if that was the
+   end of him. */
+function spendHp(amt){
+  if (G.state !== ST_PLAY || amt <= 0) return false;
+  /* The floor cases the per-street drain used to have, kept: below HP_CRAWL
+     because the last few blocks are where a run is lost and a hard rate
+     turns "nearly out" into "already out" with no chance of reaching the
+     next cart, and while he is in the air on a TAM, because being carried
+     over the traffic is not walking. */
+  if (G.hp < HP_CRAWL || G.flyT > 0) amt *= 0.34;
+  G.hp -= amt;
+  /* Once, the first time he drops into the worn band. The red pulse and the
+     face say he is in trouble but neither says what to do about it, and the
+     one thing a new player will not work out on their own is that walking
+     into a food cart is the fix. */
+  if (!G.saidFood && G.hp < HP_WORN && G.hp > 0){
+    G.saidFood = true; G.needFood = 2.6; AUDIO.nope();
+  }
+  if (G.hp <= 0){ G.hp = 0; dieTired(); return true; }
+  return false;
+}
+
 function burstMoney(x, y, tired){
   for (var i=0;i<G.parts.length;i++){
     var p = G.parts[i];
@@ -7819,11 +7893,17 @@ function update(dt){
        than overriding it - a man on his last point of health in running
        shoes is quick for a man who is about to fall over. */
     G.hop += dt*1000 / (HOP_MS * (1 - 0.32*G.flyA) * drag * dashK());
-    if (G.hop >= 1){ G.hop = 1; collect(); }
+    if (G.hop >= 1){
+      /* Touched down from a leap: top the grace back up so the landing
+         itself gets the full window, not whatever is left of the flight. */
+      if (G.dashT > 0 && Math.abs(G.row - G.fromRow) > 1) G.leapT = LEAP_GRACE;
+      G.hop = 1; collect();
+    }
   }
   if (G.slowT   > 0) G.slowT   = Math.max(0, G.slowT - dt);
   if (G.riskT > 0) G.riskT = Math.max(0, G.riskT - dt);
   if (G.dashT > 0) G.dashT = Math.max(0, G.dashT - dt);
+  if (G.leapT > 0) G.leapT = Math.max(0, G.leapT - dt);
   if (G.hurtT > 0) G.hurtT = Math.max(0, G.hurtT - dt);
   if (G.nahT > 0)  G.nahT  = Math.max(0, G.nahT - dt);
   if (G.yumT > 0){
@@ -7948,6 +8028,10 @@ function update(dt){
 
   // the commute clock: only forward progress buys time back
   if (G.state === ST_PLAY){
+    /* Half a point a second, everywhere the run is live - on the pavement,
+       in the road, on the train, behind a cutscene. Time is the other thing
+       he is spending and it does not stop because he is sitting down. */
+    spendHp(HP_PER_SEC * dt);
     G.trainT -= dt;
     if (G.trainT <= 0){ G.trainT = 0; missTrain(); }
   }
@@ -8162,6 +8246,29 @@ function update(dt){
       }
       // the traced route is genuine safe passage, not a hint
       if (hitKind && G.revealT > 0 && onTrace(cr, G.col)) hitKind = null;
+      /* LANDING ON A CAR IS NOT A DEATH, IT IS A STEP. A three-row leap is
+         aimed before the lanes have finished moving, so sooner or later it
+         puts him down on top of something - and a power-up that kills you
+         for using it is not a power-up. He vaults: one more square forward,
+         a quarter second of grace so the vault itself cannot be punished,
+         and it chains, because the row beyond might be occupied too.
+
+         This is the LANDING only. G.leapT is set when a leap touches down
+         and runs out in 0.22s, so a man who leaps into a lane and stands
+         there is hit by the next thing along exactly like anybody else.
+         Being carried is the reward for moving; it is not a parking
+         permit. */
+      if (hitKind && G.dashT > 0 && G.leapT > 0 && rows[G.row + 1]){
+        G.fromRow = G.row; G.fromCol = G.col;
+        G.row += 1; G.hop = 0;
+        G.invulnT = Math.max(G.invulnT, 0.25);
+        G.leapT = LEAP_GRACE;
+        if (G.row > G.maxRow){ G.maxRow = G.row; progress(); }
+        ensureRows(G.maxRow + ROWS_AHEAD);
+        burst(pp.col*TILE + TILE/2, rowScreenY(pp.row) - 30, POWERS.sponsor.col);
+        AUDIO.hiss();
+        hitKind = null;
+      }
       if (hitKind){ G.deathPush = push; hitPlayer(hitKind, pp); }
     }
   }

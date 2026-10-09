@@ -1195,9 +1195,31 @@ impact to play, so `AUDIO.collapse()` is a long breath falling away with the
 two thuds that are the whole of it, soft and low, at 0.62 and 1.66 — the knees,
 then the rest of him. The screen does not shake at all.
 
-The drain is deliberately more than you start with: 47 blocks to the restaurant
-costs 141%, and the round trip 282%. You cannot finish on the tank you begin
-with. A flat rate for all three made the choice of cart meaningless. Now a pizza
+**The drain is per box and per second now, not per street.** A point of health
+for every square he covers on foot, and half a point for every second the run
+is live. A street was a lumpy proxy for both: a four-lane canyon and a one-lane
+side street took the same 3% off him, a sideways dodge to get out from under a
+bus was free, and standing on a corner reading the traffic cost nothing at all
+— which is the one behaviour the old model actively rewarded.
+
+Everything goes through `spendHp()`, so no path can drain him and forget to
+check the worn-band prompt or the death. It keeps both floors the per-street
+charge had: a third rate below `HP_CRAWL`, because the last few blocks are
+where a run is lost and a hard rate turns *nearly out* into *already out* with
+no chance of reaching the next cart, and the same third while he is in the air
+on a TAM, because being carried over the traffic is not walking. The subway
+stays free of the per-box charge — he is sitting down, and charging forty boxes
+for a ride would make the metrocard a trap — but the clock keeps running,
+because time passes on a train like anywhere else.
+
+**It is close to twice the old drain, and that is worth knowing before you
+play it.** The walk to the restaurant is 211 boxes, so the round trip is 422%
+from ground alone against the old 282%, and a four-minute run adds another
+120% from the clock. Measured: one forward step costs exactly 1, a three-row
+leap costs exactly 3, and standing still costs 0.500/second.
+
+The drain is deliberately more than you start with. You cannot finish on the
+tank you begin with. A flat rate for all three made the choice of cart meaningless. Now a pizza
 counter is worth crossing for and a hot dog is what you take because it is
 there.
 
