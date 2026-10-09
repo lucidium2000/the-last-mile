@@ -2444,10 +2444,30 @@ Everything is placed in model space and projected, so they sit on his feet
 through the bob, the lean and the stride, and each shoe rides its own leg on
 `walkStride()`.
 
-The eye goes on **top** of the shoe, which is not where a logo goes on a real
-sneaker and is the only place it can go here: the outer cheek in this
-projection is about four pixels by seven, so a mark on it is three pixels of
-nothing. The top face is the one with area. They supersede the TAM's plain
+**A shoe is a thing that is longer than it is tall.** The first pass was 0.16
+wide by 0.145 high with the collar stacked on top, which at this distance is a
+cube on each foot — two orange bricks, not footwear. Shallower and longer
+forward fixed it for nothing: the sole band at the near edge thins to a line,
+which is what a sole looks like, and the silhouette starts reading as a shoe
+from the shape alone. The collar is a low lip at the *heel* rather than a block
+over the whole foot, because a high-top is high at the back.
+
+**Both wings go OUT.** They used to hang off `x0` on both feet — outward on the
+left shoe and straight into the gap between his ankles on the right one, where
+it was drawn behind the other shoe. Half the wings in the game were invisible
+and the half that showed looked like a mistake. `side` is passed in now. They
+are also bigger than the shoe they are attached to, deliberately: they are the
+only part of this that moves and the only part that says these are not
+ordinary shoes.
+
+**And there is no mark on the shoe.** The eye does not survive at this size.
+The outer cheek in this projection is about four pixels by seven and the top
+face is not much better, so a lens with an iris in it came out as a white band
+with an orange middle — read as a stripe. The white toe cap that the
+projection gives the far face for free is already the only light thing down
+there, and a second white patch beside it was two accents fighting over nine
+pixels. The orange and the wings carry the brand, which they were always going
+to have to. They supersede the TAM's plain
 orange shoes while they are on — same colour, same feet, and the ones with
 wings are the ones worth looking at.
 

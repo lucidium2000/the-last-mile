@@ -9509,43 +9509,55 @@ function drawKicks(){
   var beat = 0.5 + 0.5 * Math.sin(G.walkPh * 2);
   var amt  = 0.35 + 0.65 * (G.walkAmt || 0);
 
-  function kick(x0, x1, lift){
-    var y0 = 0.46, y1 = 0.60, z = (lift || 0) / ZH;
-    box(x0, x1, y0, y1, z, z + 0.075, orange, dark, sole);   // the shoe
-    box(x0 + 0.012, x1 - 0.012, y0 + 0.012, y1 - 0.05,       // the ankle collar
-        z + 0.075, z + 0.145, shade(orange, 0.12), shade(orange, -0.14), dark);
-    /* THE EYE GOES ON TOP OF THE SHOE, which is not where a logo goes on a
-       real sneaker and is the only place it can go here. The outer cheek of
-       a shoe in this projection is 0.14 of a tile deep and 0.075 high -
-       about four pixels by seven - so a mark on it is three pixels of
-       nothing. The top face is the one with area, so the eye sits on the
-       toe like a badge and is actually legible. White lens, orange iris,
-       one glint. */
-    var ez = z + 0.0755, ey = (y0 + y1) * 0.5;
-    quad(at(x0 + 0.022, ey - 0.050, ez), at(x1 - 0.022, ey - 0.050, ez),
-         at(x1 - 0.022, ey + 0.050, ez), at(x0 + 0.022, ey + 0.050, ez),
-         "#ffffff");
-    quad(at(x0 + 0.055, ey - 0.022, ez), at(x1 - 0.055, ey - 0.022, ez),
-         at(x1 - 0.055, ey + 0.022, ez), at(x0 + 0.055, ey + 0.022, ez),
-         orange);
-    quad(at(x0 + 0.040, ey - 0.044, ez), at(x0 + 0.072, ey - 0.044, ez),
-         at(x0 + 0.072, ey - 0.030, ez), at(x0 + 0.040, ey - 0.030, ez),
-         "#fff8ef");
-    /* The wing, off the heel, beating. Three feathers of falling length
-       swept back, which is what makes a flap read as a flap rather than as
-       a flicker, and the sweep is what makes it a wing rather than a fin. */
-    var wz = z + 0.050, spread = (0.090 + 0.150 * beat) * amt;
-    var hub = at(x0 + 0.015, y0 + 0.03, wz);
-    var fe = [[0.215, -0.150, 1.00], [0.170, -0.030, 0.74], [0.115, 0.070, 0.46]];
+  /* A shoe is a thing that is LONGER THAN IT IS TALL. The first pass was
+     0.16 wide by 0.145 high with the collar on top, which at this distance
+     is a cube on each foot - two orange bricks, not footwear. Shallower and
+     longer forward fixes it for nothing: the sole band at the near edge
+     thins to a line, which is what a sole looks like, and the silhouette
+     starts reading as a shoe from the shape alone.
+
+     `side` is which way is OUT. It has to be passed in, because the wing
+     used to hang off x0 on both feet - outward on the left shoe and
+     straight into the gap between his ankles on the right one, where it
+     was drawn behind the other shoe. Half the wings in the game were
+     invisible and the half that showed looked like a mistake. */
+  function kick(x0, x1, lift, side){
+    var y0 = 0.455, y1 = 0.655, z = (lift || 0) / ZH;
+    box(x0, x1, y0, y1, z, z + 0.052, orange, dark, sole);       // the shoe
+    /* The collar is a low lip at the HEEL rather than a block over the
+       whole foot - a high-top is high at the back. */
+    box(x0 + 0.012, x1 - 0.012, y0, y0 + 0.075,
+        z + 0.052, z + 0.092, shade(orange, 0.12), shade(orange, -0.14), dark);
+
+    /* No mark on the shoe. The eye does not survive at this size - the outer
+       cheek is four pixels by seven and the top face is not much better, so
+       a lens with an iris in it came out as a white band with an orange
+       middle, read as a stripe - and the white toe cap the projection gives
+       the far face for free is already the only light thing down there. A
+       second white patch next to it was two accents fighting over nine
+       pixels. The orange and the wings carry the brand, which they were
+       always going to have to. */
+
+    /* THE WINGS ARE THE POINT. They are the only part of this that moves
+       and the only part that says these are not ordinary shoes, so they are
+       bigger than the shoe they are attached to and they go OUT, away from
+       him, where there is nothing to hide behind. Three feathers of falling
+       length swept back off the heel; the sweep is what makes it a wing
+       rather than a fin, and the stagger is what makes the beat read as a
+       flap rather than a flicker. */
+    var hx = side < 0 ? x0 + 0.015 : x1 - 0.015;
+    var wz = z + 0.034, spread = (0.095 + 0.160 * beat) * amt;
+    var hub = at(hx, y0 + 0.035, wz);
+    var fe = [[0.265, -0.165, 1.00], [0.205, -0.035, 0.76], [0.140, 0.080, 0.48]];
     for (var fq = 0; fq < 3; fq++){
       var f = fe[fq];
-      var tip  = at(x0 - f[0],        y0 + f[1],        wz + spread * f[2]);
-      var root = at(x0 + 0.015,       y0 + f[1] + 0.03, wz + spread * f[2] * 0.25);
-      quad(hub, tip, root, root, fq ? shade("#fff3e4", -0.10 * fq) : "#ffffff");
+      var tip  = at(hx + side * f[0], y0 + f[1],        wz + spread * f[2]);
+      var root = at(hx,               y0 + f[1] + 0.035, wz + spread * f[2] * 0.25);
+      quad(hub, tip, root, root, fq ? shade("#fff3e4", -0.09 * fq) : "#ffffff");
     }
   }
-  kick(0.28, 0.44, ST.legL ? -ST.legL : 0);
-  kick(0.56, 0.72, ST.legR ? -ST.legR : 0);
+  kick(0.28, 0.44, ST.legL ? -ST.legL : 0, -1);   // left foot, wing to the left
+  kick(0.56, 0.72, ST.legR ? -ST.legR : 0,  1);   // right foot, wing to the right
 }
 
 function drawEatOverlay(){
