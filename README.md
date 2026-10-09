@@ -2426,10 +2426,10 @@ rare tier:
 **Cloud Insights** was Executive Sponsor, which handed him a car service and
 jumped him three rows. A power-up whose entire expression is the player being
 somewhere else a frame later: nothing to look at, nothing to play, and the one
-SKU in the pool with no product behind it. It is ten seconds at **half the
-time per square** now — `DASH_K` 0.5, so 135ms a square becomes 68 — which is
-twice the ground, twice the clock banked off `TRAIN_PER_HOP`, and twice as
-much coming at him. It multiplies with the worn-out drag rather than
+SKU in the pool with no product behind it. It is ten seconds at **a third of the
+time per square** now — `DASH_K` 1/3, so 135ms a square becomes 45 — which is
+three squares in the time a step used to take, three times the clock banked
+off `TRAIN_PER_HOP`, and three times as much coming at him. It multiplies with the worn-out drag rather than
 overriding it: a man on his last point of health in running shoes is quick
 *for a man who is about to fall over*. Tagline on the burst, in the same
 treatment as every other SKU: *Accelerating your journey in the Cloud.*
@@ -2450,6 +2450,17 @@ projection is about four pixels by seven, so a mark on it is three pixels of
 nothing. The top face is the one with area. They supersede the TAM's plain
 orange shoes while they are on — same colour, same feet, and the ones with
 wings are the ones worth looking at.
+
+**And speed lines, behind him.** A streak in *front* of a runner is a thing he
+is about to hit. Behind, in this projection, is down and slightly left: he
+travels +y, which the projection sends up the screen and to the right by
+`SKEW`, so the trail runs back along `(-SKEW, +ROW_H)` normalised. Seven of
+them, each with its own lane across the trail, its own length and its own
+place in a loop running from just behind him to well back — and they scroll
+along their own length rather than sitting still, which is what separates a
+speed line from a scratch on the lens. They are cut when he is not actually
+moving, because a man standing still with motion lines coming off him is a
+man vibrating.
 
 **Internet Insights** runs 11 seconds and throttles **everything that moves to
 25% of normal.** One constant, `SLOW_K`, drives the mover, the motorcade sweep,
