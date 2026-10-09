@@ -446,16 +446,19 @@ note on it saying so, and it has been replaced with the actual artwork.
 Two assets, both inlined as base64 like everything else in this file, because
 the viewer blocks external images:
 
-- **`TE_MARK_SRC`**, the eye on its own at 398×223. It comes from the square
-  PNG, not from the lockup — and its alpha is **rebuilt from how far each
-  pixel is from white** rather than taken from the file, because that file has
-  its counters filled with *opaque white*. Invisible on a white page, a white
-  blob on a night-time street. Recomputing coverage as `(255 - g) / 132` turns
-  the counters back into holes and keeps the antialiasing intact.
+- **`TE_MARK_SRC`**, the eye on its own at 398×223, exactly as supplied. Its
+  counters are already transparent; the one opaque thing inside it is the
+  **white pupil**, which on a white page looks exactly like a hole. An earlier
+  pass rebuilt the alpha from how far each pixel was from white, on the theory
+  that the counters had been filled in — that is true of nothing in this file,
+  and it deleted the pupil. Two colours, posterised alpha, nothing else done
+  to it.
 - **`TE_LOGO_SRC`**, the whole Cisco ThousandEyes lockup at 900×181, snapped
   to exactly two colours so the PNG has almost no colour entropy left to
-  store. The type on its own is the left 746px of it, so there is no third
-  asset to keep in step.
+  store. The type on its own is the left 745px of it, so there is no third
+  asset to keep in step. The lockup's *own* eye has no pupil in it, so it is
+  thrown away and `TE_MARK_SRC` is composited into the same box — one mark,
+  one shape, everywhere.
 
 **Cutting the mark out of the lockup is the obvious move and the wrong one.**
 The `s` of *Eyes* touches it — there is no empty column anywhere between them,
@@ -465,9 +468,12 @@ between the `e` and the `s` instead. The first attempt shipped a hero logo
 that read **S◉** and a wordmark that read *ThousandEye*. The mark now comes
 from the file that only ever contained the mark.
 
-The mark is flattened to one colour over its alpha, so `markFor(col)` can tint
-it with a `source-in` fill — one offscreen per colour, built once — for the two
-pickup labels that draw it in their SKU's chip colour rather than in orange.
+**It is never tinted.** The two pickup labels used to draw their eye in the
+SKU's own chip colour, and keeping that meant flattening the mark to a single
+colour and filling it `source-in` — which is exactly what removed the pupil,
+since the pupil is the one white thing in it. The real artwork wins: a logo
+that changes colour per power-up was never the brand anyway, and the label
+under it still carries the SKU's colour.
 `drawEye` and `drawLogoEye` keep their path versions as the fallback for a
 decode that never lands, the same contract as Chuck's photograph and the voice
 lines.
