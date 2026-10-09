@@ -2440,6 +2440,24 @@ overriding it: a man on his last point of health in running shoes is quick
 *for a man who is about to fall over*. Tagline on the burst, in the same
 treatment as every other SKU: *Accelerating your journey in the Cloud.*
 
+**And he changes clothes for it.** Ten seconds in a full orange suit with a
+cowl, gold bolts at the ears, a gold belt and a lightning bolt on a pale disc
+across his chest — the only power-up in the game that changes what he *is*
+rather than what he is carrying, and at three squares a step it has earned it.
+
+It is built on **playerModel's exact geometry**, not the caped hero's. The
+walk slices this sprite into bands by pixel row — torso, arms, thighs, shins —
+so a model with its own proportions would have its knees cut through the
+shins. Same boxes, different colours, plus the cowl and the emblem. The TAM's
+hero can afford its own proportions because it does not walk; this one does
+nothing but. Three details that each took a pass: the legs are a shade down
+from the chest, because one flat orange from collar to boot is a jumpsuit and
+the figure loses its waist; the belt is wider than the chest and a step nearer
+the camera, or the chest is drawn over it and there is no belt; and the bolt
+is three blocks in a descending stagger rather than a cross, because at ten
+pixels a cross reads as a letter. It loses to the TAM — a caped man in a cowl
+is two costumes at once.
+
 **And you can see it on his feet.** Orange high-tops with the eye on the toe
 and a small wing at each heel, the wings beating off the walk clock — fastest
 when he is, half open when he is standing, because at this size a wing that

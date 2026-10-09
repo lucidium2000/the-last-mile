@@ -2035,6 +2035,73 @@ function playerModel(dir, shielded, face){
   return { parts:parts, decals:dec, shadow:false, W:1 };
 }
 
+/* ------------------------------------------------- CLOUD INSIGHTS, WORN ---
+   The whole outfit, not a pair of shoes. Ten seconds in a full orange suit
+   with a cowl and a bolt on his chest, which is the only power-up in the
+   game that changes what he IS rather than what he is carrying - and at
+   three squares a step it should.
+
+   Built on playerModel's exact geometry rather than heroModel's: the walk
+   animation slices this sprite into bands by pixel row - torso, arms,
+   thighs, shins - and a model with its own proportions would have its knees
+   cut through the shins. Same boxes, different colours, plus a cowl and an
+   emblem. The TAM's caped hero can afford its own proportions because it
+   does not walk; this one does nothing but. */
+function flashModel(dir, face){
+  var skin = HERO_SKIN;
+  var suit = "#ff7a1f", deep = "#d14a09", gold = "#ffd24a";
+  var parts = [
+    P(0.28, 0.46, 0.16, 0.13, 0,     0.07,  deep),           // boots
+    P(0.56, 0.46, 0.16, 0.13, 0,     0.07,  deep),
+    /* The legs are a shade down from the chest. One flat orange from the
+       collar to the boot is a jumpsuit, and the figure loses its waist. */
+    P(0.30, 0.45, 0.17, 0.14, 0.06,  0.28,  shade(suit,-0.10)),
+    P(0.53, 0.45, 0.17, 0.14, 0.06,  0.28,  shade(suit,-0.10)),
+    /* The belt is wider than the chest and a step nearer the camera, or the
+       chest is drawn over it and there is no belt. */
+    P(0.235, 0.41, 0.53, 0.15, 0.328, 0.034, gold),
+    P(0.24, 0.42, 0.52, 0.16, 0.33,  0.26,  suit),           // chest
+    P(0.21, 0.41, 0.58, 0.17, 0.53,  0.09,  shade(suit,0.07)),// shoulders
+    P(0.16, 0.45, 0.08, 0.12, 0.34,  0.21,  shade(suit,-0.24)),// sleeves
+    P(0.76, 0.45, 0.08, 0.12, 0.34,  0.21,  shade(suit,-0.24)),
+    P(0.155, 0.445, 0.09, 0.13, 0.30, 0.055, deep),          // gloves
+    P(0.755, 0.445, 0.09, 0.13, 0.30, 0.055, deep),
+    P(0.42, 0.44, 0.16, 0.14, 0.615, 0.04,  deep),           // the neck, hooded
+    P(0.37, 0.43, 0.26, 0.15, 0.655, 0.200, skin),           // the face
+    /* THE COWL. Not a hat on top of a head - a hood that comes down over
+       the brow, round the sides and under the jaw, leaving a face-hole. It
+       is five slabs on the head's own back edge so the z tiebreak puts
+       every one of them in front of the skin rather than behind it. */
+    P(0.362, 0.43, 0.276, 0.15, 0.828, 0.048, suit),         // crown
+    P(0.362, 0.43, 0.030, 0.15, 0.700, 0.128, suit),         // left cheek
+    P(0.608, 0.43, 0.030, 0.15, 0.700, 0.128, suit),         // right cheek
+    P(0.362, 0.43, 0.276, 0.15, 0.796, 0.034, shade(suit,-0.18)), // the brow
+    P(0.392, 0.43, 0.216, 0.15, 0.645, 0.034, suit),         // under the jaw
+    /* And the ear bolts, which are the bit everybody draws from memory. */
+    P(0.330, 0.432, 0.046, 0.14, 0.772, 0.030, gold),
+    P(0.624, 0.432, 0.046, 0.14, 0.772, 0.030, gold),
+    P(0.300, 0.432, 0.040, 0.14, 0.742, 0.028, gold),
+    P(0.660, 0.432, 0.040, 0.14, 0.742, 0.028, gold)
+  ];
+  var dec = [
+    /* The emblem: a pale disc with a bolt across it. Three rects make a
+       bolt at this size - a stroke down to the left, a stroke down to the
+       right, offset so the join reads as the kink - and the disc behind it
+       is what stops the whole thing disappearing into the orange. */
+    { x:0.395, y:0.42, w:0.21, z:0.405, h:0.165, bg:"#fff3dc" },
+    { x:0.428, y:0.42, w:0.062, z:0.498, h:0.050, bg:gold },
+    { x:0.466, y:0.42, w:0.062, z:0.453, h:0.050, bg:gold },
+    { x:0.504, y:0.42, w:0.062, z:0.408, h:0.050, bg:gold },
+    // and the eyes, through the hole in the cowl
+    { x:0.420, y:0.43, w:0.030, z:0.742, h:0.024, bg:"#241a12" },
+    { x:0.552, y:0.43, w:0.030, z:0.742, h:0.024, bg:"#241a12" },
+    { x:0.448, y:0.43, w:0.026, z:0.706, h:0.018, bg:"#6d3b2a" },
+    { x:0.474, y:0.43, w:0.052, z:0.682, h:0.018, bg:"#6d3b2a" },
+    { x:0.526, y:0.43, w:0.026, z:0.706, h:0.018, bg:"#6d3b2a" }
+  ];
+  return { parts:parts, decals:dec, shadow:false, W:1 };
+}
+
 /* TAM engaged: the suit comes off. Orange rather than red, T rather than S.
 
    Making the cape read took three things:
@@ -2883,6 +2950,8 @@ function bakeAll(){
     S["uber"+i+"_r"] = bake(uberModel(i));
     S["uber"+i+"_l"] = bake(flip(uberModel(i), 1.45));
   }
+  S.flash_r = bake(flashModel(1));
+  S.flash_l = bake(flashModel(-1));
   S.player_r  = bake(playerModel(1, false));
   S.player_l  = bake(playerModel(-1, false));
   S.playerS_r = bake(playerModel(1, 1));
@@ -9897,6 +9966,10 @@ function drawPlayer(pp){
   var right = G.facing > 0, s;
   if (G.flyA > 0.45)      s = right ? S.heroFly_r : S.heroFly_l;
   else if (G.flyA > 0.02) s = right ? S.hero_r    : S.hero_l;
+  /* Cloud Insights wins over the suit and the blazers but loses to the TAM:
+     flight is the bigger thing happening, and a caped man in a cowl is two
+     costumes at once. */
+  else if (G.dashT > 0)   s = right ? S.flash_r   : S.flash_l;
   else {
     /* Which face he is wearing. Chewing alternates with the smile at about
        3Hz once the bites start, which is a jaw working rather than a flicker;
