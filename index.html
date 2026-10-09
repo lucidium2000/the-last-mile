@@ -3043,11 +3043,20 @@ function bakeAll(){
 /* ------------------------------------------------------------- world build */
 var rows = {};
 var SAFE_MIN = 2;          // the shallowest pavement the generator may lay
-/* A power-up to plant on the first pavement, from the query string. Test
-   hook; absent unless asked for. */
+/* A power-up to plant on the first pavement. ?pw=<kind> picks one.
+
+   ===================== TEMPORARY, REMOVE BEFORE SHIPPING =================
+   DROP_PW_DEFAULT is set so that EVERY run starts with a Cloud Insights
+   cloud two squares ahead, with no query string, because it is being
+   tested. Set it back to null and the hook goes quiet again - that one
+   line is the whole of it.
+   ========================================================================= */
+var DROP_PW_DEFAULT = "sponsor";
 var DROP_PW = (function(){
   var m = /[?&]pw=([a-z]+)/i.exec(location.search);
-  return m ? m[1].toLowerCase() : null;
+  if (m) return m[1].toLowerCase();
+  if (/[?&]pw=off/i.test(location.search)) return null;
+  return DROP_PW_DEFAULT;
 })();
 var dropDone = false;
 var genCursor = 0, roadRun = 0, safeRun = 0, lastPower = 0, lastTam = -99, nextStreet = START_ST + 1;

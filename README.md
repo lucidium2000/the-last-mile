@@ -2447,9 +2447,13 @@ rare tier:
 
 > **Testing a power-up:** `?pw=<kind>` plants that one on the first pavement
 > of the run, two rows straight ahead of where he starts, every time —
-> `?pw=sponsor` for the Cloud Insights shoes, and `tam`, `agent`, `insight`,
-> `traffic`, `path`, `metro`, `chuck` for the rest. It changes nothing for
-> anybody who does not type it.
+> `?pw=sponsor` for Cloud Insights, and `tam`, `agent`, `insight`, `traffic`,
+> `path`, `metro`, `chuck` for the rest. `?pw=off` turns it off.
+>
+> ⚠️ **`DROP_PW_DEFAULT` is currently `"sponsor"`, which means every run
+> starts with a Cloud Insights cloud two squares ahead whether anybody asked
+> for one or not.** It is there to be played with. Set that one line back to
+> `null` before this goes in front of anybody.
 
 **Cloud Insights** was Executive Sponsor, which handed him a car service and
 jumped him three rows. A power-up whose entire expression is the player being
