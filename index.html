@@ -10348,6 +10348,12 @@ function plate(x,y,w,h,col,rad){ rr(x,y,w,h,rad===undefined?14:rad); ctx.fillSty
 var BRAND_STACK = '"CiscoSans","CiscoSansTT","Segoe UI","Noto Sans",' +
                   '"Open Sans","Source Sans Pro","Lucida Grande",' +
                   '"Avenir Next",Avenir,"Helvetica Neue",Helvetica,Arial,sans-serif';
+/* The title lockup. The h is three quarters of the caps and slides back
+   under the T's right arm by TITLE_H_TUCK of the T's width; the E then
+   follows it in by TITLE_E_TIGHT of the h's. Both are fractions rather than
+   pixels because the line is measured at whatever font the panel resolved,
+   and a 9px kern that works in Segoe UI is wrong in Noto Sans. */
+var TITLE_H_K = 0.75, TITLE_H_TUCK = 0.34, TITLE_E_TIGHT = 0.14;
 function brandFont(size, weight){
   return (weight || "bold") + " " + size + "px " + BRAND_STACK;
 }
@@ -11137,17 +11143,62 @@ function drawTitle(){
      in four pieces off one measured total so the lot stays centred whatever
      the font falls back to; centring each piece separately would drift them
      apart. */
-  var big = 124;
-  var parts = [["T", C.brand], ["h", C.text], ["E", C.brand], [" Last Mile", C.text]];
+  /* "ThE Last Mile", set as a lockup rather than as a word.
+
+     The T and the E are ThousandEyes' initials and they are the thing being
+     said, so they are full size and in the brand orange. The h is the word
+     "The" happening by accident on top of them, so it is white, three
+     quarters of the size, and TUCKED BACK under the T - the crossbar of a T
+     overhangs its stem on both sides and the space under the right arm is
+     the only hole in the whole line. Dropping a smaller letter into it, and
+     then pulling the E back behind the h in turn, keeps TE reading as a pair
+     at a glance and leaves "The" there for anyone who looks twice.
+
+     Everything is measured first and laid out off one total, so the line
+     stays centred whatever font the panel resolves. The h is measured in its
+     own size, which is the whole reason this cannot be four txt() calls in a
+     row. */
+  var big = 124, hSz = Math.round(big * TITLE_H_K);
   ctx.font = brandFont(big);
-  var total = 0, pi;
-  for (pi = 0; pi < parts.length; pi++)
-    total += (parts[pi][2] = ctx.measureText(parts[pi][0]).width);
-  var x0 = (LOGICAL_W - total) / 2;
-  for (pi = 0; pi < parts.length; pi++){
-    btxt(parts[pi][0], x0, 470, big, parts[pi][1], "left");
-    x0 += parts[pi][2];
-  }
+  var wT = ctx.measureText("T").width,
+      wE = ctx.measureText("E").width,
+      wL = ctx.measureText(" Last Mile").width;
+  ctx.font = brandFont(hSz);
+  var wh = ctx.measureText("h").width;
+
+  var tuck  = wT * TITLE_H_TUCK;        // how far the h slides back under the T
+  var tight = wh * TITLE_E_TIGHT;       // and how far the E follows it
+  var total = wT - tuck + wh - tight + wE + wL;
+  var x0 = (LOGICAL_W - total) / 2, y0 = 470;
+
+  /* THE WHOLE LINE SITS ON ONE BASELINE, which needs saying because the rest
+     of this file does not. The engine sets textBaseline to "middle" once at
+     startup and never touches it again - every other string in the game is
+     one size, so centring on y is the same as sitting on a baseline and it
+     is easier to place. Here it is not: with "middle", a letter at three
+     quarters of the size is centred on the same y and its FEET end up a
+     quarter of the cap height above everyone else's, which is exactly what
+     the h was doing.
+
+     So this block switches to an alphabetic baseline and puts it back. The
+     baseline is derived from the cap's own measured ascent rather than from
+     a fraction of the point size, so the line does not shift when the panel
+     resolves a different font out of BRAND_STACK. */
+  ctx.textBaseline = "alphabetic";
+  ctx.font = brandFont(big);
+  var mT = ctx.measureText("T");
+  var asc = (mT.actualBoundingBoxAscent === undefined) ? big * 0.71
+                                                       : mT.actualBoundingBoxAscent;
+  var yb = y0 + asc / 2;
+
+  btxt("T", x0, yb, big, C.brand, "left");
+  x0 += wT - tuck;
+  btxt("h", x0, yb, hSz, C.text, "left");
+  x0 += wh - tight;
+  btxt("E", x0, yb, big, C.brand, "left");
+  x0 += wE;
+  btxt(" Last Mile", x0, yb, big, C.text, "left");
+  ctx.textBaseline = "middle";          // back to what everything else wants
 
   txt("Penn 1 to the meeting.", LOGICAL_W/2, 552, 32, C.textDim);
 

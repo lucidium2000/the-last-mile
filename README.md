@@ -468,8 +468,29 @@ the viewer blocks external images:
   and it deleted the pupil. Two colours, posterised alpha, nothing else done
   to it.
 The **title** takes the mark on its own rather than the lockup, and the line
-under it is **`ThE Last Mile`** — the T and the E orange, the h between them
-white. The orange letters are ThousandEyes' initials and the white one turns
+under it is **`ThE Last Mile`**, set as a lockup rather than as a word. The T
+and the E are ThousandEyes' initials and they are the thing being said, so
+they are full size and in the brand orange. The h is the word *The* happening
+by accident on top of them, so it is white, **three quarters of the size, and
+tucked back under the T** — the crossbar of a T overhangs its stem on both
+sides and the space under the right arm is the only hole in the line. Dropping
+a smaller letter into it, and pulling the E back behind the h in turn, keeps
+`TE` reading as a pair at a glance and leaves *The* there for anyone who looks
+twice. The tuck and the kern are fractions of the measured letter widths, not
+pixels, because a 9px kern that is right in Segoe UI is wrong in Noto Sans.
+
+**The whole line sits on one baseline**, which needs saying because the rest
+of the file does not. The engine sets `textBaseline` to `"middle"` once at
+startup and never touches it again — every other string in the game is one
+size, so centring on `y` is the same as sitting on a baseline and it is easier
+to place. Here it is not: with `"middle"`, a letter at three quarters of the
+size is centred on the same `y` and its *feet* end up a quarter of the cap
+height above everyone else's, which is exactly what the h was doing. The block
+switches to an alphabetic baseline and puts it back, deriving the baseline
+from the cap's own measured ascent rather than from a fraction of the point
+size so the line does not shift when the panel resolves a different font.
+Verified off the painted pixels rather than by eye: T, h, E and the L of Last
+all have their feet at y 512. The orange letters are ThousandEyes' initials and the white one turns
 them into a word, so the brand is read without being spelled out and the title
 is still a sentence. The lockup has the name written out in it; next to that
 line it would be the same two letters said three ways on one screen. The four
