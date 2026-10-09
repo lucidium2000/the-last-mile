@@ -436,6 +436,49 @@ the game: Traffic Insights is "Insight and control of traffic", Endpoint Agents
 is "the user's own experience, from their own chair", Internet Insights is
 "outages across the whole internet, before the tickets".
 
+### The mark is the real one
+
+Every eye in the game used to be **drawn from paths** — a lens built from two
+quadratic curves with a filled iris, described in the source as "a motif in
+ThousandEyes' colour, not their official logo". It was a placeholder with a
+note on it saying so, and it has been replaced with the actual artwork.
+
+Two assets, both inlined as base64 like everything else in this file, because
+the viewer blocks external images:
+
+- **`TE_MARK_SRC`**, the eye on its own at 398×223. It comes from the square
+  PNG, not from the lockup — and its alpha is **rebuilt from how far each
+  pixel is from white** rather than taken from the file, because that file has
+  its counters filled with *opaque white*. Invisible on a white page, a white
+  blob on a night-time street. Recomputing coverage as `(255 - g) / 132` turns
+  the counters back into holes and keeps the antialiasing intact.
+- **`TE_LOGO_SRC`**, the whole Cisco ThousandEyes lockup at 900×181, snapped
+  to exactly two colours so the PNG has almost no colour entropy left to
+  store. The type on its own is the left 746px of it, so there is no third
+  asset to keep in step.
+
+**Cutting the mark out of the lockup is the obvious move and the wrong one.**
+The `s` of *Eyes* touches it — there is no empty column anywhere between them,
+only a narrowest one at x 1657 with fifteen pixels of ink in it — and a column
+scan that calls a column empty when its *maximum alpha is zero* finds the gap
+between the `e` and the `s` instead. The first attempt shipped a hero logo
+that read **S◉** and a wordmark that read *ThousandEye*. The mark now comes
+from the file that only ever contained the mark.
+
+The mark is flattened to one colour over its alpha, so `markFor(col)` can tint
+it with a `source-in` fill — one offscreen per colour, built once — for the two
+pickup labels that draw it in their SKU's chip colour rather than in orange.
+`drawEye` and `drawLogoEye` keep their path versions as the fallback for a
+decode that never lands, the same contract as Chuck's photograph and the voice
+lines.
+
+Where it shows up: the **burst** (the mark big, with the real wordmark set
+under it instead of Helvetica in caps), the **title**, the **persistent
+lockup** bottom-left — which is now the whole lockup rather than a mark with
+no name beside it, since it is the only branding on screen for most of a run —
+the two **pickup labels**, and the **favicon** on both the game and the
+readout. 33KB of PNG for all of it.
+
 `brandHit` is the opposite. The mark comes up out of the middle of the screen at
 the size of a dinner plate, rings leave it, and the product is spelled out
 in full underneath — **THOUSANDEYES** over **TAM** or **TE-ADDON** — over a
