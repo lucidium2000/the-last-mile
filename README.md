@@ -1747,10 +1747,34 @@ That is also what keeps the generator's guarantee intact: a blocker that always
 yields on the second tap cannot pin anybody. And it only applies **while he is
 already on a pavement** — a man halfway across 42nd does not stop for a
 conversation, and a refused tap out there would be a death. Both get `AUDIO.jostle()` — cloth, then the low thud of two people meeting —
-and the refusal also gets `AUDIO.mutter(seed)`: two or three short formant
-blips through an 820Hz low-pass, which is roughly what speech is across a
-pavement. The seed moves the pitch and the count, so the man in the beanie does
-not sound like the woman with the tote. The bubbles
+and the refusal also gets a **voice**: a few short formant blips through a
+low-pass, which is roughly what speech is across a pavement and is the oldest
+trick in the book for a reason. The seed moves the pitch, so the man in the
+beanie does not sound like the woman with the tote.
+
+**There are three of them**, because there were three kinds of thing being
+said and one noise for all of it. What separates them is the *contour*, which
+is the only part of speech that survives being reduced to three blips — you
+cannot hear the words, you can always hear whether somebody is pleased,
+annoyed, or asking.
+
+| | shape | measured | where |
+|---|---|---|---|
+| `SAY_WARM` | three blips stepping **up** and settling, triangle through a 1150Hz low-pass | 183→196, 206→220, 246→263 | the champion's offer and his *"I'll call you next week"*, two people on a pavement talking to each other |
+| `SAY_CROSS` | two blips, lower, sawtooth through a tight 620Hz low-pass so it growls, each falling hard, plosive on the front | 148→104, 116→81 | anybody you have just walked into, the man at a cart, the champion's warning and his withdrawal |
+| `SAY_ASK` | flat, flat, then the last one bending sharply **up** and held longer | 187→181, 164→159, **191→309** | *"Who do you work for?"*, *"Hey, can I use your phone?"* |
+
+That rise on the third blip is the interrogative. It is the same in every
+language anybody has looked at, and it is the whole reason the third voice
+works without a single word in it. **A line ending in a question mark picks it
+whatever the caller asked for** — `sayFor(line, dflt)` — so the hooded man's
+two questions ask and his *"Give me the bag."* does not, off the same call.
+
+Pedestrian-to-pedestrian chat had no sound at all before; it gets the warm one
+now, and only within six rows of him, because the whole pavement muttering at
+once is a crowd scene rather than a street. Verified: all three contours as
+tabled, the question-mark override on every line in the pools, and 0 live
+audio chains after all three have played. The bubbles
 draw after the props, so a hot dog stand cannot sit on top of the words, and
 they are smoothstepped in and out at both ends rather than ramped — a linear
 fade has a corner at each end of it and the eye finds both. The rise is driven
