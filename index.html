@@ -2079,6 +2079,15 @@ var POWERS = {
             line:"Technical Account Manager. Five seconds of flight — and they stay.",
             secs:5 }
 };
+/* The blazer has a name, and the name is the joke. Nobody remembers
+   "Endpoint Agents, a shield"; everybody remembers the Double Purple Pimp
+   Blazer of Assurance, and having remembered it they can tell you what it
+   does. A third set has nothing left to put on him, so it pays instead. */
+var AGENT_BONUS = 100000;
+var AGENT_BLAZER = [
+  "\u201CBLUE BLAZER OF ASSURANCE\u201D",
+  "\u201CDOUBLE PURPLE PIMP BLAZER OF ASSURANCE\u201D"
+];
 var BRAND_SKUS = {
   agent:   "ENDPOINT AGENTS",
   traffic: "TRAFFIC INSIGHTS",
@@ -3268,6 +3277,7 @@ function reset(){
     hp:HP_MAX, hpGain:null, hpShow:0, hpFrom:HP_MAX, hpHold:0, hpFill:0,
     meals:0, sadT:0, needFood:0, saidFood:false,
     bonusChuck:0, bonusTam:0, bonusAddon:0, bonusFood:0, bonusChamp:0,
+    bonusAgent:0, agentPays:0,
     bonusNews:0, news:0, paper:null,
     addons:0, champs:0, addonWin:null, champWin:null,
     tally:null, booth:null, deathPush:0,
@@ -3275,7 +3285,8 @@ function reset(){
     brand:null, pipePop:0, rise:null, tam:false, tamT:0, tamWins:0, tamWin:null, hurtT:0, nahT:0, nahSay:null, walkSaid:false,
     yumT:0, yumKind:null, yumDir:0, yumBite:0, wowT:0, cheerT:0,
     metro:0, ride:null, trace:null, rides:0, bonus:0, tamLeft:0, riskT:0,
-    scene:null, scenesSeen:{}, ticker:null, notice:null, leg:1, po:false, won:false,
+    scene:null, scenesSeen:{}, ticker:null, notice:null, southT:0,
+    leg:1, po:false, won:false,
     trainT:TRAIN_MAX, trainLine:tr[0], trainDest:tr[1],
     trainHH:16 + ((Math.random()*3)|0), trainMM:(Math.random()*60)|0,
     missedTrain:false,
@@ -3651,7 +3662,8 @@ function act(dir){
         G.flash = null;                    // the banner replaces it
         moneyRise(ADDON_BONUS);
         AUDIO.deal();
-        brandHit("ADD-ON PACK");
+        brandHit("TE-ADDON", BRAND_HIT + 0.6, null,
+                 "THOUSANDEYES ADD-ON PACK  \u00B7  +" + cash(ADDON_BONUS), true);
         burst(nc*TILE + TILE/2, rowScreenY(nr) - 40, POWERS.path.col);
         return;
       }
@@ -3880,6 +3892,9 @@ function buildTally(){
       amt:G.bonusTam, col:C.pw5 },
     { label:"TE-ADDONS", note:G.addons + (G.addons === 1 ? " terminal" : " terminals"),
       amt:G.bonusAddon, col:POWERS.path.col },
+    { label:"SPARE BLAZERS", note:G.agentPays +
+        (G.agentPays === 1 ? " written up" : " written up"),
+      amt:G.bonusAgent, col:BLAZER2 },
     { label:"CHAMPIONS", note:G.champs +
         (G.champs === 1 ? " walked into" : " walked into"),
       amt:G.bonusChamp, col:BLAZER },
@@ -4109,6 +4124,14 @@ function collect(){
   if (BRAND_SKUS[kind]){
     if (kind === "insight") brandHit(BRAND_SKUS[kind], BRAND_HIT + 0.5, "hourglass");
     else if (kind === "traffic") brandHit(BRAND_SKUS[kind], BRAND_HIT + 0.5);
+    else if (kind === "agent"){
+      /* Read BEFORE the shield moves - this block runs above the one that
+         grants it, so G.shield is still what he had when he stepped on it. */
+      var lvl = G.shield | 0;
+      brandHit("ENDPOINT AGENT", BRAND_HIT + 0.3, null,
+               lvl < 2 ? AGENT_BLAZER[lvl]
+                       : "+" + cash(AGENT_BONUS) + "  \u00B7  NOTHING LEFT TO PUT ON HIM");
+    }
     else brandHit(BRAND_SKUS[kind]);
   }
   if (kind === "tam") AUDIO.tam();
@@ -4134,7 +4157,8 @@ function collect(){
   else if (kind === "tam"){
     /* He does not simply take off. He gets changed first - see drawBooth.
        The flight is handed out when the booth opens, not here. */
-    brandHit("TAM");
+    brandHit("TAM", BRAND_HIT + 0.6, null,
+             "YOUR TECHNICAL ACCOUNT MANAGER", true);
     G.booth = { t:0, col:G.col, row:G.row };
     G.invulnT = Math.max(G.invulnT, BOOTH_SECS + 0.5);
     G.tam = true;
@@ -4148,13 +4172,26 @@ function collect(){
     /* The blazer going blue is the biggest visual change in the game and it
        used to happen in silence. Now he jumps, puts both hands up, and the
        sound says so. */
-    /* A second set on top of the first stacks rather than being wasted. */
+    /* A second set on top of the first stacks rather than being wasted. A
+       THIRD has nowhere to go - he is already wearing both - so it pays out
+       instead of evaporating. A power-up that silently does nothing is the
+       one thing worse than not finding one. */
     var was = G.shield | 0;
     G.shield = Math.min(2, was + 1);
     G.cheerT = CHEER_SECS;
-    if (G.shield > was && G.shield === 2)
-      flash("ENDPOINT AGENTS \u00d72", "Purple. Two objections bounce off this.",
-            BLAZER2);
+    if (G.shield > was){
+      flash(G.shield === 2 ? "DOUBLE PURPLE PIMP BLAZER" : "BLUE BLAZER OF ASSURANCE",
+            G.shield === 2 ? "Two objections bounce off this."
+                           : "One objection bounces off this.",
+            G.shield === 2 ? BLAZER2 : BLAZER);
+    } else {
+      G.agentPays++;
+      G.bonus += AGENT_BONUS; G.bonusAgent += AGENT_BONUS;
+      moneyRise(AGENT_BONUS);
+      flash("BOTH BLAZERS ALREADY ON",
+            "So they wrote it up instead.  +" + cash(AGENT_BONUS), C.good);
+      AUDIO.deal();
+    }
   }
   else if (kind === "insight"){
     /* Only on the way IN. A second card while the first is still running
@@ -7242,12 +7279,19 @@ function updateScene(dt){
     G.tam = false; G.tamLeft = 0; G.tamT = 0; G.tamWin = null;
     turnBack();
   }
-  if (sc.after)
+  if (sc.after){
     /* 4.75, not 9.5. Three lines and a U-turn arrow are read in about two
        seconds, and the other seven were the player standing still on a
-       pavement waiting to be allowed to walk. */
-    notice(sc.after[0], sc.after[1], sc.after[2], 4.75, C.good,
-           sc.turn ? "downtown" : null);
+       pavement waiting to be allowed to walk.
+
+       The turn gets 3.75: a second less again, because it is the one notice
+       that is followed by something. The arrow that comes up after it says
+       the same thing in one word and says it while he is already walking,
+       which is where that instruction belongs. */
+    notice(sc.after[0], sc.after[1], sc.after[2], sc.turn ? 3.75 : 4.75,
+           C.good, sc.turn ? "downtown" : null);
+    if (sc.turn) G.notice.turn = true;
+  }
   if (sc.win) winGame();
 }
 
@@ -7815,7 +7859,16 @@ function update(dt){
   if (G.brand){ G.brand.life -= dt; if (G.brand.life <= 0) G.brand = null; }
   if (G.pipePop > 0) G.pipePop = Math.max(0, G.pipePop - dt);
   if (G.rise){ G.rise.life -= dt; if (G.rise.life <= 0) G.rise = null; }
-  if (G.notice){ G.notice.life -= dt; if (G.notice.life <= 0) G.notice = null; }
+  if (G.notice){
+    G.notice.life -= dt;
+    if (G.notice.life <= 0){
+      /* Handed straight on to the arrow, so there is no gap between being
+         told to turn round and being shown which way that is. */
+      if (G.notice.turn) G.southT = SOUTH_SECS;
+      G.notice = null;
+    }
+  }
+  if (G.southT > 0) G.southT = Math.max(0, G.southT - dt);
   if (G.hpGain){ G.hpGain.life -= dt; if (G.hpGain.life <= 0) G.hpGain = null; }
   if (G.hpShow > 0) G.hpShow = Math.max(0, G.hpShow - dt);
 
@@ -10512,9 +10565,10 @@ function drawMoneyRise(){
   ctx.globalAlpha = 1;
 }
 
-function brandHit(what, secs, icon){
+function brandHit(what, secs, icon, sub, big){
   var len = secs || BRAND_HIT;
-  G.brand = { life:len, max:len, what:what, col:C.brand, icon:icon || null };
+  G.brand = { life:len, max:len, what:what, col:C.brand,
+              icon:icon || null, sub:sub || null, big:!!big };
   AUDIO.chaChing();
 }
 
@@ -10568,28 +10622,41 @@ function drawBrandHit(){
   var out = Math.min(1, B.life / 0.40);       // the tail
   var e = 1 - Math.pow(1 - Math.min(1, k * 1.9), 3);
   var cx = LOGICAL_W / 2, cy = LOGICAL_H * 0.355;
+  /* Two sizes. Everything got bigger, and the two that have to survive the
+     drive home - TAM and TE-ADDON - got bigger again, three rings instead of
+     two, and their name on a solid plate in the brand colour instead of
+     coloured type over the street. A name you have to pick out of the
+     background is a name you read; a name on a plate is a name you SAW. The
+     whole point of this screen is that somebody who has played forty runs
+     should still be able to name two things, and these are the two. */
+  var S = B.big ? 1.22 : 1;
 
-  ctx.globalAlpha = Math.max(0, 1 - k * 3.2) * 0.18;
+  ctx.globalAlpha = Math.max(0, 1 - k * 3.2) * (B.big ? 0.26 : 0.20);
   ctx.fillStyle = B.col;
   ctx.fillRect(0, 0, LOGICAL_W, LOGICAL_H);
 
-  // two rings leaving the mark
-  ctx.lineWidth = 7;
-  for (var i = 0; i < 2; i++){
+  // rings leaving the mark
+  ctx.lineWidth = 7 * S;
+  var rings = B.big ? 3 : 2;
+  for (var i = 0; i < rings; i++){
     var rk = Math.min(1, k * 1.7 + i * 0.22);
     if (rk <= 0 || rk >= 1) continue;
-    ctx.globalAlpha = (1 - rk) * 0.55 * out;
-    ctx.strokeStyle = i ? "#ffffff" : B.col;
+    ctx.globalAlpha = (1 - rk) * (B.big ? 0.62 : 0.55) * out;
+    ctx.strokeStyle = i % 2 ? "#ffffff" : B.col;
     ctx.beginPath();
-    ctx.ellipse(cx, cy, 120 + rk * 520, 44 + rk * 190, 0, 0, Math.PI*2);
+    ctx.ellipse(cx, cy, (120 + rk * 520) * S, (44 + rk * 190) * S, 0, 0, Math.PI*2);
     ctx.stroke();
   }
 
   /* Not quite opaque. He is standing on a pavement when either of these
      fires, but the lanes he has to read next are behind this, and a
      celebration that hides the traffic is a celebration that kills you. */
+  /* The lens is drawn with its control point at cy - 0.92r, so the curve
+     itself only reaches about 0.46r above centre - there is far more room
+     above it than the radius suggests, and even at 1.38 the top of it still
+     clears the pickup banner at y 230. */
   ctx.globalAlpha = out * 0.86;
-  drawEye(cx, cy, 74 + e * 70, B.col, "#2a1400", "#ffffff");
+  drawEye(cx, cy, (74 + e * 70) * (B.big ? 1.38 : 1.12), B.col, "#2a1400", "#ffffff");
 
   if (B.icon === "hourglass"){
     /* In the gap between the pickup banner and the mark. The flash bar ends
@@ -10600,10 +10667,72 @@ function drawBrandHit(){
     ctx.globalAlpha = 1;
   }
 
+  var drop = (1 - e) * 26;
   ctx.globalAlpha = out * Math.min(1, k * 5);
-  txt("THOUSANDEYES", cx, cy + 232 + (1 - e) * 26, 62, "#ffffff");
-  txt(B.what, cx, cy + 290 + (1 - e) * 26, 42, B.col);
+  /* Everything gets a hard dark offset under it. There is no shadowBlur in
+     this renderer and there is a street full of yellow cabs behind the
+     words - orange type landing on a taxi roof was legible in the editor
+     and invisible in a room. */
+  var sh = "#140800";
+  txt("THOUSANDEYES", cx, cy + 247 + drop, Math.round(72 * S), sh);
+  txt("THOUSANDEYES", cx, cy + 244 + drop, Math.round(72 * S), "#ffffff");
+
+  var ny = cy + 322 + drop, nsz = B.big ? 66 : 52;
+  if (B.big){
+    /* Measured with the same font string txt builds, or the plate is the
+       wrong width for the only two words on the screen that matter. */
+    ctx.font = "bold " + nsz + 'px "Helvetica Neue",Helvetica,Arial,sans-serif';
+    var pw = ctx.measureText(B.what).width + 78;
+    plate(cx - pw / 2, ny - 60, pw, 88, B.col, 16);
+    txt(B.what, cx, ny, nsz, "#1a0a00");
+  } else {
+    txt(B.what, cx + 3, ny + 3, nsz, sh);
+    txt(B.what, cx, ny, nsz, B.col);
+  }
+  if (B.sub){
+    var sy3 = ny + (B.big ? 62 : 52);
+    txt(B.sub, cx + 2, sy3 + 2, 30, sh);
+    txt(B.sub, cx, sy3, 30, "#ffffff");
+  }
   ctx.globalAlpha = 1;
+}
+
+/* ---------------------------------------------------------- PROCEED SOUTH
+   The one thing about the second half that catches people out is that he
+   turned round and is STILL WALKING UP THE SCREEN. The notice says it in
+   three lines while he stands still; this says it in two words while he
+   walks, and the arrow points the way his legs actually go - up - not the
+   way the compass word sounds.
+
+   It blinks rather than fades. A fade is decoration and gets ignored; four
+   hard blinks is an instruction, and four is enough to be certain it was
+   deliberate without becoming a thing to wait out. */
+var SOUTH_SECS = 3.2, SOUTH_BLINKS = 4;
+function drawSouth(){
+  if (G.southT <= 0 || G.state !== ST_PLAY || G.ride || G.scene) return;
+  var k = 1 - G.southT / SOUTH_SECS;
+  if (((k * SOUTH_BLINKS) % 1) > 0.62) return;      // the off half
+  ctx.globalAlpha = Math.min(1, G.southT / 0.3);
+  drawBigArrow(LOGICAL_W / 2, 296, 150, C.good);
+  txt("PROCEED SOUTH", LOGICAL_W / 2 + 3, 509, 46, "#06130a");
+  txt("PROCEED SOUTH", LOGICAL_W / 2, 506, 46, C.good);
+  ctx.globalAlpha = 1;
+}
+/* A fat chevron on a shaft. Drawn rather than stroked, because a stroked
+   arrow at this size needs a join that holds at the point and a filled path
+   just has one. */
+function drawBigArrow(cx, topY, h, col){
+  var hw = h * 0.46, headH = h * 0.52, sw = h * 0.21;
+  ctx.fillStyle = col;
+  ctx.beginPath();
+  ctx.moveTo(cx, topY);                                  // the point
+  ctx.lineTo(cx + hw, topY + headH);
+  ctx.lineTo(cx + sw, topY + headH);
+  ctx.lineTo(cx + sw, topY + h);
+  ctx.lineTo(cx - sw, topY + h);
+  ctx.lineTo(cx - sw, topY + headH);
+  ctx.lineTo(cx - hw, topY + headH);
+  ctx.closePath(); ctx.fill();
 }
 
 /* The brand mark, drawn from paths: an eye, because the product is about
@@ -11025,6 +11154,7 @@ function render(){
   if (G.ride) drawRide();
   drawHurt();
   drawLowHealth();
+  drawSouth();
   drawHud();
   if (G.state === ST_PLAY) drawLockup();
   if (G.state === ST_TITLE) drawTitle();

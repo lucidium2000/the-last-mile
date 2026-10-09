@@ -426,9 +426,26 @@ is "the user's own experience, from their own chair", Internet Insights is
 "outages across the whole internet, before the tickets".
 
 `brandHit` is the opposite. The mark comes up out of the middle of the screen at
-the size of a dinner plate, two rings leave it, and the product is spelled out
-in full underneath — **THOUSANDEYES** over **TAM** or **ADD-ON PACK** — over a
-**cash register**. Always in the brand orange, whatever the SKU's own chip
+the size of a dinner plate, rings leave it, and the product is spelled out
+in full underneath — **THOUSANDEYES** over **TAM** or **TE-ADDON** — over a
+**cash register**.
+
+**It comes in two sizes, and that is deliberate.** Everything got bigger: the
+lens is 12% wider, `THOUSANDEYES` went 62 → 72, the SKU 42 → 52, and every line
+now has a hard dark offset under it, because there is no `shadowBlur` in this
+renderer and there is a street full of yellow cabs behind the words — orange
+type landing on a taxi roof was legible in the editor and invisible in a room.
+
+The two that have to survive the drive home, **TAM** and **TE-ADDON**, go
+bigger again: everything ×1.22, the lens ×1.38, three rings instead of two, a
+stronger wash, six tenths of a second longer, and the name on a **solid plate
+in the brand orange** rather than coloured type over the street. A name you
+have to pick out of the background is a name you read; a name on a plate is a
+name you *saw*. The plate is measured with the same font string `txt` builds,
+or it is the wrong width for the only two words on the screen that matter. The
+test is simple and it is the whole point of the exercise: somebody who has
+played forty runs should be able to name two things afterwards, and these are
+the two. Always in the brand orange, whatever the SKU's own chip
 colour is: the first version took it from the product, pale for a TAM and amber
 for the pack, which made the one moment that is supposed to be ThousandEyes
 *itself* look like two different things. The mechanism first, two short noise bursts, one bright and
@@ -815,12 +832,22 @@ A walk uptown is tiring, and the only thing that fixes tired is lunch.
 | An objection that lands | **−15% to −100%**, see below |
 | Endpoint Agents shield | absorbs the hit completely, costs no health |
 
-**The shield stacks.** A second set of Endpoint Agents on top of the first
-turns the coat purple and adds a wide-brim hat and a cane, and it is worth
-**two** hits: purple takes one and drops to blue, blue takes one and drops to
-nothing, and only the third actually lands. The badge beside the health bar
-doubles up so the number of free hits left is countable rather than inferred
-from the colour. A third pickup is capped.
+**The shield stacks, and the blazer has a name.** Nobody remembers "Endpoint
+Agents, a shield". Everybody remembers the **Double Purple Pimp Blazer of
+Assurance**, and having remembered it they can tell you what it does, which is
+the only reason a name is worth anything. The first set is the
+**“Blue Blazer of Assurance”**; the second turns the coat purple, adds a
+wide-brim hat and a cane, and is the double. It is worth **two** hits: purple
+takes one and drops to blue, blue takes one and drops to nothing, and only the
+third actually lands. The badge beside the health bar doubles up so the number
+of free hits left is countable rather than inferred from the colour.
+
+**A third set pays $100,000 instead of evaporating.** He is already wearing
+both, there is nothing left to put on him, so they write it up — and a
+power-up that silently does nothing is the one thing worse than not finding
+one. It carries its own line on the end screen (`SPARE BLAZERS`) so the number
+is accounted for rather than appearing in the total from nowhere. Verified in
+sequence: blue, double purple, +$100,000, +$100,000.
 
 Verified: 1 agent → blue, 2 → purple, 3 → still purple; hit one leaves 100%
 health and the blue coat, hit two leaves 100% and no coat, hit three takes the
@@ -1825,15 +1852,29 @@ the following week, and the walk is meant to be happening today.
 says what a verbal is actually worth — *now get back to the office and lock it
 in.* **The direction confuses people, so it is drawn rather than written.** He still
 walks *up* the screen but the numbers now count *down*, which reads as a
-contradiction in words. It hangs for **4.75 seconds**, not 9.5: three lines and an arrow are read in
-about two, and the other seven were the player standing still on a pavement
-waiting to be allowed to walk. The notice carries a U-turn beside the line: a
+contradiction in words. It hangs for **3.75 seconds** — it was 9.5, then 4.75,
+and it is the one notice that is *followed* by something, so it can afford to
+be shortest. Three lines and an arrow are read in about two seconds, and
+everything past that was the player standing still on a pavement waiting to be
+allowed to walk. The notice carries a U-turn beside the line: a
 stroke down the right, round the bottom and back up the left, finishing in a
 head that points **up**. An earlier version spelled the same thing out with a
 captioned arrow and a strip reading `W 81 › W 80 › W 79 › W 78 …`, and it was
-too much panel for one idea. After the notice has gone, a small arrow and
-`STILL WALK UP / the numbers count down` sit under the blocks counter on the
-right for the whole walk home.
+too much panel for one idea.
+
+**The moment the notice goes, a green arrow blinks four times over the street
+saying `PROCEED SOUTH`** — and it points **up**, because that is where his legs
+actually go. It is handed straight on from the notice expiring, so there is no
+gap between being told to turn round and being shown which way that is, and it
+runs *while he walks* rather than while he stands there, which is where an
+instruction like that belongs. It blinks rather than fades: a fade is
+decoration and gets ignored, four hard blinks is an instruction, and four is
+enough to be certain it was deliberate without becoming a thing to wait out.
+Measured: notice gone at 3.76s, arrow from 3.76 to 6.94, 4 on-blinks at a 62%
+duty.
+
+After that, a small arrow and `STILL WALK UP / the numbers count down` sit
+under the blocks counter on the right for the whole walk home.
 
 **It also puts health back to 100%.** He has just sat down to a steak, and
 forty-seven blocks back to Penn 1 is a second run in all but name; starting it
