@@ -1166,8 +1166,8 @@ He stops. So it is three beats, and all of them are slow:
 |---|---|---|
 | **0.00–0.62** | the sag and the knees | he leans 17° and sinks 20px, eased *out* — legs fail fastest at the end |
 | **0.62–1.24** | the kneel | he holds there, folded, for well over half a second |
-| **1.24–1.58** | the rest of him | over to 86°, eased *in* — a body not catching itself |
-| **1.50–1.70** | the handover | the **prone** body cross-fades up under the tilted one, with the dust |
+| **1.24–1.58** | the rest of him | he pitches **forward**, away from the camera, eased *in* — a body not catching itself |
+| **1.46–1.70** | the handover | the **prone** body cross-fades up under him, with the dust |
 | **1.70–1.96** | the settle | the body squashes a couple of pixels and comes back, which is weight arriving |
 
 That second beat is the whole thing. Without a pause between the knees and the
@@ -1199,14 +1199,32 @@ left and right — a man face down is not facing anywhere. A long contact shadow
 goes down first, which is the single strongest cue that a shape is *on* the
 ground rather than standing on it, and it costs one ellipse.
 
-**The handover is a cross-fade, not a cut.** A hard swap from a tilted
-standing figure to a flat one pops however much dust you throw at it. The two
-overlap for 0.2s instead: the prone body comes up underneath as the tilted one
-goes, and because the tilt is already at 78° by the time the blend is a third
-done and 86° for the rest of it, the thing fading out is nearly flat anyway.
-Measured across the handover: tilt 57, 78, 86, 86 while the mix runs 0.00,
-0.30, 0.60, 0.90, 1.00. Five rings of dust spread off the pavement through
-all of it. It finishes at 1.96 against a **2.15** hold — `deathHold()` is longer for this death than for any
+**He falls AWAY from you, not sideways, and that is why the handover was
+wrong.** The hit death rotates the sprite about its feet, which lays the body
+out *across* the screen, left to right. The prone sprite lies *away* from the
+camera, head at the far end, because that is what falling on your face looks
+like from here. The two were ninety degrees apart in plan, so dissolving one
+into the other was a dissolve between two unrelated pictures — it read as a
+ghost because it was one, and no amount of cross-fade timing was going to fix
+it.
+
+So the last beat is not a rotation at all. The lean stays where the kneel left
+it and the body **foreshortens**: the feet stay put and everything above them
+squashes toward them, which is what a body pitching forward does at this
+camera angle.
+
+**And his feet stay where he was standing**, which is pure arithmetic and the
+other half of it. The standing sprite's foot plane is model y 0.46, which the
+projection puts 33px above the anchor; the prone body was built from y 0.02,
+putting its shoes 1px above the anchor — 32px nearer the camera than the feet
+it had supposedly fallen from. Two sprites in two different boxes. Pushed up
+by `PRONE_Y0` the soles land on the foot plane and the far end of him lands
+within four pixels of where his head was: standing occupies −145.4 to −63.4,
+prone −149.1 to −65.1. Same box, so the fade reads as the body going over
+rather than as one image becoming another — and the squash no longer has to
+carry the illusion on its own, which is why it is 0.52 now rather than the
+0.22 that shrank him to a smear the prone body then popped out of. Five rings
+of dust spread off the pavement through all of it. It finishes at 1.96 against a **2.15** hold — `deathHold()` is longer for this death than for any
 other — so the last thing on screen before the readout is him lying still,
 face down, for a quarter of a second.
 
