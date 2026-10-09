@@ -1027,7 +1027,16 @@ Agents, a shield". Everybody remembers the **Double Purple Pimp Blazer of
 Assurance**, and having remembered it they can tell you what it does, which is
 the only reason a name is worth anything. The first set is the
 **“Blue Blazer of Assurance”**; the second turns the coat purple, adds a
-wide-brim hat and a cane, and is the double. It is worth **two** hits: purple
+wide-brim hat and a cane, and is the double. **The cane goes in the hand the
+briefcase is not in**: both hung off the same side, which at fifty pixels is
+not a man with a cane and a case, it is a stick growing out of a box — one
+object nobody can name. The case moves to the far hip at level two and stays
+on the near one everywhere else. And the cane has a **crook**, not a knob:
+there are no curves in a voxel model, so the round is four blocks walking up
+out of the shaft, over the top and back down the far side with a tip hanging
+below the turn, sized so the notch between the tip and the shaft survives at
+sprite scale. Mirrored about the shaft rather than negated, so the hook curls
+away from him whichever way he faces. It is worth **two** hits: purple
 takes one and drops to blue, blue takes one and drops to nothing, and only the
 third actually lands. The badge beside the health bar doubles up so the number
 of free hits left is countable rather than inferred from the colour.

@@ -1809,7 +1809,11 @@ function playerModel(dir, shielded, face){
     P(0.362, 0.424, 0.024, 0.156, 0.730, 0.118, HAIR),       // sideburns
     P(0.614, 0.424, 0.024, 0.156, 0.730, 0.118, HAIR)
   ];
-  parts.push(P(dir > 0 ? 0.82 : 0.05, 0.46, 0.15, 0.13, 0.17, 0.14, "#17202c"));
+  /* The briefcase. It hangs off the hand the projection shows - except at
+     level two, where that hand already has a cane in it. Both on the same
+     side was a stick growing out of a box: one object nobody could name. */
+  var caseOut = (lvl >= 2) ? (dir < 0) : (dir > 0);
+  parts.push(P(caseOut ? 0.82 : 0.05, 0.46, 0.15, 0.13, 0.17, 0.14, "#17202c"));
   var dec = [
     { x:0.405, y:0.42, w:0.19, z:0.33,  h:0.25,  bg:"#f4f7fa" },   // shirt
     { x:0.455, y:0.42, w:0.09, z:0.33,  h:0.21,  bg:C.brand },     // tie
@@ -1831,9 +1835,27 @@ function playerModel(dir, shielded, face){
     parts.push(P(0.360, 0.43, 0.28, 0.15, 0.936, 0.100, shade(felt, 0.10))); // crown
     parts.push(P(0.360, 0.43, 0.28, 0.15, 0.936, 0.026, band));        // hatband
     parts.push(P(0.600, 0.43, 0.05, 0.15, 1.024, 0.075, gold));        // the feather
-    var cx2 = dir > 0 ? 0.845 : 0.11;
-    parts.push(P(cx2, 0.455, 0.035, 0.05, 0.02, 0.46, "#2b1a12"));    // the cane
-    parts.push(P(cx2 - 0.012, 0.45, 0.06, 0.06, 0.47, 0.045, gold));  // its head
+    var cx2 = dir > 0 ? 0.835 : 0.105, cw = 0.045;
+    parts.push(P(cx2, 0.455, cw, 0.05, 0.02, 0.46, "#2b1a12"));       // the shaft
+
+    /* A crook, not a knob. There are no curves in a voxel model, so the
+       round is four blocks walking over the top of the shaft and back down
+       the far side - up, over, down, and a tip hanging below the turn -
+       which at forty pixels is a hooked handle and at any size is at least
+       obviously a HANDLE. The old one was a single gold cube on the end,
+       which read as a cane with something stuck to it.
+
+       Mirrored about the shaft rather than negated, so the hook always
+       curls away from him whichever way he faces. */
+    var hookOut = dir > 0 ? 1 : -1;
+    function hook(off, w, z, h){
+      var hx = hookOut > 0 ? (cx2 + off) : (cx2 + cw - off - w);
+      parts.push(P(hx, 0.455, w, 0.05, z, h, gold));
+    }
+    hook(0.000, cw,    0.478, 0.034);     // up out of the shaft
+    hook(0.030, 0.090, 0.506, 0.030);     // over the top
+    hook(0.085, 0.035, 0.466, 0.044);     // and down the other side
+    hook(0.088, 0.030, 0.436, 0.032);     // the tip of the crook
   }
   if (lvl){
     /* Two separate lenses with skin showing between them and a narrow bridge
