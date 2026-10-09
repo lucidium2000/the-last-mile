@@ -10759,9 +10759,12 @@ function drawBrandHit(){
      words - orange type landing on a taxi roof was legible in the editor
      and invisible in a room. */
   var sh = "#140800";
-  /* The real wordmark, not Helvetica in caps. Sized so its cap height lands
-     where the 72px setting's did, and centred on the same optical line. */
-  if (!drawWordmark(cx, cy + 212 + drop, Math.round(540 * S))){
+  /* The real wordmark, not Helvetica in caps. Smaller than the type it
+     replaced and sitting higher: at 540 wide it is 160 tall, which reached
+     cy+292 and put the bottom of "ThousandEyes" inside the name plate at
+     cy+262. At 430 it spans cy+124 to cy+252 - ten clear of the mark above
+     it and ten clear of the plate below. */
+  if (!drawWordmark(cx, cy + 188 + drop, Math.round(430 * S))){
     txt("THOUSANDEYES", cx, cy + 247 + drop, Math.round(72 * S), sh);
     txt("THOUSANDEYES", cx, cy + 244 + drop, Math.round(72 * S), "#ffffff");
   }

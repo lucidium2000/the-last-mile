@@ -479,7 +479,10 @@ decode that never lands, the same contract as Chuck's photograph and the voice
 lines.
 
 Where it shows up: the **burst** (the mark big, with the real wordmark set
-under it instead of Helvetica in caps), the **title**, the **persistent
+under it instead of Helvetica in caps — 430 wide, not 540, because at 540 it
+was 160 tall, reached cy+292 and put the bottom of *ThousandEyes* inside the
+name plate at cy+262; at 430 it spans cy+124 to cy+252, ten clear of the mark
+above it and ten clear of the plate below), the **title**, the **persistent
 lockup** bottom-left — which is now the whole lockup rather than a mark with
 no name beside it, since it is the only branding on screen for most of a run —
 the two **pickup labels**, and the **favicon** on both the game and the
