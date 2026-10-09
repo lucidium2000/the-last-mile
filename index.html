@@ -7814,9 +7814,15 @@ function update(dt){
              driver has seen me", and halting the whole row keeps every gap
              exactly as it was for nothing.
 
-             It re-arms every frame while he is still in front of them, so the
-             lane stays stopped for as long as he stands there and rolls again
-             half a second after he is clear. */
+             A LANE THAT HAS BRAKED STAYS BRAKED for the rest of the
+             power-up. It used to re-arm half a second at a time, so the
+             moment he stepped clear the lane rolled again and the street he
+             had just crossed closed behind him - which is a driver who
+             looked away, not one who has control of the traffic. The SKU is
+             "insight AND CONTROL of traffic"; this is the control half. The
+             halt is set to whatever is left on G.riskT, so it expires with
+             the power-up rather than on a timer of its own, and a lane he
+             never walks into never stops at all. */
           var clear = Math.abs(car.sw || 0) >= SWERVE_CLEAR;
           if (!clear && (overlap || (approach > -0.2 && approach < DETER_TILES))){
             if (!(row.halt > 0)){
@@ -7824,7 +7830,7 @@ function update(dt){
               burst(pp.col*TILE + TILE/2, rowScreenY(r) - 26, POWERS.traffic.col);
               AUDIO.brakes();
             }
-            row.halt = 0.5;
+            row.halt = Math.max(row.halt || 0, G.riskT);
           }
         }
         /* Fast out, slow back: a driver commits to the swerve and drifts back
@@ -7854,6 +7860,13 @@ function update(dt){
         }
       }
       if (row.bounce > 0) row.bounce -= dt;
+      /* A lane that is halted stays halted for as long as Traffic Insights
+         is up, however the clock got there. Arming it with the remaining
+         G.riskT is enough on its own while the SKU only counts down - the
+         two then expire together - but a SECOND card picked up mid-effect
+         pushes riskT back up, and without this the lane it had already
+         stopped would start rolling again underneath him. */
+      if (row.halt > 0 && G.riskT > row.halt) row.halt = G.riskT;
       if (row.halt > 0) row.halt -= dt;
       if (row.flinch > 0) row.flinch -= dt;
       separate(row);

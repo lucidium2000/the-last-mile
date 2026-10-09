@@ -2411,9 +2411,19 @@ now answers it,* in two stages:
    reversing on the spot is a strange thing to watch, and it threw cars he had
    already judged safe back across his path. Brakes are the obvious reading of
    *that driver has seen me*, and halting the whole row keeps every gap exactly
-   as it was for nothing. It re-arms every frame while he is still in front of
-   them, so the lane holds for as long as he stands there and rolls again half
-   a second after he is clear.
+   as it was for nothing. **A lane that has braked stays braked for the rest of
+   the power-up.** It used to re-arm half a second at a time, so the moment he
+   stepped clear the lane rolled again and the street he had just crossed
+   closed behind him — which is a driver who looked away, not one who has
+   control of the traffic. The SKU is "insight *and control* of traffic"; this
+   is the control half. `row.halt` is set to whatever is left on `G.riskT`, so
+   it expires with the power-up rather than on a timer of its own, and a lane
+   he never walks into never stops at all. A second card picked up mid-effect
+   pushes `riskT` back up, so the per-row tick re-raises any live halt to
+   match it — otherwise a lane it had already stopped would start rolling again
+   underneath him. Measured on a 4s run: the car moves 0 at every sample while
+   he stands clear of the lane, and starts again on the frame `riskT` reaches
+   zero.
 
 Two things had to be got right. The swerve is measured against the **whole
 body**, not the leading edge: measuring the nose of a bus collapsed the swerve
