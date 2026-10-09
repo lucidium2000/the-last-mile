@@ -262,6 +262,15 @@ was as long and as low as the SUV and looked like a shipping container; a step
 van is short and tall, and its roof is drawn as the *darkest* face because the
 projection lights top faces hardest and a pale roof slab was all you could see.
 
+**There are no streetlight pools on the pavement any more.** Five amber ones
+were baked across every pavement strip, and two things were wrong with them:
+there are no streetlights on the pavement for the light to fall from, so it
+was a glow with no source; and every pavement row is the *same* baked strip,
+so the five pools landed at the same five columns on every row and stacked
+into continuous vertical bands. Which is what they read as — not pools of
+light on concrete, a yellowed stripe down the pavement. A pavement is a flat
+grey thing and it is allowed to be one.
+
 **A kerb belongs where the pavement meets the road, and nowhere else.** It
 used to be baked into the pavement strip, which was fine when a pavement was
 usually one row deep. It is two or three now, and every row was drawing its
@@ -284,6 +293,16 @@ is being laid*: the first version tested `safeRun` unconditionally, which
 forced a sidewalk after every single road row and quietly deleted every
 multi-lane street in the game — 42nd and 57th included. Measured after:
 pavements 2 and 3 only, road runs still 1 to 4.
+
+**The celebration wears what he is wearing.** The arms-up cheer was hardcoded
+to the blue blazer — right exactly once, for the first set. Collect a second
+and the coat turned purple while two *blue* arms went up over the top of it,
+with rings and sparks in the colour of the coat he had just stopped wearing.
+Coat, rings and sparks all read `G.shield` now. And **the arms are skipped in
+flight**: the TAM sprite is baked mid-flight with his arms already out, so
+painting a second pair over it gave him four, at the wrong angle. He keeps the
+rings and the sparks — a man flying over 42nd Street does not need help looking
+pleased.
 
 **Every power-up on the pavement glows.** One used to be a small bobbing
 sprite with a caption, which is a thing you *notice*; it needs to be a thing
@@ -572,6 +591,23 @@ now has a hard dark offset under it, because there is no `shadowBlur` in this
 renderer and there is a street full of yellow cabs behind the words — orange
 type landing on a taxi roof was legible in the editor and invisible in a room.
 
+**Where the burst is allowed to live.** Two hard edges. Above: the pickup
+banner ends at y 294, so nothing may start higher. Below: he stands at
+`BASE_Y` 858 and the lanes he has to read are *above* him on screen — the next
+row up is at 786, the one after at 714 — so anything the burst paints below
+about 650 is painted over the two decisions he is in the middle of making.
+That is the whole of the playability problem, and it is why the answer is to
+move the stack **up** rather than to make it shorter-lived: a celebration that
+hides the traffic is a celebration that kills you, and one you can see past is
+one you are glad to see again.
+
+Everything hangs off `BURST_CY` 360, and **the eye is what pays for the room**.
+It was 222px tall and it is the one element carrying nothing the line below it
+does not already carry — the wordmark has the mark in it. Cutting it in half
+buys the whole move and costs nothing you can name. The wash came down with it,
+0.26 to 0.21, because the wash is the thing that says *stop looking at the
+street* and the street is the game.
+
 **The name plate glows.** There is no `shadowBlur` in this renderer and there
 never will be — it is the single most expensive thing you can ask a software
 canvas for and this runs on a room panel — so the glow is **ten rounded
@@ -584,6 +620,27 @@ the plate itself a white rim. The whole stack breathes at 9 rad/s — about
 bands sweeps across it once over the life of the burst, clipped to the plate:
 that is the thing that makes a flat colour read as a *surface*, and a surface
 is what you want to reach out and take.
+
+**And the word fills it.** It was 58px type in a 68px box with 39px of air
+either side — a label in a box. At 72px with 26 it is a *badge*, and a badge is
+the thing you remember. And the plate is built round the **ink**, not
+the other way round: it used to be a fixed 68-high box at `ny-48` with the
+word drawn at `ny`, so the box centre was `ny-14` and the word sat fourteen
+pixels below it — a slight list at 58px and a word falling out of its own badge
+at 72. Worse, `"middle"` centres the *em* box, which carries room for
+descenders a word in caps never uses, so even a correctly centred box leaves
+the caps sitting low. Both go away if the ink is measured: switch to an
+alphabetic baseline, ask for the actual bounding box of the actual string
+(ascent 53, descent 1 at 72px), size the plate to that plus 9px either side,
+and put the baseline where it lands the ink dead centre. Three more pieces of flair, all of them cheap: one
+vertical **gradient** on the plate, built once a frame and only while a burst
+is up, which turns a coloured rectangle into a lit object — brighter along the
+top edge where the light is, deeper at the bottom; a **letterpress** pass, the
+name drawn once in a light tint 2.5px below itself so the near-black letters
+read as stamped into the orange, which is one extra `fillText`; and three
+**twinkles** along the edges, staggered, each a four-point star drawn as two
+rects. Nine fills for the set, and they are the only thing on the plate still
+moving once the sheen has gone past.
 
 The two that have to survive the drive home, **TAM** and **TE-ADDON**, go
 bigger again: everything ×1.22, the lens ×1.38, three rings instead of two, a
@@ -2099,6 +2156,23 @@ costs nothing per frame and cannot drift if the renderer stutters.
 All four are synthesised at runtime like every other cue. **They are original
 pieces written for this game** — not transcriptions or arrangements of any
 existing song, and nothing in the repo reproduces copyrighted melody.
+
+### The readout has to fit on the page
+
+The tally is laid out at a fixed pitch downward from `top`, so its height is a
+function of how many rows it has — and rows get added. `SPARE BLAZERS` made it
+eight, which pushed the total to y 1060 and put the rank, the personal best
+and *the line telling you how to start another run* clean off the bottom of a
+1080-high canvas.
+
+Rather than re-tune every number each time a row appears, the whole block is
+measured and scaled to the space between `top` and `TALLY_BOTTOM` (1020),
+about its own top edge, so every coordinate inside it still holds. Clamped at
+1: it shrinks to fit and never grows to fill. The headers above it gave up
+70px as well — a 96px headline over a 152px plate left the tally 510–1020 for
+a block that needs 718, which scaled it to 0.71 and made the numbers everybody
+reads smaller than the line telling them they missed a train. Tightened, the
+tally starts at 440 and scales to **0.81**.
 
 ### The ticker card
 

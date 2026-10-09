@@ -2727,8 +2727,14 @@ function bakeStrip(kind, alt){
     for (var j=0;j<=COLS;j++){ g.moveTo(j*TILE, 0); g.lineTo(j*TILE, h); }
     g.moveTo(0, h*0.5); g.lineTo(LOGICAL_W, h*0.5);
     g.stroke();
-    // amber streetlight pools
-    for (var p=0;p<5;p++) glowRect(g, 180+p*400, h*0.1, 240, h*0.8, C.amberGlow, "rgba(255,176,46,0.05)");
+    /* There were five amber "streetlight pools" baked across every pavement
+       strip. Two things were wrong with them. There are no streetlights on
+       the pavement for the light to fall from, so they were a glow with no
+       source; and every pavement row is the SAME baked strip, so the five
+       pools landed at the same five columns on every row and stacked into
+       continuous vertical bands - which is what they actually read as. Not
+       pools of light on concrete: a yellowed stripe down the pavement. A
+       pavement is a flat grey thing and it is allowed to be one. */
     /* No kerb and no edge line in the bake. Both used to be part of the
        strip, which meant EVERY pavement row drew a kerb - and a pavement is
        two or three rows deep, so a dark lip and an orange seam landed
@@ -3925,6 +3931,9 @@ function muteBtnActive(){
    0.55 and the longest-lived note at about 1.50, so this is the length of
    the whole thing rather than a pause bolted on the end of it. */
 var DEATH_HOLD = 1.50;
+/* The lowest the readout may reach. The world only ever uses y 40..1040, and
+   the last line on this screen is the one that tells you how to start again. */
+var TALLY_BOTTOM = 1020;
 var TALLY_T0 = 1.15, TALLY_GAP = 0.80, TALLY_RUN = 0.66, TALLY_TOTAL = 1.15;
 function buildTally(){
   var base = G.maxRow * DOLLARS_PER_ROW;
@@ -9148,34 +9157,49 @@ function drawCheer(cx, topY){
   var a = Math.max(0, Math.min(1, t / 0.35));
   var open = Math.min(1, age / 0.26);
 
-  // rings of blazer blue going out
+  /* THE CELEBRATION WEARS WHAT HE IS WEARING. All of this was hardcoded to
+     the blue blazer, which was right exactly once: the first set. Collect a
+     second and the coat turns purple while two blue arms go up over the top
+     of it, and the rings and sparks coming off him are the colour of the
+     coat he just stopped wearing. */
+  var two  = G.shield >= 2;
+  var coat = two ? shade(BLAZER2, -0.20)
+                 : (G.shield ? shade(BLAZER, -0.24) : "#19222f");
+  var ring = two ? BLAZER2 : BLAZER;
+  var lite = two ? "#d9b6ff" : "#8fc2ff";
+
   var i;
   for (i = 0; i < 3; i++){
     var rp = (age * 0.85 + i * 0.33) % 1;
     if (age < 0.1) continue;
     ctx.globalAlpha = a * (1 - rp) * 0.5;
-    ctx.strokeStyle = i % 2 ? BLAZER : "#8fc2ff"; ctx.lineWidth = 6;
+    ctx.strokeStyle = i % 2 ? ring : lite; ctx.lineWidth = 6;
     ctx.beginPath(); ctx.ellipse(cx, topY + 74, 30 + rp * 150, 12 + rp * 56, 0, 0, Math.PI*2);
     ctx.stroke();
   }
   ctx.globalAlpha = a;
 
-  // both arms up in a V, fists at the top
-  var coat = shade(BLAZER, -0.18);
-  for (i = -1; i <= 1; i += 2){
-    var x0 = cx + i * 24, y0 = topY + 50;
-    var x1 = cx + i * (30 + 26 * open), y1 = y0 - (26 + 40 * open);
-    ctx.strokeStyle = coat; ctx.lineWidth = 12; ctx.lineCap = "round";
-    ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x1, y1); ctx.stroke();
-    ctx.fillStyle = HERO_SKIN;
-    ctx.beginPath(); ctx.arc(x1, y1 - 4, 8, 0, Math.PI * 2); ctx.fill();
+  /* Both arms up in a V - unless they are already up. The TAM sprite is
+     baked mid-flight with his arms out, so painting a second pair over it
+     gave him four, and the drawn ones were at the wrong angle besides. He
+     keeps the rings and the sparks; a man flying over 42nd Street does not
+     need help looking pleased. */
+  if (G.flyT <= 0){
+    for (i = -1; i <= 1; i += 2){
+      var x0 = cx + i * 24, y0 = topY + 50;
+      var x1 = cx + i * (30 + 26 * open), y1 = y0 - (26 + 40 * open);
+      ctx.strokeStyle = coat; ctx.lineWidth = 12; ctx.lineCap = "round";
+      ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x1, y1); ctx.stroke();
+      ctx.fillStyle = HERO_SKIN;
+      ctx.beginPath(); ctx.arc(x1, y1 - 4, 8, 0, Math.PI * 2); ctx.fill();
+    }
   }
 
   // sparks off the top
   for (i = 0; i < 7; i++){
     var sp = (age * 1.1 + i * 0.14) % 1;
     ctx.globalAlpha = a * (1 - sp) * 0.85;
-    ctx.fillStyle = i % 3 ? "#bcd9ff" : BLAZER;
+    ctx.fillStyle = i % 3 ? lite : ring;
     var sx2 = cx + Math.sin(i * 2.1) * (18 + sp * 44);
     ctx.fillRect(sx2, topY - 10 - sp * 80, 5, 9);
   }
@@ -10754,6 +10778,16 @@ function drawHud(){
    to read next are not, and a celebration that hides the traffic is a
    celebration that kills you. */
 var BRAND_HIT = 1.60;
+/* The burst's geometry, in one place because it is a balance rather than a
+   number: big enough to be the best thing that happens in the run, small
+   enough and high enough that the two lanes in front of him stay visible
+   while it is up. BURST_CY 360 puts the top of the mark at ~297, just under
+   the pickup banner at 294, and the bottom of the subtitle at ~640, just
+   above the second row ahead of him at 714. */
+var BURST_CY = 360, BURST_BIG_K = 1.14;
+/* The air around the word on the big name plate, left/right and top/bottom.
+   Small on purpose: the word is meant to FILL it. */
+var BADGE_PAD = 26, BADGE_PAD_Y = 9;
 /* Always the brand orange, whatever the product's own chip colour is. The
    first version took the colour from the SKU - pale for a TAM, amber for the
    pack - which made the one moment that is supposed to be ThousandEyes
@@ -10774,9 +10808,10 @@ function moneyRise(amt){
    head, which is exactly where the burst's type is - two green numbers
    through the middle of THOUSANDEYES, which is what the screenshot showed.
    Parked here it reads as the bottom line OF the burst instead of as a
-   second thing fighting it: 930 rising to 810 sits under the name plate at
-   733 and above the health bar at 986. */
-var RISE_PARK_Y = 930;
+   second thing fighting it. It follows the burst: with the stack lifted to
+   BURST_CY 360 the subtitle now ends about 645, so the rise runs 820 up to
+   700 - clear underneath it, and still above the health bar at 986. */
+var RISE_PARK_Y = 820;
 function drawMoneyRise(){
   var R = G.rise;
   if (!R) return;
@@ -10856,10 +10891,21 @@ function drawBrandHit(){
   var k = 1 - B.life / B.max;                 // 0 at the strike, 1 at the end
   var out = Math.min(1, B.life / 0.40);       // the tail
   var e = 1 - Math.pow(1 - Math.min(1, k * 1.9), 3);
-  /* The big one sits 26 lower. At x1.38 the lens reaches about 0.46r above
-     centre, which is y 292 - and the add-on's own banner ends at 294. They
-     were touching. */
-  var cx = LOGICAL_W / 2, cy = LOGICAL_H * 0.355 + (B.big ? 26 : 0);
+  /* WHERE THE BURST IS ALLOWED TO LIVE.
+
+     Two hard edges. Above: the pickup banner ends at y 294, so nothing may
+     start higher than BURST_TOP. Below: he stands at BASE_Y 858 and the
+     lanes he has to read are ABOVE him on screen - the next row up is at
+     786, the one after at 714 - so anything the burst paints below about 650
+     is painted over the two decisions he is in the middle of making. That is
+     the whole of the playability problem, and it is why the answer is to
+     move the stack UP rather than to make it shorter-lived.
+
+     Everything hangs off BURST_CY, and the eye is what pays for the room.
+     It was 222px tall and it is the one element carrying no information the
+     line below it does not already carry - the wordmark has the mark in it.
+     Cutting it in half buys the whole move and costs nothing you can name. */
+  var cx = LOGICAL_W / 2, cy = BURST_CY;
   /* Two sizes. Everything got bigger, and the two that have to survive the
      drive home - TAM and TE-ADDON - got bigger again, three rings instead of
      two, and their name on a solid plate in the brand colour instead of
@@ -10867,9 +10913,11 @@ function drawBrandHit(){
      background is a name you read; a name on a plate is a name you SAW. The
      whole point of this screen is that somebody who has played forty runs
      should still be able to name two things, and these are the two. */
-  var S = B.big ? 1.22 : 1;
+  var S = B.big ? BURST_BIG_K : 1;
 
-  ctx.globalAlpha = Math.max(0, 1 - k * 3.2) * (B.big ? 0.26 : 0.20);
+  /* The wash is lighter than it was, too. It is the thing that says "stop
+     looking at the street", and the street is the game. */
+  ctx.globalAlpha = Math.max(0, 1 - k * 3.2) * (B.big ? 0.21 : 0.16);
   ctx.fillStyle = B.col;
   ctx.fillRect(0, 0, LOGICAL_W, LOGICAL_H);
 
@@ -10894,14 +10942,14 @@ function drawBrandHit(){
      above it than the radius suggests, and even at 1.38 the top of it still
      clears the pickup banner at y 230. */
   ctx.globalAlpha = out * 0.86;
-  drawEye(cx, cy, (74 + e * 70) * (B.big ? 1.38 : 1.12), B.col, "#2a1400", "#ffffff");
+  drawEye(cx, cy, (46 + e * 44) * (B.big ? 1.24 : 1.06), B.col, "#2a1400", "#ffffff");
 
   if (B.icon === "hourglass"){
     /* In the gap between the pickup banner and the mark. The flash bar ends
        at MSG_Y + 96 = 230 and the eye starts around 311, so the glass is 78
        tall and centred at 270 - any bigger and it sits on one or the other. */
     ctx.globalAlpha = out * Math.min(1, k * 3);
-    drawHourglass(cx, cy - 113 - (1 - e) * 18, 78, Math.min(1, k * 1.15));
+    drawHourglass(cx, cy - 92 - (1 - e) * 16, 62, Math.min(1, k * 1.15));
     ctx.globalAlpha = 1;
   }
 
@@ -10917,18 +10965,41 @@ function drawBrandHit(){
      cy+292 and put the bottom of "ThousandEyes" inside the name plate at
      cy+262. At 430 it spans cy+124 to cy+252 - ten clear of the mark above
      it and ten clear of the plate below. */
-  if (!drawWordmark(cx, cy + 188 + drop, Math.round(430 * S))){
-    txt("THOUSANDEYES", cx, cy + 247 + drop, Math.round(72 * S), sh);
-    txt("THOUSANDEYES", cx, cy + 244 + drop, Math.round(72 * S), "#ffffff");
+  if (!drawWordmark(cx, cy + 118 + drop, Math.round(380 * S))){
+    txt("THOUSANDEYES", cx, cy + 148 + drop, Math.round(62 * S), sh);
+    txt("THOUSANDEYES", cx, cy + 145 + drop, Math.round(62 * S), "#ffffff");
   }
 
-  var ny = cy + 322 + drop, nsz = B.big ? 66 : 52;
+  var ny = cy + 222 + drop, nsz = B.big ? 72 : 46;
   if (B.big){
     /* Measured with the same font string txt builds, or the plate is the
        wrong width for the only two words on the screen that matter. */
+    /* THE PLATE IS BUILT ROUND THE INK, not the other way round.
+
+       It used to be a fixed 68-high box at ny-48 with the word drawn at ny -
+       so the box centre was ny-14 and the word sat fourteen pixels below it,
+       which at 58px type was a slight list and at 72 was a word falling out
+       of the bottom of its own badge. Worse, "middle" centres the EM box,
+       which carries room for descenders that a word in caps never uses, so
+       even a correctly centred box leaves the caps sitting low.
+
+       Both go away if the ink is measured. Switch to an alphabetic baseline,
+       ask for the actual bounding box of the actual string, size the plate
+       to that plus BADGE_PAD either side, and put the baseline where it
+       lands the ink dead centre. It is now the same amount of air above the
+       letters as below them, whatever the string and whatever font the panel
+       resolved. */
+    ctx.textBaseline = "alphabetic";
     ctx.font = "bold " + nsz + 'px "Helvetica Neue",Helvetica,Arial,sans-serif';
-    var pw = ctx.measureText(B.what).width + 78;
-    var px0 = cx - pw / 2, py0 = ny - 60, ph = 88;
+    var mN = ctx.measureText(B.what);
+    var inkA = (mN.actualBoundingBoxAscent  === undefined) ? nsz * 0.72
+                                                           : mN.actualBoundingBoxAscent;
+    var inkD = (mN.actualBoundingBoxDescent === undefined) ? 0
+                                                           : mN.actualBoundingBoxDescent;
+    var pw = mN.width + BADGE_PAD * 2;
+    var ph = Math.round(inkA + inkD + BADGE_PAD_Y * 2);
+    var px0 = cx - pw / 2, py0 = Math.round(ny - ph / 2);
+    var yInk = py0 + BADGE_PAD_Y + inkA;
     var pulse = 0.5 + 0.5 * Math.sin(G.t * 9);
 
     /* THE GLOW. There is no shadowBlur in this renderer and there never will
@@ -10953,7 +11024,17 @@ function drawBrandHit(){
     ctx.stroke();
 
     ctx.globalAlpha = out * Math.min(1, k * 5);
-    plate(px0, py0, pw, ph, B.col, 16);
+    /* Not a flat fill. One vertical gradient, built once a frame and only
+       while a burst is up, turns the plate from a coloured rectangle into a
+       lit object - brighter along the top edge where the light is coming
+       from, deeper at the bottom. It is the cheapest piece of flair in the
+       file and it does more than everything else here put together. */
+    var pg = ctx.createLinearGradient(0, py0, 0, py0 + ph);
+    pg.addColorStop(0,    shade(B.col,  0.30));
+    pg.addColorStop(0.45, B.col);
+    pg.addColorStop(1,    shade(B.col, -0.22));
+    rr(px0, py0, pw, ph, 16);
+    ctx.fillStyle = pg; ctx.fill();
 
     /* A white rim that breathes with the glow. On the plate rather than
        around it, so the edge reads as lit rather than as a border. */
@@ -10980,16 +11061,35 @@ function drawBrandHit(){
     }
     ctx.restore();
 
+    /* Three twinkles along the top edge, staggered, each one a four-point
+       star drawn as two rects. Nine fills for the set and they are the only
+       thing on the plate that moves once the sheen has gone past. */
+    for (var tw = 0; tw < 3; tw++){
+      var tp = (k * 2.1 - tw * 0.22);
+      if (tp <= 0 || tp >= 1) continue;
+      var ts = Math.sin(tp * Math.PI) * 9;
+      ctx.globalAlpha = out * Math.sin(tp * Math.PI) * 0.9;
+      ctx.fillStyle = "#fff6e8";
+      var tx = px0 + pw * (0.18 + tw * 0.32), ty = py0 + (tw % 2 ? ph - 7 : 7);
+      ctx.fillRect(tx - ts, ty - 1.5, ts * 2, 3);
+      ctx.fillRect(tx - 1.5, ty - ts, 3, ts * 2);
+    }
+
+    /* Letterpress. The name is near-black on orange; one pass of a light
+       tint two pixels BELOW it reads as the cut edge of a stamped letter,
+       and it is one extra fillText. */
     ctx.globalAlpha = out * Math.min(1, k * 5);
-    txt(B.what, cx, ny, nsz, "#1a0a00");
+    txt(B.what, cx, yInk + 2.5, nsz, "rgba(255,255,255,0.26)");
+    txt(B.what, cx, yInk, nsz, "#1a0a00");
+    ctx.textBaseline = "middle";        // back to what everything else wants
   } else {
     txt(B.what, cx + 3, ny + 3, nsz, sh);
     txt(B.what, cx, ny, nsz, B.col);
   }
   if (B.sub){
-    var sy3 = ny + (B.big ? 62 : 52);
-    txt(B.sub, cx + 2, sy3 + 2, 30, sh);
-    txt(B.sub, cx, sy3, 30, "#ffffff");
+    var sy3 = ny + (B.big ? 52 : 44);
+    txt(B.sub, cx + 2, sy3 + 2, 26, sh);
+    txt(B.sub, cx, sy3, 26, "#ffffff");
   }
   ctx.globalAlpha = 1;
 }
@@ -11286,22 +11386,28 @@ function drawDead(){
   if (G.won){ drawWon(); return; }
   ctx.fillStyle = "rgba(8,5,3,0.84)";
   ctx.fillRect(0, 0, LOGICAL_W, LOGICAL_H);
+  /* The header gives up 70px so the readout does not have to be shrunk to
+     fit under it. It was a 96px headline over a 152px plate, which left the
+     tally 510 to 1020 - and the tally needs 718, so it was being scaled to
+     0.71 and the numbers everybody reads came out smaller than the line
+     telling them they missed a train. Tightened, the tally starts at 440 and
+     scales to 0.81. */
   if (G.missedTrain){
-    txt("MISSED YOUR TRAIN", LOGICAL_W/2, 206, 96, C.amber);
-    txt(G.trainLine + " · " + G.trainDest + " · " + G.deathName, LOGICAL_W/2, 288, 34, C.text);
+    txt("MISSED YOUR TRAIN", LOGICAL_W/2, 182, 82, C.amber);
+    txt(G.trainLine + " · " + G.trainDest + " · " + G.deathName, LOGICAL_W/2, 250, 30, C.text);
   } else {
-    txt(G.po ? "SO CLOSE" : "DIDN’T MAKE IT", LOGICAL_W/2, 206, 100, C.danger);
-    txt((G.po ? "SIGNED ORDER, STOPPED ON W " : "STOPPED ON W ") + G.street + " ST BY " + G.deathName, LOGICAL_W/2, 288, 34, C.text);
+    txt(G.po ? "SO CLOSE" : "DIDN’T MAKE IT", LOGICAL_W/2, 182, 86, C.danger);
+    txt((G.po ? "SIGNED ORDER, STOPPED ON W " : "STOPPED ON W ") + G.street + " ST BY " + G.deathName, LOGICAL_W/2, 250, 30, C.text);
   }
 
-  plate(LOGICAL_W/2-580, 336, 1160, 152, C.ink);
+  plate(LOGICAL_W/2-580, 294, 1160, 124, C.ink);
   ctx.fillStyle = G.missedTrain ? C.amber : C.danger;
-  ctx.fillRect(LOGICAL_W/2-580, 336, 8, 152);
-  txt(G.deathObj, LOGICAL_W/2, 382, 30, C.textDim, "center", 1080);
-  txt(G.missedTrain ? "REMEMBER" : "TRY THIS", LOGICAL_W/2, 428, 20, C.good);
-  txt(G.deathFix, LOGICAL_W/2, 462, 30, C.text, "center", 1080);
+  ctx.fillRect(LOGICAL_W/2-580, 294, 8, 124);
+  txt(G.deathObj, LOGICAL_W/2, 332, 28, C.textDim, "center", 1080);
+  txt(G.missedTrain ? "REMEMBER" : "TRY THIS", LOGICAL_W/2, 370, 19, C.good);
+  txt(G.deathFix, LOGICAL_W/2, 400, 28, C.text, "center", 1080);
 
-  drawTally(510, C.danger);
+  drawTally(440, C.danger);
 }
 
 /* The readout. Lines slide in one at a time and count up, the total lands last
@@ -11311,6 +11417,23 @@ function drawTally(top, accent){
   var T = G.tally;
   if (!T){ return; }
   var W = 1080, X = (LOGICAL_W - W) / 2, y = top;
+
+  /* IT HAS TO FIT ON THE PAGE. The block is laid out at a fixed pitch from
+     `top` downward, so its height is a function of how many rows there are -
+     and rows get added. SPARE BLAZERS made it eight, which pushed the total
+     to y 1060 and put the rank, the personal best and the line telling you
+     how to start another run clean off the bottom of a 1080-high canvas.
+
+     Rather than re-tune every number each time a row appears, the whole
+     block is measured and scaled to the space between `top` and
+     TALLY_BOTTOM, about its own top edge, so every coordinate inside it
+     still holds. Clamped at 1: it shrinks to fit and never grows to fill. */
+  var natural = 78 + T.rows.length * 52 + 224;
+  var fitK = Math.min(1, (TALLY_BOTTOM - top) / natural);
+  ctx.save();
+  ctx.translate(LOGICAL_W / 2, top);
+  ctx.scale(fitK, fitK);
+  ctx.translate(-LOGICAL_W / 2, -top);
 
   plate(X, y, W, 58 + T.rows.length * 52 + 112, "rgba(10,6,4,0.84)", 16);
   ctx.fillStyle = accent; ctx.fillRect(X, y, 7, 58 + T.rows.length * 52 + 112);
@@ -11358,24 +11481,25 @@ function drawTally(top, accent){
 
   // the things that are not money
   if (tallyOver()){
-    var sy2 = ly + 112, line = "";
+    var sy2 = ly + 96, line = "";
     for (i = 0; i < T.stats.length; i++)
       line += (i ? "   \u00B7   " : "") + T.stats[i][0] + " " + T.stats[i][1];
     txt(line, LOGICAL_W/2, sy2, 24, "rgba(253,244,238,0.52)", "center", W - 40);
-    txt(rankFor(G.maxRow), LOGICAL_W/2, sy2 + 54, 38, C.brand);
+    txt(rankFor(G.maxRow), LOGICAL_W/2, sy2 + 46, 38, C.brand);
     if (T.total > T.was && T.was > 0){
       ctx.globalAlpha = 0.6 + 0.4 * Math.sin(G.t * 6);
-      txt("NEW PERSONAL BEST", LOGICAL_W/2, sy2 + 96, 26, C.good);
+      txt("NEW PERSONAL BEST", LOGICAL_W/2, sy2 + 84, 26, C.good);
       ctx.globalAlpha = 1;
     }
     ctx.globalAlpha = 0.55 + 0.45 * Math.sin(G.t * 3);
-    txt("TAP ANYWHERE TO PURSUE A NEW PROSPECT", LOGICAL_W/2, sy2 + 148, 34, C.brand);
+    txt("TAP ANYWHERE TO PURSUE A NEW PROSPECT", LOGICAL_W/2, sy2 + 128, 34, C.brand);
     ctx.globalAlpha = 1;
   } else if (G.deadFor > 0.8){
     ctx.globalAlpha = 0.34;
     txt("TAP TO SKIP", LOGICAL_W/2, ly + 170, 22, C.textDim);
     ctx.globalAlpha = 1;
   }
+  ctx.restore();
 }
 /* Fast at first, settling at the end - a counter that climbs linearly and stops
    dead feels like a progress bar, not a till. */
@@ -11393,16 +11517,16 @@ function drawWon(){
     ctx.fillRect(40 + i * 31 + Math.sin(G.t * 2 + i) * 30, -40 + cp * 1160, 10, 20);
   }
   ctx.globalAlpha = 1;
-  txt("BOOKED", LOGICAL_W/2, 212, 118, C.good);
-  txt("PENN 1 \u00B7 THE PAPER IS ON THE DESK", LOGICAL_W/2, 296, 34, C.text);
+  txt("BOOKED", LOGICAL_W/2, 186, 100, C.good);
+  txt("PENN 1 \u00B7 THE PAPER IS ON THE DESK", LOGICAL_W/2, 252, 30, C.text);
 
-  plate(LOGICAL_W/2-580, 344, 1160, 128, C.ink);
-  ctx.fillStyle = C.good; ctx.fillRect(LOGICAL_W/2-580, 344, 8, 128);
+  plate(LOGICAL_W/2-580, 294, 1160, 112, C.ink);
+  ctx.fillStyle = C.good; ctx.fillRect(LOGICAL_W/2-580, 294, 8, 112);
   txt("You walked it uptown, you got the signature, and you walked it back.",
-      LOGICAL_W/2, 390, 30, C.textDim, "center", 1080);
-  txt("Nobody books a deal from a desk.", LOGICAL_W/2, 440, 30, C.text, "center", 1080);
+      LOGICAL_W/2, 332, 28, C.textDim, "center", 1080);
+  txt("Nobody books a deal from a desk.", LOGICAL_W/2, 376, 28, C.text, "center", 1080);
 
-  drawTally(496, C.good);
+  drawTally(430, C.good);
 }
 
 /* Dead centre, big, and it holds for seven and a half seconds, because the one
