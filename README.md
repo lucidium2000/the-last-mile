@@ -1166,9 +1166,9 @@ He stops. So it is three beats, and all of them are slow:
 |---|---|---|
 | **0.00–0.62** | the sag and the knees | he leans 17° and sinks 20px, eased *out* — legs fail fastest at the end |
 | **0.62–1.24** | the kneel | he holds there, folded, for well over half a second |
-| **1.24–1.66** | the rest of him | down to 80°, eased *in* — a body not catching itself |
-| **1.66** | the thud | the standing sprite is swapped for a **prone** one under a puff of dust |
-| **1.66–1.92** | the settle | the body squashes a couple of pixels and comes back, which is weight arriving |
+| **1.24–1.58** | the rest of him | over to 86°, eased *in* — a body not catching itself |
+| **1.50–1.70** | the handover | the **prone** body cross-fades up under the tilted one, with the dust |
+| **1.70–1.96** | the settle | the body squashes a couple of pixels and comes back, which is weight arriving |
 
 That second beat is the whole thing. Without a pause between the knees and the
 ground it is one movement, and one movement is a *fall*. It was 0.18s to begin
@@ -1186,18 +1186,27 @@ face. Everything sits 0.07 to 0.18 off the ground and the projection's own
 shading does the rest — top faces light, sides dark — so a stack of low slabs
 reads as a body rather than as a rug.
 
-The arms are the tell. Straight down the sides is how a man *stands*, and from
-behind that is exactly what it looked like; bent out at the elbow with the
-hands up by his head is a position nobody holds on their feet. Feet apart,
+The arms are the tell, and they hang off the **shoulders**. The first pass had
+them leaving the body at y 0.66, which is his waist — arms growing out of a
+man's hips is worse than no arms at all. The shoulder line is 0.88, so the
+upper arm starts at 0.84 and goes out, the forearm turns forward from 0.94,
+and the hands finish level with his head. Straight down the sides is how a man
+*stands*, and from behind that is exactly what it looked like; bent out at the
+elbow with the hands up by his head is a position nobody holds on their feet. Feet apart,
 briefcase dropped beside him, and at the purple blazer the hat has rolled off
 and the cane is lying where he let go of it. Three of them, one per blazer, no
 left and right — a man face down is not facing anywhere. A long contact shadow
 goes down first, which is the single strongest cue that a shape is *on* the
 ground rather than standing on it, and it costs one ellipse.
 
-The swap happens on the thud, under five rings of dust spreading off the
-pavement over 0.45s, which is there to cover the cut. It finishes at 1.92
-against a **2.15** hold — `deathHold()` is longer for this death than for any
+**The handover is a cross-fade, not a cut.** A hard swap from a tilted
+standing figure to a flat one pops however much dust you throw at it. The two
+overlap for 0.2s instead: the prone body comes up underneath as the tilted one
+goes, and because the tilt is already at 78° by the time the blend is a third
+done and 86° for the rest of it, the thing fading out is nearly flat anyway.
+Measured across the handover: tilt 57, 78, 86, 86 while the mix runs 0.00,
+0.30, 0.60, 0.90, 1.00. Five rings of dust spread off the pavement through
+all of it. It finishes at 1.96 against a **2.15** hold — `deathHold()` is longer for this death than for any
 other — so the last thing on screen before the readout is him lying still,
 face down, for a quarter of a second.
 
