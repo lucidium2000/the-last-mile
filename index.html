@@ -560,12 +560,12 @@ var AUDIO = (function(){
        collision. */
     collapse: function(){
       ladder = 0;
-      tone({ f:190, to:52, dur:1.90, type:"sine",     g:0.16, lp:700 });
-      tone({ f:95,  to:38, dur:2.00, type:"triangle", g:0.09, lp:420 });
+      tone({ f:190, to:52, dur:1.80, type:"sine",     g:0.16, lp:700 });
+      tone({ f:95,  to:38, dur:1.90, type:"triangle", g:0.09, lp:420 });
       hit({ f:210, to:90, dur:0.16, g:0.17, at:0.62 });        // the knees
       tone({ f:88, to:56, dur:0.20, type:"sine", g:0.10, at:0.62, lp:300 });
-      hit({ f:160, to:70, dur:0.26, g:0.22, at:1.62 });        // and the rest
-      tone({ f:70, to:44, dur:0.34, type:"sine", g:0.13, at:1.62, lp:260 });
+      hit({ f:160, to:70, dur:0.26, g:0.22, at:1.80 });        // and the rest
+      tone({ f:70, to:44, dur:0.34, type:"sine", g:0.13, at:1.80, lp:260 });
     },
     /* two-tone wail for the motorcade warning */
     /* A siren two blocks away, not one in the room. The old one was three
@@ -2029,79 +2029,6 @@ function playerModel(dir, shielded, face){
   return { parts:parts, decals:dec, shadow:false, W:1 };
 }
 
-/* FACE DOWN. A body on the pavement, not the standing sprite turned on its
-   side - which is all a rotation can ever give you, and it reads as a man
-   lying on his side looking at the kerb.
-
-   Built along +y, head furthest from the camera, because he goes down
-   forwards: the nearest thing to the viewer is the soles of his shoes and
-   the furthest is the back of his head. Nothing of the front of him is
-   visible, which is the entire point - no tie, no shirt, no face. Lying
-   flat, everything is 0.07 to 0.18 off the ground, and the projection's own
-   shading does the rest: top faces light, sides dark, so a stack of low
-   slabs reads as a body rather than as a rug.
-
-   Three of them, one per blazer, because he can go down in any of them. No
-   left and right: a man face down is not facing anywhere. */
-var PRONE_Y0 = 0.44;      // the standing foot plane, 0.46, less the sole at 0.02
-function proneModel(lvl){
-  var suit     = lvl >= 2 ? BLAZER2 : (lvl ? BLAZER : "#232f44");
-  var suitDark = lvl >= 2 ? "#4e2375" : "#19222f";
-  var HAIR = "#2b1d14", skin = HERO_SKIN;
-  var parts = [
-    P(0.34, 0.02, 0.12, 0.09, 0, 0.07, "#0d1014"),   // the soles, toward you
-    P(0.55, 0.02, 0.12, 0.09, 0, 0.07, "#0d1014"),
-    P(0.345, 0.10, 0.12, 0.10, 0, 0.10, "#12151a"),  // heels
-    P(0.545, 0.10, 0.12, 0.10, 0, 0.10, "#12151a"),
-    P(0.355, 0.19, 0.11, 0.44, 0, 0.11, suitDark),   // trouser legs, feet apart
-    P(0.535, 0.19, 0.11, 0.44, 0, 0.11, suitDark),
-    P(0.33, 0.61, 0.34, 0.33, 0, 0.15, suit),        // the back of the jacket
-    P(0.33, 0.88, 0.34, 0.09, 0, 0.165, shade(suit, -0.12)),  // shoulders
-    /* The arms are the tell, and they hang off the SHOULDERS. The first
-       pass had them leaving the body at y 0.66, which is his waist - arms
-       growing out of a man's hips is worse than no arms at all. The
-       shoulder line is 0.88, so the upper arm starts at 0.84 and goes out,
-       the forearm turns forward from 0.94, and the hands finish level with
-       his head. Straight down the sides is how a man STANDS and from behind
-       that is exactly what it looked like; bent out at the elbow with the
-       hands up by his head is a position nobody holds on their feet. */
-    P(0.195, 0.835, 0.155, 0.105, 0, 0.100, suit),   // L upper arm, out
-    P(0.65,  0.835, 0.155, 0.105, 0, 0.100, suit),   // R
-    P(0.165, 0.935, 0.095, 0.19,  0, 0.095, suit),   // L forearm, forward
-    P(0.74,  0.935, 0.095, 0.19,  0, 0.095, suit),   // R
-    P(0.155, 1.120, 0.10,  0.10,  0, 0.080, skin),   // hands, level with his head
-    P(0.735, 1.120, 0.10,  0.10,  0, 0.080, skin),
-    P(0.41, 0.955, 0.18, 0.035, 0, 0.175, "#f4f7fa"),// the collar, from behind
-    P(0.39, 0.99, 0.22, 0.19, 0, 0.185, HAIR),       // and the back of his head
-    P(0.78, 0.26, 0.17, 0.14, 0, 0.12, "#17202c")    // the case, dropped
-  ];
-  if (lvl >= 2){
-    /* The hat came off and rolled, and the cane is lying where he dropped
-       it. Both on the far side from the briefcase, so the ground around him
-       does not pile up on one side. */
-    var felt = "#6a2fa0", gold = "#e8c558";
-    parts.push(P(-0.10, 1.00, 0.26, 0.22, 0,    0.035, felt));  // the hat, rolled
-    parts.push(P(-0.04, 1.06, 0.14, 0.10, 0.035, 0.075, shade(felt, 0.10)));
-    parts.push(P(0.02, 0.18, 0.03, 0.42, 0,    0.035, "#2b1a12")); // the cane
-    parts.push(P(0.005, 0.58, 0.06, 0.06, 0,   0.040, gold));
-  }
-  /* HIS FEET STAY WHERE HE WAS STANDING. This is the whole of the handover
-     looking right or not, and it is pure arithmetic.
-
-     The standing sprite's foot plane is y 0.46 in model space, which the
-     projection puts 33px above the anchor; the prone body was built from
-     y 0.02, which puts its shoes 1px above the anchor - 32px nearer the
-     camera than the feet it is supposed to have fallen from. The two
-     sprites therefore sat in different boxes, and cross-fading between
-     pictures in different boxes is a dissolve, which is what it looked
-     like. Pushed up by PRONE_Y0 the soles land exactly on the foot plane
-     and the far end of him lands within a few pixels of where his head
-     was, so the two occupy the same screen box and the fade reads as the
-     body going over rather than as one image becoming another. */
-  for (var pq = 0; pq < parts.length; pq++) parts[pq].y += PRONE_Y0;
-  return { parts:parts, decals:[], shadow:false, W:1 };
-}
-
 /* TAM engaged: the suit comes off. Orange rather than red, T rather than S.
 
    Making the cape read took three things:
@@ -2944,9 +2871,6 @@ function bakeAll(){
     S["uber"+i+"_r"] = bake(uberModel(i));
     S["uber"+i+"_l"] = bake(flip(uberModel(i), 1.45));
   }
-  S.prone0 = bake(proneModel(0));
-  S.prone1 = bake(proneModel(1));
-  S.prone2 = bake(proneModel(2));
   S.player_r  = bake(playerModel(1, false));
   S.player_l  = bake(playerModel(-1, false));
   S.playerS_r = bake(playerModel(1, 1));
@@ -8972,26 +8896,6 @@ function drawWorld(){
   drawTrace();
   /* He stays on screen through the hold, so you can see what hit him. */
   if (G.state !== ST_DEAD || G.deadFor < deathHold()){ drawPlayer(pp); drawEatOverlay(); }
-  /* The dust the body puts up, which is also what hides the moment the
-     standing sprite becomes the prone one. Five rings off the pavement,
-     spreading and fading over 0.45s. */
-  if (G.tiredDeath && G.state === ST_DEAD &&
-      G.deadFor >= TIRED_DOWN - TIRED_FADE && G.deadFor < TIRED_DOWN + 0.45){
-    var du = (G.deadFor - (TIRED_DOWN - TIRED_FADE)) / 0.55;
-    var dx0 = pp.col*TILE + TILE/2 + deathSlideX(), dy0 = rowScreenY(pp.row);
-    for (var dq = 0; dq < 5; dq++){
-      var dk = Math.min(1, du * (1 + dq * 0.22));
-      if (dk >= 1) continue;
-      ctx.globalAlpha = (1 - dk) * 0.22;
-      ctx.fillStyle = "#b9b2a6";
-      ctx.beginPath();
-      ctx.ellipse(dx0 + (dq - 2) * 22, dy0 - 6 - dk * 10,
-                  14 + dk * 46, 5 + dk * 14, 0, 0, Math.PI*2);
-      ctx.fill();
-    }
-    ctx.globalAlpha = 1;
-  }
-  drawTrafficFront(pp);
   drawFolkFront();
   if (G.booth && G.state !== ST_DEAD) drawBooth(pp);
 
@@ -9722,30 +9626,22 @@ function flyPitch(){
                 between the knees and the ground it is one movement, and one
                 movement is a fall. It was 0.18s and that was not a pause,
                 it was a hitch.
-     1.24-1.58  THE REST OF HIM. He pitches FORWARD, away from the camera:
-                the lean stays put and the sprite foreshortens to
-                TIRED_SQUASH of its height while sliding TIRED_AWAY up the
-                screen. Eased IN - a body that is not catching itself. It is
-                not a rotation; see tiredFall() for why that mattered.
-     1.56-1.70  THE HANDOVER. A short cross-fade into the prone sprite,
-                which by now is the same shape in the same place.
-     1.70-1.96  THE SETTLE. The prone body squashes a couple of pixels and
-                comes back, which is weight arriving.
+     1.24-1.86  THE REST OF HIM. Over to flat and down the remaining drop,
+                eased IN - a body that is not catching itself.
 
-   It finishes at 1.96 against a 2.15 hold - see deathHold(), which is
+   It finishes at 1.86 against a 2.05 hold - see deathHold(), which is
    longer for this death than for any other - so the last thing on screen
-   before the readout is him lying still, face down. */
+   before the readout is him lying still.
+
+   There was a face-down sprite here for a while: a body modelled lying
+   along +y, cross-faded in as he went over, with dust and a contact shadow.
+   It was more correct and it looked worse - the standing sprite hinges
+   ACROSS the screen and the prone one lay AWAY from the camera, so even
+   with the two boxed to the same pixels the handover read as one picture
+   becoming another rather than as a man going down. The hinge on its own,
+   slowly, says it better. */
 var TIRED_KNEE = 20, TIRED_FLAT = 16, TIRED_LEAN = 0.30;
-var TIRED_T1 = 0.62, TIRED_T2 = 1.24, TIRED_T3 = 1.58;
-var TIRED_DOWN = 1.70, TIRED_FADE = 0.24, TIRED_SETTLE = 0.26, TIRED_HOLD = 2.15;
-var TIRED_TIP = 86 * Math.PI / 180;       // as far as the standing sprite goes
-/* 0 while he is still on his feet, 1 once he is a body on the floor, and the
-   blend between the two in the middle. */
-function tiredMix(){
-  if (G.state !== ST_DEAD || !G.tiredDeath) return 0;
-  return Math.max(0, Math.min(1, (G.deadFor - (TIRED_DOWN - TIRED_FADE)) / TIRED_FADE));
-}
-function tiredProne(){ return tiredMix() >= 1; }
+var TIRED_T1 = 0.62, TIRED_T2 = 1.24, TIRED_T3 = 1.86, TIRED_HOLD = 2.05;
 function deathHold(){
   return (G.tiredDeath && !G.missedTrain) ? TIRED_HOLD : DEATH_HOLD;
 }
@@ -9755,37 +9651,11 @@ function tiredPhase(){
   if (t < TIRED_T2) return { k:1, beat:1 };
   return { k:Math.max(0, Math.min(1, (t - TIRED_T2) / (TIRED_T3 - TIRED_T2))), beat:2 };
 }
-/* HE FALLS AWAY FROM YOU, NOT SIDEWAYS.
-
-   This is the whole reason the handover looked wrong, and no amount of
-   cross-fading was going to fix it. The hit death rotates the sprite about
-   its feet, which lays the body out ACROSS the screen - left to right. The
-   prone sprite lies AWAY from the camera, head at the far end, because that
-   is what falling on your face looks like from here. The two are ninety
-   degrees apart in plan, so dissolving one into the other was a dissolve
-   between two unrelated pictures. It read as a ghost because it was one.
-
-   So beat three is not a rotation at all. The lean stays where the kneel
-   left it and the body FORESHORTENS: the feet stay put and everything above
-   them squashes down and slides away up the screen, which is what a body
-   pitching forward does at this camera angle. By the end of it the standing
-   sprite is a flat smear sitting exactly where the prone body's shoulders
-   are about to be, and the fade between them is a settle instead of a
-   swap. */
-/* With the two sprites in the same box the squash no longer has to carry
-   the whole illusion - it only has to sell the pitch while the fade does
-   the rest. At 0.22 it shrank to a smear and then the prone body appeared
-   bigger than the smear, which is a pop in the other direction. */
-var TIRED_SQUASH = 0.52, TIRED_AWAY = 0;
 function tiredTilt(){
   var ph = tiredPhase(), dir = (G.facing > 0 ? 1 : -1);
   if (ph.beat < 2) return TIRED_LEAN * (1 - Math.pow(1 - ph.k, 2.2)) * dir;
-  return TIRED_LEAN * dir;                 // and it stays there
-}
-/* 0 upright, 1 flat. Eased IN - a body that is not catching itself. */
-function tiredFall(){
-  var ph = tiredPhase();
-  return ph.beat < 2 ? 0 : ph.k * ph.k;
+  var e = ph.k * ph.k;                       // eased IN: no catching himself
+  return (TIRED_LEAN + (Math.PI * 0.5 - TIRED_LEAN) * e) * dir;
 }
 function tiredDropY(){
   var ph = tiredPhase();
@@ -9973,38 +9843,11 @@ function drawPlayer(pp){
       /* Once he is down from exhaustion he is a different sprite entirely -
          a body face down, not the standing one rotated. It is drawn flat,
          with a short squash on arrival that is weight landing. */
-      /* Going down from exhaustion he becomes a body rather than a rotated
-         man, and the two overlap for TIRED_FADE so the change is a settle
-         rather than a cut. */
-      var mix = tiredMix(), fall = G.tiredDeath ? tiredFall() : 0;
-      if (mix > 0){
-        var pr = S["prone" + Math.max(0, Math.min(2, G.shield | 0))];
-        var st = Math.max(0, Math.min(1, (G.deadFor - TIRED_DOWN) / TIRED_SETTLE));
-        var sq = 1 - 0.10 * Math.sin(st * Math.PI);
-        /* A long contact shadow under him first. It is the single strongest
-           cue that a shape is ON the ground rather than standing on it, and
-           at this angle it costs one ellipse. */
-        ctx.globalAlpha = 0.34 * mix;
-        ctx.fillStyle = "#07090c";
-        ctx.beginPath();
-        ctx.ellipse(px + deathSlideX() + 10 * kx, py + deathSlideY() * 0.6 - 26 * ky,
-                    58 * kx, 30 * ky, 0, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.globalAlpha = mix;
-        blitScaled(pr, px + deathSlideX(), py + deathSlideY() * 0.6, kx, ky * sq);
-        ctx.globalAlpha = 1;
-        if (mix >= 1) return;
-      }
       ctx.save();
-      ctx.globalAlpha = 1 - mix;
-      ctx.translate(px + deathSlideX(),
-                    py + deathSlideY() - (fall ? TIRED_AWAY * fall * ky : 0));
+      ctx.translate(px + deathSlideX(), py + deathSlideY());
       ctx.rotate(deathTilt());
-      /* Foreshortened rather than rotated, for the tired death only - see
-         tiredFall(). Everything else still hinges. */
-      blitScaled(sprite, 0, 0, kx, ky * (1 - (1 - TIRED_SQUASH) * fall));
+      blitScaled(sprite, 0, 0, kx, ky);
       ctx.restore();
-      ctx.globalAlpha = 1;
       return;                       // nothing else belongs on a man on the floor
     }
     /* The dive. Pivoted on his middle rather than his heels - rotating

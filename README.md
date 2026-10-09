@@ -1166,67 +1166,26 @@ He stops. So it is three beats, and all of them are slow:
 |---|---|---|
 | **0.00–0.62** | the sag and the knees | he leans 17° and sinks 20px, eased *out* — legs fail fastest at the end |
 | **0.62–1.24** | the kneel | he holds there, folded, for well over half a second |
-| **1.24–1.58** | the rest of him | he pitches **forward**, away from the camera, eased *in* — a body not catching itself |
-| **1.46–1.70** | the handover | the **prone** body cross-fades up under him, with the dust |
-| **1.70–1.96** | the settle | the body squashes a couple of pixels and comes back, which is weight arriving |
+| **1.24–1.86** | the rest of him | over to flat and down the remaining drop, eased *in* — a body not catching itself |
 
-That second beat is the whole thing. Without a pause between the knees and the
+That middle beat is the whole thing. Without a pause between the knees and the
 ground it is one movement, and one movement is a *fall*. It was 0.18s to begin
 with and that was not a pause, it was a hitch; at 0.62s it is a man who has
 stopped. He travels 9px rather than 36, and only on the last beat as the
-weight goes over, because nothing carried him anywhere.
+weight goes over, because nothing carried him anywhere. It finishes at 1.86
+against a **2.05** hold — `deathHold()` is longer for this death than for any
+other — so the last thing on screen before the readout is him lying still.
 
-**And he ends up face down, in a sprite of his own.** The hit death rotates
-the standing figure to flat, which is all a rotation can ever give you — a man
-lying on his *side*, looking at the kerb. `proneModel` is a body built along
-+y with the head furthest from the camera, because he goes down forwards: the
-nearest thing to you is the soles of his shoes and the furthest is the back of
-his head, and nothing of the front of him is visible. No tie, no shirt, no
-face. Everything sits 0.07 to 0.18 off the ground and the projection's own
-shading does the rest — top faces light, sides dark — so a stack of low slabs
-reads as a body rather than as a rug.
-
-The arms are the tell, and they hang off the **shoulders**. The first pass had
-them leaving the body at y 0.66, which is his waist — arms growing out of a
-man's hips is worse than no arms at all. The shoulder line is 0.88, so the
-upper arm starts at 0.84 and goes out, the forearm turns forward from 0.94,
-and the hands finish level with his head. Straight down the sides is how a man
-*stands*, and from behind that is exactly what it looked like; bent out at the
-elbow with the hands up by his head is a position nobody holds on their feet. Feet apart,
-briefcase dropped beside him, and at the purple blazer the hat has rolled off
-and the cane is lying where he let go of it. Three of them, one per blazer, no
-left and right — a man face down is not facing anywhere. A long contact shadow
-goes down first, which is the single strongest cue that a shape is *on* the
-ground rather than standing on it, and it costs one ellipse.
-
-**He falls AWAY from you, not sideways, and that is why the handover was
-wrong.** The hit death rotates the sprite about its feet, which lays the body
-out *across* the screen, left to right. The prone sprite lies *away* from the
-camera, head at the far end, because that is what falling on your face looks
-like from here. The two were ninety degrees apart in plan, so dissolving one
-into the other was a dissolve between two unrelated pictures — it read as a
-ghost because it was one, and no amount of cross-fade timing was going to fix
-it.
-
-So the last beat is not a rotation at all. The lean stays where the kneel left
-it and the body **foreshortens**: the feet stay put and everything above them
-squashes toward them, which is what a body pitching forward does at this
-camera angle.
-
-**And his feet stay where he was standing**, which is pure arithmetic and the
-other half of it. The standing sprite's foot plane is model y 0.46, which the
-projection puts 33px above the anchor; the prone body was built from y 0.02,
-putting its shoes 1px above the anchor — 32px nearer the camera than the feet
-it had supposedly fallen from. Two sprites in two different boxes. Pushed up
-by `PRONE_Y0` the soles land on the foot plane and the far end of him lands
-within four pixels of where his head was: standing occupies −145.4 to −63.4,
-prone −149.1 to −65.1. Same box, so the fade reads as the body going over
-rather than as one image becoming another — and the squash no longer has to
-carry the illusion on its own, which is why it is 0.52 now rather than the
-0.22 that shrank him to a smear the prone body then popped out of. Five rings
-of dust spread off the pavement through all of it. It finishes at 1.96 against a **2.15** hold — `deathHold()` is longer for this death than for any
-other — so the last thing on screen before the readout is him lying still,
-face down, for a quarter of a second.
+**There was a face-down sprite here for a while** and it is worth writing down
+why it is not. A body modelled lying along +y, head at the far end, cross-faded
+in as he went over, with dust and a contact shadow; then the cross-fade was
+replaced with a forward foreshortening because the standing sprite hinges
+*across* the screen while the prone one lay *away* from the camera, ninety
+degrees apart in plan; then the prone model was pushed up `PRONE_Y0` so the two
+boxed to the same pixels. Each step was more correct than the last and the
+whole thing still read as one picture becoming another rather than as a man
+going down. The hinge on its own, slowly, says it better. Measured: tilt 0, 6,
+11, 15, 17 by 0.48, dead still to 1.24, then 18, 25, 37, 54, 77, 90 by 1.92.
 
 The money goes with him either way — it is what the player is actually losing —
 but it is not kicked out of him here: a third of the speed, a narrower cone and
