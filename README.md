@@ -476,6 +476,23 @@ line it would be the same two letters said three ways on one screen. The four
 pieces are measured and laid out off **one** total, because centring each
 separately drifts them apart on whatever font the panel falls back to.
 
+**And it is set in a brand stack, not in Helvetica.** The ThousandEyes
+wordmark is CiscoSans — a humanist sans with open apertures, a double-storey
+`a` and a straight-tailed `y` — and Helvetica is a grotesque, which is the
+wrong *family* of shape to stand under it. Nothing can be downloaded here, so
+`BRAND_STACK` is a list of what a machine might already have, in descending
+order of closeness: `CiscoSans`, `CiscoSansTT` (the real thing, on a
+Cisco-managed machine), `Segoe UI`, `Noto Sans`, `Open Sans`,
+`Source Sans Pro`, `Lucida Grande`, `Avenir Next`, `Avenir`, and then the old
+stack so it can never end up with no font at all.
+
+Measured by width rather than by `document.fonts.check`, which answers *true*
+for anything it can satisfy by falling back: every name in the list measures
+772px for this line except `Segoe UI` at 771, and the stack measures 771 — so
+on Windows it lands on Segoe UI. On a panel it will most likely land on Noto
+Sans or the system default, which is as close as this gets without embedding
+a licensed corporate typeface.
+
 - **`TE_LOGO_SRC`**, the whole Cisco ThousandEyes lockup at 900×181, snapped
   to exactly two colours so the PNG has almost no colour entropy left to
   store. The type on its own is the left 745px of it, so there is no third

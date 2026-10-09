@@ -10330,6 +10330,33 @@ function rr(x,y,w,h,r){
   ctx.closePath();
 }
 function plate(x,y,w,h,col,rad){ rr(x,y,w,h,rad===undefined?14:rad); ctx.fillStyle = col; ctx.fill(); }
+/* The brand stack, for the title and nothing else. The ThousandEyes wordmark
+   is set in CiscoSans - a humanist sans with open apertures, a double-storey
+   a and a straight-tailed y - and Helvetica is a grotesque, which is the
+   wrong family of shape next to it. Nothing can be downloaded here, so this
+   is a list of what a panel might already have, in descending order of how
+   close it sits to CiscoSans:
+
+     CiscoSans / CiscoSansTT  the actual thing, on a Cisco-managed machine
+     Segoe UI                 Windows, humanist, closest of the common ones
+     Noto Sans / Open Sans    what a Linux-based panel is most likely to have
+     Source Sans Pro          Adobe's humanist, if it is installed
+     Lucida Grande            older Macs
+     Avenir Next / Avenir     geometric, a different flavour but not a
+                              grotesque, and better than falling to Helvetica
+     ...then the old stack, so it can never end up with no font at all. */
+var BRAND_STACK = '"CiscoSans","CiscoSansTT","Segoe UI","Noto Sans",' +
+                  '"Open Sans","Source Sans Pro","Lucida Grande",' +
+                  '"Avenir Next",Avenir,"Helvetica Neue",Helvetica,Arial,sans-serif';
+function brandFont(size, weight){
+  return (weight || "bold") + " " + size + "px " + BRAND_STACK;
+}
+function btxt(s,x,y,size,col,align,weight){
+  ctx.font = brandFont(size, weight);
+  ctx.textAlign = align || "center"; ctx.fillStyle = col;
+  ctx.fillText(s,x,y);
+}
+
 function txt(s,x,y,size,col,align,maxW){
   ctx.font = "bold " + size + 'px "Helvetica Neue",Helvetica,Arial,sans-serif';
   ctx.textAlign = align || "center"; ctx.fillStyle = col;
@@ -11112,13 +11139,13 @@ function drawTitle(){
      apart. */
   var big = 124;
   var parts = [["T", C.brand], ["h", C.text], ["E", C.brand], [" Last Mile", C.text]];
-  ctx.font = "bold " + big + 'px "Helvetica Neue",Helvetica,Arial,sans-serif';
+  ctx.font = brandFont(big);
   var total = 0, pi;
   for (pi = 0; pi < parts.length; pi++)
     total += (parts[pi][2] = ctx.measureText(parts[pi][0]).width);
   var x0 = (LOGICAL_W - total) / 2;
   for (pi = 0; pi < parts.length; pi++){
-    txt(parts[pi][0], x0, 470, big, parts[pi][1], "left");
+    btxt(parts[pi][0], x0, 470, big, parts[pi][1], "left");
     x0 += parts[pi][2];
   }
 
