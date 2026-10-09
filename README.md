@@ -262,6 +262,18 @@ was as long and as low as the SUV and looked like a shipping container; a step
 van is short and tall, and its roof is drawn as the *darkest* face because the
 projection lights top faces hardest and a pale roof slab was all you could see.
 
+**A kerb belongs where the pavement meets the road, and nowhere else.** It
+used to be baked into the pavement strip, which was fine when a pavement was
+usually one row deep. It is two or three now, and every row was drawing its
+own lip: a dark band and a lit orange seam laid across the middle of a single
+pavement, where in the world there is nothing but more concrete. The contrast
+complaint was not that the kerb was too strong — it was that there were three
+of them. The strip is plain concrete now and `drawWalkEdges` draws each edge
+only if the row on that side is a road. The street-side lip keeps its weight,
+because that edge is the line between safe and not safe and the player reads
+it every few seconds; its drop shadow comes off 0.45 to 0.30, which is as much
+as it can lose and still read as a step down.
+
 **A pavement is never one row deep.** The roll was 62% road as soon as a
 single safe row had been laid, so better than half of all pavements came out
 one row thick — a strip he lands on and is immediately back in traffic, with
@@ -1468,18 +1480,21 @@ val.
 you three hundred thousand dollars does not then tell you to watch where you are
 going. Afterwards he does what everybody does once the business is done —
 *"I'll call you next week."*, *"I'll shoot you an email."*, *"Send me the deck,
-I'll look."* — and on the **fourth** walk into him he stops being polite about
+I'll look."* — and on the **second** walk into him he stops being polite about
 it: *"I said I'd call you."*, *"Alright — enough."*, *"We are done here."*
 
-**On the fifth he takes it back.** *"Actually — let's hold off on that."* The
+**On the third he takes it back.** `CHAMP_LIMIT` was five, which is four more
+chances than a real champion gives you. At three there is room for exactly one
+brush-off and one warning, and the warning has to land on the second or the
+withdrawal arrives with no notice at all. *"Actually — let's hold off on that."* The
 deal was never signed — he said he *wanted* to add it, which is the most fragile
 thing in any pipeline and the first thing to go when the person who championed
 it stops wanting to see you. Same banner, same plate, in the red, with the rise
 running the other way (`−$300,000 / OFF THE PIPELINE`), and `bonusChamp` and the
 champion count both reversed. It is the only line in the game that takes money
 off the number for something the **player** did rather than something that
-happened to him. Verified over six bumps: +300,000, three pleasantries, one
-warning, then −300,000 and back to zero.
+happened to him. Verified over four bumps: one pleasantry, one warning, then
+−300,000, and he stays angry after.
 
 **The money says so three ways at once.** A figure climbs out of him and fades
 (`+$300,000` over `ON THE PIPELINE`, rising 120px over 1.9s); the HUD readout
