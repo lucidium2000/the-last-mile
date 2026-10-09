@@ -1155,7 +1155,32 @@ Being hit no longer ends the run outright — it takes a bite out of him and he
 carries on, once. Two hits from full is still death, so the shield keeps its
 value by being the only thing that absorbs one for free. Running the tank to
 zero is its own ending, `EXHAUSTION`, the one death in the game with no hazard
-attached.
+attached — **and it goes down differently.**
+
+Everything else kills him by hitting him, and the hit death is built for that:
+a jolt against the blow, a fast hinge to flat, a 36px slide and 11px of air,
+all of it over in half a second. Running out is not that. Nothing touches him.
+He stops. So it is three beats, and all of them are slow:
+
+| | | |
+|---|---|---|
+| **0.00–0.62** | the sag and the knees | he leans 17° and sinks 20px, eased *out* — legs fail fastest at the end |
+| **0.62–0.80** | the kneel | he holds there, folded, for a fifth of a second |
+| **0.80–1.38** | the rest of him | 17° → 90° and the remaining drop, eased *in* — a body not catching itself |
+
+That middle beat is the whole thing. Without a pause between the knees and the
+ground it is one movement, and one movement is a *fall*. He travels 9px rather
+than 36, and only on the last beat as the weight goes over, because nothing
+carried him anywhere. It finishes at 1.38 against `DEATH_HOLD` 1.50, so the
+last thing on screen before the readout is him lying still.
+
+The money goes with him either way — it is what the player is actually losing —
+but it is not kicked out of him here: a third of the speed, a narrower cone and
+twice the hang, because money leaving slowly is a worse feeling than money
+leaving fast, and the slow one is the point of this death. And there is no
+impact to play, so `AUDIO.collapse()` is a long breath falling away with the
+two thuds that are the whole of it, soft and low, at 0.62 and 1.00 — the knees,
+then the rest of him. The screen does not shake at all.
 
 The drain is deliberately more than you start with: 47 blocks to the restaurant
 costs 141%, and the round trip 282%. You cannot finish on the tank you begin

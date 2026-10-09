@@ -553,6 +553,20 @@ var AUDIO = (function(){
       tone({ f:116, to:44,  dur:0.56, type:"square",   g:0.10, lp:600 });
       hit({ f:1800, to:160, dur:0.45, g:0.26 });
     },
+    /* Going down from exhaustion. Nothing hit him, so there is no impact to
+       play: a long breath falling away, then the two thuds that are the
+       whole of it - knees at 0.62, the rest of him at 1.00 - each one soft,
+       low and short, which is a body meeting a pavement rather than a
+       collision. */
+    collapse: function(){
+      ladder = 0;
+      tone({ f:190, to:52, dur:1.30, type:"sine",     g:0.16, lp:700 });
+      tone({ f:95,  to:38, dur:1.40, type:"triangle", g:0.09, lp:420 });
+      hit({ f:210, to:90, dur:0.16, g:0.17, at:0.62 });        // the knees
+      tone({ f:88, to:56, dur:0.20, type:"sine", g:0.10, at:0.62, lp:300 });
+      hit({ f:160, to:70, dur:0.26, g:0.22, at:1.00 });        // and the rest
+      tone({ f:70, to:44, dur:0.34, type:"sine", g:0.13, at:1.00, lp:260 });
+    },
     /* two-tone wail for the motorcade warning */
     /* A siren two blocks away, not one in the room. The old one was three
        square-wave yelps at 740-980Hz with the filter wide open, which is the
@@ -3374,7 +3388,7 @@ function reset(){
     bonusAgent:0, agentPays:0,
     bonusNews:0, news:0, paper:null,
     addons:0, champs:0, addonWin:null, champWin:null,
-    tally:null, booth:null, deathPush:0,
+    tally:null, booth:null, deathPush:0, tiredDeath:false,
     flyT:0, flyA:0, flyBeep:0, flyMove:0, flyTilt:0, walkPh:0, walkAmt:0,
     brand:null, pipePop:0, rise:null, tam:false, tamT:0, tamWins:0, tamWin:null, hurtT:0, nahT:0, nahSay:null, walkSaid:false,
     yumT:0, yumKind:null, yumDir:0, yumBite:0, wowT:0, cheerT:0,
@@ -4653,15 +4667,19 @@ function burst(x, y, col){
    a sideways flutter. The pool is the same thirty objects either way; only
    the physics and the drawing fork on p.bill. */
 var BILL_G = 470, BILL_DRAG = 1.5;
-function burstMoney(x, y){
+function burstMoney(x, y, tired){
   for (var i=0;i<G.parts.length;i++){
     var p = G.parts[i];
-    p.life = 0.80 + Math.random()*0.70;
-    p.x = x + (Math.random()-0.5)*26;
+    /* Thrown out of him on a hit; slipping out of his hand on the way down
+       when he simply stops. Same notes, a third of the speed and twice the
+       hang - money leaving slowly is a worse feeling than money leaving
+       fast, and the slow one is the point of this death. */
+    p.life = (tired ? 1.40 : 0.80) + Math.random()*0.70;
+    p.x = x + (Math.random()-0.5)*(tired ? 16 : 26);
     p.y = y + (Math.random()-0.5)*18;
     // up and out, but weighted upward - it is coming off him, not kicked
-    var a = -Math.PI/2 + (Math.random()-0.5)*2.3;
-    var sp = 200 + Math.random()*440;
+    var a = -Math.PI/2 + (Math.random()-0.5)*(tired ? 1.2 : 2.3);
+    var sp = tired ? (40 + Math.random()*120) : (200 + Math.random()*440);
     p.vx = Math.cos(a)*sp; p.vy = Math.sin(a)*sp;
     p.s = 12 + Math.random()*9;
     p.bill = true;
@@ -4683,14 +4701,19 @@ function die(kind){
 /* Not hit by anything - just out of road. The one death with no hazard
    attached, so it gets its own copy rather than a hazard's objection pair. */
 function dieTired(){
-  G.deathPush = 0;                 // nothing threw him; he just stopped
-  AUDIO.die();
-  G.state = ST_DEAD; G.deadFor = 0; G.shake = 14;
+  /* Nothing threw him. He ran out, which is a different thing happening to a
+     body and has to look like one - see deathTilt and TIRED_*. */
+  G.deathPush = 0;
+  G.tiredDeath = true;
+  AUDIO.collapse();
+  G.state = ST_DEAD; G.deadFor = 0; G.shake = 0;
   G.deathName = "EXHAUSTION";
   G.deathObj = "You worked the whole block list on an empty stomach.";
   G.deathFix = "Eat something. Long deals are won by the people still standing.";
+  /* The money goes with him either way - it is the one thing the player is
+     actually losing - but it is not kicked out of him here. It slides off. */
   var pp = playerPos();
-  burstMoney(pp.col*TILE + TILE/2, rowScreenY(pp.row) - 36);
+  burstMoney(pp.col*TILE + TILE/2, rowScreenY(pp.row) - 36, true);
   saveBest(pipeline()); endRun();
 }
 function missTrain(){
@@ -9583,8 +9606,51 @@ function flyPitch(){
   return Math.abs(G.flyTilt) < 0.004 ? 0 : G.flyTilt;
 }
 
+/* GOING DOWN FROM EXHAUSTION.
+
+   Everything else in this game kills him by hitting him, and the hit death
+   is built for that: a jolt against the blow, then a fast hinge over, a
+   slide and a hop, all of it done inside half a second. Running out of road
+   is not that. Nothing touches him. He stops.
+
+   So it is three beats instead of one, and all of them are slow:
+
+     0.00-0.62  THE SAG AND THE KNEES. He leans forward a little and sinks
+                TIRED_KNEE px, which is a man whose legs have gone rather
+                than a man being thrown. Eased OUT, because the legs fail
+                fastest at the end.
+     0.62-0.80  THE KNEEL. He holds there, folded, for a fifth of a second.
+                This beat is the whole thing: without a pause between the
+                knees and the ground it is one movement, and one movement is
+                a fall.
+     0.80-1.38  THE REST OF HIM. Over to flat and down the remaining drop,
+                eased IN - a body that is not catching itself.
+
+   It finishes at 1.38 against DEATH_HOLD 1.50, so the last thing on screen
+   before the readout is him lying still. */
+var TIRED_KNEE = 20, TIRED_FLAT = 16, TIRED_LEAN = 0.30;
+var TIRED_T1 = 0.62, TIRED_T2 = 0.80, TIRED_T3 = 1.38;
+function tiredPhase(){
+  var t = G.deadFor;
+  if (t < TIRED_T1) return { k:Math.max(0, Math.min(1, t / TIRED_T1)), beat:0 };
+  if (t < TIRED_T2) return { k:1, beat:1 };
+  return { k:Math.max(0, Math.min(1, (t - TIRED_T2) / (TIRED_T3 - TIRED_T2))), beat:2 };
+}
+function tiredTilt(){
+  var ph = tiredPhase(), dir = (G.facing > 0 ? 1 : -1);
+  if (ph.beat < 2) return TIRED_LEAN * (1 - Math.pow(1 - ph.k, 2.2)) * dir;
+  var e = ph.k * ph.k;                       // eased IN: no catching himself
+  return (TIRED_LEAN + (Math.PI * 0.5 - TIRED_LEAN) * e) * dir;
+}
+function tiredDropY(){
+  var ph = tiredPhase();
+  if (ph.beat < 2) return TIRED_KNEE * (1 - Math.pow(1 - ph.k, 2.2));
+  return TIRED_KNEE + TIRED_FLAT * (ph.k * ph.k);
+}
+
 function deathTilt(){
   if (G.state !== ST_DEAD) return 0;
+  if (G.tiredDeath) return tiredTilt();
   /* Thrown the way the thing that hit him was going. Only a death with no
      hazard behind it - running out of road, or missing the train - falls back
      on the way he was facing, because there is nothing else to go on. */
@@ -9613,11 +9679,21 @@ function deathPushDir(){
 }
 function deathSlideX(){
   if (G.state !== ST_DEAD) return 0;
+  /* He does not travel. Nothing carried him anywhere - a quarter of the
+     slide, and only on the last beat, as the weight goes over. */
+  if (G.tiredDeath){
+    var ph = tiredPhase();
+    if (ph.beat < 2) return 0;
+    return (G.facing > 0 ? 1 : -1) * DEATH_SLIDE * 0.25 * (ph.k * ph.k);
+  }
   var k = Math.max(0, Math.min(1, G.deadFor / 0.52));
   return deathPushDir() * DEATH_SLIDE * (1 - Math.pow(1 - k, 2.6));
 }
 function deathSlideY(){
   if (G.state !== ST_DEAD) return 0;
+  /* Positive is DOWN here, and down is the only direction this one goes.
+     The hit death leaves the ground; this one never does. */
+  if (G.tiredDeath) return tiredDropY();
   var t = G.deadFor;
   if (t >= 0.30) return 0;
   return -DEATH_HOP * Math.sin((t / 0.30) * Math.PI);
