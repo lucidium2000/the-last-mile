@@ -3706,11 +3706,10 @@ function act(dir){
         G.flash = null;                    // the banner replaces it
         moneyRise(ADDON_BONUS);
         AUDIO.deal();
-        /* No subtitle. The attach banner above it already says THOUSANDEYES
-           ADD-ON PACK and +$150,000, and the rise says the money again
-           underneath - a third copy of the same sentence in a third size is
-           not emphasis, it is noise. The plate is the thing to remember. */
-        brandHit("TE-ADDON", BRAND_HIT + 0.6, null, null, true);
+        /* The line under the badge is not a third copy of the banner - the
+           banner says what it IS and what it is worth, and this says what
+           it is FOR. That is the only kind of subtitle worth the room. */
+        brandHit("TE-ADDON", BRAND_HIT + 0.6, null, "THE PATH TO SUCCESS!", true);
         burst(nc*TILE + TILE/2, rowScreenY(nr) - 40, POWERS.path.col);
         return;
       }
@@ -10970,7 +10969,11 @@ function drawBrandHit(){
     txt("THOUSANDEYES", cx, cy + 145 + drop, Math.round(62 * S), "#ffffff");
   }
 
-  var ny = cy + 222 + drop, nsz = B.big ? 72 : 46;
+  /* 210 rather than 222: the badge grew to 72 tall when it was rebuilt round
+     its own ink, and the subtitle under it has to land above the third row
+     ahead of him at y 642. Ten pixels of clearance under the plate, ten
+     under the words. */
+  var ny = cy + 210 + drop, nsz = B.big ? 72 : 46;
   if (B.big){
     /* Measured with the same font string txt builds, or the plate is the
        wrong width for the only two words on the screen that matter. */
@@ -11087,7 +11090,7 @@ function drawBrandHit(){
     txt(B.what, cx, ny, nsz, B.col);
   }
   if (B.sub){
-    var sy3 = ny + (B.big ? 52 : 44);
+    var sy3 = ny + (B.big ? 56 : 44);
     txt(B.sub, cx + 2, sy3 + 2, 26, sh);
     txt(B.sub, cx, sy3, 26, "#ffffff");
   }

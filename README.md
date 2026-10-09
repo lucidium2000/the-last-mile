@@ -642,6 +642,14 @@ read as stamped into the orange, which is one extra `fillText`; and three
 rects. Nine fills for the set, and they are the only thing on the plate still
 moving once the sheen has gone past.
 
+Under the badge: **THE PATH TO SUCCESS!** The attach banner above already says
+what it *is* and what it is *worth*; this says what it is *for*, which is the
+only kind of subtitle worth the room. The name block moved up 12px to make
+space for it — the badge grew to 72 tall when it was rebuilt round its own ink
+— so the plate runs 534 to 606 and the line under it ends at 636, ten clear of
+the plate above and five clear of the third row of traffic ahead of him at
+641.
+
 The two that have to survive the drive home, **TAM** and **TE-ADDON**, go
 bigger again: everything ×1.22, the lens ×1.38, three rings instead of two, a
 stronger wash, six tenths of a second longer, and the name on a **solid plate
