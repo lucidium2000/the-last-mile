@@ -1889,10 +1889,22 @@ running when the ride ends — and it goes silent the moment the car is not
 moving. Measured: 10 clacks in six seconds of running, **0** at the platform.
 
 **Graphics.** The band of card advertising above the windows (one of them is
-ours), the strip map over the doors with a bullet creeping along it as the ride
-progresses, straps that swing with the car each on its own slight delay, a
-floor with dirt on it, and the lights dropping out for two frames in a hundred
-while the car is working hardest.
+ours), the **strip map** in the card slot beside it, straps that swing with the
+car each on its own slight delay, a floor with dirt on it, and the lights
+dropping out for two frames in a hundred while the car is working hardest.
+
+**The strip map is the actual journey, and it lives where a strip map lives.**
+It used to float over the doors at the bottom right, which is where nothing
+is, and it was seven anonymous dots with a bullet sliding along them — which
+tells you a proportion and nothing else. It is one dot per street now, from
+the station he got on at to the one he gets off at, with both ends written on
+it (`W 34` … `W 43`); the dots behind the train light up as he passes them and
+the train itself is white so it is never mistaken for a stop. The thing the
+counter over the window says in words — *9 STREETS · 6 TO GO* — is now also a
+picture. Both ends are stored on the ride at boarding rather than looked up
+later, because the rows under them are regenerated while he is on the train.
+It took the card slot the TE advert was in and the advert moved one along: a
+subway car with no advertising in it is not a subway car.
 
 The ad cards are *card stock under fluorescent light*, not light boxes. The
 first pass used near-white and the four of them became the brightest thing in

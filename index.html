@@ -4811,6 +4811,9 @@ function startRide(enterRow, enterCol){
   G.ride = { t:0, phase:"down", fromRow:enterRow, fromCol:enterCol,
              toRow:dest, toCol:exitCol, camFrom:G.camRow,
              streets:Math.abs(streetAt(dest) - fromSt),
+             /* Both ends, kept on the ride rather than looked up later: the
+                rows under them are regenerated while he is on the train. */
+             fromSt:fromSt, toSt:streetAt(dest),
              runDur:Math.max(RIDE_RUN_MIN,
                              RIDE_PER_ST * Math.abs(streetAt(dest) - fromSt)),
              rock:0, slot:2, slotX:2, slotFrom:2, stepT:1,
@@ -6467,6 +6470,38 @@ function drawCar(ox, rock, lit){
     ctx.fillStyle = "#8e969e"; ctx.fillRect(dx, cy+60, 5, ch-120);
   }
 
+  /* THE STRIP MAP, in the card slot above the windows where the strip map
+     is in a real car - not floating over the doors at the bottom right,
+     which is where it was and is where nothing is.
+
+     And it is the actual journey. It used to be seven anonymous dots and a
+     bullet sliding along them, which told you a proportion and nothing
+     else; this is one dot per street between the station he got on at and
+     the one he gets off at, with both ends written on it. The dots behind
+     the bullet light up as he passes them, so the thing the counter over
+     the window says in words - 8 STREETS, 3 TO GO - is also a picture. */
+  function drawStripMap(x, y, w, h, R){
+    plate(x, y, w, h, "#0d1117", 4);
+    var n = Math.max(1, R.streets || 1);
+    var x0 = x + 40, x1 = x + w - 40, my = y + h * 0.5;
+    if (x1 <= x0) return;
+    ctx.fillStyle = "#39434b"; ctx.fillRect(x0, my - 1.5, x1 - x0, 3);
+    var prog = R.phase === "run" ? Math.min(1, R.t / rideRun(R))
+             : ((R.phase === "arrive" || R.phase === "up") ? 1 : 0);
+    var step = (x1 - x0) / n, i;
+    for (i = 0; i <= n; i++){
+      var dx = x0 + i * step, done = (i / n) <= prog + 0.001;
+      var end = (i === 0 || i === n);
+      ctx.fillStyle = done ? C.brand : "#6e767e";
+      ctx.beginPath(); ctx.arc(dx, my, end ? 5 : 3, 0, Math.PI*2); ctx.fill();
+    }
+    /* The train itself, white so it is never one of the stops. */
+    ctx.fillStyle = "#ffffff";
+    ctx.beginPath(); ctx.arc(x0 + prog * (x1 - x0), my, 5.5, 0, Math.PI*2); ctx.fill();
+    txt("W " + R.fromSt, x + 6,     my + 5, 13, "#8e969e", "left");
+    txt("W " + R.toSt,   x + w - 6, my + 5, 13, C.brand,   "right");
+  }
+
   /* The band of card advertising above the windows, which is most of what you
      actually look at on a subway car. Real-shaped, unreadable at this size,
      and one of them is ours. */
@@ -6476,9 +6511,16 @@ function drawCar(ox, rock, lit){
   var adY = cy + 26, adW = (cw - 90) / 4, ADS = ["#6d6a62", "#5f6b6f", "#1a1208", "#6a6158"];
   for (var ad = 0; ad < 4; ad++){
     var ax = cx0 + 45 + ad * adW;
+    /* Slot 2 is the map and slot 3 is ours. They swapped rather than the
+       card being dropped: a subway car with no advertising in it is not a
+       subway car, and that card is the only piece of the brand in here. */
+    if (ad === 2 && G.ride){
+      drawStripMap(ax + 6, adY - 3, adW - 16, 34, G.ride);
+      continue;
+    }
     plate(ax + 6, adY, adW - 16, 28, ADS[ad], 3);
     ctx.globalAlpha = 0.55;
-    if (ad === 2){
+    if (ad === 3){
       ctx.globalAlpha = 1;
       ctx.fillStyle = C.brand; ctx.fillRect(ax + 12, adY + 6, 4, 16);
       txt("TE", ax + 32, adY + 20, 14, C.brand);
@@ -6493,18 +6535,6 @@ function drawCar(ox, rock, lit){
     }
     ctx.globalAlpha = 1;
   }
-
-  /* The strip map over the doors, with a bullet creeping along it. */
-  var mpX = cx0 + cw - 300, mpY = cy + ch - 46;
-  plate(mpX, mpY, 270, 26, "#0d1117", 5);
-  ctx.fillStyle = "#39434b"; ctx.fillRect(mpX + 14, mpY + 12, 242, 3);
-  for (var stp = 0; stp < 7; stp++){
-    ctx.fillStyle = "#6e767e";
-    ctx.beginPath(); ctx.arc(mpX + 18 + stp * 40, mpY + 13, 4, 0, Math.PI*2); ctx.fill();
-  }
-  var prog = R2.phase === "run" ? Math.min(1, R2.t / rideRun(R2)) : (R2.phase === "arrive" ? 1 : 0);
-  ctx.fillStyle = C.brand;
-  ctx.beginPath(); ctx.arc(mpX + 18 + prog * 240, mpY + 13, 6, 0, Math.PI*2); ctx.fill();
 
   /* The floor, and the dirt on it. A carriage with a clean floor is not one
      anybody has been in. */
