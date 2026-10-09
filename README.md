@@ -1165,21 +1165,48 @@ He stops. So it is three beats, and all of them are slow:
 | | | |
 |---|---|---|
 | **0.00–0.62** | the sag and the knees | he leans 17° and sinks 20px, eased *out* — legs fail fastest at the end |
-| **0.62–0.80** | the kneel | he holds there, folded, for a fifth of a second |
-| **0.80–1.38** | the rest of him | 17° → 90° and the remaining drop, eased *in* — a body not catching itself |
+| **0.62–1.24** | the kneel | he holds there, folded, for well over half a second |
+| **1.24–1.66** | the rest of him | down to 80°, eased *in* — a body not catching itself |
+| **1.66** | the thud | the standing sprite is swapped for a **prone** one under a puff of dust |
+| **1.66–1.92** | the settle | the body squashes a couple of pixels and comes back, which is weight arriving |
 
-That middle beat is the whole thing. Without a pause between the knees and the
-ground it is one movement, and one movement is a *fall*. He travels 9px rather
-than 36, and only on the last beat as the weight goes over, because nothing
-carried him anywhere. It finishes at 1.38 against `DEATH_HOLD` 1.50, so the
-last thing on screen before the readout is him lying still.
+That second beat is the whole thing. Without a pause between the knees and the
+ground it is one movement, and one movement is a *fall*. It was 0.18s to begin
+with and that was not a pause, it was a hitch; at 0.62s it is a man who has
+stopped. He travels 9px rather than 36, and only on the last beat as the
+weight goes over, because nothing carried him anywhere.
+
+**And he ends up face down, in a sprite of his own.** The hit death rotates
+the standing figure to flat, which is all a rotation can ever give you — a man
+lying on his *side*, looking at the kerb. `proneModel` is a body built along
++y with the head furthest from the camera, because he goes down forwards: the
+nearest thing to you is the soles of his shoes and the furthest is the back of
+his head, and nothing of the front of him is visible. No tie, no shirt, no
+face. Everything sits 0.07 to 0.18 off the ground and the projection's own
+shading does the rest — top faces light, sides dark — so a stack of low slabs
+reads as a body rather than as a rug.
+
+The arms are the tell. Straight down the sides is how a man *stands*, and from
+behind that is exactly what it looked like; bent out at the elbow with the
+hands up by his head is a position nobody holds on their feet. Feet apart,
+briefcase dropped beside him, and at the purple blazer the hat has rolled off
+and the cane is lying where he let go of it. Three of them, one per blazer, no
+left and right — a man face down is not facing anywhere. A long contact shadow
+goes down first, which is the single strongest cue that a shape is *on* the
+ground rather than standing on it, and it costs one ellipse.
+
+The swap happens on the thud, under five rings of dust spreading off the
+pavement over 0.45s, which is there to cover the cut. It finishes at 1.92
+against a **2.15** hold — `deathHold()` is longer for this death than for any
+other — so the last thing on screen before the readout is him lying still,
+face down, for a quarter of a second.
 
 The money goes with him either way — it is what the player is actually losing —
 but it is not kicked out of him here: a third of the speed, a narrower cone and
 twice the hang, because money leaving slowly is a worse feeling than money
 leaving fast, and the slow one is the point of this death. And there is no
 impact to play, so `AUDIO.collapse()` is a long breath falling away with the
-two thuds that are the whole of it, soft and low, at 0.62 and 1.00 — the knees,
+two thuds that are the whole of it, soft and low, at 0.62 and 1.66 — the knees,
 then the rest of him. The screen does not shake at all.
 
 The drain is deliberately more than you start with: 47 blocks to the restaurant
@@ -2238,6 +2265,21 @@ costs nothing per frame and cannot drift if the renderer stutters.
 All four are synthesised at runtime like every other cue. **They are original
 pieces written for this game** — not transcriptions or arrangements of any
 existing song, and nothing in the repo reproduces copyrighted melody.
+
+### Four lines, and they are the four the game is about
+
+The tally had eight rows. Spare blazers, champions, the news and lunch are all
+real money and they all still go to the readout page and the leaderboard —
+every one of them is in `runRecord`, and the stats strip under the total still
+counts them — but the end screen is not a report. It is the last thing
+somebody sees before deciding whether to play again, and eight rows of mostly
+zeroes is a balance sheet.
+
+**GROUND COVERED, CHUCK BUCKS, TE-ADDONS, TAM PAYOUTS.** What he did, and then
+the product, ending on the TAM. The total under them is `PIPELINE BUILT`, not
+a sum of the column, and it still counts everything — a champion's 300k is in
+the number without being in the list. At four rows the fit scale comes back to
+**1.0**, so the numbers anybody actually reads are full size again.
 
 ### The readout has to fit on the page
 
