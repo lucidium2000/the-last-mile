@@ -2804,6 +2804,7 @@ function bakeAll(){
 
 /* ------------------------------------------------------------- world build */
 var rows = {};
+var SAFE_MIN = 2;          // the shallowest pavement the generator may lay
 var genCursor = 0, roadRun = 0, safeRun = 0, lastPower = 0, lastTam = -99, nextStreet = START_ST + 1;
 var curStreet = START_ST, curLane = 0;
 /* +1 walking uptown to the meeting, -1 carrying the signed PO back to Penn 1.
@@ -3170,9 +3171,16 @@ function ensureRows(upTo){
        know where the NEXT row lands rather than where the last one did. */
     var upcoming = prevWasSafe ? nextStreet : curStreet;
     var cap = inPark(upcoming) ? 2 : d.group;
-    if (roadRun >= cap)      wantRoad = false;
-    else if (safeRun >= 3)   wantRoad = true;
-    else                     wantRoad = Math.random() < 0.62;
+    /* A pavement is never one row deep. The roll was 62% road as soon as a
+       single safe row had been laid, so better than half of all pavements
+       came out one row thick - a strip he lands on and is immediately in
+       traffic again, with nowhere to stand and read the next lane, and no
+       room for a cart or a stand or anybody to walk on. Two is the floor;
+       three is still the ceiling. */
+    if (roadRun >= cap)           wantRoad = false;
+    else if (prevWasSafe && safeRun < SAFE_MIN) wantRoad = false;
+    else if (safeRun >= 3)        wantRoad = true;
+    else                          wantRoad = Math.random() < 0.62;
 
     if (!wantRoad){
       /* At most one hooded man anywhere near the camera, decided here
@@ -3662,8 +3670,11 @@ function act(dir){
         G.flash = null;                    // the banner replaces it
         moneyRise(ADDON_BONUS);
         AUDIO.deal();
-        brandHit("TE-ADDON", BRAND_HIT + 0.6, null,
-                 "THOUSANDEYES ADD-ON PACK  \u00B7  +" + cash(ADDON_BONUS), true);
+        /* No subtitle. The attach banner above it already says THOUSANDEYES
+           ADD-ON PACK and +$150,000, and the rise says the money again
+           underneath - a third copy of the same sentence in a third size is
+           not emphasis, it is noise. The plate is the thing to remember. */
+        brandHit("TE-ADDON", BRAND_HIT + 0.6, null, null, true);
         burst(nc*TILE + TILE/2, rowScreenY(nr) - 40, POWERS.path.col);
         return;
       }
@@ -4627,7 +4638,7 @@ function startRide(enterRow, enterCol){
      than a thing in it - the best run was the one that drew the most of them.
      Seven to fifteen still skips a real stretch of Midtown and still beats
      walking, without deciding the run on its own. */
-  var span = 7 + ((Math.random()*9) | 0);
+  var span = SPAN_MIN + ((Math.random() * (SPAN_MAX - SPAN_MIN + 1)) | 0);
   var wantSt = fromSt + legDir * span;
   /* Both ends of the walk are hard stops. Going up, the train may not carry
      you past the dinner at 81 - it is the pivot of the whole game, and a ride
@@ -4635,17 +4646,28 @@ function startRide(enterRow, enterCol){
      no ending. Coming back, it may not carry you past Penn. */
   if (legDir < 0) wantSt = Math.max(START_ST, wantSt);
   else            wantSt = Math.min(TURN_ST, wantSt);
-  var dest = null, cap = null, r, w, sn;
+  var dest = null, cap = null, best = null, r, w, sn;
   for (r = enterRow + 3; r < enterRow + 200; r++){
     w = rows[r];
     if (!w || w.type !== "safe" || w.park) continue;   // no station inside the park
     sn = streetAt(r);
     if (legDir > 0 && sn > TURN_ST) break;     // past the restaurant: stop looking
     if (legDir > 0) cap = r;                   // furthest row still short of it
+    /* The furthest station still INSIDE the cap, kept as we go. The search
+       takes the first station at or beyond the street it wanted, and where
+       the stations are sparse that overshoots badly - the park is ten solid
+       streets with no subway in it, so a ride aiming at W 62 came up at W 70
+       and the eighteen-street ride the player saw was never one of the nine
+       the roll could produce. */
+    if (Math.abs(sn - fromSt) <= SPAN_MAX) best = r;
     if (legDir > 0 ? (sn >= wantSt) : (sn <= wantSt)){ dest = r; break; }
   }
   // wanted to go further than 81 allows: get out as close to it as we can
   if (dest === null && legDir > 0 && cap !== null && streetAt(cap) > fromSt) dest = cap;
+  /* And whatever the search landed on, it does not get to break the number
+     on the tin. SPAN_MAX is the promise; the nearest station inside it is
+     the ride. */
+  if (dest !== null && Math.abs(streetAt(dest) - fromSt) > SPAN_MAX) dest = best;
   if (dest === null){ AUDIO.bump(); return; }
 
   /* He comes up in the MIDDLE of the pavement, every time. It used to reuse
@@ -4736,6 +4758,9 @@ var RIDE_PHASES = { down:1.0, platform:1.5, run:5.4, arrive:1.0, up:0.7 };
    behind it. The other four beats are fixed because the stairs, the platform
    and the doors take as long as they take. */
 var RIDE_PER_ST = 0.6, RIDE_RUN_MIN = 1.0;
+/* Seven to fifteen streets, and SPAN_MAX is a hard ceiling on what actually
+   gets ridden, not just on what gets rolled. */
+var SPAN_MIN = 7, SPAN_MAX = 15;
 function rideRun(R){ return (R && R.runDur) || RIDE_PHASES.run; }
 var RIDE_SLOTS = 5;
 /* The man at the far end of the car. He closes on you in a straight line at
@@ -8471,6 +8496,50 @@ function drawStreetSign(row, sy){
   }
 }
 
+/* Traffic NEARER the camera than he is, painted again over the top of him.
+
+   He is drawn on top of every vehicle on purpose: tucked into strict depth,
+   a car in the lane he had just left covered him to the waist and he looked
+   like he was wading. But the blanket version of that rule puts him over a
+   van a row and a half in FRONT of him, and a man standing in mid-air with
+   his legs across a parcel van is worse than wading - it is the same note
+   the pedestrians got, where somebody lower down the screen than he is
+   should pass in front of him because that is what depth looks like.
+
+   So: his own row and everything beyond it still draws under him, and
+   anything at least a full row nearer draws over him. One row of slack,
+   because mid-step he is between two of them and the one he is leaving
+   should not swallow him on the way out. */
+function drawTrafficFront(pp){
+  var lo = Math.floor(G.camRow) - ROWS_BEHIND;
+  var hi = Math.floor(pp.row) - 1, r, row, sy, i;
+  for (r = hi; r >= lo; r--){
+    row = rows[r];
+    if (!row || row.type === "safe") continue;
+    sy = rowScreenY(r);
+    var faceR = (row.dir * (row.rv || 1)) > 0;
+    var sprite = S[(row.skin || row.kind) + (faceR ? "_r" : "_l")];
+    for (i = 0; i < row.cars.length; i++){
+      var x = carX(row, row.cars[i]);
+      if (x + (row.eff || 1) < -1.6 || x > COLS + 1.6) continue;
+      var ysw = sy + (row.cars[i].sw || 0);
+      if (row.cars[i].uber >= 0){
+        blit(S["uber" + row.cars[i].uber + (faceR ? "_r" : "_l")], x*TILE, ysw);
+      } else if (row.packN > 1){
+        for (var q = 0; q < row.packN; q++)
+          blit(sprite, (x + q*(HAZ[row.kind].w + row.packGap))*TILE, ysw);
+      } else blit(sprite, x*TILE, ysw);
+    }
+    for (i = 0; i < row.parked.length; i++)
+      blit(S.boxtruck_r, row.parked[i].col*TILE, sy + PARK_KERB);
+    if (row.rogue){
+      var rx = rogueX(row);
+      if (rx + HAZ.ebike.w > -1.6 && rx < COLS + 1.6)
+        blit(S["ebike" + (row.dir > 0 ? "_l" : "_r")], rx*TILE, sy);
+    }
+  }
+}
+
 function drawWorld(){
   var lo = Math.floor(G.camRow) - ROWS_BEHIND, hi = Math.floor(G.camRow) + ROWS_AHEAD;
   var r, row, sy, i;
@@ -8624,6 +8693,7 @@ function drawWorld(){
   drawTrace();
   /* He stays on screen through the hold, so you can see what hit him. */
   if (G.state !== ST_DEAD || G.deadFor < DEATH_HOLD){ drawPlayer(pp); drawEatOverlay(); }
+  drawTrafficFront(pp);
   drawFolkFront();
   if (G.booth && G.state !== ST_DEAD) drawBooth(pp);
 
@@ -10529,7 +10599,7 @@ function drawHud(){
    is standing on a pavement when either of these fire, but the lanes he has
    to read next are not, and a celebration that hides the traffic is a
    celebration that kills you. */
-var BRAND_HIT = 1.10;
+var BRAND_HIT = 1.60;
 /* Always the brand orange, whatever the product's own chip colour is. The
    first version took the colour from the SKU - pale for a TAM, amber for the
    pack - which made the one moment that is supposed to be ThousandEyes
@@ -10546,12 +10616,23 @@ function moneyRise(amt){
              x:pp.col*TILE + TILE*0.5, y:rowScreenY(pp.row) - 96 };
   G.pipePop = PIPE_POP;
 }
+/* Where the rise goes when a brand burst is up. It normally floats off his
+   head, which is exactly where the burst's type is - two green numbers
+   through the middle of THOUSANDEYES, which is what the screenshot showed.
+   Parked here it reads as the bottom line OF the burst instead of as a
+   second thing fighting it: 930 rising to 810 sits under the name plate at
+   733 and above the health bar at 986. */
+var RISE_PARK_Y = 930;
 function drawMoneyRise(){
   var R = G.rise;
   if (!R) return;
   var k = 1 - R.life / R.max;
   var e = 1 - Math.pow(1 - k, 2.2);
   var a = Math.min(1, R.life / 0.5) * Math.min(1, k * 7);
+  /* Decided at DRAW time, not when the rise starts: the two fire in the same
+     frame and the order differs by pickup - the add-on raises the money
+     first and the burst second, the agent the other way round. */
+  if (G.brand){ R.x = LOGICAL_W / 2; R.y = RISE_PARK_Y; }
   var y = R.y - e * 120;
   var up = R.amt >= 0;
   var lab = (up ? "+" : "") + cash(R.amt);
@@ -10621,7 +10702,10 @@ function drawBrandHit(){
   var k = 1 - B.life / B.max;                 // 0 at the strike, 1 at the end
   var out = Math.min(1, B.life / 0.40);       // the tail
   var e = 1 - Math.pow(1 - Math.min(1, k * 1.9), 3);
-  var cx = LOGICAL_W / 2, cy = LOGICAL_H * 0.355;
+  /* The big one sits 26 lower. At x1.38 the lens reaches about 0.46r above
+     centre, which is y 292 - and the add-on's own banner ends at 294. They
+     were touching. */
+  var cx = LOGICAL_W / 2, cy = LOGICAL_H * 0.355 + (B.big ? 26 : 0);
   /* Two sizes. Everything got bigger, and the two that have to survive the
      drive home - TAM and TE-ADDON - got bigger again, three rings instead of
      two, and their name on a solid plate in the brand colour instead of

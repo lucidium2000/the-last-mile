@@ -262,6 +262,17 @@ was as long and as low as the SUV and looked like a shipping container; a step
 van is short and tall, and its roof is drawn as the *darkest* face because the
 projection lights top faces hardest and a pale roof slab was all you could see.
 
+**A pavement is never one row deep.** The roll was 62% road as soon as a
+single safe row had been laid, so better than half of all pavements came out
+one row thick — a strip he lands on and is immediately back in traffic, with
+nowhere to stand and read the next lane and no room for a cart, a stand or
+anybody to walk on. `SAFE_MIN` is 2 and the existing cap of 3 still holds, so
+every pavement is two rows or three. The floor only applies *while a pavement
+is being laid*: the first version tested `safeRun` unconditionally, which
+forced a sidewalk after every single road row and quietly deleted every
+multi-lane street in the game — 42nd and 57th included. Measured after:
+pavements 2 and 3 only, road runs still 1 to 4.
+
 Street furniture on the pavements includes bagel carts, pizza counters and hot
 dog stands, newsstands, scaffolding sheds, subway entrances and TE-ADDON
 terminals. At most one subway
@@ -445,7 +456,26 @@ name you *saw*. The plate is measured with the same font string `txt` builds,
 or it is the wrong width for the only two words on the screen that matter. The
 test is simple and it is the whole point of the exercise: somebody who has
 played forty runs should be able to name two things afterwards, and these are
-the two. Always in the brand orange, whatever the SKU's own chip
+the two.
+
+**Three things used to say the same sentence at once.** A TE-ADDON raises its
+own attach banner (which already reads `THOUSANDEYES ADD-ON PACK` and
+`+$150,000 ADDED TO PIPELINE`), the burst, and the money rise — and the rise
+floats off *his head*, which at the new type size is exactly where
+`THOUSANDEYES` is. Two green numbers through the middle of the wordmark.
+
+Fixed three ways. While any burst is up the rise parks centred at y 930 and
+rises to 810, under the name plate and above the health bar, so it reads as
+the bottom line *of* the burst instead of as a second thing fighting it —
+decided at draw time, not when the rise starts, because the two fire in the
+same frame and the order differs by pickup. The big burst drops 26px, since at
+×1.38 the lens reaches y 292 and the attach banner ends at 294. And the
+TE-ADDON burst lost its subtitle: a third copy of the same sentence in a third
+size is not emphasis, it is noise.
+
+Every burst also hangs **half a second longer** — `BRAND_HIT` 1.10 → 1.60, so
+the whole family moves together and the ones already carrying their own extra
+(both Insights, the blazers, TAM and TE-ADDON) keep their relative weight. Always in the brand orange, whatever the SKU's own chip
 colour is: the first version took it from the product, pale for a TAM and amber
 for the pack, which made the one moment that is supposed to be ThousandEyes
 *itself* look like two different things. The mechanism first, two short noise bursts, one bright and
@@ -694,8 +724,19 @@ moved. It was ten to twenty, and twenty streets is a third of the walk gone on
 one swipe — the far end of that range made the metrocard *the game* rather than
 a thing in it, where the best run was the one that drew the most of them. Seven
 to fifteen still skips a real stretch of Midtown and still beats walking,
-without deciding the run on its own. Measured over 400 rides: 7–15, every value
-present, none refused.
+without deciding the run on its own.
+
+**And fifteen is a ceiling on what gets *ridden*, not just on what gets
+rolled.** The search takes the first station at or beyond the street it wants,
+and where the stations are sparse that overshoots — the park is ten solid
+streets with no subway in it, so a ride aiming at W 62 surfaced at W 70 and
+the eighteen-street ride the player saw was never one of the nine the roll
+could produce. The scan now also keeps the furthest station still *inside*
+`SPAN_MAX` as it goes, and anything over the cap falls back to it. Measured by
+attempting a ride from every row of a full walk: 157 rides, spread 1–15, none
+over, none refused. The cost is that 16% now come out shorter than seven —
+they are the ones that used to overshoot, and a short ride is a better answer
+than a broken promise.
 
 And the run was a flat 5.4s whatever it carried, so a seven-stop hop and a
 fifteen-stop haul cost the same. It is now `RIDE_PER_ST` × streets — 4.2s for
@@ -831,6 +872,17 @@ A walk uptown is tiring, and the only thing that fixes tired is lunch.
 | Hot dog | **+7%** · $3 · **two** a cart |
 | An objection that lands | **−15% to −100%**, see below |
 | Endpoint Agents shield | absorbs the hit completely, costs no health |
+
+**Traffic nearer the camera than he is now paints over him.** He is drawn on
+top of every vehicle on purpose — tucked into strict depth, a car in the lane
+he had just left covered him to the waist and he looked like he was wading —
+but the blanket version of that rule put him over a parcel van a row and a
+half *in front* of him, standing in mid-air with his legs across its roof.
+That is the same note the pedestrians got: somebody lower down the screen than
+he is should pass in front of him, because that is what depth looks like. His
+own row and everything beyond it still draws under him; anything at least a
+full row nearer draws over him, with that row of slack so the lane he is
+halfway out of does not swallow him on the way.
 
 **The shield stacks, and the blazer has a name.** Nobody remembers "Endpoint
 Agents, a shield". Everybody remembers the **Double Purple Pimp Blazer of
