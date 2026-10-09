@@ -3903,8 +3903,14 @@ function act(dir){
       }
     }
   }
-  // flying carries you over scaffolding, parked trucks, everything solid
-  if (G.flyT <= 0 && target && target.blocked && target.blocked[nc]){
+  /* Flying carries you OVER scaffolding, parked trucks, everything solid.
+     Cloud Insights goes THROUGH them - he is moving too fast to stop and
+     the suit is the joke. Neither of them touches the traffic: the lanes
+     run across the street and he is hit from the side exactly like anybody
+     else, which is the only thing that can still end the run while the ten
+     seconds are up. A power-up that made him untouchable would make the ten
+     seconds a loading screen. */
+  if (G.flyT <= 0 && G.dashT <= 0 && target && target.blocked && target.blocked[nc]){
     /* Walk into a bagel cart, a slice counter or a hot dog stand and he stops,
        pays and eats. It costs nothing - the step was already refused - and it
        is the only time anything on the pavement answers back. */
@@ -3967,7 +3973,7 @@ function act(dir){
          trucks; a man standing on a pavement is not going to be the thing
          that stops him. They jump, he keeps the step, and nobody has to tap
          twice. */
-      if (G.flyT > 0){ folkScatter(fo, nc); AUDIO.jostle(); continue; }
+      if (G.flyT > 0 || G.dashT > 0){ folkScatter(fo, nc); AUDIO.jostle(); continue; }
       /* The one in fifty. Walking into them is not an argument, it is the
          renewal: the only place in the game where bumping into somebody is
          the right move. They still keep the square - he has stopped to
@@ -4056,11 +4062,13 @@ function act(dir){
      rows and lands on the third, which is what makes the ten seconds feel
      like a different game rather than the same game at a higher frame rate.
 
-     It stops at the first thing it cannot pass - a prop, a parked truck,
-     the edge of the generated world - and lands on the furthest clear row
-     short of it, so a leap can never put him inside a scaffold. It does NOT
-     test for traffic: going over two lanes of it is the whole point, and he
-     is as vulnerable as anybody else on the row he lands in.
+     It stops only at the edge of the generated world. It used to stop at
+     the first prop or parked truck as well, which was right while he still
+     walked into things - but he goes through those now, and a leap that
+     refuses the row his own walk would have taken is a leap that reads as
+     a bug. It does NOT test for traffic either: going over two lanes of it
+     is the whole point, and he is as vulnerable as anybody else on the row
+     he lands in.
 
      The hop clock is back to normal speed for the suit (DASH_K 1), because
      three rows in a third of the time is nine times the ground and that is
@@ -4069,8 +4077,7 @@ function act(dir){
   if (dir === "f" && G.dashT > 0 && nr === G.row + 1){
     var reach = nr;
     for (var jq = 2; jq <= DASH_JUMP; jq++){
-      var jw = rows[G.row + jq];
-      if (!jw || (jw.blocked && jw.blocked[nc])) break;
+      if (!rows[G.row + jq]) break;
       reach = G.row + jq;
     }
     nr = reach;

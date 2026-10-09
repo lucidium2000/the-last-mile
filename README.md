@@ -2439,11 +2439,23 @@ ground, which is not a power-up, it is a cutscene — the leap is where the
 speed comes from and the clock stays where it is, which is a true 3× and
 three times the clock banked off `TRAIN_PER_HOP`.
 
-The leap stops at the first thing it cannot pass — a prop, a parked truck, the
-edge of the generated world — and lands on the furthest clear row short of
-it, so it can never put him inside a scaffold. It does **not** test for
-traffic: sailing over two lanes of it is the entire point, and he is as
-vulnerable as anybody else on the row he lands in. A span of more than one
+**He goes through things.** Flying carries him *over* scaffolding, parked
+trucks and the people on the pavement; the suit takes him *through* them — he
+is moving too fast to stop and that is the joke. Solid props, double-parked
+trucks and pedestrians all stop refusing the step, and the leap stops only at
+the edge of the generated world. It used to stop at the first prop as well,
+which was right while he still walked into things, but a leap that refuses a
+row his own walk would have taken reads as a bug.
+
+**And he can still be hit from the side.** Neither the suit nor the leap
+touches the traffic. The lanes run across the street and he is hit from them
+exactly like anybody else, which is the only thing that can still end the run
+while the ten seconds are up — a power-up that made him untouchable would
+make them a loading screen. The leap does not test for traffic either:
+sailing over two lanes is the point, and he is as vulnerable as anybody else
+on the row he lands in. Verified both halves: a step into a blocked square is
+refused on foot and goes three rows in the suit, and a cab on his column in
+the suit still takes him from 100 to 25. A span of more than one
 row gets real air under it on a half sine, because a three-row jump at walk
 height is a man sliding, which is the one thing it must not look like.
 Measured: every accepted forward tap in the suit moves him exactly 3. It multiplies with the worn-out drag rather than
