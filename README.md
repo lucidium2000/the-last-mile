@@ -273,6 +273,20 @@ forced a sidewalk after every single road row and quietly deleted every
 multi-lane street in the game — 42nd and 57th included. Measured after:
 pavements 2 and 3 only, road runs still 1 to 4.
 
+**Every power-up on the pavement glows.** One used to be a small bobbing
+sprite with a caption, which is a thing you *notice*; it needs to be a thing
+you *want*, and the difference between those is light. Each one gets a pool of
+its own colour on the ground, a halo behind it (eight nested ellipses at
+falling alpha — a blurred ellipse for the price of eight fills), a ring
+leaving the ground every 1.2 seconds, and four sparks rising off it.
+
+The weight is per SKU. **Endpoint Agents hardest at 1.65**, because the blazer
+is the one that changes what he looks like for the rest of the run; metrocards
+least at 0.72, because you find nine of them and a card that screams is a card
+you stop hearing. The pulse phase is offset by column, so two pickups on the
+same screen do not breathe in lockstep — in lockstep they read as a screen
+effect rather than as two objects.
+
 Street furniture on the pavements includes bagel carts, pizza counters and hot
 dog stands, newsstands, scaffolding sheds, subway entrances and TE-ADDON
 terminals. At most one subway
@@ -453,6 +467,15 @@ the viewer blocks external images:
   that the counters had been filled in — that is true of nothing in this file,
   and it deleted the pupil. Two colours, posterised alpha, nothing else done
   to it.
+The **title** takes the mark on its own rather than the lockup, and the line
+under it is **`ThE Last Mile`** — the T and the E orange, the h between them
+white. The orange letters are ThousandEyes' initials and the white one turns
+them into a word, so the brand is read without being spelled out and the title
+is still a sentence. The lockup has the name written out in it; next to that
+line it would be the same two letters said three ways on one screen. The four
+pieces are measured and laid out off **one** total, because centring each
+separately drifts them apart on whatever font the panel falls back to.
+
 - **`TE_LOGO_SRC`**, the whole Cisco ThousandEyes lockup at 900×181, snapped
   to exactly two colours so the PNG has almost no colour entropy left to
   store. The type on its own is the left 745px of it, so there is no third
@@ -498,6 +521,19 @@ lens is 12% wider, `THOUSANDEYES` went 62 → 72, the SKU 42 → 52, and every l
 now has a hard dark offset under it, because there is no `shadowBlur` in this
 renderer and there is a street full of yellow cabs behind the words — orange
 type landing on a taxi roof was legible in the editor and invisible in a room.
+
+**The name plate glows.** There is no `shadowBlur` in this renderer and there
+never will be — it is the single most expensive thing you can ask a software
+canvas for and this runs on a room panel — so the glow is **ten rounded
+rectangles stepped outward from the plate** at falling alpha and growing
+corner radius, drawn outside in, which is what a blurred rounded rect looks
+like for the price of ten fills. Over them a hot white ring just off the edge,
+which is what sells a glow as *light* rather than as a coloured smudge, and on
+the plate itself a white rim. The whole stack breathes at 9 rad/s — about
+1.4Hz, a heartbeat slightly faster than yours. A sheen of six soft diagonal
+bands sweeps across it once over the life of the burst, clipped to the plate:
+that is the thing that makes a flat colour read as a *surface*, and a surface
+is what you want to reach out and take.
 
 The two that have to survive the drive home, **TAM** and **TE-ADDON**, go
 bigger again: everything ×1.22, the lens ×1.38, three rings instead of two, a

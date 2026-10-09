@@ -8628,6 +8628,7 @@ function drawWorld(){
         if (row.pickup.kind === "tam") drawTamPickup(row.pickup.col, sy);
         else {
           var bob = Math.sin(G.t*2.6 + row.pickup.col) * 7;
+          drawPickupGlow(row.pickup.kind, row.pickup.col, sy, bob);
           blit(S["pw_"+row.pickup.kind], row.pickup.col*TILE, sy - 10 - bob);
           drawPickupLabel(row.pickup.kind, row.pickup.col, sy - bob);
         }
@@ -8837,6 +8838,65 @@ function drawKioskLabel(col, botY, bob){
   ctx.fillStyle = C.pw3; ctx.fillRect(cx - w/2, top, 5, 76);
   txt(lab, cx + 2, top + 26, 22, C.pw3);
   txt(sub, cx + 2, top + 58, 19, C.good);
+  ctx.globalAlpha = 1;
+}
+
+/* ------------------------------------------------------- PICKUP GLOW ---
+   A power-up lying on a pavement used to be a small bobbing sprite with a
+   caption, which is a thing you notice. It needs to be a thing you WANT, and
+   the difference between those two is light: a pool of it on the ground, a
+   halo behind the object, a ring leaving it on a slow beat, and sparks
+   coming off it.
+
+   No shadowBlur and no gradients per frame - the halo is eight nested
+   ellipses at falling alpha, which is what a blurred ellipse looks like and
+   costs eight fills. Every pickup gets it in its OWN colour, and the weight
+   is per SKU: Endpoint Agents hardest, because the blazer is the one that
+   changes what he looks like for the rest of the run, and a metrocard least,
+   because you find nine of them and a card that screams is a card you stop
+   hearing. The phase is offset by column so two of them on the same screen
+   do not pulse in lockstep, which reads as a screen effect rather than as
+   two objects. */
+var PICKUP_GLOW = { agent:1.65, path:1.2, insight:1.15, traffic:1.15,
+                    chuck:1.1, sponsor:1.0, metro:0.72 };
+function drawPickupGlow(kind, col, sy, bob){
+  var k = POWERS[kind];
+  if (!k) return;
+  var cx = col*TILE + TILE*0.5, cy = sy - 44 - bob;
+  var g = PICKUP_GLOW[kind] || 1;
+  var ph = col * 0.83;
+  var pul = 0.5 + 0.5*Math.sin(G.t*4.2 + ph);
+
+  // the pool it is standing in
+  ctx.fillStyle = k.col;
+  ctx.globalAlpha = (0.17 + 0.11*pul) * g;
+  ctx.beginPath(); ctx.ellipse(cx, sy + 6, 46 + 9*pul, 13 + 3*pul, 0, 0, Math.PI*2);
+  ctx.fill();
+
+  // the halo behind it
+  for (var i = 8; i >= 1; i--){
+    ctx.globalAlpha = (0.042 + 0.030*pul) * g * (1 - i/9);
+    ctx.beginPath();
+    ctx.ellipse(cx, cy, 20 + i*8, 22 + i*9, 0, 0, Math.PI*2);
+    ctx.fill();
+  }
+
+  // a ring leaving the ground every 1.2s
+  var rp = ((G.t * 0.85) + ph) % 1;
+  ctx.globalAlpha = (1 - rp) * 0.42 * g;
+  ctx.strokeStyle = k.col; ctx.lineWidth = 3.5;
+  ctx.beginPath();
+  ctx.ellipse(cx, sy + 6, 28 + rp*74, 8 + rp*23, 0, 0, Math.PI*2);
+  ctx.stroke();
+
+  // and sparks coming off it
+  for (var q = 0; q < 4; q++){
+    var sp = ((G.t * 0.62) + q*0.25 + ph*0.3) % 1;
+    ctx.globalAlpha = (1 - sp) * 0.8 * g;
+    ctx.fillStyle = (q % 2) ? "#ffffff" : k.col;
+    var sz = 5 - sp*3;
+    ctx.fillRect(cx + Math.sin(sp*6.3 + q*2.1)*30 - sz/2, sy - 6 - sp*118, sz, sz);
+  }
   ctx.globalAlpha = 1;
 }
 
@@ -10775,7 +10835,59 @@ function drawBrandHit(){
        wrong width for the only two words on the screen that matter. */
     ctx.font = "bold " + nsz + 'px "Helvetica Neue",Helvetica,Arial,sans-serif';
     var pw = ctx.measureText(B.what).width + 78;
-    plate(cx - pw / 2, ny - 60, pw, 88, B.col, 16);
+    var px0 = cx - pw / 2, py0 = ny - 60, ph = 88;
+    var pulse = 0.5 + 0.5 * Math.sin(G.t * 9);
+
+    /* THE GLOW. There is no shadowBlur in this renderer and there never will
+       be - it is the single most expensive thing you can ask a software
+       canvas for, and this runs on a room panel. A glow here is eight
+       rounded rectangles stepped outward from the plate at falling alpha and
+       growing corner radius, which is what a blur of a rounded rect looks
+       like anyway, drawn from the outside in so the near ones sit on top.
+       The whole stack breathes at 9 rad/s, about 1.4Hz, which is a heartbeat
+       slightly faster than yours. */
+    ctx.fillStyle = B.col;
+    for (var gi = 10; gi >= 1; gi--){
+      ctx.globalAlpha = out * (0.070 + 0.045 * pulse) * (1 - gi / 11);
+      rr(px0 - gi * 9, py0 - gi * 9, pw + gi * 18, ph + gi * 18, 16 + gi * 8);
+      ctx.fill();
+    }
+    /* and one hot white ring just off the edge, which is what sells a glow
+       as light rather than as a coloured smudge */
+    ctx.globalAlpha = out * (0.16 + 0.22 * pulse);
+    ctx.strokeStyle = "#ffd9bd"; ctx.lineWidth = 5;
+    rr(px0 - 7, py0 - 7, pw + 14, ph + 14, 22);
+    ctx.stroke();
+
+    ctx.globalAlpha = out * Math.min(1, k * 5);
+    plate(px0, py0, pw, ph, B.col, 16);
+
+    /* A white rim that breathes with the glow. On the plate rather than
+       around it, so the edge reads as lit rather than as a border. */
+    rr(px0, py0, pw, ph, 16);
+    ctx.strokeStyle = "#ffffff"; ctx.lineWidth = 2 + 2.5 * pulse;
+    ctx.globalAlpha = out * (0.30 + 0.45 * pulse);
+    ctx.stroke();
+
+    /* And a sheen crossing it once, clipped to the plate: six soft diagonal
+       bands with the bright one in the middle, swept left to right over the
+       life of the burst. It is the thing that makes a flat colour read as a
+       surface, and a surface is what you want to reach out and take. */
+    ctx.save();
+    rr(px0, py0, pw, ph, 16); ctx.clip();
+    var swp = px0 - 240 + (k * 1.45) * (pw + 480);
+    ctx.fillStyle = "#ffffff";
+    for (var q = 0; q < 7; q++){
+      ctx.globalAlpha = out * 0.10 * (1 - Math.abs(q - 3) / 3.4);
+      var bx = swp + q * 13;
+      ctx.beginPath();
+      ctx.moveTo(bx, py0); ctx.lineTo(bx + 30, py0);
+      ctx.lineTo(bx + 30 - 34, py0 + ph); ctx.lineTo(bx - 34, py0 + ph);
+      ctx.closePath(); ctx.fill();
+    }
+    ctx.restore();
+
+    ctx.globalAlpha = out * Math.min(1, k * 5);
     txt(B.what, cx, ny, nsz, "#1a0a00");
   } else {
     txt(B.what, cx + 3, ny + 3, nsz, sh);
@@ -10986,17 +11098,29 @@ function drawTitle(){
   ctx.fillStyle = "rgba(8,5,3,0.66)";
   ctx.fillRect(0, 0, LOGICAL_W, LOGICAL_H);
 
-  if (!drawLockupImg(LOGICAL_W/2, 286, 620)) drawLogoEye(LOGICAL_W/2, 286, 64);
+  /* The mark on its own, not the whole lockup. The lockup has the name
+     written out in it and the line underneath is about to spell the same two
+     letters a different way - saying it three times in one screen is a title
+     card that cannot decide what it is called. */
+  drawLogoEye(LOGICAL_W/2, 286, 64);
 
-  /* "TE" orange, the rest in white, set as one line. Drawn in two pieces off a
-     measured total so the pair stays centred whatever the font falls back to -
-     centring each half separately would drift them apart. */
-  var a = "TE ", b = "Last Mile", big = 124;
+  /* "ThE Last Mile". The orange letters are T and E - ThousandEyes - and the
+     white h between them turns the initials into a word, so the brand is
+     read without being spelled out and the title is still a sentence. Drawn
+     in four pieces off one measured total so the lot stays centred whatever
+     the font falls back to; centring each piece separately would drift them
+     apart. */
+  var big = 124;
+  var parts = [["T", C.brand], ["h", C.text], ["E", C.brand], [" Last Mile", C.text]];
   ctx.font = "bold " + big + 'px "Helvetica Neue",Helvetica,Arial,sans-serif';
-  var aw = ctx.measureText(a).width, bw = ctx.measureText(b).width;
-  var x0 = (LOGICAL_W - (aw + bw)) / 2;
-  txt(a, x0,      470, big, C.brand, "left");
-  txt(b, x0 + aw, 470, big, C.text,  "left");
+  var total = 0, pi;
+  for (pi = 0; pi < parts.length; pi++)
+    total += (parts[pi][2] = ctx.measureText(parts[pi][0]).width);
+  var x0 = (LOGICAL_W - total) / 2;
+  for (pi = 0; pi < parts.length; pi++){
+    txt(parts[pi][0], x0, 470, big, parts[pi][1], "left");
+    x0 += parts[pi][2];
+  }
 
   txt("Penn 1 to the meeting.", LOGICAL_W/2, 552, 32, C.textDim);
 
