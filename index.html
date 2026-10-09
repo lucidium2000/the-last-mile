@@ -115,6 +115,9 @@ var SKY_BASE = 254;                // skyline baseline, just under the cull line
 var PAD = 4, SPAN = COLS + PAD * 2;
 var ROWS_AHEAD = 15, ROWS_BEHIND = 6;
 var HOP_MS = 135, DOLLARS_PER_ROW = 15000;   // row 70 ~= $1.05M
+/* Cloud Insights: half the time per square for POWERS.sponsor.secs. */
+var DASH_K = 0.5;
+function dashK(){ return G.dashT > 0 ? DASH_K : 1; }
 
 var SHOW_FPS  = /[?&]fps=1/.test(location.search);
 var SAFE_MODE = /[?&]safe=1/.test(location.search);
@@ -2154,8 +2157,13 @@ var POWERS = {
             line:"Straight onto the number.", secs:0 },
   path:   { col:C.pw3,   letter:"P", name:"PATH VISUALIZATION",
             line:"A traced route, branches and all. Traffic turns away.", secs:14 },
-  sponsor:{ col:C.pw4, letter:"X", name:"EXECUTIVE SPONSOR",
-            line:"A car service, three blocks uptown.", secs:0 },
+  /* Was EXECUTIVE SPONSOR, which handed him a car service and jumped him
+     three rows - a power-up whose entire expression was the player being
+     somewhere else a frame later. Nothing to look at, nothing to play, and
+     the one SKU in the pool with no product behind it. */
+  sponsor:{ col:C.pw4, letter:"C", name:"CLOUD INSIGHTS",
+            line:"Accelerating your journey in the Cloud. Orange high-tops, and he runs.",
+            secs:10 },
   metro:  { col:"#ffd24a", letter:"M", name:"METROCARD",
             line:"Swipe in at any subway. Ride five to ten streets uptown.", secs:0 },
   /* The premium SKU, and the most powerful thing in the game: five seconds of
@@ -2176,6 +2184,7 @@ var AGENT_BLAZER = [
   "\u201CDOUBLE PURPLE PIMP BLAZER OF ASSURANCE\u201D"
 ];
 var BRAND_SKUS = {
+  sponsor: "CLOUD INSIGHTS",
   agent:   "ENDPOINT AGENTS",
   traffic: "TRAFFIC INSIGHTS",
   insight: "INTERNET INSIGHTS"
@@ -3392,7 +3401,7 @@ function reset(){
     flyT:0, flyA:0, flyBeep:0, flyMove:0, flyTilt:0, walkPh:0, walkAmt:0,
     brand:null, pipePop:0, rise:null, tam:false, tamT:0, tamWins:0, tamWin:null, hurtT:0, nahT:0, nahSay:null, walkSaid:false,
     yumT:0, yumKind:null, yumDir:0, yumBite:0, wowT:0, cheerT:0,
-    metro:0, ride:null, trace:null, rides:0, bonus:0, tamLeft:0, riskT:0,
+    metro:0, ride:null, trace:null, rides:0, bonus:0, tamLeft:0, riskT:0, dashT:0,
     scene:null, scenesSeen:{}, ticker:null, notice:null, southT:0,
     leg:1, po:false, won:false,
     trainT:TRAIN_MAX, trainLine:tr[0], trainDest:tr[1],
@@ -3630,8 +3639,7 @@ function streetAt(r){
    Now it looks one row ahead instead: standing on a pavement, if the next
    crossing belongs to a street with a scene he has not seen, it opens here,
    with the kerb under his feet. The sweep in progress() stays as the backstop
-   for arrivals that skip the pavement entirely - a subway ride, or a sponsor
-   carrying him three rows at once. */
+   for arrivals that skip the pavement entirely - a subway ride. */
 function sceneLookahead(){
   if (G.state !== ST_PLAY || G.scene || G.ride) return;
   var here = rows[G.maxRow];
@@ -3657,9 +3665,8 @@ function progress(){
     var prev = G.street, step = st > prev ? 1 : -1, n;
     G.street = st;
     /* Every street PASSED, not just the one landed on. A subway ride covers
-       ten to twenty crossings at once and a sponsor carries three rows, so
-       testing only the arrival street silently skipped whatever was in
-       between - including, before the cap above, the dinner itself. Scenes
+       seven to fifteen crossings at once, so testing only the arrival
+       street silently skipped whatever was in between - including, before the cap above, the dinner itself. Scenes
        are one to a jump: the first one found plays, and the walk is not
        long enough for that to matter twice.
 
@@ -4252,6 +4259,9 @@ function collect(){
     else if (kind === "traffic")
       brandHit(BRAND_SKUS[kind], BRAND_HIT + 0.5, null,
                "INSIGHT AND CONTROL OF TRAFFIC");
+    else if (kind === "sponsor")
+      brandHit(BRAND_SKUS[kind], BRAND_HIT + 0.5, null,
+               "ACCELERATING YOUR JOURNEY IN THE CLOUD");
     else if (kind === "agent"){
       /* Read BEFORE the shield moves - this block runs above the one that
          grants it, so G.shield is still what he had when he stepped on it. */
@@ -4333,21 +4343,7 @@ function collect(){
     G.revealT = Math.max(G.revealT, k.secs);
     G.trace = buildTrace();
   }
-  else if (kind === "sponsor"){
-    var adv = 0;
-    for (var i=1;i<=3;i++){
-      var w = rows[G.row+i];
-      if (w && w.blocked && w.blocked[G.col]) break;
-      adv = i;
-    }
-    if (adv > 0){
-      G.fromRow = G.row; G.fromCol = G.col;
-      G.row += adv; G.hop = 0; G.invulnT = Math.max(G.invulnT, 0.95);
-      G.trainT = Math.min(TRAIN_MAX, G.trainT + TRAIN_PER_HOP*adv);
-      if (G.row > G.maxRow){ G.maxRow = G.row; progress(); }
-      ensureRows(G.maxRow + ROWS_AHEAD);
-    }
-  }
+  else if (kind === "sponsor") G.dashT = Math.max(G.dashT, k.secs);
 }
 
 /* ===================== PATH VISUALIZATION ================================
@@ -7692,11 +7688,17 @@ function update(dt){
        you would have taken at full strength is not there any more. */
     var wk2 = wornK();
     var drag = (G.flyT > 0) ? 1 : (wk2 > 0 ? 1 + 0.15 + wk2 * 0.70 : 1);
-    G.hop += dt*1000 / (HOP_MS * (1 - 0.32*G.flyA) * drag);   // airborne is quicker
+    /* Cloud Insights halves the time a square takes, which is the whole of
+       it: twice the ground, twice the clock banked off TRAIN_PER_HOP, and
+       twice as much coming at him. It multiplies with the worn drag rather
+       than overriding it - a man on his last point of health in running
+       shoes is quick for a man who is about to fall over. */
+    G.hop += dt*1000 / (HOP_MS * (1 - 0.32*G.flyA) * drag * dashK());
     if (G.hop >= 1){ G.hop = 1; collect(); }
   }
   if (G.slowT   > 0) G.slowT   = Math.max(0, G.slowT - dt);
   if (G.riskT > 0) G.riskT = Math.max(0, G.riskT - dt);
+  if (G.dashT > 0) G.dashT = Math.max(0, G.dashT - dt);
   if (G.hurtT > 0) G.hurtT = Math.max(0, G.hurtT - dt);
   if (G.nahT > 0)  G.nahT  = Math.max(0, G.nahT - dt);
   if (G.yumT > 0){
@@ -7779,7 +7781,7 @@ function update(dt){
      work. */
   var stepping = (G.state === ST_PLAY && G.hop < 1 && !G.ride && G.flyA <= 0.05)
                  ? 1 : 0;
-  if (stepping) G.walkPh += dt * (Math.PI / (HOP_MS / 1000));
+  if (stepping) G.walkPh += dt * (Math.PI / (HOP_MS * dashK() / 1000));
   G.walkAmt += (stepping - G.walkAmt) * Math.min(1, dt * (stepping ? 24 : 9));
   if (G.walkAmt < 0.002) G.walkAmt = 0;
 
@@ -9408,13 +9410,101 @@ function drawTamShoes(){
   box(0.56, 0.72, 0.46, 0.59, 0.065, orange, shade(orange, -0.22), "#f6efe2");
 }
 
+/* ------------------------------------------------------- THE HIGH-TOPS ---
+   Cloud Insights, worn. Orange high-tops with the eye on the outside of
+   each one and a small wing at the heel, and the wings beat with his
+   stride - which is the only animation on them and the only one they need,
+   because at this size a wing that does not move is a smudge.
+
+   Drawn over the sprite rather than baked into it. The alternative is a
+   second shoe state on every player variant - three blazers times nine
+   faces times two facings - to put eight pixels of orange on his feet.
+
+   Everything is placed in MODEL space and projected, so the shoes sit on
+   his feet at any scale and through the bob, the lean and the stride the
+   same way the TAM shoes do. */
+function drawKicks(){
+  var A = EAT_AT;
+  if (!A || A.px == null) return;
+  function at(x, y, z){
+    var q = proj(x, y, z);
+    return [A.px + q[0] * A.kx, A.py + q[1] * A.ky];
+  }
+  function quad(a, b, c, d, col){
+    ctx.fillStyle = col;
+    ctx.beginPath();
+    ctx.moveTo(a[0], a[1]); ctx.lineTo(b[0], b[1]);
+    ctx.lineTo(c[0], c[1]); ctx.lineTo(d[0], d[1]);
+    ctx.closePath(); ctx.fill();
+  }
+  /* A block of shoe: top face, the near face below it, and the outer cheek.
+     Three faces is what the projection shows of anything, and it is what
+     makes a shoe rather than a tab. */
+  function box(x0, x1, y0, y1, z0, z1, top, side, front){
+    var a = at(x0, y0, z1), b = at(x1, y0, z1), c = at(x1, y1, z1), d = at(x0, y1, z1);
+    quad(a, b, c, d, top);
+    quad(d, c, at(x1, y1, z0), at(x0, y1, z0), front);
+    quad(b, c, at(x1, y1, z0), at(x1, y0, z0), side);
+  }
+  var ST = walkStride() || {};
+  var orange = "#ff7a1f", dark = shade(orange, -0.26), sole = "#f6efe2";
+  /* The wings beat off the walk clock, so they are fastest when he is -
+     and they hold half open when he is standing still, which reads as
+     ticking over rather than switched off. */
+  var beat = 0.5 + 0.5 * Math.sin(G.walkPh * 2);
+  var amt  = 0.35 + 0.65 * (G.walkAmt || 0);
+
+  function kick(x0, x1, lift){
+    var y0 = 0.46, y1 = 0.60, z = (lift || 0) / ZH;
+    box(x0, x1, y0, y1, z, z + 0.075, orange, dark, sole);   // the shoe
+    box(x0 + 0.012, x1 - 0.012, y0 + 0.012, y1 - 0.05,       // the ankle collar
+        z + 0.075, z + 0.145, shade(orange, 0.12), shade(orange, -0.14), dark);
+    /* THE EYE GOES ON TOP OF THE SHOE, which is not where a logo goes on a
+       real sneaker and is the only place it can go here. The outer cheek of
+       a shoe in this projection is 0.14 of a tile deep and 0.075 high -
+       about four pixels by seven - so a mark on it is three pixels of
+       nothing. The top face is the one with area, so the eye sits on the
+       toe like a badge and is actually legible. White lens, orange iris,
+       one glint. */
+    var ez = z + 0.0755, ey = (y0 + y1) * 0.5;
+    quad(at(x0 + 0.022, ey - 0.050, ez), at(x1 - 0.022, ey - 0.050, ez),
+         at(x1 - 0.022, ey + 0.050, ez), at(x0 + 0.022, ey + 0.050, ez),
+         "#ffffff");
+    quad(at(x0 + 0.055, ey - 0.022, ez), at(x1 - 0.055, ey - 0.022, ez),
+         at(x1 - 0.055, ey + 0.022, ez), at(x0 + 0.055, ey + 0.022, ez),
+         orange);
+    quad(at(x0 + 0.040, ey - 0.044, ez), at(x0 + 0.072, ey - 0.044, ez),
+         at(x0 + 0.072, ey - 0.030, ez), at(x0 + 0.040, ey - 0.030, ez),
+         "#fff8ef");
+    /* The wing, off the heel, beating. Three feathers of falling length
+       swept back, which is what makes a flap read as a flap rather than as
+       a flicker, and the sweep is what makes it a wing rather than a fin. */
+    var wz = z + 0.050, spread = (0.050 + 0.080 * beat) * amt;
+    var hub = at(x0 + 0.015, y0 + 0.03, wz);
+    var fe = [[0.115, -0.085, 1.00], [0.090, -0.015, 0.72], [0.062, 0.045, 0.44]];
+    for (var fq = 0; fq < 3; fq++){
+      var f = fe[fq];
+      var tip  = at(x0 - f[0],        y0 + f[1],        wz + spread * f[2]);
+      var root = at(x0 + 0.015,       y0 + f[1] + 0.03, wz + spread * f[2] * 0.25);
+      quad(hub, tip, root, root, fq ? shade("#fff3e4", -0.10 * fq) : "#ffffff");
+    }
+  }
+  kick(0.28, 0.44, ST.legL ? -ST.legL : 0);
+  kick(0.56, 0.72, ST.legR ? -ST.legR : 0);
+}
+
 function drawEatOverlay(){
   if (G.hp < HP_WORN && G.state === ST_PLAY && EAT_AT) drawWorn(EAT_AT.x, EAT_AT.y);
   if (G.state === ST_PLAY && EAT_AT && (G.hp < HP_WORN || G.hpShow > 0))
     drawHeadHp(EAT_AT.x, EAT_AT.y);
   if (G.needFood > 0 && G.state === ST_PLAY && EAT_AT) drawNeedFood(EAT_AT.x, EAT_AT.y);
-  // and the orange shoes, if the subscription is live
-  if (G.tam && G.state === ST_PLAY && G.flyA < 0.15) drawTamShoes();
+  /* The high-tops win over the TAM's plain orange shoes - they are the
+     same colour on the same feet and the ones with wings on are the ones
+     worth looking at. */
+  if (G.state === ST_PLAY && G.flyA < 0.15){
+    if (G.dashT > 0)   drawKicks();
+    else if (G.tam)    drawTamShoes();
+  }
   if (G.yumT > 0 && EAT_AT) drawEat(EAT_AT.x, EAT_AT.y);
   if (G.cheerT > 0 && EAT_AT) drawCheer(EAT_AT.x, EAT_AT.y);
   EAT_AT = null;
@@ -10804,6 +10894,7 @@ function drawHud(){
   if (G.slowT > 0)   chips.push(["I", "INSIGHTS",       C.pw2, G.slowT / POWERS.insight.secs]);
   if (G.revealT > 0) chips.push(["P", "PATH VIS",       C.pw3,   G.revealT / POWERS.path.secs]);
   if (G.riskT > 0)   chips.push(["TI","TRAFFIC INS",    "#8fd3e8", G.riskT / POWERS.traffic.secs]);
+  if (G.dashT > 0)   chips.push(["C", "CLOUD INSIGHTS", C.pw4,   G.dashT / POWERS.sponsor.secs]);
   if (G.po)          chips.push(["PO", "PURCHASE ORDER", C.good, 0]);
   if (G.metro > 0)   chips.push([G.metro > 1 ? "M" + G.metro : "M",
                                  G.metro > 1 ? "METROCARD x" + G.metro : "METROCARD",

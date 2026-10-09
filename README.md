@@ -2420,8 +2420,36 @@ top of this file applies.
 
 Four common ThousandEyes capabilities — Endpoint Agent (absorbs one hit),
 Internet Insights (drops the world into slow motion), Path Visualization (lights
-up safe crossings), Executive Sponsor (carries you three rows) — plus one rare
-tier:
+up safe crossings), Cloud Insights (orange high-tops, and he runs) — plus one
+rare tier:
+
+**Cloud Insights** was Executive Sponsor, which handed him a car service and
+jumped him three rows. A power-up whose entire expression is the player being
+somewhere else a frame later: nothing to look at, nothing to play, and the one
+SKU in the pool with no product behind it. It is ten seconds at **half the
+time per square** now — `DASH_K` 0.5, so 135ms a square becomes 68 — which is
+twice the ground, twice the clock banked off `TRAIN_PER_HOP`, and twice as
+much coming at him. It multiplies with the worn-out drag rather than
+overriding it: a man on his last point of health in running shoes is quick
+*for a man who is about to fall over*. Tagline on the burst, in the same
+treatment as every other SKU: *Accelerating your journey in the Cloud.*
+
+**And you can see it on his feet.** Orange high-tops with the eye on the toe
+and a small wing at each heel, the wings beating off the walk clock — fastest
+when he is, half open when he is standing, because at this size a wing that
+does not move is a smudge. Drawn over the sprite rather than baked into it:
+the alternative is a second shoe state on every player variant, three blazers
+by nine faces by two facings, to put eight pixels of orange on his feet.
+Everything is placed in model space and projected, so they sit on his feet
+through the bob, the lean and the stride, and each shoe rides its own leg on
+`walkStride()`.
+
+The eye goes on **top** of the shoe, which is not where a logo goes on a real
+sneaker and is the only place it can go here: the outer cheek in this
+projection is about four pixels by seven, so a mark on it is three pixels of
+nothing. The top face is the one with area. They supersede the TAM's plain
+orange shoes while they are on — same colour, same feet, and the ones with
+wings are the ones worth looking at.
 
 **Internet Insights** runs 11 seconds and throttles **everything that moves to
 25% of normal.** One constant, `SLOW_K`, drives the mover, the motorcade sweep,
