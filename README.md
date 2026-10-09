@@ -650,6 +650,19 @@ space for it — the badge grew to 72 tall when it was rebuilt round its own ink
 the plate above and five clear of the third row of traffic ahead of him at
 641.
 
+**Every SKU gets the badge.** It used to be the two big ones on a plate and
+everything else in coloured type over the street, which said — without meaning
+to — that Endpoint Agents and the two Insights were the cheap seats. They are
+the product. They get the same object, built the same way, at `BADGE_K` 0.82
+of the size: same gradient, same rim, same sheen, same twinkles, same
+letterpress, a slightly tighter glow. The two that have to burn in keep their
+lead through size and the third ring, which is the right way to say it.
+
+Each of them says what it is *for* underneath, the way TE-ADDON does. Endpoint
+Agents already had the best line in the game (*"Blue Blazer of Assurance"*,
+then the double purple); Traffic Insights gets **INSIGHT AND CONTROL OF
+TRAFFIC** and Internet Insights **OUTAGES BEFORE THE TICKETS**.
+
 The two that have to survive the drive home, **TAM** and **TE-ADDON**, go
 bigger again: everything ×1.22, the lens ×1.38, three rings instead of two, a
 stronger wash, six tenths of a second longer, and the name on a **solid plate

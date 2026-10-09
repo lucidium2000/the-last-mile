@@ -4175,8 +4175,12 @@ function collect(){
      carries the glass, because its effect is a change in the speed of the
      world and that is worth saying before it happens. */
   if (BRAND_SKUS[kind]){
-    if (kind === "insight") brandHit(BRAND_SKUS[kind], BRAND_HIT + 0.5, "hourglass");
-    else if (kind === "traffic") brandHit(BRAND_SKUS[kind], BRAND_HIT + 0.5);
+    if (kind === "insight")
+      brandHit(BRAND_SKUS[kind], BRAND_HIT + 0.5, "hourglass",
+               "OUTAGES BEFORE THE TICKETS");
+    else if (kind === "traffic")
+      brandHit(BRAND_SKUS[kind], BRAND_HIT + 0.5, null,
+               "INSIGHT AND CONTROL OF TRAFFIC");
     else if (kind === "agent"){
       /* Read BEFORE the shield moves - this block runs above the one that
          grants it, so G.shield is still what he had when he stepped on it. */
@@ -10787,6 +10791,9 @@ var BURST_CY = 360, BURST_BIG_K = 1.14;
 /* The air around the word on the big name plate, left/right and top/bottom.
    Small on purpose: the word is meant to FILL it. */
 var BADGE_PAD = 26, BADGE_PAD_Y = 9;
+/* And how much of the badge the SKUs that are not TAM or TE-ADDON get. Not
+   a different object - the same one, slightly smaller. */
+var BADGE_K = 0.82;
 /* Always the brand orange, whatever the product's own chip colour is. The
    first version took the colour from the SKU - pale for a TAM, amber for the
    pack - which made the one moment that is supposed to be ThousandEyes
@@ -10973,124 +10980,134 @@ function drawBrandHit(){
      its own ink, and the subtitle under it has to land above the third row
      ahead of him at y 642. Ten pixels of clearance under the plate, ten
      under the words. */
-  var ny = cy + 210 + drop, nsz = B.big ? 72 : 46;
-  if (B.big){
-    /* Measured with the same font string txt builds, or the plate is the
-       wrong width for the only two words on the screen that matter. */
-    /* THE PLATE IS BUILT ROUND THE INK, not the other way round.
+  /* 210 rather than 222: the badge grew to 72 tall when it was rebuilt round
+     its own ink, and the subtitle under it has to land above the third row
+     ahead of him at y 642. Ten pixels of clearance under the plate, ten
+     under the words. */
+  var ny = cy + 210 + drop, nsz = B.big ? 72 : 56;
 
-       It used to be a fixed 68-high box at ny-48 with the word drawn at ny -
-       so the box centre was ny-14 and the word sat fourteen pixels below it,
-       which at 58px type was a slight list and at 72 was a word falling out
-       of the bottom of its own badge. Worse, "middle" centres the EM box,
-       which carries room for descenders that a word in caps never uses, so
-       even a correctly centred box leaves the caps sitting low.
+  /* EVERY SKU GETS THE BADGE. It used to be the two big ones on a plate and
+     everything else in coloured type over the street, which said - without
+     meaning to - that Endpoint Agents and the two Insights were the cheap
+     seats. They are the product. They get the same object, built the same
+     way, at BADGE_K of the size: same gradient, same rim, same sheen, same
+     twinkles, same letterpress, a slightly tighter glow. The two that have
+     to burn in keep their lead through size and the extra ring, which is
+     the right way to say it. */
+  var bk = B.big ? 1 : BADGE_K;
 
-       Both go away if the ink is measured. Switch to an alphabetic baseline,
-       ask for the actual bounding box of the actual string, size the plate
-       to that plus BADGE_PAD either side, and put the baseline where it
-       lands the ink dead centre. It is now the same amount of air above the
-       letters as below them, whatever the string and whatever font the panel
-       resolved. */
-    ctx.textBaseline = "alphabetic";
-    ctx.font = "bold " + nsz + 'px "Helvetica Neue",Helvetica,Arial,sans-serif';
-    var mN = ctx.measureText(B.what);
-    var inkA = (mN.actualBoundingBoxAscent  === undefined) ? nsz * 0.72
-                                                           : mN.actualBoundingBoxAscent;
-    var inkD = (mN.actualBoundingBoxDescent === undefined) ? 0
-                                                           : mN.actualBoundingBoxDescent;
-    var pw = mN.width + BADGE_PAD * 2;
-    var ph = Math.round(inkA + inkD + BADGE_PAD_Y * 2);
-    var px0 = cx - pw / 2, py0 = Math.round(ny - ph / 2);
-    var yInk = py0 + BADGE_PAD_Y + inkA;
-    var pulse = 0.5 + 0.5 * Math.sin(G.t * 9);
+  /* THE PLATE IS BUILT ROUND THE INK, not the other way round.
 
-    /* THE GLOW. There is no shadowBlur in this renderer and there never will
-       be - it is the single most expensive thing you can ask a software
-       canvas for, and this runs on a room panel. A glow here is eight
-       rounded rectangles stepped outward from the plate at falling alpha and
-       growing corner radius, which is what a blur of a rounded rect looks
-       like anyway, drawn from the outside in so the near ones sit on top.
-       The whole stack breathes at 9 rad/s, about 1.4Hz, which is a heartbeat
-       slightly faster than yours. */
-    ctx.fillStyle = B.col;
-    for (var gi = 10; gi >= 1; gi--){
-      ctx.globalAlpha = out * (0.070 + 0.045 * pulse) * (1 - gi / 11);
-      rr(px0 - gi * 9, py0 - gi * 9, pw + gi * 18, ph + gi * 18, 16 + gi * 8);
-      ctx.fill();
-    }
-    /* and one hot white ring just off the edge, which is what sells a glow
-       as light rather than as a coloured smudge */
-    ctx.globalAlpha = out * (0.16 + 0.22 * pulse);
-    ctx.strokeStyle = "#ffd9bd"; ctx.lineWidth = 5;
-    rr(px0 - 7, py0 - 7, pw + 14, ph + 14, 22);
-    ctx.stroke();
+     It used to be a fixed 68-high box at ny-48 with the word drawn at ny -
+     so the box centre was ny-14 and the word sat fourteen pixels below it,
+     which at 58px type was a slight list and at 72 was a word falling out
+     of the bottom of its own badge. Worse, "middle" centres the EM box,
+     which carries room for descenders that a word in caps never uses, so
+     even a correctly centred box leaves the caps sitting low.
 
-    ctx.globalAlpha = out * Math.min(1, k * 5);
-    /* Not a flat fill. One vertical gradient, built once a frame and only
-       while a burst is up, turns the plate from a coloured rectangle into a
-       lit object - brighter along the top edge where the light is coming
-       from, deeper at the bottom. It is the cheapest piece of flair in the
-       file and it does more than everything else here put together. */
-    var pg = ctx.createLinearGradient(0, py0, 0, py0 + ph);
-    pg.addColorStop(0,    shade(B.col,  0.30));
-    pg.addColorStop(0.45, B.col);
-    pg.addColorStop(1,    shade(B.col, -0.22));
-    rr(px0, py0, pw, ph, 16);
-    ctx.fillStyle = pg; ctx.fill();
+     Both go away if the ink is measured. Switch to an alphabetic baseline,
+     ask for the actual bounding box of the actual string, size the plate to
+     that plus the pads, and put the baseline where it lands the ink dead
+     centre - the same air above the letters as below them, whatever the
+     string and whatever font the panel resolved. */
+  ctx.textBaseline = "alphabetic";
+  ctx.font = "bold " + nsz + 'px "Helvetica Neue",Helvetica,Arial,sans-serif';
+  var mN = ctx.measureText(B.what);
+  var inkA = (mN.actualBoundingBoxAscent  === undefined) ? nsz * 0.72
+                                                         : mN.actualBoundingBoxAscent;
+  var inkD = (mN.actualBoundingBoxDescent === undefined) ? 0
+                                                         : mN.actualBoundingBoxDescent;
+  var padX = BADGE_PAD * bk, padY = BADGE_PAD_Y * bk, rad = 16 * bk;
+  var pw = mN.width + padX * 2;
+  var ph = Math.round(inkA + inkD + padY * 2);
+  var px0 = cx - pw / 2, py0 = Math.round(ny - ph / 2);
+  var yInk = py0 + padY + inkA;
+  var pulse = 0.5 + 0.5 * Math.sin(G.t * 9);
 
-    /* A white rim that breathes with the glow. On the plate rather than
-       around it, so the edge reads as lit rather than as a border. */
-    rr(px0, py0, pw, ph, 16);
-    ctx.strokeStyle = "#ffffff"; ctx.lineWidth = 2 + 2.5 * pulse;
-    ctx.globalAlpha = out * (0.30 + 0.45 * pulse);
-    ctx.stroke();
-
-    /* And a sheen crossing it once, clipped to the plate: six soft diagonal
-       bands with the bright one in the middle, swept left to right over the
-       life of the burst. It is the thing that makes a flat colour read as a
-       surface, and a surface is what you want to reach out and take. */
-    ctx.save();
-    rr(px0, py0, pw, ph, 16); ctx.clip();
-    var swp = px0 - 240 + (k * 1.45) * (pw + 480);
-    ctx.fillStyle = "#ffffff";
-    for (var q = 0; q < 7; q++){
-      ctx.globalAlpha = out * 0.10 * (1 - Math.abs(q - 3) / 3.4);
-      var bx = swp + q * 13;
-      ctx.beginPath();
-      ctx.moveTo(bx, py0); ctx.lineTo(bx + 30, py0);
-      ctx.lineTo(bx + 30 - 34, py0 + ph); ctx.lineTo(bx - 34, py0 + ph);
-      ctx.closePath(); ctx.fill();
-    }
-    ctx.restore();
-
-    /* Three twinkles along the top edge, staggered, each one a four-point
-       star drawn as two rects. Nine fills for the set and they are the only
-       thing on the plate that moves once the sheen has gone past. */
-    for (var tw = 0; tw < 3; tw++){
-      var tp = (k * 2.1 - tw * 0.22);
-      if (tp <= 0 || tp >= 1) continue;
-      var ts = Math.sin(tp * Math.PI) * 9;
-      ctx.globalAlpha = out * Math.sin(tp * Math.PI) * 0.9;
-      ctx.fillStyle = "#fff6e8";
-      var tx = px0 + pw * (0.18 + tw * 0.32), ty = py0 + (tw % 2 ? ph - 7 : 7);
-      ctx.fillRect(tx - ts, ty - 1.5, ts * 2, 3);
-      ctx.fillRect(tx - 1.5, ty - ts, 3, ts * 2);
-    }
-
-    /* Letterpress. The name is near-black on orange; one pass of a light
-       tint two pixels BELOW it reads as the cut edge of a stamped letter,
-       and it is one extra fillText. */
-    ctx.globalAlpha = out * Math.min(1, k * 5);
-    txt(B.what, cx, yInk + 2.5, nsz, "rgba(255,255,255,0.26)");
-    txt(B.what, cx, yInk, nsz, "#1a0a00");
-    ctx.textBaseline = "middle";        // back to what everything else wants
-  } else {
-    txt(B.what, cx + 3, ny + 3, nsz, sh);
-    txt(B.what, cx, ny, nsz, B.col);
+  /* THE GLOW. There is no shadowBlur in this renderer and there never will
+     be - it is the single most expensive thing you can ask a software
+     canvas for, and this runs on a room panel. A glow here is a stack of
+     rounded rectangles stepped outward from the plate at falling alpha and
+     growing corner radius, which is what a blur of a rounded rect looks
+     like anyway, drawn from the outside in so the near ones sit on top.
+     The whole stack breathes at 9 rad/s, about 1.4Hz, which is a heartbeat
+     slightly faster than yours. */
+  var gn = B.big ? 10 : 8, gstep = 9 * bk;
+  ctx.fillStyle = B.col;
+  for (var gi = gn; gi >= 1; gi--){
+    ctx.globalAlpha = out * (0.070 + 0.045 * pulse) * bk * (1 - gi / (gn + 1));
+    rr(px0 - gi * gstep, py0 - gi * gstep,
+       pw + gi * gstep * 2, ph + gi * gstep * 2, rad + gi * 8 * bk);
+    ctx.fill();
   }
+  /* and one hot white ring just off the edge, which is what sells a glow
+     as light rather than as a coloured smudge */
+  ctx.globalAlpha = out * (0.16 + 0.22 * pulse);
+  ctx.strokeStyle = "#ffd9bd"; ctx.lineWidth = 5 * bk;
+  rr(px0 - 7 * bk, py0 - 7 * bk, pw + 14 * bk, ph + 14 * bk, rad + 6);
+  ctx.stroke();
+
+  ctx.globalAlpha = out * Math.min(1, k * 5);
+  /* Not a flat fill. One vertical gradient, built once a frame and only
+     while a burst is up, turns the plate from a coloured rectangle into a
+     lit object - brighter along the top edge where the light is coming
+     from, deeper at the bottom. It is the cheapest piece of flair in the
+     file and it does more than everything else here put together. */
+  var pg = ctx.createLinearGradient(0, py0, 0, py0 + ph);
+  pg.addColorStop(0,    shade(B.col,  0.30));
+  pg.addColorStop(0.45, B.col);
+  pg.addColorStop(1,    shade(B.col, -0.22));
+  rr(px0, py0, pw, ph, rad);
+  ctx.fillStyle = pg; ctx.fill();
+
+  /* A white rim that breathes with the glow. On the plate rather than
+     around it, so the edge reads as lit rather than as a border. */
+  rr(px0, py0, pw, ph, rad);
+  ctx.strokeStyle = "#ffffff"; ctx.lineWidth = (2 + 2.5 * pulse) * bk;
+  ctx.globalAlpha = out * (0.30 + 0.45 * pulse);
+  ctx.stroke();
+
+  /* And a sheen crossing it once, clipped to the plate: soft diagonal bands
+     with the bright one in the middle, swept left to right over the life of
+     the burst. It is the thing that makes a flat colour read as a surface,
+     and a surface is what you want to reach out and take. */
+  ctx.save();
+  rr(px0, py0, pw, ph, rad); ctx.clip();
+  var swp = px0 - 240 + (k * 1.45) * (pw + 480);
+  ctx.fillStyle = "#ffffff";
+  for (var q = 0; q < 7; q++){
+    ctx.globalAlpha = out * 0.10 * (1 - Math.abs(q - 3) / 3.4);
+    var bx = swp + q * 13 * bk;
+    ctx.beginPath();
+    ctx.moveTo(bx, py0); ctx.lineTo(bx + 30 * bk, py0);
+    ctx.lineTo(bx + 30 * bk - 34 * bk, py0 + ph); ctx.lineTo(bx - 34 * bk, py0 + ph);
+    ctx.closePath(); ctx.fill();
+  }
+  ctx.restore();
+
+  /* Three twinkles along the edges, staggered, each one a four-point star
+     drawn as two rects. Nine fills for the set and they are the only thing
+     on the plate that moves once the sheen has gone past. */
+  for (var tw = 0; tw < 3; tw++){
+    var tp = (k * 2.1 - tw * 0.22);
+    if (tp <= 0 || tp >= 1) continue;
+    var ts = Math.sin(tp * Math.PI) * 9 * bk;
+    ctx.globalAlpha = out * Math.sin(tp * Math.PI) * 0.9;
+    ctx.fillStyle = "#fff6e8";
+    var tx = px0 + pw * (0.18 + tw * 0.32), ty = py0 + (tw % 2 ? ph - 7 * bk : 7 * bk);
+    ctx.fillRect(tx - ts, ty - 1.5, ts * 2, 3);
+    ctx.fillRect(tx - 1.5, ty - ts, 3, ts * 2);
+  }
+
+  /* Letterpress. The name is near-black on its own colour; one pass of a
+     light tint two pixels BELOW it reads as the cut edge of a stamped
+     letter, and it is one extra fillText. */
+  ctx.globalAlpha = out * Math.min(1, k * 5);
+  txt(B.what, cx, yInk + 2.5 * bk, nsz, "rgba(255,255,255,0.26)");
+  txt(B.what, cx, yInk, nsz, "#1a0a00");
+  ctx.textBaseline = "middle";          // back to what everything else wants
   if (B.sub){
-    var sy3 = ny + (B.big ? 56 : 44);
+    var sy3 = ny + (B.big ? 56 : 48);
     txt(B.sub, cx + 2, sy3 + 2, 26, sh);
     txt(B.sub, cx, sy3, 26, "#ffffff");
   }
