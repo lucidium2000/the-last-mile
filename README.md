@@ -105,6 +105,36 @@ which would give back about 3.5 MB.
   never leaves sound running.
 - No login, no persistent state beyond one local best score and the mute
   preference. Nothing personal is stored — these are shared devices.
+- **Silence on the readout.** Every live audio chain is cut once, the frame
+  the tally appears (`AUDIO.hush()`). The world stops simulating then so
+  nothing new comes out of it, but a scene's music, the tail of a death or a
+  brake can all still be ringing, and a score screen with a car horn under it
+  is the game refusing to be over. The tally's own counting sounds start after
+  the cut and are untouched.
+- **A screensaver after two minutes parked.** The title, the readout, the name
+  entry and the board run an idle clock; two minutes without a touch and the
+  screen becomes the eye on black (`SAVER_AFTER`, `drawSaver`). This is the
+  state the thing is most likely to be *found* in — a panel in a hallway that
+  somebody walked away from — and it should be the mark rather than a dead man
+  and somebody else's score.
+
+  The clock deliberately does **not** run during play. A player standing on a
+  corner reading the traffic is not idle, he is playing, and a screensaver over
+  the top of that would be the worst thing this file does.
+
+  It drifts, on two sines whose periods do not divide into each other, so the
+  path never repeats and no pixel is lit for long: a solid orange shape on
+  black, left up for months on a wall panel, is precisely the thing that burns
+  in. The drift is invisible while you watch it and the whole point over a
+  quarter. It breathes as well, because a still image reads as a frozen game
+  rather than as a screen doing what it was told. One fill and one blit a
+  frame — the world, the HUD and the readout are all skipped.
+
+  Any input at all wakes it, and that input does **not** pass through to the
+  game: waking a screen should never also start a run or skip a tally. The
+  swallow sits in the `pointerup` handler rather than in `act()`, because the
+  mute button, the leaderboard button and the name entry are all hit before
+  `act()` is ever reached.
 - **Check `?fps=1` on real hardware.** Everything else was validated in a
   desktop browser; the frame rate on a Board is the number that matters.
 
@@ -2450,10 +2480,9 @@ rare tier:
 > `?pw=sponsor` for Cloud Insights, and `tam`, `agent`, `insight`, `traffic`,
 > `path`, `metro`, `chuck` for the rest. `?pw=off` turns it off.
 >
-> ⚠️ **`DROP_PW_DEFAULT` is currently `"sponsor"`, which means every run
-> starts with a Cloud Insights cloud two squares ahead whether anybody asked
-> for one or not.** It is there to be played with. Set that one line back to
-> `null` before this goes in front of anybody.
+> `DROP_PW_DEFAULT` is `null`, so nothing is planted unless somebody types it.
+> It was `"sponsor"` for a while so Cloud Insights could be looked at without
+> playing for it; that is the one line to flip if it needs to be again.
 
 **Cloud Insights** was Executive Sponsor, which handed him a car service and
 jumped him three rows. A power-up whose entire expression is the player being
@@ -2488,6 +2517,14 @@ Measured: every accepted forward tap in the suit moves him exactly 3. It multipl
 overriding it: a man on his last point of health in running shoes is quick
 *for a man who is about to fall over*. Tagline on the burst, in the same
 treatment as every other SKU: *Accelerating your journey in the Cloud.*
+
+**And it tells him before it stops.** The last 1.4 seconds the figure blinks,
+quickening as it goes, the HUD chip goes red and a beep counts down — the same
+`FLY_WARN` treatment the TAM's flight gets, on `DASH_WARN`. Every power-up
+that changes how he *moves* has to warn him: a man who is suddenly covering
+one row a tap, having spent ten seconds judging gaps three rows at a time, is
+a man who has already stepped. The one that absorbs a hit or slows the world
+does not need this; the two that change his stride both do.
 
 **And he changes clothes for it.** Ten seconds in a full orange suit with a
 cowl, gold bolts at the ears, a gold belt and a lightning bolt on a pale disc

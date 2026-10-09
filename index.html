@@ -393,6 +393,19 @@ var AUDIO = (function(){
        handlers do almost all of this; the sweep is for the cue that was in
        flight when the context got suspended and never came back to say so. */
     sweep: sweepAudio,
+    /* Cut everything that is still making a noise, now. The world stops
+       simulating the moment the readout is up, so nothing NEW comes out of
+       it - but a scene's music, the last of a death, the tail of a brake
+       can all still be ringing when the tally slides in, and a readout
+       with a car horn under it is the game refusing to be over. The
+       tally's own counting sounds are started afterwards and are not
+       touched. */
+    hush: function(){
+      for (var i = 0; i < LIVE_CHAINS.length; i++){
+        try { LIVE_CHAINS[i].cut(); } catch (e){}
+      }
+      LIVE_CHAINS = [];
+    },
     liveNodes: function(){ return LIVE_CHAINS.length; },
     suspend: function(){ if (ac && ac.state === "running"){ try { ac.suspend(); } catch (e){} } },
     available: function(){ return avail; },
@@ -2531,6 +2544,11 @@ function gtxt(str, x, y, size, col, weight, align){
 var TAM_DURATION = 60;
 var FLY_SECS = 5, FLY_MAX = 9;
 var FLY_WARN = 1.4;   // last seconds of flight: ring reddens, figure blinks, beep
+/* And the same warning for Cloud Insights. Any power-up that changes how he
+   MOVES has to tell him before it stops: a man who is suddenly walking at a
+   third of the speed he was judging gaps at is a man who has already
+   stepped. */
+var DASH_WARN = 1.4;
 var TAM_COOLDOWN_ROWS = 16;   // uncommon, not rare - it is the headline SKU
 
 /* Things a ThousandEyes TAM actually does. One fires on a timer for as long as
@@ -3043,15 +3061,11 @@ function bakeAll(){
 /* ------------------------------------------------------------- world build */
 var rows = {};
 var SAFE_MIN = 2;          // the shallowest pavement the generator may lay
-/* A power-up to plant on the first pavement. ?pw=<kind> picks one.
-
-   ===================== TEMPORARY, REMOVE BEFORE SHIPPING =================
-   DROP_PW_DEFAULT is set so that EVERY run starts with a Cloud Insights
-   cloud two squares ahead, with no query string, because it is being
-   tested. Set it back to null and the hook goes quiet again - that one
-   line is the whole of it.
-   ========================================================================= */
-var DROP_PW_DEFAULT = "sponsor";
+/* A power-up to plant on the first pavement. ?pw=<kind> picks one, and
+   nothing happens unless somebody types it. DROP_PW_DEFAULT was "sponsor"
+   for a while so Cloud Insights could be looked at without playing for it;
+   it is back to null and the hook is quiet again. */
+var DROP_PW_DEFAULT = null;
 var DROP_PW = (function(){
   var m = /[?&]pw=([a-z]+)/i.exec(location.search);
   if (m) return m[1].toLowerCase();
@@ -3556,7 +3570,7 @@ function reset(){
     brand:null, pipePop:0, rise:null, tam:false, tamT:0, tamWins:0, tamWin:null, hurtT:0, nahT:0, nahSay:null, walkSaid:false,
     yumT:0, yumKind:null, yumDir:0, yumBite:0, wowT:0, cheerT:0,
     metro:0, ride:null, trace:null, rides:0, bonus:0, tamLeft:0, riskT:0, dashT:0,
-    leapT:0,
+    leapT:0, dashBeep:0, idleT:0, saver:false, hushed:false,
     scene:null, scenesSeen:{}, ticker:null, notice:null, southT:0,
     leg:1, po:false, won:false,
     trainT:TRAIN_MAX, trainLine:tr[0], trainDest:tr[1],
@@ -3859,7 +3873,17 @@ function progress(){
 }
 
 /* ------------------------------------------------------------------- input */
+/* Any input at all is a person. The screensaver dies on the first touch and
+   does NOT pass that touch through to the game - waking a screen should
+   never also start a run or skip a tally. */
+function wake(){
+  var was = G.saver;
+  G.idleT = 0; G.saver = false;
+  return was;
+}
+
 function act(dir){
+  if (wake()) return;
   if (G.state === ST_TITLE){ G.state = ST_PLAY; AUDIO.ui(); return; }
   // nobody takes a call mid-change
   if (G.booth && G.state === ST_PLAY) return;
@@ -4186,6 +4210,11 @@ function muteBtnActive(){
 var DEATH_HOLD = 1.50;
 /* The lowest the readout may reach. The world only ever uses y 40..1040, and
    the last line on this screen is the one that tells you how to start again. */
+/* How long a parked screen waits before the eye comes up. Two minutes: long
+   enough that nobody who is reading their own score ever sees it, short
+   enough that a panel in a hallway is not left showing a dead man all
+   afternoon. */
+var SAVER_AFTER = 120;
 var TALLY_BOTTOM = 1020;
 var TALLY_T0 = 1.15, TALLY_GAP = 0.80, TALLY_RUN = 0.66, TALLY_TOTAL = 1.15;
 function buildTally(){
@@ -4314,6 +4343,10 @@ cv.addEventListener("pointerup", function(e){
   e.preventDefault();
   if (!ptr) return;
   if (ptr.used){ ptr = null; return; }      // already handled on press
+  /* The touch that wakes the screen does nothing else. Swallowed here
+     rather than in act(), because the mute button, the leaderboard button
+     and the name entry are all hit before act() is ever reached. */
+  if (wake()){ ptr = null; return; }
   var dx = e.clientX - ptr.sx, dy = e.clientY - ptr.sy;
   if (Math.sqrt(dx*dx + dy*dy) > 42){
     if (Math.abs(dx) > Math.abs(dy)) act(dx > 0 ? "r" : "l");
@@ -4386,6 +4419,7 @@ cv.addEventListener("pointercancel", function(){ ptr = null; });
 cv.addEventListener("contextmenu", function(e){ e.preventDefault(); });
 
 window.addEventListener("keydown", function(e){
+  if (wake()){ e.preventDefault(); return; }
   var k = e.key;
   if (k==="m" || k==="M"){ AUDIO.unlock(); AUDIO.toggle(); e.preventDefault(); return; }
   AUDIO.unlock();
@@ -7952,6 +7986,14 @@ function update(dt){
   /* Flight. The ascent and descent are eased off a single 0..1 value, so the
      lift, the faster hop and the shadow all stay in sync. */
   /* and a beep that quickens and rises with it */
+  /* The same countdown beep as the flight, quickening as it goes. */
+  if (G.dashT > 0 && G.dashT < DASH_WARN && G.state === ST_PLAY){
+    G.dashBeep -= dt;
+    if (G.dashBeep <= 0){
+      AUDIO.flyWarn(G.dashT / DASH_WARN);
+      G.dashBeep = 0.11 + (G.dashT / DASH_WARN) * 0.25;
+    }
+  }
   if (G.flyT > 0 && G.flyT < FLY_WARN && G.state === ST_PLAY){
     G.flyBeep -= dt;
     if (G.flyBeep <= 0){
@@ -8282,9 +8324,25 @@ function update(dt){
     }
   }
 
+  /* THE IDLE CLOCK. It only runs where the game is waiting for somebody:
+     the title, the readout once it is up, the name entry and the board. It
+     is deliberately NOT running during play - a player standing still on a
+     corner reading the traffic is not idle, he is playing, and a screensaver
+     over the top of that would be the worst thing this file does. */
+  var parked = G.state === ST_TITLE || G.state === ST_NAME || G.state === ST_BOARD ||
+               (G.state === ST_DEAD && G.deadFor >= deathHold());
+  if (parked){
+    G.idleT += dt;
+    if (G.idleT >= SAVER_AFTER) G.saver = true;
+  } else { G.idleT = 0; G.saver = false; }
+
   if (G.state === ST_DEAD || G.state === ST_BOARD) G.deadFor += dt;
   /* The tally clock does not start until the screen is actually up, or the
      first rows would be half counted by the time anybody saw them. */
+  /* Silence, once, as the readout arrives. */
+  if (G.state === ST_DEAD && !G.hushed && G.deadFor >= deathHold()){
+    G.hushed = true; AUDIO.hush();
+  }
   if (G.state === ST_DEAD && G.tally && G.deadFor >= deathHold()){
     G.tally.t += dt; tallyAudio(dt);
   }
@@ -10260,6 +10318,11 @@ function drawPlayer(pp){
     var blink = 9 + (1 - G.flyT/FLY_WARN) * 17;
     if (Math.floor(G.t * blink) % 2 === 0) return;
   }
+  /* Same blink, same quickening, for the suit running out. */
+  if (G.dashT > 0 && G.dashT < DASH_WARN){
+    var dblink = 9 + (1 - G.dashT/DASH_WARN) * 17;
+    if (Math.floor(G.t * dblink) % 2 === 0) return;
+  }
   var dy = sy - pp.lift - lift - flyLift;
   /* The stretch belonged to a jump, and there is no jump left in the game:
      on foot it would fight the walk and in the air it put a pulse back into
@@ -11259,7 +11322,8 @@ function drawHud(){
     plate(cx+8, cy+8, 60, 60, chips[i][2], 11);
     txt(chips[i][0], cx+38, cy+41, chips[i][0].length > 1 ? 24 : 32, "#1a0a02");
     if (chips[i][3] > 0){
-      var low = (chips[i][1] === "FLYING" && G.flyT < FLY_WARN);
+      var low = (chips[i][1] === "FLYING" && G.flyT < FLY_WARN) ||
+                (chips[i][1] === "CLOUD INSIGHTS" && G.dashT < DASH_WARN);
       ctx.fillStyle = "rgba(255,255,255,0.16)"; ctx.fillRect(cx+8, cy+62, 60, 6);
       ctx.fillStyle = low && Math.sin(G.t*20) < 0 ? C.danger : chips[i][2];
       ctx.fillRect(cx+8, cy+62, 60*chips[i][3], 6);
@@ -12362,9 +12426,39 @@ function drawBoard(){
   }
 }
 
+/* ------------------------------------------------------- THE SCREENSAVER --
+   Two minutes parked on the title or the readout and the screen becomes the
+   eye on black. It is the one state this thing is most likely to be found
+   in - a panel in a hallway that somebody walked away from - so it should
+   be the mark rather than a dead man and a score.
+
+   It DRIFTS, slowly, on two sines with periods that do not divide into each
+   other, so the path never repeats and no pixel is lit for long. Panels in
+   hallways are left on for months and the eye is a solid orange shape on
+   black, which is precisely the thing that burns in. The drift is 90px over
+   a couple of minutes - invisible while you watch it and the whole point
+   over a quarter. It breathes as well, because a still image reads as a
+   frozen game rather than as a screen doing what it is told.
+
+   Everything else is skipped while it is up: the world, the HUD, the
+   readout. One fill and one blit. */
+function drawSaver(){
+  var t = G.t;
+  ctx.fillStyle = "#07080c";
+  ctx.fillRect(0, 0, LOGICAL_W, LOGICAL_H);
+  var dx = Math.sin(t * 0.047) * 150 + Math.sin(t * 0.0193) * 60;
+  var dy = Math.cos(t * 0.031) * 90  + Math.cos(t * 0.0117) * 36;
+  var breathe = 0.80 + 0.20 * (0.5 + 0.5 * Math.sin(t * 0.42));
+  ctx.globalAlpha = breathe;
+  if (!drawMark(LOGICAL_W/2 + dx, LOGICAL_H/2 + dy, 300))
+    drawLogoEye(LOGICAL_W/2 + dx, LOGICAL_H/2 + dy, 150);
+  ctx.globalAlpha = 1;
+}
+
 /* --------------------------------------------------------------- main loop */
 var fps = { acc:0, frames:0, value:0 };
 function render(){
+  if (G.saver){ ctx.setTransform(scale, 0, 0, scale, 0, 0); drawSaver(); return; }
   var sx = 0, sy = 0;
   if (G.shake > 0){ sx = (Math.random()-0.5)*G.shake; sy = (Math.random()-0.5)*G.shake; }
   ctx.setTransform(scale, 0, 0, scale, sx*scale, sy*scale);
