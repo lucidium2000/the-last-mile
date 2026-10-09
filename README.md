@@ -2432,10 +2432,21 @@ rare tier:
 **Cloud Insights** was Executive Sponsor, which handed him a car service and
 jumped him three rows. A power-up whose entire expression is the player being
 somewhere else a frame later: nothing to look at, nothing to play, and the one
-SKU in the pool with no product behind it. It is ten seconds at **a third of the
-time per square** now — `DASH_K` 1/3, so 135ms a square becomes 45 — which is
-three squares in the time a step used to take, three times the clock banked
-off `TRAIN_PER_HOP`, and three times as much coming at him. It multiplies with the worn-out drag rather than
+SKU in the pool with no product behind it. It is ten seconds of **three blocks a
+jump**: one forward tap clears two rows and lands on the third, at the
+ordinary step rate. Three rows in a third of the time would be nine times the
+ground, which is not a power-up, it is a cutscene — the leap is where the
+speed comes from and the clock stays where it is, which is a true 3× and
+three times the clock banked off `TRAIN_PER_HOP`.
+
+The leap stops at the first thing it cannot pass — a prop, a parked truck, the
+edge of the generated world — and lands on the furthest clear row short of
+it, so it can never put him inside a scaffold. It does **not** test for
+traffic: sailing over two lanes of it is the entire point, and he is as
+vulnerable as anybody else on the row he lands in. A span of more than one
+row gets real air under it on a half sine, because a three-row jump at walk
+height is a man sliding, which is the one thing it must not look like.
+Measured: every accepted forward tap in the suit moves him exactly 3. It multiplies with the worn-out drag rather than
 overriding it: a man on his last point of health in running shoes is quick
 *for a man who is about to fall over*. Tagline on the burst, in the same
 treatment as every other SKU: *Accelerating your journey in the Cloud.*
@@ -2494,6 +2505,18 @@ pixels. The orange and the wings carry the brand, which they were always going
 to have to. They supersede the TAM's plain
 orange shoes while they are on — same colour, same feet, and the ones with
 wings are the ones worth looking at.
+
+**And lightning, behind him.** Two bolts off his heels, each a polyline
+walked back down the trail with the lateral offset thrown a fixed distance
+either side at every joint — a zigzag, not a wiggle, because real lightning
+turns corners and a smooth curve reads as smoke. They are rebuilt from
+scratch every frame off a stepping seed, so the shape never repeats and never
+settles: a bolt that holds still for three frames is a crack in the screen.
+No `shadowBlur` here, so the glow is the same path stroked three times — wide
+and faint, narrower and warmer, then a hot white core. Three strokes of a
+six-point path is nothing, and it is the difference between a yellow line and
+something with light coming off it. The tail is cut shorter when he is barely
+moving, so the bolts grow out of him as he picks up.
 
 **And speed lines, behind him.** A streak in *front* of a runner is a thing he
 is about to hit. Behind, in this projection, is down and slightly left: he

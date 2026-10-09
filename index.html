@@ -115,11 +115,11 @@ var SKY_BASE = 254;                // skyline baseline, just under the cull line
 var PAD = 4, SPAN = COLS + PAD * 2;
 var ROWS_AHEAD = 15, ROWS_BEHIND = 6;
 var HOP_MS = 135, DOLLARS_PER_ROW = 15000;   // row 70 ~= $1.05M
-/* Cloud Insights: a THIRD of the time per square for POWERS.sponsor.secs.
-   135ms a square becomes 45, which is three squares in the time a step used
-   to take and is fast enough that the ten seconds are a sprint rather than
-   a brisk walk. */
-var DASH_K = 1 / 3;
+/* Cloud Insights covers three rows on one forward tap, at the ordinary step
+   rate. Three rows in a third of the time would be NINE times the ground,
+   which is not a power-up, it is a cutscene - the leap is where the speed
+   comes from and the clock stays where it is. */
+var DASH_K = 1, DASH_JUMP = 3, DASH_AIR = 15;
 function dashK(){ return G.dashT > 0 ? DASH_K : 1; }
 
 var SHOW_FPS  = /[?&]fps=1/.test(location.search);
@@ -4052,6 +4052,30 @@ function act(dir){
     }
   }
 
+  /* THREE BLOCKS A JUMP. Forward only, and only in the suit: he clears two
+     rows and lands on the third, which is what makes the ten seconds feel
+     like a different game rather than the same game at a higher frame rate.
+
+     It stops at the first thing it cannot pass - a prop, a parked truck,
+     the edge of the generated world - and lands on the furthest clear row
+     short of it, so a leap can never put him inside a scaffold. It does NOT
+     test for traffic: going over two lanes of it is the whole point, and he
+     is as vulnerable as anybody else on the row he lands in.
+
+     The hop clock is back to normal speed for the suit (DASH_K 1), because
+     three rows in a third of the time is nine times the ground and that is
+     not a power-up, it is a cutscene. Three rows at the normal step rate is
+     a true 3x, which is what was asked for. */
+  if (dir === "f" && G.dashT > 0 && nr === G.row + 1){
+    var reach = nr;
+    for (var jq = 2; jq <= DASH_JUMP; jq++){
+      var jw = rows[G.row + jq];
+      if (!jw || (jw.blocked && jw.blocked[nc])) break;
+      reach = G.row + jq;
+    }
+    nr = reach;
+  }
+
   G.steps++;
   G.fromRow = G.row; G.fromCol = G.col;
   G.row = nr; G.col = nc; G.hop = 0;
@@ -4677,6 +4701,12 @@ function playerPos(){
   var lift = air ? (6 + G.flyMove * 26) * air
            : Math.abs(Math.sin(G.walkPh)) * 3.4 * G.walkAmt
              + (1 - G.walkAmt) * 1.3 * (0.5 + 0.5 * Math.sin(G.t * 1.6));
+  /* A leap of more than one row gets real air under it, on a half sine so
+     he is highest in the middle of it. A three-row jump that stays at walk
+     height is a man sliding, which is the one thing it must not look
+     like. */
+  var span = Math.abs(G.row - G.fromRow);
+  if (span > 1 && G.hop < 1) lift += DASH_AIR * (span - 1) * Math.sin(G.hop * Math.PI);
   return { col:G.fromCol + (G.col-G.fromCol)*e, row:G.fromRow + (G.row-G.fromRow)*e,
            lift:lift, sq:s };
 }
@@ -9531,21 +9561,63 @@ function drawSpeedLines(pp){
   var bx = -SKEW / bl, by = ROW_H / bl;
   var ax = -by, ay = bx;                               // across the trail
   ctx.lineCap = "round";
-  for (var i = 0; i < 7; i++){
-    /* Each line has its own lane across the trail, its own length, and its
-       own place in a loop that runs from just behind him to well back. */
-    var lane = ((i % 4) - 1.5) * 17 + ((i * 37) % 11) - 5;
+  for (var i = 0; i < 5; i++){
+    var lane = ((i % 4) - 1.5) * 19 + ((i * 37) % 11) - 5;
     var ph = ((G.t * 2.6) + i * 0.37) % 1;
-    var head = 10 + ph * 104;                          // how far back it starts
+    var head = 10 + ph * 104;
     var len  = (26 + (i % 3) * 16) * (0.5 + 0.5 * amt);
-    var a = (1 - ph) * (ph < 0.12 ? ph / 0.12 : 1) * 0.55 * amt * fade;
+    var a = (1 - ph) * (ph < 0.12 ? ph / 0.12 : 1) * 0.40 * amt * fade;
     if (a <= 0.01) continue;
     var x0 = cx + ax * lane + bx * head,  y0 = cy + ay * lane + by * head;
-    var x1 = x0 + bx * len,               y1 = y0 + by * len;
     ctx.globalAlpha = a;
     ctx.strokeStyle = (i % 3) ? POWERS.sponsor.col : "#ffffff";
     ctx.lineWidth = (i % 3) ? 3 : 2;
-    ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x1, y1); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(x0, y0);
+    ctx.lineTo(x0 + bx * len, y0 + by * len); ctx.stroke();
+  }
+
+  /* ----------------------------------------------------- THE LIGHTNING
+     Two bolts off his heels, and they are what the straight streaks were
+     standing in for. A bolt is a polyline walked back down the trail with
+     the lateral offset thrown a fixed distance either side at every joint -
+     a zigzag, not a wiggle, because real lightning turns corners and a
+     smooth curve reads as smoke.
+
+     It is redrawn from scratch every frame off a stepping seed, so the
+     shape never repeats and never settles. That is the whole trick: a bolt
+     that holds still for three frames is a crack in the screen.
+
+     No shadowBlur in this renderer, so the glow is the same path stroked
+     three times - wide and faint, then narrower, then a hot white core.
+     Three strokes of a six-point path is nothing, and it is the difference
+     between a yellow line and something with light coming off it. */
+  var seed = (G.t * 26) | 0;
+  function rnd(n){ var x = Math.sin((seed + n * 71.3) * 12.9898) * 43758.5453;
+                   return x - Math.floor(x); }
+  for (var b2 = 0; b2 < 2; b2++){
+    var side = b2 ? 1 : -1;
+    var sx = cx + ax * 15 * side, sy = cy + ay * 15 * side + 22;
+    var pts = [[sx, sy]], n = 6, reach = 34 + amt * 26;
+    for (var q = 1; q <= n; q++){
+      var d = q * reach;
+      var jitter = (rnd(q + b2 * 9) - 0.5) * 34 * (0.35 + q / n);
+      var droop  = (rnd(q + b2 * 9 + 40) - 0.5) * 10;
+      pts.push([sx + bx * d + ax * jitter, sy + by * d + ay * jitter + droop]);
+    }
+    var la = 0.85 * amt * fade;
+    var pass = [[9, "rgba(255,160,40,0.16)"], [5, "rgba(255,210,74,0.55)"],
+                [2, "#fff6e0"]];
+    for (var pq = 0; pq < 3; pq++){
+      ctx.globalAlpha = la * (pq === 2 ? 1 : 0.9);
+      ctx.strokeStyle = pass[pq][1]; ctx.lineWidth = pass[pq][0];
+      ctx.beginPath(); ctx.moveTo(pts[0][0], pts[0][1]);
+      for (var pz = 1; pz < pts.length; pz++){
+        /* The tail thins out rather than stopping dead. */
+        if (pz / pts.length > 0.55 + amt * 0.45) break;
+        ctx.lineTo(pts[pz][0], pts[pz][1]);
+      }
+      ctx.stroke();
+    }
   }
   ctx.globalAlpha = 1;
 }
