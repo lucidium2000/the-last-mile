@@ -2917,6 +2917,13 @@ function bakeAll(){
 /* ------------------------------------------------------------- world build */
 var rows = {};
 var SAFE_MIN = 2;          // the shallowest pavement the generator may lay
+/* A power-up to plant on the first pavement, from the query string. Test
+   hook; absent unless asked for. */
+var DROP_PW = (function(){
+  var m = /[?&]pw=([a-z]+)/i.exec(location.search);
+  return m ? m[1].toLowerCase() : null;
+})();
+var dropDone = false;
 var genCursor = 0, roadRun = 0, safeRun = 0, lastPower = 0, lastTam = -99, nextStreet = START_ST + 1;
 var curStreet = START_ST, curLane = 0;
 /* +1 walking uptown to the meeting, -1 carrying the signed PO back to Penn 1.
@@ -3154,6 +3161,15 @@ function makeWalk(r, park, crowd, hood){
     }
   }
   var pickup = null;
+  /* ?pw=<kind> drops that power-up on the first pavement of the run, two
+     rows in front of where he starts, every time. It is for looking at one
+     thing without playing for it - ?pw=sponsor for the Cloud Insights
+     shoes, ?pw=tam, ?pw=agent, and so on - and it changes nothing for
+     anybody who does not type it. */
+  if (DROP_PW && r === 2 && POWERS[DROP_PW] && !dropDone){
+    dropDone = true;
+    pickup = { col:COLS >> 1, kind:DROP_PW };
+  }
   /* Pickups land more often now. Metrocards were already 62% of the pool and
      could not get meaningfully more common by taking a bigger share - the
      ceiling is how often a pickup spawns at all. Raising the density lifts
@@ -3383,7 +3399,7 @@ var TRAIN_MAX = 60, TRAIN_PER_HOP = 1.25;
 var G = null;
 
 function reset(){
-  rows = {}; genCursor = 0; roadRun = 0; safeRun = 0; lastPower = 0;
+  rows = {}; genCursor = 0; roadRun = 0; safeRun = 0; lastPower = 0; dropDone = false;
   nextStreet = START_ST + 1; lastSweep = -99; prevWasSafe = true; lastTam = -99;
   lastHood = -999;
   curStreet = START_ST; curLane = 0; legDir = 1;

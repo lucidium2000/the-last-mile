@@ -2423,6 +2423,12 @@ Internet Insights (drops the world into slow motion), Path Visualization (lights
 up safe crossings), Cloud Insights (orange high-tops, and he runs) — plus one
 rare tier:
 
+> **Testing a power-up:** `?pw=<kind>` plants that one on the first pavement
+> of the run, two rows straight ahead of where he starts, every time —
+> `?pw=sponsor` for the Cloud Insights shoes, and `tam`, `agent`, `insight`,
+> `traffic`, `path`, `metro`, `chuck` for the rest. It changes nothing for
+> anybody who does not type it.
+
 **Cloud Insights** was Executive Sponsor, which handed him a car service and
 jumped him three rows. A power-up whose entire expression is the player being
 somewhere else a frame later: nothing to look at, nothing to play, and the one
