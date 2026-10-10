@@ -3569,6 +3569,40 @@ they are the only thing on his feet that is still news.
 
 
 
+
+## Two voices from the film
+
+*Free your mind* when Internet Insights is picked up, and a *woah* when he goes
+over the street. Both supplied as mp3s and carried the same way the game's two
+existing voice lines are: base64 in the file, decoded once into an
+`AudioBuffer`, played through the same reaping sample player. **Nothing is
+fetched** — that is the rule, because RoomOS gets one file and no network.
+76KB of mp3 between them, 104KB as base64, on a page that was already a
+megabyte.
+
+Both play *over* what was already there rather than instead of it. The
+power-up arp is the SKU being collected and is the same three notes every power
+gets; this is the costume arriving, and the one that is identical every time is
+the one that can afford to be quiet. Same for the backflip: the whoosh is the
+air, and he is only a man in it.
+
+**It needed a factory.** Dig and Walkin' Here each had their own pair of
+globals and their own copy of the same eight lines, and a third and fourth copy
+would have been the point at which somebody fixed a bug in one of them and not
+the others. `sampler(b64)` returns `{prime, play}` and the contract is
+unchanged: decode once, lazily, null buffer makes the play a no-op.
+
+Priming still happens in `ensure()`, at the first user gesture, not at the
+moment a sound is wanted — `decodeAudioData` is async and the first call can
+land before it finishes, which would make the first press of a cue silently do
+nothing.
+
+Measured on the way in: *Free your mind* is 2.25s, *woah* is 3.01s, both stereo
+at 44.1kHz, both decoding clean. The woah outlasts the 1.08s flip by about two
+seconds, which is a tail rather than a problem — but it is longer than the move
+it belongs to, and that was a deliberate decision not to trim somebody else's
+audio without being asked.
+
 ## Times Square corrects itself
 
 The card says *Probably should have gotten an Uber*. For three flashes of
