@@ -4008,8 +4008,27 @@ the whole lane preserves every gap exactly. `colBlocks` asks the same
 question of a column that `traceBlocks` asks of a route node, with the same
 reach, so the two effects agree about what counts as touching.
 
-The row-level swerve still does its work when he actually steps into a lane.
-This is what the SKU looks like from outside.
+**And that is now the whole of it.** The SKU used to carry a second system
+underneath — `DETER_TILES`, `SWERVE_FROM`, `SWERVE_PX`, `SWERVE_CLEAR`, a
+per-car swerve offset, a per-lane brake that latched for the rest of the
+power-up, a flash band reading `— STOPPED —` and a kerb bar while it held. All
+of it predates the corridor and all of it is gone, along with `row.halt`,
+`row.flinch` and `car.sw`, which nothing set any more.
+
+Two rules, and neither needs a distance:
+
+1. **Nothing may stand on his column.** A lane that reaches it turns around.
+2. **Nothing standing still can hurt him** — and anything caught *on* the
+   column mid-turn counts as part of the wall rather than as a thing that
+   hits him, which is rule 1 enforced at the collision as well as at the
+   movement.
+
+Verified after the cut: column occupancy 61.8% → **4.3%**, and a pinned DSNY
+truck still kills without the SKU and cannot with it.
+
+**And it runs for 12 seconds, down from 15.** Parting the whole street is a
+great deal more than making one lane flinch, and the old length was set
+against the old, smaller effect.
 
 ## The stopped sanitation truck
 

@@ -2995,9 +2995,12 @@ var POWERS = {
   insight:{ col:C.pw2, letter:"I", name:"INTERNET INSIGHTS",
             line:"Outages across the whole internet, before the tickets. The grid drops into slow motion.",
             secs:11 },
+  /* Twelve, down from fifteen. Parting the whole street is a great deal
+     more than making one lane flinch, and the old length was set against the
+     old, smaller effect. */
   traffic:{ col:"#8fd3e8", letter:"TI", name:"TRAFFIC INSIGHTS",
             line:"Insight and control of traffic. Every lane risk-scored — and it turns away from you.",
-            secs:15 },
+            secs:12 },
   chuck:  { col:"#4f9c62", letter:"$", name:"CHUCK BUCKS",
             line:"Straight onto the number.", secs:0 },
   path:   { col:C.pw3,   letter:"P", name:"PATH VISUALIZATION",
@@ -3185,12 +3188,12 @@ var POWER_DROPS = boostPool(POWER_WEIGHTS, POWER_BOOST);
    quarter he was four. The power got stronger and slower at the same time,
    which is the right trade. */
 var SLOW_K = 0.125, SLOW_MAN = 0.75;
-var DETER_TILES = 3.2;     // how close it gets before it turns round entirely
-/* Before it gets that close it tries to go ROUND him. SWERVE_FROM is where a
-   driver starts easing over, SWERVE_PX how far off the lane centre he ends up,
-   and SWERVE_CLEAR how far out counts as having actually missed. */
+/* Traffic Insights used to carry a whole second system here - DETER_TILES,
+   SWERVE_FROM, SWERVE_PX, SWERVE_CLEAR - for drivers easing round him and
+   then standing on the brakes in his own row. It is gone. The SKU is two
+   rules now, and neither of them needs a distance: nothing may stand on his
+   column, and nothing standing still can hurt him. */
 var PARK_KERB = 20;        // how far off the lane centre a parked truck sits
-var SWERVE_FROM = 5.5, SWERVE_PX = 26, SWERVE_CLEAR = 11;
 /* ------------------------------------------------------------- HEALTH ----
    A walk uptown is tiring, and the only thing that fixes tired is lunch.
 
@@ -6552,7 +6555,7 @@ function colSafeFor(r, col, secs){
   var p0 = col+0.12, p1 = col+0.88;
   /* A halted lane is genuinely safe, and the predictor has to know or it will
      paint a stopped street red and refuse to call a clear crossing clear. */
-  var k = (row.halt > 0) ? 0 : ((G.slowT > 0) ? SLOW_K : 1);
+  var k = (G.slowT > 0) ? SLOW_K : 1;
   var spec = HAZ[row.kind], i;
   for (i=0;i<row.cars.length;i++){
     var x = carX(row, row.cars[i]);
@@ -12312,62 +12315,7 @@ function update(dt){
           row.rv = -(row.rv || 1);
           row.bounce = 1.4;
         }
-        /* Traffic Insights, two behaviours in order of preference. A driver
-           who sees him in time steers round him; one who is already on top of
-           him has no room for that and turns the lane around instead. Trying
-           to swerve at two tiles would just be a sprite sliding through him. */
-        var want = 0, overlap = false;
-        if (deter && r === pRow && !car.stopped){
-          var cx0 = carX(row, car), go = row.dir * (row.rv || 1);
-          var carA = cx0, carB = cx0 + (row.eff || 1);
-          var manA = pp.col, manB = pp.col + 1;
-          overlap = carA < manB && carB > manA;
-          /* How much road is left before the two spans meet, measured on the
-             LEADING edge. It has to be the whole body and not just that edge:
-             measuring the front of a bus meant the swerve collapsed the moment
-             the nose was past him while nine feet of bus was still over his
-             head, and he was run down on the way out. */
-          var approach = go > 0 ? (manA - carB) : (carA - manB);
-          var near = overlap ? 1
-                   : (approach > 0 && approach < SWERVE_FROM
-                      ? Math.min(1, (SWERVE_FROM - approach) / 1.9) : 0);
-          want = -SWERVE_PX * near * (go > 0 ? 1 : -1);
-
-          /* Anything that cannot get round him STOPS. It used to turn the
-             whole lane around, which worked - gaps were preserved exactly -
-             but a street full of traffic reversing on the spot is a strange
-             thing to watch and it threw the cars he had already judged safe
-             back across his path. Brakes are the obvious reading of "that
-             driver has seen me", and halting the whole row keeps every gap
-             exactly as it was for nothing.
-
-             A LANE THAT HAS BRAKED STAYS BRAKED for the rest of the
-             power-up. It used to re-arm half a second at a time, so the
-             moment he stepped clear the lane rolled again and the street he
-             had just crossed closed behind him - which is a driver who
-             looked away, not one who has control of the traffic. The SKU is
-             "insight AND CONTROL of traffic"; this is the control half. The
-             halt is set to whatever is left on G.riskT, so it expires with
-             the power-up rather than on a timer of its own, and a lane he
-             never walks into never stops at all. */
-          var clear = Math.abs(car.sw || 0) >= SWERVE_CLEAR;
-          if (!clear && (overlap || (approach > -0.2 && approach < DETER_TILES))){
-            if (!(row.halt > 0)){
-              row.flinch = 0.55;
-              burst(pp.col*TILE + TILE/2, rowScreenY(r) - 26, POWERS.traffic.col);
-              AUDIO.brakes();
-            }
-            row.halt = Math.max(row.halt || 0, G.riskT);
-          }
-        }
-        /* Fast out, slow back: a driver commits to the swerve and drifts back
-           afterwards. Snapping out on an overlap is what covers the case of
-           him stepping off the kerb straight into a moving lane. */
-        var cur = car.sw || 0;
-        if (overlap && Math.abs(want) > Math.abs(cur)) cur = want;
-        else cur += (want - cur) * Math.min(1, dt * (Math.abs(want) > Math.abs(cur) ? 16 : 5));
-        car.sw = Math.abs(cur) < 0.4 ? 0 : cur;
-        if (!car.stopped && !(row.halt > 0)){
+        if (!car.stopped){
           /* He drives at his own pace until he catches the one in front, and
              then he drives at that one's. Without the catch-up test a quick
              driver closes on a slow one and separate() snaps him back every
@@ -12393,11 +12341,8 @@ function update(dt){
          two then expire together - but a SECOND card picked up mid-effect
          pushes riskT back up, and without this the lane it had already
          stopped would start rolling again underneath him. */
-      if (row.halt > 0 && G.riskT > row.halt) row.halt = G.riskT;
-      if (row.halt > 0) row.halt -= dt;
-      if (row.flinch > 0) row.flinch -= dt;
       separate(row);
-      if (row.rogue && !(row.halt > 0)){
+      if (row.rogue){
         // against the posted direction, which is the whole joke
         row.rogue.p += row.rogue.speed * slowK * dt;
         if (row.rogue.p >= SPAN) row.rogue.p -= SPAN;
@@ -12429,13 +12374,9 @@ function update(dt){
          full 2.4-tile lethal collider, and walking into the side of it
          during the power-up killed you.
 
-         The lane that has BRAKED for him had the same hole from the other
-         direction: those drivers saw him and stopped, `row.halt` is up, the
-         cars are motionless - and every one of them was still lethal.
-
-         The route tracer has always known better. It scores a lane with
-         `(c.stopped || row.halt > 0) ? 0 : speed`, so the path it draws
-         treats both as stationary obstacles rather than as traffic. The
+         The route tracer had always known better. It scores a lane with
+         `c.stopped ? 0 : speed`, so the path it draws treats a halted
+         vehicle as a stationary obstacle rather than as traffic. The
          pathfinder and the collision simply disagreed, and the collision was
          the one that got the last word.
 
@@ -12448,10 +12389,13 @@ function update(dt){
       var ctrl = G.riskT > 0;
 
       for (i=0;i<crow.cars.length;i++){
-        // a car far enough off the lane centre has gone round him, not through
-        if (Math.abs(crow.cars[i].sw || 0) >= SWERVE_CLEAR) continue;
-        if (ctrl && (crow.halt > 0 || crow.cars[i].stopped)) continue;
         var cx = carX(crow, crow.cars[i]);
+        /* THE TWO RULES, and there are only two now. A vehicle standing
+           still cannot hurt him, and nothing may occupy the column he is
+           standing in - so anything that IS on it, because it is mid-turn,
+           is part of the wall rather than a thing that hits him. */
+        if (ctrl && (crow.cars[i].stopped ||
+                     colBlocks(G.col, cx, crow.eff || HAZ[crow.kind].w))) continue;
         if (cx < p1 && cx + (crow.eff || HAZ[crow.kind].w) > p0){
           hitKind = crow.kind;
           push = (crow.dir * (crow.rv || 1)) > 0 ? 1 : -1;
@@ -12470,11 +12414,10 @@ function update(dt){
           }
         }
       }
-      /* The wrong-way bike too. It is held still by exactly the same
-         `row.halt`, so leaving it out would have reproduced the bug in the
-         one vehicle most likely to be sitting on top of him when the lane
-         stopped. */
-      if (!hitKind && crow.rogue && !(ctrl && crow.halt > 0)){
+      /* The wrong-way bike too, by the same column rule - leaving it out
+         would have reproduced the bug in the one vehicle most likely to be
+         sitting on his line when its lane turned. */
+      if (!hitKind && crow.rogue && !(ctrl && colBlocks(G.col, rogueX(crow), HAZ.ebike.w))){
         var rx = rogueX(crow);
         if (rx < p1 && rx + HAZ.ebike.w > p0){
           hitKind = "ebike";
@@ -13237,7 +13180,7 @@ function drawTrafficFront(pp){
     for (i = 0; i < row.cars.length; i++){
       var x = carX(row, row.cars[i]);
       if (x + (row.eff || 1) < -1.6 || x > COLS + 1.6) continue;
-      var ysw = sy + (row.cars[i].sw || 0);
+      var ysw = sy;
       if (row.cars[i].uber >= 0){
         blit(S["uber" + row.cars[i].uber + (faceR ? "_r" : "_l")], x*TILE, ysw);
       } else if (row.packN > 1){
@@ -13390,7 +13333,7 @@ function drawWorld(){
       for (i=0;i<row.cars.length;i++){
         var x = carX(row, row.cars[i]);
         if (x + (row.eff||1) < -1.6 || x > COLS + 1.6) continue;
-        var ysw = sy + (row.cars[i].sw || 0);      // steering round the player
+        var ysw = sy;
         if (row.cars[i].uber >= 0){
           blit(S["uber" + row.cars[i].uber + (faceR ? "_r" : "_l")], x*TILE, ysw);
         } else if (row.packN > 1){
@@ -13406,8 +13349,8 @@ function drawWorld(){
          toward the camera puts it in the parking lane and lets the traffic
          pass on the far side of it, which is what is actually happening.
 
-         20px is inside the range the lane already moves things through: a
-         car swerving round the player travels up to SWERVE_PX, 26. */
+         20px is small enough to read as a parking lane rather than as a
+         vehicle in the wrong place. */
       for (i=0;i<row.parked.length;i++){
         blit(S.boxtruck_r, row.parked[i].col*TILE, sy + PARK_KERB);
       }
@@ -15546,7 +15489,7 @@ function cellRisk(row, col){
   }
   for (i = 0; i < row.cars.length; i++){
     var c = row.cars[i];
-    consider(carX(row, c), (c.stopped || row.halt > 0) ? 0
+    consider(carX(row, c), c.stopped ? 0
                           : row.speed * row.dir * (row.rv || 1));
   }
   for (i = 0; i < row.parked.length; i++){
@@ -15634,26 +15577,6 @@ function drawRisk(){
       else             { col2 = "#2fd47a"; a = 0.05; }
       ctx.globalAlpha = a * fade; ctx.fillStyle = col2;
       ctx.fillRect(c*TILE + 3, sy - ROW_H + 3, TILE - 6, ROW_H - 6);
-    }
-    /* A lane that just turned away gets a band and an arrow pair, so the
-       player sees the cause and not only the result. Without it the traffic
-       simply appears to change its mind for no reason. */
-    /* A lane that has just stood on the brakes gets a band and the word for
-       it. It used to show a trio of arrows saying which way it had turned,
-       which is no longer what happens to it. */
-    if (row.flinch > 0){
-      var f = Math.min(1, row.flinch / 0.55);
-      ctx.globalAlpha = f * 0.55 * fade; ctx.fillStyle = POWERS.traffic.col;
-      ctx.fillRect(0, sy - ROW_H, LOGICAL_W, ROW_H);
-      ctx.globalAlpha = f * 0.9 * fade;
-      txt("—  STOPPED  —", LOGICAL_W/2, sy - ROW_H*0.34, 38, "#eafcff");
-    }
-    /* And while it is held, a steady bar along the kerb: the band is a flash,
-       and he needs to know the lane is still holding for him. */
-    if (row.halt > 0 && row.flinch <= 0){
-      ctx.globalAlpha = 0.30 * fade; ctx.fillStyle = POWERS.traffic.col;
-      ctx.fillRect(0, sy - 5, LOGICAL_W, 5);
-      ctx.globalAlpha = 1;
     }
   }
   ctx.globalAlpha = 1;
