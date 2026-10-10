@@ -5844,6 +5844,14 @@ function act(dir){
      away and coming back a minute later should take two pushes again. */
   G.vault = null;
   G.fromRow = G.row; G.fromCol = G.col;
+  /* Off the kerb and into the street, in slow motion: he goes over backwards.
+     Cleared on every other step, so it can never carry into the next one. */
+  G.flip = 0;
+  if (G.slowT > 0 && nr > G.fromRow){
+    var was = rows[G.fromRow], into = rows[nr];
+    var onRoad = function(r){ return !!r && (r.type === "road" || r.type === "sweep"); };
+    if (onRoad(into) && !onRoad(was)) G.flip = 1;
+  }
   G.row = nr; G.col = nc; G.hop = 0;
   if (nr > G.maxRow){ G.maxRow = nr; progress(); }
   ensureRows(G.maxRow + ROWS_AHEAD);
@@ -6674,6 +6682,42 @@ function colSafeFor(r, col, secs){
    third; and the arc is gone unless he is actually airborne, where it is
    deeper than ever because that one IS a flight. What is left on the ground
    is the bob of a walk: two footfalls a square, three and a half pixels. */
+/* ----------------------------------------------------------- THE BACKFLIP
+   Internet Insights puts the world in slow motion and puts him in the coat
+   and the shades, and then he WALKS across the street like a man going to a
+   meeting. The costume was writing a cheque the movement would not cash.
+
+   So when he steps off the kerb into traffic - and only then - he goes over
+   backwards. One full turn, pivoted on the hips, with real air under it and
+   three afterimages trailing the spin.
+
+   ONCE PER STREET, on the step from pavement into the first lane. Flipping
+   into every lane of a three-lane avenue is a man who cannot stop doing it,
+   and the move stops being a flourish the second time you see it in a row.
+   The entry is the beat that matters anyway: it is the moment he commits to
+   the crossing, which is the thing the power-up is for.
+
+   The spin runs at a CONSTANT rate across the hop while the height is a half
+   sine. That is how a flip actually works - you leave the ground, you turn at
+   whatever rate you left it at, and the arc is the only thing easing. Easing
+   the rotation too gives a figure that hangs upside down at the apex, which
+   reads as a glitch in the sprite rather than as a man in the air. */
+var FLIP_LIFT = 94;        // px at the top of the arc
+var FLIP_GHOSTS = 3;       // afterimages behind the spin
+
+function flipK(){
+  if (!G.flip || G.slowT <= 0) return 0;
+  var k = G.hop;
+  return k >= 1 ? 1 : (k <= 0 ? 0 : k);
+}
+function flipSpin(){
+  var k = flipK();
+  if (k <= 0 || k >= 1) return 0;
+  /* Backwards RELATIVE TO HIM, so it is a backflip whichever way he is
+     facing rather than a backflip one way and a frontflip the other. */
+  return (G.facing > 0 ? -1 : 1) * k * Math.PI * 2;
+}
+
 function playerPos(){
   var e = G.hop >= 1 ? 1 : G.hop*G.hop*(3 - 2*G.hop);
   var s = G.hop >= 1 ? 0 : Math.sin(G.hop * Math.PI);
@@ -6698,6 +6742,10 @@ function playerPos(){
      player there is a second push to make. */
   if (G.nudgeT > 0)
     lift += VAULT_AIR * Math.sin((1 - G.nudgeT / VAULT_HOP) * Math.PI);
+  /* And the flip's air, HERE rather than in the draw, so the shadow, the
+     shield ring and anything else reading pp.lift all agree about how far
+     off the ground he is. */
+  if (G.flip && G.hop < 1) lift += FLIP_LIFT * Math.sin(G.hop * Math.PI);
   return { col:G.fromCol + (G.col-G.fromCol)*e, row:G.fromRow + (G.row-G.fromRow)*e,
            lift:lift, sq:s };
 }
@@ -13048,6 +13096,83 @@ function tracePoly(pts){
    them on at all is that a path view without per-hop figures is just a line. */
 function hopMs(p){ return 4 + ((p.r * 7 + p.c * 13 + 11) % 46); }
 
+/* ------------------------------------------------------ THE PATH DEGRADES
+   The route does not simply switch off. For the last couple of seconds it
+   goes BAD first - hops turning amber and then red, one at a time, each at
+   its own rate - and only then fades. That is the actual product: a path
+   view's whole job is to show you which hop is hurting, and a line that is
+   uniformly green right up to the moment it vanishes never shows anyone what
+   the thing is for. The player gets the before and the after of an incident
+   in two seconds, every time the power-up ends.
+
+   STABLE, NOT RANDOM PER FRAME. Everything here is hashed off (path, index),
+   the same discipline hopMs already uses: a hop that re-rolled its colour
+   sixty times a second would be noise, and noise is not a diagnosis. The
+   randomness is in WHICH hops and WHEN, not in what they are doing now. */
+var DEGRADE_FADE  = 1.2;    // where the existing alpha fade starts
+/* SIX SECONDS, not one. At one second the whole turn from green to red
+   happened in a blink right at the end and you had to already be looking at
+   the route to catch it. Six gives it most of the power-up: the line resolves
+   green, runs clean while he crosses a street or two, and then starts losing
+   hops one at a time with plenty of time left to watch it happen. That is the
+   shape of an actual incident, and it is also the shape of a demo. */
+var DEGRADE_LEAD  = 6.0;    // and how long before that the trouble starts
+var DEGRADE_SHARE = 0.38;   // the share of hops that ever go bad at all
+var DEGRADE_IN    = 0.72;   // the last one turns this far into the window
+var DEGRADE_RAMP  = 0.18;   // how long one hop takes to come up
+
+function hash2(a, b){
+  var n = (a * 73856093) ^ (b * 19349663);
+  n = (n ^ (n >>> 13)) * 1274126177;
+  return ((n ^ (n >>> 16)) >>> 0) / 4294967296;
+}
+
+/* 0 when the trouble starts, 1 by the moment the fade begins - so the whole
+   turn from green to red happens in the second BEFORE the line starts going
+   out, and the fade then takes a route that is already in trouble. Running
+   it to zero instead meant the reddest frame was also the faintest one,
+   which is the two halves of the story cancelling each other out. */
+function degradeProg(){
+  var start = DEGRADE_FADE + DEGRADE_LEAD;
+  if (G.revealT >= start) return 0;
+  return Math.min(1, (start - G.revealT) / DEGRADE_LEAD);
+}
+
+/* How bad segment `i` of path `pi` is, 0..1. Two hashes: one decides whether
+   this hop is ever a problem and when it starts, the other gives it its own
+   beat - so they do not pulse in unison, which would read as the whole line
+   flashing rather than as individual hops in trouble. */
+function segHeat(pi, i, dp){
+  if (dp <= 0 || i < 0) return 0;
+  var u = hash2(pi + 1, i + 1);
+  if (u > DEGRADE_SHARE) return 0;
+  var onset = (u / DEGRADE_SHARE) * DEGRADE_IN;
+  if (dp < onset) return 0;
+  var v = hash2(i + 7, pi + 3);
+  var ramp = Math.min(1, (dp - onset) / DEGRADE_RAMP);
+  return ramp * (0.62 + 0.38 * Math.sin(G.t * (3.1 + v * 6.4) + v * 11));
+}
+
+/* Green, through amber, to red. A five-stop ramp indexed by the heat rather
+   than a channel-wise blend: it is four string lookups instead of arithmetic
+   on every segment of every frame, and a severity scale is meant to read as
+   steps anyway - that is why the product uses bands and not a gradient. */
+var HEAT_RAMP = ["#35d07f", "#9ad24a", "#ffc53d", "#ff7a2f", "#ff3b30"];
+function heatCol(h){
+  var k = Math.round(h * 4);
+  return HEAT_RAMP[k < 0 ? 0 : (k > 4 ? 4 : k)];
+}
+
+/* The milliseconds a sick hop adds. The label and the TARGET total both go
+   through here, so the sum on the destination is the sum of what is on
+   screen - a readout that does not add up is worse than no readout. Node i's
+   latency belongs to the link arriving at it, which is segment i-1. */
+function hopPen(pi, i, dp){
+  var h = segHeat(pi, i - 1, dp);
+  if (h <= 0.02) return 0;
+  return Math.round(h * (40 + hash2(i + 19, pi + 5) * 260));
+}
+
 /* One packet and its tail. Seven samples behind the head along the route
    itself rather than a straight streak, so it bends through the corners. */
 function drawPacket(mp, k, fade){
@@ -13076,6 +13201,7 @@ function drawTrace(){
      second of it are spent drawing the route on. */
   var grow = Math.max(0, Math.min(1, (POWERS.path.secs - G.revealT) / 0.6));
   var pulse = 0.5 + 0.5*Math.sin(G.t*4);
+  var dp = degradeProg();
   var i, q;
   ctx.lineCap = "round"; ctx.lineJoin = "round";
 
@@ -13110,6 +13236,30 @@ function drawTrace(){
     ctx.lineWidth = 6 * w; ctx.strokeStyle = TRACE.pale; ctx.stroke();
     ctx.setLineDash([]);
 
+    /* And the sick hops painted over the top of it. ONLY the sick ones: the
+       green line underneath is already drawn, so a healthy segment costs
+       nothing and a bad one costs three strokes. Doing this by splitting the
+       whole polyline into per-segment strokes would have multiplied the glow
+       stack by the hop count - sixty-odd strokes a frame on the machine this
+       has to survive - for a line that is mostly still green. */
+    if (dp > 0){
+      for (i = 0; i < pts.length - 1; i++){
+        var hh = segHeat(pi, i, dp);
+        if (hh <= 0.02) continue;
+        var hc = heatCol(hh);
+        ctx.beginPath();
+        ctx.moveTo(pts[i][0], pts[i][1]);
+        ctx.lineTo(pts[i+1][0], pts[i+1][1]);
+        ctx.strokeStyle = hc;
+        ctx.globalAlpha = fade * 0.16 * hh * dim;
+        ctx.lineWidth = 26 * w; ctx.stroke();
+        ctx.globalAlpha = fade * 0.95 * hh * dim;
+        ctx.lineWidth = 4.6 * w; ctx.stroke();
+        ctx.globalAlpha = fade * 0.70 * hh * dim;
+        ctx.lineWidth = 1.6 * w; ctx.strokeStyle = "#ffe9e6"; ctx.stroke();
+      }
+    }
+
     /* The tip, while it is still resolving: a bright head at the live end. */
     if (grow < 1){
       var tip = pts[pts.length - 1];
@@ -13127,15 +13277,21 @@ function drawTrace(){
       var first = (i === 0);
       var rad = (last ? 17 : (first ? 13 : 11)) * w;
 
-      ctx.globalAlpha = fade * 0.20 * dim;
-      ctx.fillStyle = TRACE.line;
+      /* A node takes the worse of the two links it joins. A red link running
+         into a green dot is the one thing that would say "the colour is
+         decoration" - the hop and its ring have to agree. */
+      var nh = Math.max(segHeat(pi, i - 1, dp), segHeat(pi, i, dp));
+      var nc = nh > 0.02 ? heatCol(nh) : TRACE.line;
+
+      ctx.globalAlpha = fade * (0.20 + 0.22 * nh) * dim;
+      ctx.fillStyle = nc;
       ctx.beginPath(); ctx.arc(x, y, rad + 13, 0, Math.PI*2); ctx.fill();
 
       ctx.globalAlpha = fade * 0.95 * dim;
       ctx.beginPath(); ctx.arc(x, y, rad, 0, Math.PI*2);
       ctx.fillStyle = last ? TRACE.dest : TRACE.node; ctx.fill();
       ctx.lineWidth = 3 * w;
-      ctx.strokeStyle = last ? TRACE.pale : TRACE.line; ctx.stroke();
+      ctx.strokeStyle = last ? TRACE.pale : nc; ctx.stroke();
       if (!last){
         ctx.globalAlpha = fade * 0.9 * dim;
         ctx.beginPath(); ctx.arc(x, y, rad * 0.34, 0, Math.PI*2);
@@ -13143,10 +13299,17 @@ function drawTrace(){
       }
 
       /* Per-hop latency, every other node, main route only. All of them was
-         a wall of numbers over the lanes he still has to cross. */
-      if (main && !last && !first && (i % 2 === 1)){
-        ctx.globalAlpha = fade * 0.55;
-        txt(hopMs(path[i]) + " ms", x + rad + 26, y + 6, 16, TRACE.pale);
+         a wall of numbers over the lanes he still has to cross.
+
+         A HOP IN TROUBLE GETS ITS NUMBER WHETHER IT IS ITS TURN OR NOT, and
+         gets it brighter. Hiding half the figures is fine while they are all
+         boring; the moment one of them is the answer, showing every other one
+         is the wrong half of the time. */
+      var pen = hopPen(pi, i, dp);
+      if (main && !last && !first && ((i % 2 === 1) || pen > 0)){
+        ctx.globalAlpha = fade * (pen > 0 ? 0.9 : 0.55);
+        txt((hopMs(path[i]) + pen) + " ms", x + rad + 26, y + 6, 16,
+            pen > 0 ? heatCol(segHeat(pi, i - 1, dp)) : TRACE.pale);
       }
 
       if (first && main){
@@ -13176,11 +13339,23 @@ function drawTrace(){
         ctx.moveTo(x, y + rad + 5);  ctx.lineTo(x, y + rad + 14);
         ctx.stroke();
         // the total, which is the figure the product puts in the corner
-        var tot = 0;
-        for (q = 0; q < path.length; q++) tot += hopMs(path[q]);
+        var tot = 0, bad = 0;
+        for (q = 0; q < path.length; q++){
+          var pq = hopPen(pi, q, dp);
+          tot += hopMs(path[q]) + pq;
+          if (pq > 0) bad++;
+        }
         ctx.globalAlpha = fade * 0.75;
         txt("TARGET  \u00B7  " + tot + " ms  \u00B7  " + path.length + " hops",
-            x, y - rad - 20, 17, TRACE.pale);
+            x, y - rad - 20, 17, bad ? heatCol(0.5 + bad * 0.12) : TRACE.pale);
+        /* And the count, which is the line a path view actually leads with.
+           It only exists once something is wrong, so it reads as an alarm
+           rather than as a field that happens to say zero. */
+        if (bad){
+          ctx.globalAlpha = fade * 0.85;
+          txt(bad + (bad === 1 ? " HOP DEGRADED" : " HOPS DEGRADED"),
+              x, y - rad - 42, 15, HEAT_RAMP[4]);
+        }
       }
     }
   }
@@ -14631,9 +14806,13 @@ function drawPlayer(pp){
   if (!s) s = right ? S.player_r : S.player_l;
   var sx = pp.col*TILE, sy = rowScreenY(pp.row);
   var fly = G.flyA, flyLift = fly * 78;
-  // the shadow tracks the height he is actually at, nothing per-step
-  var k = (1 - pp.sq*0.07) * (1 - fly*0.45);
-  ctx.globalAlpha = (0.34 - pp.sq*0.024) * (1 - fly*0.45);
+  /* The shadow tracks the height he is actually at, nothing per-step - and a
+     94px flip is a height, so it pulls in and thins under him the same way
+     flight does. A full-size shadow under a man upside down in the air is
+     the one thing that would say none of this is really happening. */
+  var fk = flipK(), fsh = (fk > 0 && fk < 1) ? Math.sin(fk * Math.PI) : 0;
+  var k = (1 - pp.sq*0.07) * (1 - fly*0.45) * (1 - fsh*0.40);
+  ctx.globalAlpha = (0.34 - pp.sq*0.024) * (1 - fly*0.45) * (1 - fsh*0.45);
   ctx.fillStyle = "#000";
   ctx.beginPath();
   ctx.ellipse(sx + TILE*0.5, sy - ROW_H*0.46, 29*k, 11*k, 0, 0, Math.PI*2);
@@ -14747,6 +14926,40 @@ function drawPlayer(pp){
       if (EAT_AT){ EAT_AT.px = px; EAT_AT.py = py; EAT_AT.kx = kx; EAT_AT.ky = ky; }
       return;
     }
+    /* THE SPIN. Pivoted on the HIPS, not on the blit anchor: px is the left
+       edge of the tile and py is the top of the sprite, and turning a figure
+       about its top-left corner is a sprite on a string. The pivot is derived
+       the same way the walk bands are - a model point (x, y, z) lands at
+       px + (x*TILE + y*SKEW)*kx, py - (y*ROW_H + z*ZH)*ky - so x 0.50,
+       y 0.45, z 0.33 is the middle of him at hem height, which is where a
+       body folds.
+
+       The afterimages are the cheapest Matrix there is: the same sprite, the
+       same pivot, three steps back along the rotation at falling alpha. No
+       extra canvas, no filter, three drawImages during a move that happens
+       once a street. */
+    var spin = flipSpin();
+    if (spin){
+      var cxf = px + (0.50*TILE + 0.45*SKEW) * kx;
+      var cyf = py - (0.45*ROW_H + 0.330*ZH) * ky;
+      var gi, ga;
+      for (gi = FLIP_GHOSTS; gi >= 1; gi--){
+        ga = 0.30 * (1 - gi / (FLIP_GHOSTS + 1));
+        ctx.save();
+        ctx.translate(cxf, cyf); ctx.rotate(spin * (1 - gi * 0.085));
+        ctx.translate(-cxf, -cyf);
+        ctx.globalAlpha = ga;
+        blitScaled(sprite, px, py, kx, ky);
+        ctx.restore();
+      }
+      ctx.globalAlpha = 1;
+      ctx.save();
+      ctx.translate(cxf, cyf); ctx.rotate(spin); ctx.translate(-cxf, -cyf);
+      blitScaled(sprite, px, py, kx, ky);
+      ctx.restore();
+      if (EAT_AT){ EAT_AT.px = px; EAT_AT.py = py; EAT_AT.kx = kx; EAT_AT.ky = ky; }
+      return;
+    }
     blitScaled(sprite, px, py, kx, ky);
     /* Where the model's origin landed, and at what scale. A model point
        (x, y, z) projects to (mx, my) and then sits at (px + mx*kx,
@@ -14779,7 +14992,12 @@ function drawPlayer(pp){
     return;
   }
 
-  var W2 = walkStride();
+  /* No limb cycle while he is turning over. The stride is drawn by clipping
+     bands of the sprite in unrotated screen space and nudging each one; put()
+     now rotates what it is handed, so the bands would cut the figure into
+     slices that stay level while the man inside them spins. He is in the air
+     anyway - a walk cycle is the one thing his legs are not doing. */
+  var W2 = flipSpin() ? null : walkStride();
   if (W2){
     /* A model point (x, y, z) lands on screen at sx + (x*TILE + y*SKEW)*kx,
        dy - (y*ROW_H + z*ZH)*ky, because blitScaled offsets by the same ox/oy

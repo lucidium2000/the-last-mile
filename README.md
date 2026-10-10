@@ -3567,6 +3567,98 @@ The high-tops stay. Those are Cloud Insights, they are a different power, and
 they are the only thing on his feet that is still news.
 
 
+
+## The path goes bad before it goes away
+
+The route used to be uniformly green right up to the moment it faded out,
+which is the one thing a path view never is. Its whole job is to show you
+*which hop is hurting*, and a line that only ever looks healthy never shows
+anyone what the product is for.
+
+So it degrades first. Over the last six seconds of the power-up, hops turn
+amber and then red, one at a time, each at its own rate — and only then does
+the line fade. The player gets the before and the after of an incident every
+time the power-up ends.
+
+**Stable, not random per frame.** Everything is hashed off `(path, index)`, the
+same discipline `hopMs` already used. A hop re-rolling its colour sixty times a
+second is noise, and noise is not a diagnosis — the randomness is in *which*
+hops and *when*, not in what they are doing right now. Two hashes per segment:
+one decides whether this hop is ever a problem and when it starts, the other
+gives it its own beat, so they do not pulse in unison. Unison would read as the
+whole line flashing rather than as individual hops in trouble.
+
+**Only the sick segments get repainted.** The green line underneath is already
+drawn, so a healthy hop costs nothing and a bad one costs three strokes.
+Splitting the whole polyline into per-segment strokes would have multiplied the
+four-deep glow stack by the hop count — sixty-odd strokes a frame for a line
+that is mostly still green. Measured: 8 of 19 hops red, 60fps.
+
+The colour is a five-stop ramp indexed by heat rather than a channel-wise
+blend. Four string lookups instead of arithmetic per segment per frame, and a
+severity scale is meant to read as steps anyway — that is why the product uses
+bands and not a gradient.
+
+Three things follow the colour, because any one of them staying green would
+say the colour is decoration:
+
+- **The nodes**, each taking the worse of the two links it joins.
+- **The per-hop figures.** A hop in trouble gets its number whether it is its
+  turn to show one or not, and gets it brighter. Hiding half the figures is
+  fine while they are all boring; the moment one of them is the answer, showing
+  every other one is the wrong half of the time.
+- **The TARGET total**, which sums the same penalties the labels print — a
+  readout that does not add up is worse than no readout — plus a
+  `N HOPS DEGRADED` line that only exists once something is wrong, so it reads
+  as an alarm rather than as a field that happens to say zero.
+
+**Six seconds, not one.** The first cut gave it a single second and the whole
+turn from green to red happened in a blink right at the end; you had to already
+be looking at the route to catch it. Six gives it most of the power-up: the
+line resolves green, runs clean while he crosses a street or two, then starts
+losing hops one at a time with plenty of time left to watch it happen. That is
+the shape of an actual incident, and it is also the shape of a demo.
+
+## Neo goes over backwards
+
+Internet Insights put the world in slow motion and put him in the coat and the
+shades, and then he **walked** across the street like a man going to a meeting.
+The costume was writing a cheque the movement would not cash.
+
+So when he steps off the kerb into traffic he goes over backwards: one full
+turn, pivoted on the hips, with real air under it and three afterimages
+trailing the spin.
+
+**Once per street**, on the step from pavement into the first lane. Flipping
+into every lane of a three-lane avenue is a man who cannot stop doing it, and
+the move stops being a flourish the second time you see it in a row. The entry
+is the beat that matters anyway — it is the moment he commits to the crossing.
+
+The spin runs at a **constant rate** across the hop while the height is a half
+sine. That is how a flip works: you leave the ground, you turn at whatever rate
+you left it at, and the arc is the only thing easing. Easing the rotation too
+gives a figure that hangs upside down at the apex, which reads as a glitch in
+the sprite rather than as a man in the air.
+
+Three details that would each have broken it:
+
+- **The pivot is the hips**, derived the same way the walk bands are — x 0.50,
+  y 0.45, z 0.33. The blit anchor is the left edge of the tile and the top of
+  the sprite, and turning a figure about its top-left corner is a sprite on a
+  string.
+- **The air goes in `playerPos`**, not in the draw, so the shadow and the shield
+  ring agree about how far off the ground he is. The shadow pulls in 40% and
+  thins with it; a full-size shadow under a man upside down in the air is the
+  one thing that would say none of this is really happening.
+- **The walk cycle is switched off** for the duration. The stride is drawn by
+  clipping bands of the sprite in unrotated screen space; with the figure
+  rotating, those bands would cut him into slices that stay level while the man
+  inside them spins.
+
+The afterimages are the cheapest Matrix there is: the same sprite, the same
+pivot, three steps back along the rotation at falling alpha. No extra canvas,
+no filter, three `drawImage`s during a move that happens once a street.
+
 ## Traffic Insights gets headlights
 
 The corridor was correct and inert. The rule is that nothing may stand on the
