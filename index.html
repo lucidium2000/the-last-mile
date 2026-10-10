@@ -4844,7 +4844,11 @@ function collect(atCol){
       brandHit("ENDPOINT AGENT", BRAND_HIT + (lvl < 2 ? 0.8 : 0.3), null,
                lvl < 2 ? AGENT_BLAZER[lvl]
                        : "+" + cash(AGENT_BONUS) + "  \u00B7  NOTHING LEFT TO PUT ON HIM",
-               false, agentKick);
+               false, agentKick,
+               /* The blazer names are the line people quote, so they get a
+                  size of their own and a little more room under the plate.
+                  No arrows on the kicker: a shield going up is not a trend. */
+               lvl < 2 ? { bare:true, subSize:30, subDrop:14 } : null);
     }
     else brandHit(BRAND_SKUS[kind]);
   }
@@ -12381,10 +12385,20 @@ function drawMoneyRise(){
    up beside it - the one that says what the SKU did FOR you rather than what
    it is. The badge says the name, the tagline says the proposition, the
    kicker says the outcome, and the outcome is the thing a seller repeats. */
-function brandHit(what, secs, icon, sub, big, kick){
-  var len = secs || BRAND_HIT;
+/* `opts` carries the per-SKU exceptions, because one or two of these lines
+   want different furniture and threading three more positional arguments
+   through every call site to say so is worse than a bag:
+
+     bare     - the kicker without the arrows either side
+     subSize  - the tagline at something other than 26
+     subDrop  - and pushed down from where it normally sits
+
+   Everything that does not pass one behaves exactly as it did. */
+function brandHit(what, secs, icon, sub, big, kick, opts){
+  var len = secs || BRAND_HIT, o = opts || {};
   G.brand = { life:len, max:len, what:what, col:C.brand,
-              icon:icon || null, sub:sub || null, big:!!big, kick:kick || null };
+              icon:icon || null, sub:sub || null, big:!!big, kick:kick || null,
+              bare:!!o.bare, subSize:o.subSize || 26, subDrop:o.subDrop || 0 };
   AUDIO.chaChing();
 }
 
@@ -12651,9 +12665,10 @@ function drawBrandHit(){
        does not push the stack down onto the row he is reading. The whole
        burst ends about 658 with one and 639 without - still above the
        second row ahead of him at 714, which is the one that matters. */
-    var sy3 = ny + (B.big ? 56 : 48) - (B.kick ? 8 : 0);
-    txt(B.sub, cx + 2, sy3 + 2, 26, sh);
-    txt(B.sub, cx, sy3, 26, "#ffffff");
+    var subS = B.subSize || 26;
+    var sy3 = ny + (B.big ? 56 : 48) - (B.kick ? 8 : 0) + (B.subDrop || 0);
+    txt(B.sub, cx + 2, sy3 + 2, subS, sh);
+    txt(B.sub, cx, sy3, subS, "#ffffff");
 
     if (B.kick){
       /* THE OUTCOME LINE. Green, because every other number in this game
@@ -12664,9 +12679,19 @@ function drawBrandHit(){
          The arrow and the words are measured and centred as one unit rather
          than the text being centred and the arrow hung off it, or a short
          line sits visibly off to one side of the badge above it. */
-      var kY = sy3 + 38, kS = 28;
+      /* The gap grows with the tagline, or a bigger line above lands on the
+         top of the kicker's caps. */
+      var kY = sy3 + 38 + (subS - 26) * 0.5, kS = 28;
       ctx.font = "bold " + kS + 'px "Helvetica Neue",Helvetica,Arial,sans-serif';
       var kW = ctx.measureText(B.kick).width;
+      /* Bare: the words on their own, centred. The arrows belong on a line
+         about a NUMBER going up - "you are unstoppable" has a direction to
+         point at. A shield going up is not a trend, and two arrows either
+         side of it read as decoration. */
+      if (B.bare){
+        txt(B.kick, cx + 2, kY + 3, kS, sh, "center");
+        txt(B.kick, cx,     kY,     kS, C.good, "center");
+      } else {
       var aH = kS * 0.80, aW = aH * 0.88, gap = 12;
       /* One arrow each side, and the whole run - arrow, gap, words, gap,
          arrow - is measured and centred as a single unit. Centring the text
@@ -12689,6 +12714,7 @@ function drawBrandHit(){
       kTri(kX,  0, 0, C.good); kTri(kX2, 0, 0, C.good);
       txt(B.kick, kX + aW + gap + 2, kY + 3, kS, sh, "left");
       txt(B.kick, kX + aW + gap,     kY,     kS, C.good, "left");
+      }
     }
   }
   ctx.globalAlpha = 1;

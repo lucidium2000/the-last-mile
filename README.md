@@ -1196,11 +1196,28 @@ health bar** rather than in the power-up chip row. What it does is take one hit
 *instead of the bar taking it*, and sitting it with the other power-ups said
 nothing about which number it was protecting.
 
-Each blazer carries an **outcome line** in the money green with the arrows:
-*▲ SHIELDS UP! ▲* on the blue one and *▲ DOUBLE SHIELD! ▲* on the purple.
-The blazer is the joke; the kicker is what it bought him, and that is the half
-a seller repeats. The third pickup already states what it is worth on its own
-line and does not need telling twice.
+Each blazer carries an **outcome line** in the money green: *SHIELDS UP!* on
+the blue one and *DOUBLE SHIELD!* on the purple. The blazer is the joke; the
+kicker is what it bought him, and that is the half a seller repeats. The third
+pickup already states what it is worth on its own line and does not need
+telling twice.
+
+**No arrows on these two.** The arrows belong on a line about a *number* going
+up — "you're unstoppable" has a direction to point at. A shield going up is
+not a trend, and two triangles either side of it read as decoration. Verified
+by drawing the same kicker string both ways and sampling the band: 693 green
+pixels across 126px bare against 830 across 163px with the arrows, both
+centred on the same axis.
+
+**And the blazer names get a size of their own**: 30 rather than 26, pushed 14
+further down the stack, because they are the line people quote. The gap to the
+kicker grows with the tagline (`+(subSize-26)/2`) or a bigger line above lands
+on the top of its caps. The burst then bottoms out at **674**, still clear of
+the second row ahead of him at 714.
+
+`brandHit` takes an `opts` bag for these — `{bare, subSize, subDrop}` — rather
+than three more positional arguments threaded through every call site to say
+nothing. Everything that does not pass one behaves exactly as it did.
 
 The two **blazer** pickups hold half a second longer than every other burst
 (`BRAND_HIT + 0.8` against `+ 0.3`, so 2.4s against 1.9s). "DOUBLE PURPLE PIMP
