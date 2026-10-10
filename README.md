@@ -3171,12 +3171,68 @@ gradient is a GPU object with a shader behind it. It is now cached like the
 rest, and nulled in `layout()` with them, because a gradient belongs to the
 transform it was built under. 300 frames went from 300 allocations to 0.
 
+
+## The stopped sanitation truck
+
+Reported: *"I had Traffic Insights and I was walking in traffic, all was good
+until I hit a non moving NYC sanitation truck, then it killed me."*
+
+Exactly two vehicles in the game carry `stops:true` — the SELECT BUS and the
+DSNY truck — and they run a cycle of 3.6 seconds rolling, 1.6 stationary. The
+whole Traffic Insights block is guarded by `!car.stopped`, for a perfectly
+good reason: a vehicle that is already stopped cannot brake and cannot steer,
+so there is nothing for it to do.
+
+But `sw` then stays at 0, and `sw` was the **only** thing the collision test
+would accept as *that one has gone round him*. So a sanitation truck sitting
+across the lane on its stop phase remained a full 2.4-tile lethal collider in
+the middle of a power-up whose own tagline is "You're unstoppable".
+
+The lane that had **braked** for him had the same hole from the other end:
+those drivers saw him, `row.halt` is up, the cars are motionless — and every
+one of them was still lethal.
+
+The route tracer has always known better. It scores a lane with
+`(c.stopped || row.halt > 0) ? 0 : speed`, so the path it draws treats both as
+stationary obstacles rather than as traffic. The pathfinder and the collision
+disagreed, and the collision had the last word.
+
+So, while the SKU is up: **a vehicle that is not moving is not a threat.**
+That is the fiction working as written, and it costs nothing, because a
+vehicle that is moving still hits exactly as hard as it did. The wrong-way
+bike is in too — it is held still by the same `row.halt`, and leaving it out
+would have reproduced the bug in the vehicle most likely to be sitting on top
+of him when the lane stopped.
+
+Verified both ways: a stopped DSNY truck pinned on top of him kills without
+the SKU (`"We spent it all on the refresh."`) and does not kill with it. The
+double-parked box truck is unaffected — it is a blocker he is routed around
+and cannot step onto in the first place.
+
 ## Power-ups
 
 Four common ThousandEyes capabilities — Endpoint Agent (absorbs one hit),
 Internet Insights (drops the world into slow motion), Path Visualization (lights
 up safe crossings), Cloud Insights (orange high-tops, and he runs) — plus one
 rare tier:
+
+> **Chuck Bucks, third raise.** The pavement share of the weighted pool has
+> gone 18.97% → 20.87% → **21.81%**, and a ride carrying cash 55% → 60.5% →
+> **69.6%**. The pavement number is *solved*, never multiplied: raising a
+> weight raises the denominator too, so +15% of the RATE needs the weight at
+> 34.81, not 29.21 × 1.15. The train roll has no denominator to fight — a
+> ride either has a roll on it or it does not — so that one is a straight
+> multiply. Measured over 1,810 generated pickups: 21.85% against a 21.81%
+> target.
+>
+> **And people leave it alone for longer.** `FOLK_GREED_AFTER` goes 5.0 → 6.5
+> seconds, thirty per cent more hesitation before a pedestrian decides the
+> roll is worth walking over for. With the money landing half again as often
+> as it did two changes ago the window matters more than it used to: the same
+> hesitation on more rolls is a race you lose more often, and the point of the
+> clock is that you can win it if you move. The hooded man is untouched — he
+> still needs `HOOD_GREED_AFTER` 4 seconds of chasing first, and on the train
+> he still wants it immediately.
 
 > **Testing a power-up:** `?pw=<kind>` plants that one on the first pavement
 > of the run, two rows straight ahead of where he starts, every time —

@@ -2601,7 +2601,7 @@ function wpick(w){
    The other five give up 1.9% of their own share between them to pay for
    it, which is unavoidable - the shares have to sum to one. */
 var POWER_WEIGHTS = {
-  metro:77, chuck:29.21, agent:23, traffic:14, insight:5, sponsor:5.78
+  metro:77, chuck:34.81, agent:23, traffic:14, insight:5, sponsor:5.78
 };
 /* How far the world is throttled while Internet Insights is up. One constant,
    because the mover and the crossing test both read it and they must agree -
@@ -3748,7 +3748,12 @@ var HOOD_GREED_AFTER = 4.0, HOOD_LOOT_K = 1.5;
    the order of who beats you to it is always the same. A player walking
    straight at it wins comfortably; one who stops to count the lanes may
    not. */
-var FOLK_GREED_AFTER = 5.0, FOLK_GREED_V = 1.05;
+/* 6.5s, up from 5.0 - thirty per cent longer before a pedestrian decides the
+   roll on the pavement is worth walking over for. With the money now landing
+   half again as often as it did two changes ago, the window matters more than
+   it used to: the same hesitation on more rolls is a race you lose more
+   often, and the point of the clock is that you can win it if you move. */
+var FOLK_GREED_AFTER = 6.5, FOLK_GREED_V = 1.05;
 var FOLK_GRAB = ["Oh, hello.", "Is that money?", "Wait - ", "Finders keepers."];
 var FOLK_GOT  = ["My lucky day.", "Somebody dropped this.", "Don't mind if I do.",
                  "That is rent."];
@@ -5861,10 +5866,11 @@ function startRide(enterRow, enterCol){
      Pulled BEFORE the hooded man, so he can never be standing on it at the
      moment the doors close. */
   var ends = [0, RIDE_SLOTS - 1];
-  /* 0.605 rather than 0.55: the same +10% as the pavement, and a straight
-     multiply here because this roll has no denominator to fight - a ride
-     either has a roll on it or it does not. */
-  var cash = Math.random() < 0.605 ? ends[(Math.random() * 2) | 0] : -1;
+  /* 0.696, up from 0.605, up from 0.55 - the same rises the pavement has
+     had, +10% and then +15%. A straight multiply here because this roll has
+     no denominator to fight: a ride either has a roll on it or it does not,
+     unlike the pavement, where the weight has to be solved for. */
+  var cash = Math.random() < 0.696 ? ends[(Math.random() * 2) | 0] : -1;
   if (cash >= 0){
     var ci = free.indexOf(cash);
     if (ci >= 0) free.splice(ci, 1);
@@ -11033,9 +11039,42 @@ function update(dt){
          facing. Lanes carry their own direction, and a trace can have turned
          one round. */
       var push = 0;
+
+      /* NOTHING STANDING STILL CAN KILL HIM WHILE TRAFFIC INSIGHTS IS UP.
+
+         Two vehicles in the game have `stops:true` - the SELECT BUS and the
+         DSNY truck - and they run a cycle of 3.6s rolling, 1.6s stationary.
+         The whole Traffic Insights block is guarded by `!car.stopped`,
+         because a vehicle that is already stopped cannot brake and cannot
+         steer, so there is nothing for it to do. Correct as far as it goes -
+         but `sw` then stays at 0, which is the ONLY thing the collision test
+         below was willing to accept as "that one has gone round him". So a
+         sanitation truck parked across the lane on its stop phase stayed a
+         full 2.4-tile lethal collider, and walking into the side of it
+         during the power-up killed you.
+
+         The lane that has BRAKED for him had the same hole from the other
+         direction: those drivers saw him and stopped, `row.halt` is up, the
+         cars are motionless - and every one of them was still lethal.
+
+         The route tracer has always known better. It scores a lane with
+         `(c.stopped || row.halt > 0) ? 0 : speed`, so the path it draws
+         treats both as stationary obstacles rather than as traffic. The
+         pathfinder and the collision simply disagreed, and the collision was
+         the one that got the last word.
+
+         So: while the SKU is up, a vehicle that is not moving is not a
+         threat. That is the fiction working as written - the driver has seen
+         you and is waiting - and it costs nothing, because a vehicle that is
+         moving still hits exactly as hard as it ever did. Stepping in front
+         of a rolling truck before it can react is still a death; walking
+         into a stopped one is now what it looks like. */
+      var ctrl = G.riskT > 0;
+
       for (i=0;i<crow.cars.length;i++){
         // a car far enough off the lane centre has gone round him, not through
         if (Math.abs(crow.cars[i].sw || 0) >= SWERVE_CLEAR) continue;
+        if (ctrl && (crow.halt > 0 || crow.cars[i].stopped)) continue;
         var cx = carX(crow, crow.cars[i]);
         if (cx < p1 && cx + (crow.eff || HAZ[crow.kind].w) > p0){
           hitKind = crow.kind;
@@ -11055,7 +11094,11 @@ function update(dt){
           }
         }
       }
-      if (!hitKind && crow.rogue){
+      /* The wrong-way bike too. It is held still by exactly the same
+         `row.halt`, so leaving it out would have reproduced the bug in the
+         one vehicle most likely to be sitting on top of him when the lane
+         stopped. */
+      if (!hitKind && crow.rogue && !(ctrl && crow.halt > 0)){
         var rx = rogueX(crow);
         if (rx < p1 && rx + HAZ.ebike.w > p0){
           hitKind = "ebike";
