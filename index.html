@@ -16385,7 +16385,9 @@ function drawReport(){
     txt(r.won ? "BOOKED" : (r.cause || "\u2014"), x0 + 1700, ry, 19,
         r.won ? C.good : C.textDim, "right");
   }
-  var by = hy + 56 + list.length*42 + 50;
+  /* An empty board still needs the room its message takes, or TOTALS slides
+     up underneath "NOBODY HAS WALKED IT YET" and the two overlap. */
+  var by = hy + 56 + (list.length ? list.length*42 : 130) + 50;
 
   /* ---- the breakdowns -------------------------------------------------- */
   function head(y2, label){
@@ -16459,7 +16461,19 @@ function drawReport(){
   var powItems = [];
   for (i = 0; i < POWER_ORDER.length; i++){
     var kk = POWER_ORDER[i], pk = POWERS[kk];
-    powItems.push([pk ? pk.name : kk.toUpperCase(), (st.powers && st.powers[kk]) || 0, kk]);
+    /* THE METROCARD COUNTS RIDES, NOT CARDS. It is the one power-up whose
+       pickup is not the event - a card in the wallet has done nothing, and
+       cards stack, so three picked up and never swiped read as three times
+       the use of a TAM that actually fired. Rides completed is what the
+       metrocard was FOR, and it is the only honest number to put beside the
+       others. Labelled so, because a bar called METROCARD showing a smaller
+       figure than the cards collected would just look like a bug. */
+    var isMetro = kk === "metro";
+    powItems.push([
+      isMetro ? "METROCARD (RIDES)" : (pk ? pk.name : kk.toUpperCase()),
+      isMetro ? (st.rides || 0) : ((st.powers && st.powers[kk]) || 0),
+      kk
+    ]);
   }
   bars(by, powItems, function(it){ return POWERS[it[2]] ? POWERS[it[2]].col : C.brand; });
   /* Where the page ends, in page space - `oy` is the top of it. */
