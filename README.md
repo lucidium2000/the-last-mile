@@ -3242,7 +3242,55 @@ countdown cannot: `0:30` is a quantity, **11:30 PM is a place** — you can see
 how near the edge of the year you are standing. Banking time by walking a
 block turns the clock *back*, which is exactly what buying yourself minutes
 should look like, and the cap at `FISC_MAX` stops it ever reading earlier than
-11:00. Both numbers read off the same `G.fiscT`, so they cannot drift apart.
+11:00.
+
+**And the face drifts, because a clock yanked backwards is a clock nobody
+believes.** Each block banks 1.25s, which read literally is the hour hand
+jumping back a minute or two, over and over, while the player is moving well
+— the one time they least want the furniture twitching at them. Worse, a
+strong run pins `fiscT` against the 60s cap, where it is banked up and drained
+down repeatedly, so the clock jitters in place.
+
+So the face chases the timer instead of equalling it. `G.fiscShow` is allowed
+to be up to **`FISC_DRIFT` = 5 seconds** out of step while it catches up.
+**The timer itself is untouched** — `fiscT` is still what drains, still what
+fires `missClose`, still what the big countdown prints. The drift belongs to
+the clock face and nothing else reads it.
+
+**Rate-limited, not eased.** The first attempt eased toward the timer, which
+is the wrong shape: an exponential ease moves *fastest* at the moment of the
+jump, which is exactly the lurch it was meant to hide. Instead the face ticks
+with real time on its own, and the gap is closed at a capped rate on top. The
+cap is `FISC_REWIND` = 1.0 — precisely the rate the clock runs forwards — and
+that one number is the whole rule:
+
+> **The clock ticks forward, or it holds still.** It never runs backwards
+> faster than it runs forwards; at 1.0 the correction can at most cancel the
+> tick. Bank a block and the hour hand *stops for a moment*. It does not spin
+> anti-clockwise.
+
+Measured on a recorded trace of thirty seconds of flat-out walking, replayed
+through each candidate:
+
+| | backward steps | worst | face vs timer |
+|---|---|---|---|
+| before | 26 | 2 min | 0s |
+| **shipped** | **15** | 2 min | **4.97s** |
+| soft catch-up | 6–20 | 1 min | 21–28s |
+
+**The lurch is not gone, and five seconds is why.** The soft catch-up row
+removes the two-minute step — but only by letting the face wander up to half a
+minute from the truth, which is no longer a drift allowance, it is a different
+clock. Within a 5s budget the honest result is a 42% cut, not a cure: when a
+player banks harder than five seconds of slack can absorb, something has to
+give, and the backstop giving way is the correct thing to give. In steady play
+with nothing banked the face is bit-identical to before — exactly 1.000s per
+minute, zero backward steps, verified.
+
+The allowance closes as the hour does: `min(FISC_DRIFT, fiscT)` leaves five
+seconds of slack at the top of the run, one second with one second left, and
+none at midnight — so the two always land on 12:00 AM together, which is the
+one moment the player is really reading both.
 
 **The third field went through three answers.** NYC COMMERCIAL was the first,
 and it was not *cliché* — quarter, close time and segment is how a forecast

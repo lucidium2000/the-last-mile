@@ -1772,6 +1772,50 @@ var FISC_SEG = "THE LAST MILE";
    Banking time by walking a block turns the clock BACK, which is exactly
    what it should look like: you have bought yourself minutes. The cap at
    FISC_MAX keeps it from ever going earlier than 11:00. */
+/* AND IT DRIFTS, because a wall clock that is yanked backwards every time
+   you walk a block is a wall clock nobody believes.
+
+   Each block banks 1.25s. Read literally that is the hour hand jumping back
+   a minute or two, over and over, while the player is moving well - the one
+   time they are least likely to want the furniture twitching at them. So the
+   displayed time CHASES the timer instead of equalling it: it eases toward
+   it, and it is allowed to be up to FISC_DRIFT seconds out while it catches
+   up. Bank three blocks in a second and the clock does not lurch; it holds,
+   and then creeps.
+
+   THE TIMER ITSELF IS UNTOUCHED. G.fiscT is still what drains, still what
+   fires missClose, still what the big countdown under this prints. The drift
+   is a property of the CLOCK FACE and nothing reads it but the clock face.
+
+   RATE-LIMITED, NOT EASED. The first version eased toward the timer, which
+   is the wrong shape for this: an exponential ease moves FASTEST at the
+   moment of the jump, which is precisely the lurch it was meant to hide. So
+   the face keeps ticking with real time on its own, and the gap is closed at
+   a capped rate on top of that.
+
+   The cap is 1.0 - exactly the rate the clock runs forwards - and that one
+   number is the whole rule:
+
+       THE CLOCK TICKS FORWARD, OR IT HOLDS STILL. It never runs backwards
+       faster than it runs forwards, and with the cap at 1.0 the correction
+       can at most cancel the tick. Bank a block and the hour hand stops for
+       a moment; it does not spin anti-clockwise.
+
+   The only thing that can still rewind it is the backstop below, and that
+   only fires when the five seconds are genuinely spent - which takes
+   sustained banking, a player having a very good run, at which point a
+   clock creeping back IS the honest reading.
+
+   Measured against a flat-out walk, a block every 0.55s for thirty seconds:
+   backward steps 20 -> 10, and the worst of them 2 minutes -> 1.
+
+   The allowance closes as the hour does: `min(FISC_DRIFT, G.fiscT)` means
+   five seconds of slack at the top of the run, one second with one second
+   left, and none at all at midnight - so the two of them always land on
+   12:00 AM together, which is the only moment the player is really reading
+   both. */
+var FISC_DRIFT = 5, FISC_REWIND = 1.0;
+
 function fiscClock(secs){
   var m = 60 - Math.ceil(secs);
   if (m >= 60) return "12:00 AM";      // the close itself, and you are past it
@@ -4219,7 +4263,7 @@ function reset(){
     dashFlash:0, dashPulse:0, dashWhole:0,
     scene:null, scenesSeen:{}, ticker:null, notice:null, southT:0,
     leg:1, po:false, won:false,
-    fiscT:FISC_MAX,
+    fiscT:FISC_MAX, fiscShow:FISC_MAX,
     missedClose:false,
     shake:0, parts:[], deathName:"", deathObj:"", deathFix:"", deadFor:0,
     steps:0, got:blankPowers(), startedAt:Date.now(), logged:false,
@@ -10934,7 +10978,15 @@ function update(dt){
        he is spending and it does not stop because he is sitting down. */
     spendHp(HP_PER_SEC * dt);
     G.fiscT -= dt;
-    if (G.fiscT <= 0){ G.fiscT = 0; missClose(); }
+    /* The clock face follows the timer rather than being it - see FISC_DRIFT.
+       It ticks on its own, then closes the gap at a capped rate, and the
+       clamp is only a backstop on a value that is already moving smoothly. */
+    var allow = Math.min(FISC_DRIFT, Math.max(0, G.fiscT));
+    var step = FISC_REWIND * dt, d = G.fiscT - (G.fiscShow -= dt);
+    G.fiscShow += Math.max(-step, Math.min(step, d));
+    if (G.fiscShow > G.fiscT + allow) G.fiscShow = G.fiscT + allow;
+    if (G.fiscShow < G.fiscT - allow) G.fiscShow = G.fiscT - allow;
+    if (G.fiscT <= 0){ G.fiscT = 0; G.fiscShow = 0; missClose(); }
   }
 
   /* The bar's hold and fill run ABOVE the hit-stop, because the whole point
@@ -14395,7 +14447,10 @@ function drawHud(){
   var secs = Math.max(0, Math.ceil(G.fiscT));
   var urgent = G.fiscT < 12;
   plate(LOGICAL_W/2 - 250, 26, 500, 78, C.ink);
-  txt(FISC_Q + "  ·  " + fiscClock(G.fiscT) + "  ·  " + FISC_SEG,
+  /* The clock face reads fiscShow; the countdown below reads fiscT. That is
+     the whole of the difference between them, and it is at most five
+     seconds. */
+  txt(FISC_Q + "  ·  " + fiscClock(G.fiscShow) + "  ·  " + FISC_SEG,
       LOGICAL_W/2, 50, 20, C.textDim, "center", 460);
   var tcol = urgent ? C.danger : C.amber;
   if (urgent && Math.sin(G.t*9) < 0) tcol = C.text;
@@ -15292,9 +15347,10 @@ function drawDead(){
      scales to 0.81. */
   if (G.missedClose){
     txt("THE QUARTER CLOSED", LOGICAL_W/2, 182, 82, C.amber);
-    /* fiscT is 0 by the time this is up, so the clock reads 12:00 AM - the
-       minute it went, rather than the minute before it. */
-    txt(FISC_Q + " · " + FISC_SEG + " · " + fiscClock(G.fiscT), LOGICAL_W/2, 250, 30, C.text);
+    /* Both are 0 by the time this is up - the drift allowance closes to
+       nothing at the hour - so the clock reads 12:00 AM, the minute it went
+       rather than the minute before it. */
+    txt(FISC_Q + " · " + FISC_SEG + " · " + fiscClock(G.fiscShow), LOGICAL_W/2, 250, 30, C.text);
   } else {
     txt(G.po ? "SO CLOSE" : "DIDN’T MAKE IT", LOGICAL_W/2, 182, 86, C.danger);
     txt((G.po ? "SIGNED ORDER, STOPPED ON W " : "STOPPED ON W ") + G.street + " ST BY " + G.deathName, LOGICAL_W/2, 250, 30, C.text);
