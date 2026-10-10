@@ -3613,8 +3613,18 @@ variety for its own sake, and a length that means something is free.
 
 The short one keeps a 90ms fade because it *is* being cut, and a waveform
 truncated at an arbitrary sample is a click — a click being louder than the
-thing it interrupted. The full one is never touched, so there is nothing to
-fade.
+thing it interrupted. **Nothing else fades.** Measured by counting gain ramps
+per cue: *Free your mind* stops at its full 2.273s with zero ramps, the full
+woah at 3.032s with zero, and only the deliberately-cut short woah has one.
+
+One hole worth closing while looking: the engine's hard ceiling evicts the
+**oldest** chains when 400 accumulate, and a voice line is both the
+longest-lived chain in the engine and therefore always among the oldest — so a
+burst of short tones during the two or three seconds a sample plays could have
+disconnected it mid-word. Sample chains are held now. Everything else there is
+a tone that is over in a fifth of a second and genuinely does not matter; a
+line somebody is listening to does. At most four exist at once, so holding them
+cannot be what makes the graph grow.
 
 **And it went on top of the whoosh rather than under it.** It was written to
 sit underneath, which was a mistake twice over: bandpassed noise is broadband
@@ -3659,14 +3669,32 @@ hundred thousand dollars.
 
 **The figure goes up off his head in the money green**, through the same
 `moneyRise` the add-on, the agent and the champion all use: `+$100,000` over
-`ON THE PIPELINE`, with the HUD readout popping to match. The banner in the top
+`UNITS UPSELL`, with the HUD readout popping to match. The line under the
+figure is normally `ON THE PIPELINE`, which is the right line when the number
+*is* the whole story — the pickup has already announced itself in the top strip
+and in a burst. The upsell is the one you earn rather than collect, so it is
+also the one where the figure alone does not say what you did. The banner in the top
 strip says *what* happened; this says *how much*, and it says it where the
 player is already looking — at him.
 
 A step off the route, a step sideways along it, a step backwards, or the route
-expiring all put the run back to nought. Verified: 1–9 climbing, payout on 10,
-reset to 0, climbing again — so a long route can pay twice. Ten more is ten
-more.
+expiring all put the run back to nought.
+
+**And each node counts once.** Walking the first ten, retreating, and walking
+them again paid twice for the same ten squares — the run resets when he steps
+backwards, which is exactly what a farmer wants. The route keeps a ledger of
+what it has already given up, so a second pass over old ground earns nothing.
+Verified: ten fresh nodes pay $100k, retreat six and re-walk the same six pays
+nothing and leaves the run at zero.
+
+A retread neither advances the run nor breaks it — he is still on the line, he
+is just not buying anything with it. Which is precisely what `traceStep`
+already means (*"the same idea, flat, because it buys no ground"*), so that is
+the sound a repeated node makes. A long route can still pay twice; it just has
+to be long rather than walked twice.
+
+The ledger lives on the trace object, so a new TE-ADDON is a clean slate
+without anything needing to remember to clear it.
 
 It is not a row on the end-of-run tally, for the same reason the champion's
 three hundred thousand is not: the tally is four lines and the total underneath

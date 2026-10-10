@@ -407,7 +407,8 @@ var AUDIO = (function(){
       }
       src.connect(g); g.connect(master); src.start();
       src.stop(t + end + 0.02);
-      reap(src, [g], t + end + 0.05);
+      /* held: a voice line is never evicted early by the chain ceiling */
+      reap(src, [g], t + end + 0.05, true);
     } catch (e){}
   }
 
@@ -429,7 +430,7 @@ var AUDIO = (function(){
      catches anything whose `onended` never arrived - a context suspended
      mid-cue, which is exactly what happens when somebody takes a call. */
   var LIVE_CHAINS = [];
-  function reap(src, nodes, endsAt){
+  function reap(src, nodes, endsAt, hold){
     var done = false;
     function cut(){
       if (done) return;
@@ -440,11 +441,28 @@ var AUDIO = (function(){
       }
     }
     src.onended = cut;
-    LIVE_CHAINS.push({ at:endsAt, cut:cut, isDone:function(){ return done; } });
+    LIVE_CHAINS.push({ at:endsAt, cut:cut, hold:!!hold,
+                       isDone:function(){ return done; } });
     /* Hard ceiling. If something ever stops firing onended entirely, this is
        what keeps the graph from growing without bound: the oldest chains are
-       cut on the spot rather than waiting for a sweep. */
-    while (LIVE_CHAINS.length > 400) LIVE_CHAINS.shift().cut();
+       cut on the spot rather than waiting for a sweep.
+
+       A HELD CHAIN IS SKIPPED. The ceiling evicts oldest-first, and a voice
+       line is both the longest-lived chain in the engine and therefore always
+       among the oldest - so a burst of short tones over the two or three
+       seconds a sample is playing could reach 400 and disconnect the sample
+       mid-word. Everything else here is a tone that is over in a fifth of a
+       second and genuinely does not matter; a line somebody is listening to
+       does. At most four of these exist at once, so holding them cannot be
+       what makes the graph grow. */
+    if (LIVE_CHAINS.length > 400){
+      var over = LIVE_CHAINS.length - 400, ci = 0;
+      while (over > 0 && ci < LIVE_CHAINS.length){
+        if (LIVE_CHAINS[ci].hold){ ci++; continue; }
+        LIVE_CHAINS.splice(ci, 1)[0].cut();
+        over--;
+      }
+    }
   }
   function sweepAudio(){
     if (!ac || !LIVE_CHAINS.length) return;
@@ -5482,7 +5500,7 @@ function unitsUpsell(){
      add-on, the agent and the champion all announce what they were worth. The
      banner in the top strip says WHAT happened; this says how much, and it
      says it where the player is already looking - at him. */
-  moneyRise(UPSELL_AMT);
+  moneyRise(UPSELL_AMT, "UNITS UPSELL");
   burst(G.col*TILE + TILE/2, rowScreenY(G.row) - 40, POWERS.path.col);
 }
 
@@ -5896,10 +5914,29 @@ function act(dir){
          off and what the bonus is paid off, so the note you hear IS the
          number you are on - the alternative was two counts of the same thing
          kept in two places, which is how the sound and the money end up
-         disagreeing about whether you earned it. */
-      G.traceRun = (G.traceRun || 0) + 1;
-      if (G.traceRun >= TRACE_RUN){ unitsUpsell(); AUDIO.traceTop(); }
-      else AUDIO.traceHop(G.traceRun);
+         disagreeing about whether you earned it.
+
+         AND EACH NODE COUNTS ONCE. Walking the first ten, retreating, and
+         walking them again paid twice for the same ten squares - the run
+         resets when he steps backwards, which is exactly what a farmer
+         wants. The route keeps a ledger of what it has already given up, so
+         a second pass over old ground earns nothing.
+
+         A retread neither advances the run nor breaks it: he is still on the
+         line, he is just not buying anything with it. That is precisely what
+         traceStep already means - the flat note, "the same idea, flat,
+         because it buys no ground" - so it is the sound a repeated node
+         makes. Ten FRESH nodes still pay, which is why a long route can
+         still pay twice; it just has to be long rather than walked twice. */
+      if (!G.trace.took) G.trace.took = {};
+      var nodeKey = nr + ":" + nc;
+      if (G.trace.took[nodeKey]) AUDIO.traceStep();
+      else {
+        G.trace.took[nodeKey] = 1;
+        G.traceRun = (G.traceRun || 0) + 1;
+        if (G.traceRun >= TRACE_RUN){ unitsUpsell(); AUDIO.traceTop(); }
+        else AUDIO.traceHop(G.traceRun);
+      }
     } else { G.traceRun = 0; AUDIO.hop(); }
     G.fiscT = Math.min(FISC_MAX, G.fiscT + FISC_PER_HOP);
   } else {
@@ -16610,9 +16647,15 @@ var BADGE_K = 0.82;
    together are the only reason anybody notices a number in the corner
    changing. */
 var PIPE_POP = 1.4, RISE_SECS = 1.9;
-function moneyRise(amt){
+/* `note` replaces the line under the figure for the one bonus that has a
+   name worth saying. Everything else leaves it out and keeps ON THE PIPELINE,
+   which is the right line when the number IS the whole story - the pickup
+   already announced itself in the top strip and in a burst. The upsell is the
+   one you earn rather than collect, so it is also the one where the figure
+   alone does not say what you did. */
+function moneyRise(amt, note){
   var pp = playerPos();
-  G.rise = { life:RISE_SECS, max:RISE_SECS, amt:amt,
+  G.rise = { life:RISE_SECS, max:RISE_SECS, amt:amt, note:note || null,
              x:pp.col*TILE + TILE*0.5, y:rowScreenY(pp.row) - 96 };
   G.pipePop = PIPE_POP;
 }
@@ -16642,7 +16685,7 @@ function drawMoneyRise(){
   ctx.globalAlpha = a;
   txt(lab, R.x, y, 54, up ? C.good : C.danger);
   ctx.globalAlpha = a * 0.8;
-  txt(up ? "ON THE PIPELINE" : "OFF THE PIPELINE", R.x, y + 34, 22,
+  txt(R.note || (up ? "ON THE PIPELINE" : "OFF THE PIPELINE"), R.x, y + 34, 22,
       up ? "#bdf0cd" : "#ffc9d2");
   ctx.globalAlpha = 1;
 }
