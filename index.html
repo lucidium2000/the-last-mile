@@ -2395,28 +2395,43 @@ var WALK_ODDS = 0.25;
    canyon and a one-lane side street took the same off him, standing still
    cost nothing at all, and a step sideways to dodge a bus was free.
 
-   Now: three quarters of a point for every box he covers on foot, and three
-   eighths for every second the run is live. The first makes distance the
-   price of distance - a sideways dodge is ground travelled and is charged
-   for, which is what makes the traced route and the swerve worth something.
-   The second means standing on a corner reading the traffic is never free,
-   which is the one behaviour the old model actively rewarded.
+   Now: half a point for every box he covers on foot, and a quarter point for
+   every second the run is live. The first makes distance the price of
+   distance - a sideways dodge is ground travelled and is charged for, which
+   is what makes the traced route and the swerve worth something. The second
+   means standing on a corner reading the traffic is never free, which is the
+   one behaviour the old model actively rewarded.
 
    The subway is still free of the per-box charge: he is sitting down, and
    charging forty boxes for a ride would make the metrocard a trap. The
    clock keeps running though - time passes on a train like anywhere else.
 
-   These rates have been walked in from both ends. They shipped at 1 and 0.5,
-   which came to roughly 1.9x the old per-street drain and turned the food
-   cart from a thing you took when it was on your way into a thing you had to
-   go and find - a man detouring for a hot dog is not a man walking uptown.
-   Halving both overshot the other way: the walk stopped costing enough to
-   make the route worth tracing, and a cart you passed was a cart you could
-   ignore. These are the midpoint, and they are the ones to move if it is
-   still wrong - in that order, box first, because the ground is what the
-   player can see himself spending. */
-var HP_PER_BOX  = 0.75;
-var HP_PER_SEC  = 0.375;
+   THE HISTORY, because these two numbers have been moved four times and the
+   next person to move them should know which way each one went.
+
+     1    / 0.5    shipped. About 1.9x the per-street drain it replaced, and
+                   it turned the food cart from a thing you took when it was
+                   on your way into a thing you had to go and find. A man
+                   detouring for a hot dog is not a man walking uptown.
+     0.5  / 0.25   overshot. The walk stopped costing enough for the route to
+                   be worth tracing and a cart you passed was a cart you
+                   could ignore.
+     0.75 / 0.375  the midpoint - but it landed AFTER the food carts were
+                   thinned by 15%, and the two changes compounded into a walk
+                   nobody could finish.
+     0.5  / 0.25   where it is now. Back to the rate that was too soft, on
+                   purpose: it is not the same game at that rate any more,
+                   because there are 15% fewer carts to find and the health
+                   on offer per street went 17.0% -> 14.4%. Same drain,
+                   ~15% less supply, so this sits between the two.
+
+   If it needs moving again, move HP_PER_BOX and leave the clock alone. The
+   ground is the cost a player can watch himself spending - he sees the bar
+   move when he steps - so changing it reads as the game being harder. The
+   clock he feels without being able to point at it, and moving that mostly
+   makes runs end at a time he cannot explain. */
+var HP_PER_BOX  = 0.5;
+var HP_PER_SEC  = 0.25;
 var HP_PER_STREET = 0;     // retired; the drain is per box and per second
 var HP_LOW = 25;           // below this the bar starts shouting
 var HP_CRAWL = 5;          // and below this it only costs a point a street
@@ -4216,8 +4231,8 @@ function act(dir){
   }
 
   G.steps++;
-  /* Three quarters of a point a box, counting every square the step covers -
-     a three-row leap costs three boxes, a sideways dodge costs one. */
+  /* Half a point a box, counting every square the step covers - a three-row
+     leap costs three boxes, a sideways dodge costs one. */
   spendHp(HP_PER_BOX * Math.max(1, Math.abs(nr - G.row) + Math.abs(nc - G.col)));
   G.fromRow = G.row; G.fromCol = G.col;
   G.row = nr; G.col = nc; G.hop = 0;
@@ -8130,7 +8145,7 @@ function update(dt){
 
   // the commute clock: only forward progress buys time back
   if (G.state === ST_PLAY){
-    /* Three eighths a second, everywhere the run is live - on the pavement,
+    /* A quarter point a second, everywhere the run is live - on the pavement,
        in the road, on the train, behind a cutscene. Time is the other thing
        he is spending and it does not stop because he is sitting down. */
     spendHp(HP_PER_SEC * dt);
