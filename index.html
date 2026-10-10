@@ -1381,6 +1381,10 @@ var cv = document.getElementById("c");
 var ctx = cv.getContext("2d", { alpha:false });
 var scale = 1, BAKE = 1, ready = false;
 var skyGrad = null, hazeGrad = null, tamBeamGrad = null, addonBeamGrad = null;
+/* Declared with the rest of them. Assigning an undeclared name in a strict
+   file is a ReferenceError at run time, and a parse check will not find it -
+   `new Function(src)` compiles the source without ever executing layout(). */
+var traceBeamGrad = null;
 var champBeamGrad = null;
 
 function layout(){
@@ -1441,6 +1445,18 @@ function layout(){
   addonBeamGrad.addColorStop(0,    "rgba(255,217,135,0.30)");
   addonBeamGrad.addColorStop(0.35, "rgba(255,194,61,0.15)");
   addonBeamGrad.addColorStop(1,    "rgba(255,194,61,0)");
+  /* THE PACK GLOWS GREEN, because what is inside it is the route and the
+     route is green end to end - line, ticks, nodes, packets. The box is
+     amber, its ribbon is green, and the light coming out of it is the colour
+     of the thing it is about to hand over, so the connection is made before
+     the banner has finished saying it.
+
+     Two stops rather than three: this one has to stay a glow, and a bright
+     middle band turns a column of light into a shaft of something solid. */
+  traceBeamGrad = ctx.createLinearGradient(0, 0, 0, -300);
+  traceBeamGrad.addColorStop(0,    "rgba(110,240,170,0.34)");
+  traceBeamGrad.addColorStop(0.42, "rgba(53,208,127,0.13)");
+  traceBeamGrad.addColorStop(1,    "rgba(53,208,127,0)");
   // and a narrow one for a champion, in the Endpoint blue
   champBeamGrad = ctx.createLinearGradient(0, 0, 0, -250);
   champBeamGrad.addColorStop(0,    "rgba(160,196,255,0.26)");
@@ -5041,6 +5057,13 @@ function act(dir){
            scenery and behaves as a wall. It blinks out instead, and the
            column comes back with it. */
         kp.usedAt = G.t;
+        /* AND THE COLUMN COMES BACK NOW, not in two seconds. The lid is off,
+           the route is pouring out of the middle of it and the path runs up
+           the square beyond - and the one thing standing between him and
+           getting on it was the box he had just opened. An open box is a
+           thing you step through. The prop itself is swept away on its own
+           clock by sweepKiosks; this is only the block. */
+        if (target.blocked) delete target.blocked[nc];
         G.revealT = Math.max(G.revealT, POWERS.path.secs);
         /* From the square ABOVE the box, not from him and not from the box
            itself. The route was inside it - that is the whole reason the pack
@@ -13064,12 +13087,12 @@ function drawKiosk(col, sy, used, usedAt){
     }
     var mouth0 = sy - KIOSK_TOP * ZH;
 
-    /* The route going up out of it. Wide and bright on the first frame,
-       narrowing and dimming as the pack empties. */
+    /* The route going up out of it, in the route's own green. Wide and
+       bright on the first frame, narrowing and dimming as the pack empties. */
     ctx.save();
     ctx.translate(mx0, mouth0);
     ctx.globalAlpha = dim * (0.25 + 0.70 * open);
-    ctx.fillStyle = addonBeamGrad;
+    ctx.fillStyle = traceBeamGrad;
     ctx.fillRect(-52, -340, 104, 340);
     ctx.globalAlpha = dim * (0.20 + 0.55 * open);
     ctx.fillRect(-15, -340, 30, 340);
@@ -13123,10 +13146,15 @@ function drawKiosk(col, sy, used, usedAt){
      rather than starting in mid-air above it. */
   var mouthY = (sy - bob) - KIOSK_LID * ZH;
 
+  /* GREEN, because what is in the box is the route and the route is green
+     end to end - line, ticks, nodes, packets. The box is amber and its ribbon
+     is green, and the light leaving it is the colour of the thing it is about
+     to hand over, so the connection is made before the banner has finished
+     saying it. */
   ctx.save();
   ctx.translate(mx, mouthY);
   ctx.globalAlpha = 0.74 + 0.26*pul;
-  ctx.fillStyle = addonBeamGrad;
+  ctx.fillStyle = traceBeamGrad;
   ctx.fillRect(-44, -300, 88, 300);
   ctx.globalAlpha = 0.28 + 0.22*pul;
   ctx.fillRect(-13, -300, 26, 300);

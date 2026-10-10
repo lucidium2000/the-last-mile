@@ -3585,6 +3585,26 @@ street. `buildTrace` takes an origin now and defaults to the player, which is
 right for Path Visualization — that one is a thing he switches on from where
 he stands. The TE-ADDON is not.
 
+**The glow is green**, because what is in the box is the route and the route
+is green end to end — line, ticks, nodes, packets. The box is amber and its
+ribbon is green, and the light leaving it is the colour of the thing it is
+about to hand over, so the connection is made before the banner has finished
+saying it. Two gradient stops rather than three: this one has to stay a glow,
+and a bright middle band turns a column of light into a shaft of something
+solid. Measured at (42, 88, 67) against a (61, 73, 84) backdrop.
+
+**And you can walk through it the moment it opens.** The lid is off, the route
+is pouring out of the middle of it and the path runs up the square beyond —
+and the one thing between him and getting on it was the box he had just
+opened. The block comes out of `row.blocked` on use rather than two seconds
+later when the prop is swept; an open box is a thing you step through.
+
+**One trap worth recording.** `traceBeamGrad` was assigned without being
+declared, which in a strict-mode file is a `ReferenceError` the moment
+`layout()` runs — and the parse check never saw it, because
+`new Function(src)` compiles the source without executing any of it. Declared
+with the other gradients now.
+
 **And the pack sits on its own route.** The trace is drawn at
 `c*TILE + TILE*0.5` with no shear at all — it is a line on the floor, and the
 floor is not sheared. Everything with HEIGHT is: cabinet projection pushes a
