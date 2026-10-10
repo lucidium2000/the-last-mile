@@ -99,6 +99,27 @@ hands off to two more scenes, chained on a `then` field rather than keyed to a
 street, because neither of them is in Midtown. 25.2 seconds of ending in all,
 verified by running the whole chain through the real `updateScene`.
 
+**The ending never shows the street again.** A landmark scene fades back to
+Midtown because that is where it returns you; the ending does not, and for
+five scenes in a row it was doing it anyway. `a` falls to 0 over the last
+0.35s and the backdrop is only 93% opaque even at full strength, so the street
+showed faintly through all of them and **fully through every join** — four
+times, a third of a second of pavement in the middle of a man's victory lap.
+Measured: alpha on the last frame of each ending scene was **0.029**, and is
+now **1.0**.
+
+Two flags fix it, and both describe what the scene *is* rather than what it
+should look like. `solid` means this scene is a **place**, not an overlay on
+the street, so opaque black goes down first and a fade-in comes from black.
+`holdOut` means it hands straight to another scene, so it does not fade out at
+all — it cuts. The last one carries `holdOut` too, because it hands to the
+readout, which is up on the very next frame.
+
+**And a tap during a cutscene does nothing.** `update()` returns early while
+one is up, so a tap could never kill him — but it could still walk him,
+collect a pickup and bank a crossing behind the picture, with every queued tap
+landing at once the moment it lifted.
+
 **And BOOKED has a sound.** The stamp, the paper under it and the money, in
 that order and overlapping — because that is the order those three things
 happen in and a chord of them is a noise rather than an event. It used to land
@@ -145,9 +166,20 @@ same quadratic, so they cannot disagree about where the route is. The cloud
 deck scrolls the other way, which is the only thing telling you the aeroplane
 is moving rather than the frame.
 
-The cue is deliberately almost nothing — filtered noise in two octaves with a
-long rise and fall, and a two-tone cabin chime over it. A transition with a
-tune on it is a scene.
+The cue has no tune — a transition with a melody on it stops being a
+transition — but it has six things in it, which are the six that actually make
+that sound: a **spool-up**, so the engines rise into the scene rather than
+being at full tilt on frame one (two sweeps a fifth apart, which is what a
+pair of turbofans not quite in sync does); the **engines in three bands**, a
+low rumble you feel, a mid whoosh with the body in it and a high hiss for the
+air going past outside, because one band of noise is a hairdryer and three is
+a cabin; a **throb** built from eleven overlapping swells at drifting gains,
+since a sine LFO is a wobble and this has to be a drift; the **vent** above
+the seat, thin and the only thing that never changes; the **two-tone chime**
+three times, which is the most recognisable sound on an aeroplane and costs
+four notes; and a **muffled PA** underneath, two or three low-passed blips
+that are obviously somebody talking and obviously not worth listening to.
+Plus the gear coming up: one servo and a thud.
 
 **CISCO CLUB** — up on the big stage at GSX. An arena: LED wall, truss with
 six heads swinging on their own phase, a lit deck, and four ranks of audience

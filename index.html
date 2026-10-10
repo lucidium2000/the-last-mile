@@ -875,23 +875,76 @@ var AUDIO = (function(){
       hit({ f:6200, hp:true, dur:0.9, g:0.026, at:0.22 });
     },
 
-    /* THE FLIGHT - jet noise and not much else. A wide, slow swell of
-       filtered noise with a long rise and a long fall, two octaves of it so
-       it has a body, and three soft cabin chimes over the top. It is the one
-       cue in the file that is deliberately almost nothing: the aeroplane is
-       a transition, and a transition with a tune on it is a scene. */
+    /* THE FLIGHT. Four and a half seconds of being inside an aeroplane,
+       built out of the six things that actually make that sound:
+
+       THE SPOOL-UP. The first thing you hear is the engines coming up, so
+       the noise RISES into the scene rather than being at full tilt on the
+       first frame. Two sweeps, a fifth apart, which is what a pair of
+       turbofans not quite in sync does.
+
+       THE ENGINES, in three bands. A low rumble you feel, a mid whoosh that
+       carries the body, and a high hiss for the air going past outside.
+       One band of noise is a hairdryer; three is a cabin.
+
+       THE THROB. Real engines beat against each other and the interference
+       is slow and uneven. Eleven overlapping swells at drifting gains do
+       it - a pure sine LFO would be a wobble, and this has to be a drift.
+
+       THE AIR, from the vent above the seat: continuous, thin, and the only
+       thing that never changes.
+
+       THE CHIMES. Two-tone, three times - once as it climbs, once in the
+       middle, once as it starts down. It is the most recognisable sound on
+       an aeroplane and it costs four notes.
+
+       AND THE PA under it, muffled: two short low-passed blips that are
+       obviously somebody talking and obviously not worth listening to.
+
+       Still no tune. A transition with a melody on it stops being a
+       transition. */
     flightTheme: function(){
-      for (var i = 0; i < 5; i++){
-        hit({ f:260, dur:1.9, g:0.040, at:i * 0.95 });
-        hit({ f:120, dur:2.2, g:0.030, at:i * 0.95 + 0.2 });
+      var i, DUR = 4.6;
+
+      // 1. the spool-up
+      tone({ f:48,  to:96,  dur:1.5, type:"sawtooth", g:0.050, at:0,    lp:170 });
+      tone({ f:72,  to:142, dur:1.4, type:"sawtooth", g:0.034, at:0.09, lp:210 });
+      hit({ f:200, dur:1.3, g:0.030, at:0 });
+
+      // 2. the engines, three bands, overlapping so there is no seam
+      for (i = 0; i < 7; i++){
+        hit({ f:110, dur:1.5, g:0.034, at:i * 0.70 });          // the rumble
+        hit({ f:330, dur:1.4, g:0.030, at:i * 0.70 + 0.18 });   // the body
+        hit({ f:1750, hp:true, dur:1.2, g:0.015, at:i * 0.70 + 0.34 }); // outside
       }
-      tone({ f:62, dur:4.6, type:"sawtooth", g:0.045, at:0, lp:150 });
-      tone({ f:93, dur:4.4, type:"sine",     g:0.022, at:0.1, lp:200 });
-      // the two-tone cabin chime, twice
-      tone({ f:783.99, dur:0.42, type:"sine", g:0.050, at:0.55, lp:3000 });
-      tone({ f:587.33, dur:0.60, type:"sine", g:0.045, at:0.80, lp:3000 });
-      tone({ f:783.99, dur:0.42, type:"sine", g:0.038, at:3.10, lp:3000 });
-      tone({ f:587.33, dur:0.60, type:"sine", g:0.034, at:3.35, lp:3000 });
+      // the steady note under the noise that makes it an engine and not wind
+      tone({ f:96,  dur:DUR, type:"sawtooth", g:0.042, at:0.6,  lp:160 });
+      tone({ f:144, dur:DUR - 0.8, type:"sine", g:0.020, at:0.7, lp:230 });
+
+      // 3. the throb: overlapping swells at drifting gains
+      for (i = 0; i < 11; i++){
+        hit({ f:150, dur:0.62, g:0.016 + 0.012 * Math.sin(i * 1.9), at:0.5 + i * 0.37 });
+      }
+
+      // 4. the vent above the seat
+      hit({ f:5200, hp:true, dur:DUR, g:0.012, at:0 });
+
+      // 5. the chimes, three times
+      var ding = [0.75, 2.05, 3.45];
+      for (i = 0; i < ding.length; i++){
+        var g0 = i === 1 ? 0.034 : 0.046;
+        tone({ f:783.99, dur:0.40, type:"sine", g:g0,        at:ding[i],        lp:3000 });
+        tone({ f:587.33, dur:0.58, type:"sine", g:g0 * 0.9,  at:ding[i] + 0.25, lp:3000 });
+      }
+
+      // 6. the PA, muffled, after the second chime
+      tone({ f:210, to:186, dur:0.30, type:"sawtooth", g:0.022, at:2.62, lp:420 });
+      tone({ f:192, to:224, dur:0.26, type:"sawtooth", g:0.020, at:2.98, lp:420 });
+      tone({ f:176, to:168, dur:0.34, type:"sawtooth", g:0.018, at:3.30, lp:420 });
+
+      /* And the gear coming up behind all of it - one servo and a thud. */
+      tone({ f:300, to:120, dur:0.52, type:"sawtooth", g:0.026, at:1.30, lp:700 });
+      hit({ f:120, dur:0.22, g:0.045, at:1.86 });
     },
 
     /* THE STAGE - a brass fanfare that keeps going. Everything else in this
@@ -4381,6 +4434,11 @@ function wake(){
 
 function act(dir){
   if (wake()) return;
+  /* NOT DURING A CUTSCENE. update() returns early while one is up, so a tap
+     could not kill him - but it could still walk him, collect a pickup and
+     bank a crossing behind the picture, and the taps would all land at once
+     the moment it lifted. A scene is a thing you watch. */
+  if (G.scene) return;
   /* A FRONT PAGE IS A THING YOU PUT DOWN. It freezes the world for 2.6s,
      which is right the first time and long by the fortieth - and a player
      who has read it is a player waiting. Any tap or swipe folds it, and the
@@ -7926,7 +7984,32 @@ var SCENE_SECS = 2.9;
 function sceneFrame(title, sub, body, sc){
   var R = G.scene, t = R.t;
   var fin = Math.min(1, t/0.3), fout = Math.min(1, (R.len - t)/0.35);
+
+  /* A LANDMARK SCENE FADES BACK TO THE STREET, BECAUSE THAT IS WHERE IT
+     RETURNS YOU. The ending does not, and for five scenes in a row it was
+     doing it anyway: `a` falls to 0 over the last 0.35s and the backdrop is
+     only 93% opaque even at full strength, so Midtown was showing faintly
+     through all of them and FULLY through every join. Four times, between
+     Penn 1 and the plane, the plane and the stage, the stage and the second
+     plane, and the second plane and the beach - a third of a second of
+     pavement in the middle of a man's victory lap.
+
+     Two flags fix it, and both describe what the scene is rather than what
+     it should look like:
+
+       solid   - this scene is a PLACE, not an overlay on the street.
+                 Opaque black goes down first, so a fade-in is from black.
+       holdOut - this scene hands straight to another one, so it does not
+                 fade out at all. It cuts.
+
+     The first scene of the chain keeps its fade IN, because it is arrived
+     at from the street and that transition is honest. */
+  if (sc && sc.holdOut) fout = 1;
   var a = Math.max(0, Math.min(fin, fout));
+  if (sc && sc.solid){
+    ctx.globalAlpha = 1; ctx.fillStyle = "#07080c";
+    ctx.fillRect(0, 0, LOGICAL_W, LOGICAL_H);
+  }
   ctx.globalAlpha = a * 0.93; ctx.fillStyle = "#07080c";
   ctx.fillRect(0, 0, LOGICAL_W, LOGICAL_H);
   ctx.globalAlpha = a;
@@ -10160,7 +10243,7 @@ var SCENES = {
    opposite order, because both are keyed on the street number. */
 var SCENES_BACK = {
   34: { title:"PENN 1",             sub:"Thirty-fourth and Seventh",  draw:scenePenn,
-        secs:8.3, music:"city", then:"flyVegas",
+        secs:8.3, music:"city", then:"flyVegas", solid:true, holdOut:true,
         /* BOOKED lands at 3.2 into the desk shot, which is PENN_CUT + 3.2
            absolute. It used to land in silence, which is the one moment in
            the whole run the player has been walking towards. */
@@ -10207,20 +10290,23 @@ var SCENES_END = {
      the explaining and the scene after it is free. */
   flyVegas: { title:"WHEELS UP", sub:"Thirty-three hundred miles to the desert",
               draw:function(t, a){ sceneFlight(t, a, FLY_VEGAS); },
-              secs:FLY_VEGAS.secs, music:"flight",
+              secs:FLY_VEGAS.secs, music:"flight", solid:true, holdOut:true,
               beats:[[0.30,"stage"]], then:"stage" },
   stage: { title:"CISCO CLUB",  sub:"Up on the big stage at GSX",
-           draw:sceneStage, secs:9.4, music:"stage",
+           draw:sceneStage, secs:9.4, music:"stage", solid:true, holdOut:true,
            beats:[[2.3,"stage"], [4.45,"deal"], [4.8,"chaChing"], [5.4,"cheer"]],
            then:"flyKona" },
   flyKona:  { title:"ONE MORE FLIGHT", sub:"Twenty-seven hundred more, and then nothing",
               draw:function(t, a){ sceneFlight(t, a, FLY_KONA); },
-              secs:FLY_KONA.secs, music:"flight",
+              secs:FLY_KONA.secs, music:"flight", solid:true, holdOut:true,
               beats:[[0.30,"stage"]], then:"cabana" },
   /* The last line of the game, and the only joke in it that is about the
      job rather than about the walk. Everything up to here has been reward;
      this is the one that lands on the way out of the room. */
-  cabana:{ title:"HANALEI BAY",
+  /* holdOut on the last one too: it hands to the readout, which is up on
+     the very first frame after it, and without it the beach faded back to
+     a Midtown pavement for a third of a second before the word BOOKED. */
+  cabana:{ title:"HANALEI BAY", solid:true, holdOut:true,
            sub:"Soak it in and ENJOY!",
            /* Three seconds, not two. The first line has to be read, landed
               and sat with before the second one starts - a beat that is
