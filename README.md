@@ -156,8 +156,22 @@ does the explaining and the scene after it is free.
 One function, two destinations — the sky, the ground at each end and the words
 on the card all come in as data, because two near-identical scene functions is
 how a file ends up with two different aeroplanes. Manhattan behind him and the
-Strip ahead on the first; the Strip behind and an island ahead on the second,
-with the clock run forward from night to morning.
+Strip ahead on the first; nothing behind him and an island ahead on the
+second, with the clock run forward from night to morning.
+
+**One of them is a leg and one of them is only a destination.** The first card
+reads NEW YORK → LAS VEGAS, which is a flight people take. The second read LAS
+VEGAS → KONA, which is not — there is no non-stop, and anyone who has actually
+made that trip has done it through somewhere. So the second card drops the
+origin entirely and says **KONA OR BUST**: no arrow, no FROM, one line. The
+card handles both by asking whether it was given a `fromName` rather than by
+being two cards.
+
+The silhouette behind him went with it. Drawing the Strip on the left of that
+frame is claiming the same route in pictures, so by this leg there is nothing
+back there — he is simply already out over water, which is also why the sub
+is now *"Out over the Pacific, and then nothing at all"* instead of counting
+off a mileage that only makes sense from the desert.
 
 The plane flies an **arc**, not a line: a straight line across a frame is a
 sprite being dragged, a curve is a journey, and the bank angle falls out of

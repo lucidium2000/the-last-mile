@@ -9651,17 +9651,25 @@ function sceneFlight(t, a, o){
   ctx.globalAlpha = a * ce2;
   plate(CX2, CY2, CW2, CH2, "rgba(8,10,16,0.84)", 12);
   ctx.fillStyle = C.brand; ctx.fillRect(CX2, CY2, 6, CH2);
-  txt(o.fromName, CX2 + 34, CY2 + 40, 38, C.text, "left");
-  txt(o.toName,   CX2 + CW2 - 34, CY2 + 40, 38, C.brand, "right");
-  /* An arrow between them, drawn rather than typed - a right-arrow glyph
-     resolves to whatever the panel has and lands off the baseline. */
-  ctx.fillStyle = C.textDim;
-  ctx.fillRect(CX2 + CW2/2 - 34, CY2 + 37, 50, 5);
-  ctx.beginPath();
-  ctx.moveTo(CX2 + CW2/2 + 28, CY2 + 39.5);
-  ctx.lineTo(CX2 + CW2/2 + 10, CY2 + 29);
-  ctx.lineTo(CX2 + CW2/2 + 10, CY2 + 50);
-  ctx.closePath(); ctx.fill();
+  /* A LEG, or just a DESTINATION. The first flight is a real route and gets
+     a FROM and a TO; the second is not - nobody flies Las Vegas to Kona
+     non-stop - so it names where he is going and says nothing about where
+     he left, which is both funnier and true. */
+  if (o.fromName){
+    txt(o.fromName, CX2 + 34, CY2 + 40, 38, C.text, "left");
+    txt(o.toName,   CX2 + CW2 - 34, CY2 + 40, 38, C.brand, "right");
+    /* An arrow between them, drawn rather than typed - a right-arrow glyph
+       resolves to whatever the panel has and lands off the baseline. */
+    ctx.fillStyle = C.textDim;
+    ctx.fillRect(CX2 + CW2/2 - 34, CY2 + 37, 50, 5);
+    ctx.beginPath();
+    ctx.moveTo(CX2 + CW2/2 + 28, CY2 + 39.5);
+    ctx.lineTo(CX2 + CW2/2 + 10, CY2 + 29);
+    ctx.lineTo(CX2 + CW2/2 + 10, CY2 + 50);
+    ctx.closePath(); ctx.fill();
+  } else {
+    txt(o.toName, CX2 + 34, CY2 + 40, 38, C.brand, "left");
+  }
   txt(o.cardSub, CX2 + 34, CY2 + 82, 22, C.textDim, "left");
   ctx.globalAlpha = a;
 }
@@ -10274,10 +10282,12 @@ var FLY_KONA = {
   sky:["#1d3b6b", "#2f5f94", "#4e87ae", "#7fb1c4", "#b9d7d8"],
   cloud:"#eaf2f6", ground:"#1b3a3a", trail:"#ffffff",
   plane:"#f6f8fb", win:"#2f6b8a", neon:false,
-  fromName:"LAS VEGAS", toName:"KONA",
+  fromName:null, toName:"KONA OR BUST",
   cardSub:"OUT OVER THE PACIFIC. YOU EARNED THIS ONE.",
-  from:[[0,120,44],[52,180,38],[98,90,52],[156,150,40],[204,230,22],
-        [232,110,58],[298,160,34],[340,100,46]],
+  /* No skyline behind him. Naming the city he left would be claiming a
+     route that does not exist, and drawing it would be saying the same
+     thing in silhouette - by this leg he is simply already over water. */
+  from:[],
   /* An island: one volcano and a line of palms, not a skyline. */
   to:[[40,70,40],[82,130,70],[150,168,96],[244,120,64],[302,64,40],
       [352,38,26],[386,52,22]]
@@ -10296,7 +10306,7 @@ var SCENES_END = {
            draw:sceneStage, secs:9.4, music:"stage", solid:true, holdOut:true,
            beats:[[2.3,"stage"], [4.45,"deal"], [4.8,"chaChing"], [5.4,"cheer"]],
            then:"flyKona" },
-  flyKona:  { title:"ONE MORE FLIGHT", sub:"Twenty-seven hundred more, and then nothing",
+  flyKona:  { title:"ONE MORE FLIGHT", sub:"Out over the Pacific, and then nothing at all",
               draw:function(t, a){ sceneFlight(t, a, FLY_KONA); },
               secs:FLY_KONA.secs, music:"flight", solid:true, holdOut:true,
               beats:[[0.30,"stage"]], then:"cabana" },
