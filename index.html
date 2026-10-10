@@ -860,6 +860,40 @@ var AUDIO = (function(){
       }
     },
 
+    /* BOOKED. The stamp, the paper, and the money - in that order and
+       overlapping, because that is the order those three things happen in
+       and a chord of them is a noise rather than an event. It is the one
+       sound in the game that marks the thing the whole walk was for. */
+    booked: function(){
+      hit({ f:180, dur:0.20, g:0.16 });                       // the stamp
+      hit({ f:2600, hp:true, dur:0.09, g:0.05, at:0.01 });    // paper under it
+      tone({ f:392.00, dur:0.42, type:"triangle", g:0.075, at:0.10, lp:2200 });
+      tone({ f:523.25, dur:0.42, type:"triangle", g:0.075, at:0.16, lp:2200 });
+      tone({ f:659.26, dur:0.70, type:"triangle", g:0.085, at:0.22, lp:2200 });
+      tone({ f:783.99, dur:0.90, type:"sine",     g:0.070, at:0.30, lp:2600 });
+      tone({ f:130.81, dur:0.95, type:"sawtooth", g:0.055, at:0.10, lp:260 });
+      hit({ f:6200, hp:true, dur:0.9, g:0.026, at:0.22 });
+    },
+
+    /* THE FLIGHT - jet noise and not much else. A wide, slow swell of
+       filtered noise with a long rise and a long fall, two octaves of it so
+       it has a body, and three soft cabin chimes over the top. It is the one
+       cue in the file that is deliberately almost nothing: the aeroplane is
+       a transition, and a transition with a tune on it is a scene. */
+    flightTheme: function(){
+      for (var i = 0; i < 5; i++){
+        hit({ f:260, dur:1.9, g:0.040, at:i * 0.95 });
+        hit({ f:120, dur:2.2, g:0.030, at:i * 0.95 + 0.2 });
+      }
+      tone({ f:62, dur:4.6, type:"sawtooth", g:0.045, at:0, lp:150 });
+      tone({ f:93, dur:4.4, type:"sine",     g:0.022, at:0.1, lp:200 });
+      // the two-tone cabin chime, twice
+      tone({ f:783.99, dur:0.42, type:"sine", g:0.050, at:0.55, lp:3000 });
+      tone({ f:587.33, dur:0.60, type:"sine", g:0.045, at:0.80, lp:3000 });
+      tone({ f:783.99, dur:0.42, type:"sine", g:0.038, at:3.10, lp:3000 });
+      tone({ f:587.33, dur:0.60, type:"sine", g:0.034, at:3.35, lp:3000 });
+    },
+
     /* THE STAGE - a brass fanfare that keeps going. Everything else in this
        file is a mood; this one is an announcement, so it is the only theme
        built on stacked fifths and a timpani rather than on a progression you
@@ -8999,82 +9033,6 @@ function drawWingsPin(px, py, w){
   if (!drawMark(px, py, w * 0.34)) drawLogoEye(px, py, w * 0.16);
 }
 
-/* RESORT WEAR, STANDING. sceneGuy's rules again - same 92x150 body box,
-   same 50x58 head, same front-on view - with the suit swapped for white
-   linen: long sleeves, an open collar with a V of chest in it, buttons down
-   the front and a hem that sits below the waist because the shirt is not
-   tucked in. That open-collar linen shirt is the uniform at one of these
-   and it is the single thing that says "the same man, off duty".
-
-   Parameterised rather than hard-coded to one person, because the moment
-   there are two figures on a beach there will be three. */
-function sceneGuyResort(x, feet, k, o){
-  o = o || {};
-  var skin  = o.skin  || "#d8ab86";
-  var hair  = o.hair  || "#b9bdc2";
-  var linen = o.linen || "#f4f2ec";
-  var trews = o.trews || "#e7e2d5";
-  var bw = 92 * k, bh = 150 * k, top = feet - bh;
-
-  // linen trousers, and a crease down each
-  ctx.fillStyle = trews;
-  ctx.fillRect(x - bw * 0.40, feet - bh * 0.46, bw * 0.35, bh * 0.46);
-  ctx.fillRect(x + bw * 0.05, feet - bh * 0.46, bw * 0.35, bh * 0.46);
-  ctx.fillStyle = shade(trews, -0.09);
-  ctx.fillRect(x - bw * 0.26, feet - bh * 0.46, 4 * k, bh * 0.46);
-  ctx.fillRect(x + bw * 0.19, feet - bh * 0.46, 4 * k, bh * 0.46);
-  ctx.fillStyle = shade(trews, -0.16);
-  ctx.fillRect(x - 3 * k, feet - bh * 0.46, 6 * k, bh * 0.46);
-  ctx.fillStyle = "#6b4a30";
-  ctx.fillRect(x - bw * 0.44, feet - 10 * k, bw * 0.39, 10 * k);
-  ctx.fillRect(x + bw * 0.05, feet - 10 * k, bw * 0.39, 10 * k);
-
-  // the shirt, untucked - the hem below the waist is most of the look
-  ctx.fillStyle = linen; ctx.fillRect(x - bw / 2, top, bw, bh * 0.64);
-  ctx.fillStyle = shade(linen, -0.07);
-  ctx.fillRect(x - bw / 2, top + bh * 0.58, bw, bh * 0.06);
-  // sleeves to the wrist, and a hand out of each
-  ctx.fillStyle = shade(linen, -0.04);
-  ctx.fillRect(x - bw / 2 - 10 * k, top + 5 * k, 13 * k, bh * 0.44);
-  ctx.fillRect(x + bw / 2 - 3 * k,  top + 5 * k, 13 * k, bh * 0.44);
-  ctx.fillStyle = skin;
-  ctx.fillRect(x - bw / 2 - 10 * k, top + bh * 0.44, 13 * k, 13 * k);
-  ctx.fillRect(x + bw / 2 - 3 * k,  top + bh * 0.44, 13 * k, 13 * k);
-
-  // the open collar: a V of chest, then a point either side of it
-  ctx.fillStyle = shade(skin, 0.04);
-  ctx.beginPath();
-  ctx.moveTo(x - 14 * k, top); ctx.lineTo(x + 14 * k, top);
-  ctx.lineTo(x, top + 28 * k);
-  ctx.closePath(); ctx.fill();
-  ctx.fillStyle = shade(linen, 0.04);
-  ctx.fillRect(x - 25 * k, top, 14 * k, 16 * k);
-  ctx.fillRect(x + 11 * k, top, 14 * k, 16 * k);
-  ctx.fillStyle = shade(linen, -0.26);
-  for (var bq = 0; bq < 4; bq++)
-    ctx.fillRect(x - 2 * k, top + (34 + bq * 21) * k, 4 * k, 6 * k);
-
-  // head
-  ctx.fillStyle = skin; ctx.fillRect(x - 25 * k, top - 58 * k, 50 * k, 58 * k);
-  /* Short and silver, and set back a little off the brow - a full cap of
-     hair down to the eyebrows is a young man, and this one is not. */
-  ctx.fillStyle = hair;
-  ctx.fillRect(x - 26 * k, top - 66 * k, 52 * k, 10 * k);
-  ctx.fillRect(x - 26 * k, top - 58 * k, 6 * k, 17 * k);
-  ctx.fillRect(x + 20 * k, top - 58 * k, 6 * k, 17 * k);
-  ctx.fillStyle = shade(hair, -0.14);
-  ctx.fillRect(x - 26 * k, top - 58 * k, 52 * k, 3 * k);
-  // eyes, and the big smile that is the whole of the photograph
-  ctx.fillStyle = "#241a12";
-  ctx.fillRect(x - 16 * k, top - 41 * k, 9 * k, 6 * k);
-  ctx.fillRect(x + 7 * k,  top - 41 * k, 9 * k, 6 * k);
-  ctx.fillStyle = "#7a4a36";
-  ctx.fillRect(x - 14 * k, top - 24 * k, 8 * k, 5 * k);
-  ctx.fillRect(x - 7 * k,  top - 20 * k, 15 * k, 6 * k);
-  ctx.fillRect(x + 6 * k,  top - 24 * k, 8 * k, 5 * k);
-  return { top:top, bw:bw, bh:bh };
-}
-
 /* THE SAME MAN, SITTING DOWN, IN HOLIDAY CLOTHES.
 
    This is sceneGuy's drawing rules applied to a seated figure: same 92x150
@@ -9416,7 +9374,7 @@ function sceneStage(t, a){
   var ce = 1 - Math.pow(1 - cw2, 2.2);
   var cx2 = (LOGICAL_W + 40) - ce * ((LOGICAL_W + 40) - CHUCK_X);
   if (cw2 > 0) pool(cx2, Math.min(1, ce * 1.6));
-  var chuck = sceneGuy(cx2, FEET, K, "#223049", "#d8ab86", "#b9bdc2",
+  var chuck = sceneGuy(cx2, FEET, K, "#223049", "#d8ab86", "#241f1b",
                        { tie:"#7fb3d8" });
 
   /* THE HANDSHAKE. Both arms out to a point between them, and a pump - two
@@ -9474,6 +9432,155 @@ function sceneStage(t, a){
     }
     ctx.globalAlpha = a;
   }
+}
+
+/* ------------------------------------------------------------ THE FLIGHT
+   Penn 1 is on 33rd and GSX is in Las Vegas, and the beach is in Hawaii.
+   Cutting straight from a lobby desk to an arena, and from an arena to a
+   sunset, asks the player to have travelled four thousand miles between two
+   frames. Five seconds of aeroplane is the oldest fix in cinema and it
+   still works: the map does the explaining and the scene after it is free.
+
+   One function, two destinations. Everything that differs - the sky, what
+   is on the ground at each end, the words on the card - comes in as `o`,
+   because two near-identical scene functions is how a file ends up with
+   two different aeroplanes.
+
+   The plane flies an ARC, not a line. A straight line across a frame is a
+   sprite being dragged; a curve is a journey, and the bank angle falls out
+   of the tangent for free. */
+function sceneFlight(t, a, o){
+  var i, dur = o.secs;
+  // the sky
+  for (i = 0; i < o.sky.length; i++){
+    ctx.fillStyle = o.sky[i];
+    ctx.fillRect(0, 150 + i * (740 / o.sky.length),
+                 LOGICAL_W, 740 / o.sky.length + 1);
+  }
+  /* Stars or sun, depending which way the clock has gone. */
+  if (o.stars){
+    for (i = 0; i < 90; i++){
+      var sx2 = (i * 211) % LOGICAL_W, sy2 = 160 + ((i * 97) % 330);
+      ctx.globalAlpha = a * (0.25 + 0.55 * (0.5 + 0.5 * Math.sin(t * 2 + i)));
+      ctx.fillStyle = "#e8eefc";
+      ctx.fillRect(sx2, sy2, 3, 3);
+    }
+    ctx.globalAlpha = a;
+  } else {
+    ctx.globalAlpha = a * 0.28; ctx.fillStyle = "#ffd9a0";
+    ctx.beginPath(); ctx.arc(LOGICAL_W * 0.76, 330, 170, 0, Math.PI*2); ctx.fill();
+    ctx.globalAlpha = a; ctx.fillStyle = "#fff0c4";
+    ctx.beginPath(); ctx.arc(LOGICAL_W * 0.76, 330, 76, 0, Math.PI*2); ctx.fill();
+  }
+
+  /* A cloud deck scrolling the other way, which is the only thing telling
+     you the aeroplane is moving rather than the frame. */
+  for (i = 0; i < 14; i++){
+    var cw4 = 180 + ((i * 83) % 260);
+    var cx4 = ((i * 317 - t * (70 + (i % 4) * 30)) % (LOGICAL_W + 700)) ;
+    if (cx4 < -400) cx4 += LOGICAL_W + 700;
+    var cy4 = 600 + ((i * 53) % 190);
+    ctx.globalAlpha = a * 0.5;
+    ctx.fillStyle = o.cloud;
+    ctx.fillRect(cx4, cy4, cw4, 20);
+    ctx.fillRect(cx4 + 44, cy4 - 13, cw4 * 0.55, 14);
+    ctx.globalAlpha = a;
+  }
+
+  /* The ground at each end: where he took off from on the left, where he is
+     going on the right, both low and in silhouette. */
+  ctx.fillStyle = o.ground;
+  ctx.fillRect(0, 806, LOGICAL_W, 84);
+  for (i = 0; i < o.from.length; i++){
+    var f0 = o.from[i];
+    ctx.fillStyle = o.ground;
+    ctx.fillRect(30 + f0[0], 806 - f0[1], f0[2], f0[1]);
+  }
+  for (i = 0; i < o.to.length; i++){
+    var t0 = o.to[i];
+    ctx.fillStyle = o.ground;
+    ctx.fillRect(LOGICAL_W - 420 + t0[0], 806 - t0[1], t0[2], t0[1]);
+  }
+  if (o.neon){
+    for (i = 0; i < 14; i++){
+      ctx.globalAlpha = a * (0.3 + 0.7 * (0.5 + 0.5 * Math.sin(t * 5 + i * 1.7)));
+      ctx.fillStyle = ["#ff5e8a", "#5ec8ff", "#ffd24a"][i % 3];
+      ctx.fillRect(44 + (i * 71) % 360, 806 - 20 - ((i * 37) % 120), 7, 7);
+    }
+    ctx.globalAlpha = a;
+  }
+
+  /* THE ARC, and the plane on it. Sampled off one quadratic so the dotted
+     line and the aeroplane cannot disagree about where the route is. */
+  var AX = 210, AY = 690, BX = LOGICAL_W - 230, BY = 470, CXq = LOGICAL_W/2, CYq = 250;
+  function arcAt(u){
+    var m = 1 - u;
+    return [ m*m*AX + 2*m*u*CXq + u*u*BX,
+             m*m*AY + 2*m*u*CYq + u*u*BY ];
+  }
+  var p0 = Math.max(0, Math.min(1, (t - 0.35) / (dur - 1.1)));
+  var pe = p0 * p0 * (3 - 2 * p0);
+  ctx.fillStyle = o.trail;
+  for (i = 0; i <= 56; i++){
+    var u = i / 56;
+    if (u > pe) break;
+    var q = arcAt(u);
+    ctx.globalAlpha = a * (0.16 + 0.44 * (u / Math.max(0.04, pe)));
+    ctx.fillRect(q[0] - 3, q[1] - 3, 6, 6);
+  }
+  ctx.globalAlpha = a;
+
+  var pos = arcAt(pe), nxt = arcAt(Math.min(1, pe + 0.02));
+  var ang = Math.atan2(nxt[1] - pos[1], nxt[0] - pos[0]);
+  ctx.save();
+  ctx.translate(pos[0], pos[1]); ctx.rotate(ang);
+  var pk = 1.0;
+  ctx.fillStyle = o.plane;
+  ctx.fillRect(-58 * pk, -11 * pk, 124 * pk, 22 * pk);          // fuselage
+  ctx.beginPath();                                              // nose
+  ctx.moveTo(66 * pk, 0); ctx.lineTo(44 * pk, -11 * pk); ctx.lineTo(44 * pk, 11 * pk);
+  ctx.closePath(); ctx.fill();
+  ctx.beginPath();                                              // wings
+  ctx.moveTo(6 * pk, -4 * pk); ctx.lineTo(-30 * pk, -54 * pk);
+  ctx.lineTo(-48 * pk, -50 * pk); ctx.lineTo(-18 * pk, 0);
+  ctx.closePath(); ctx.fill();
+  ctx.beginPath();
+  ctx.moveTo(6 * pk, 4 * pk); ctx.lineTo(-30 * pk, 54 * pk);
+  ctx.lineTo(-48 * pk, 50 * pk); ctx.lineTo(-18 * pk, 0);
+  ctx.closePath(); ctx.fill();
+  ctx.beginPath();                                              // tail
+  ctx.moveTo(-50 * pk, -4 * pk); ctx.lineTo(-68 * pk, -34 * pk);
+  ctx.lineTo(-78 * pk, -32 * pk); ctx.lineTo(-62 * pk, 0);
+  ctx.closePath(); ctx.fill();
+  // windows, and a light on the belly
+  ctx.fillStyle = o.win;
+  for (i = 0; i < 7; i++) ctx.fillRect(-40 * pk + i * 13 * pk, -3 * pk, 7 * pk, 6 * pk);
+  ctx.globalAlpha = a * (0.4 + 0.6 * (Math.floor(t * 2) % 2));
+  ctx.fillStyle = "#ff5e5e";
+  ctx.fillRect(-6 * pk, 9 * pk, 7 * pk, 5 * pk);
+  ctx.globalAlpha = a;
+  ctx.restore();
+
+  /* The card: a boarding pass in the corner, because the map says WHERE and
+     the words say what it is. It slides up as the scene opens. */
+  var ci2 = Math.min(1, t / 0.5), ce2 = 1 - Math.pow(1 - ci2, 3);
+  var CW2 = 560, CH2 = 108, CX2 = 110, CY2 = 640 + (1 - ce2) * 40;
+  ctx.globalAlpha = a * ce2;
+  plate(CX2, CY2, CW2, CH2, "rgba(8,10,16,0.84)", 12);
+  ctx.fillStyle = C.brand; ctx.fillRect(CX2, CY2, 6, CH2);
+  txt(o.fromName, CX2 + 34, CY2 + 40, 38, C.text, "left");
+  txt(o.toName,   CX2 + CW2 - 34, CY2 + 40, 38, C.brand, "right");
+  /* An arrow between them, drawn rather than typed - a right-arrow glyph
+     resolves to whatever the panel has and lands off the baseline. */
+  ctx.fillStyle = C.textDim;
+  ctx.fillRect(CX2 + CW2/2 - 34, CY2 + 37, 50, 5);
+  ctx.beginPath();
+  ctx.moveTo(CX2 + CW2/2 + 28, CY2 + 39.5);
+  ctx.lineTo(CX2 + CW2/2 + 10, CY2 + 29);
+  ctx.lineTo(CX2 + CW2/2 + 10, CY2 + 50);
+  ctx.closePath(); ctx.fill();
+  txt(o.cardSub, CX2 + 34, CY2 + 82, 22, C.textDim, "left");
+  ctx.globalAlpha = a;
 }
 
 /* ===================== THE GRADE ========================================
@@ -9816,15 +9923,17 @@ function sceneCabana(t, a){
     ctx.closePath(); ctx.fill();
   }
   torch(CX - CW/2 - 86, CB + 16, 1.00, 0);
-  torch(CX + CW/2 + 128, CB + 24, 1.06, 2.2);
+  torch(CX + CW/2 + 86, CB + 24, 1.06, 2.2);
 
   /* WHERE HE SITS, declared up here because the towel and the footprints
      are placed off it and they are drawn first. They were below it, and var
      hoisting meant the towel was positioned at NaN and simply never
      appeared - no error, no towel. */
-  var MIDX = CX - 182, SC_Y = 856, SC_K = 1.62;
+  /* Centred again. He had been shifted left to make room for a second
+     figure; with the beach back to one man he belongs under the middle of
+     the cabana. */
+  var MIDX = CX - 14, SC_Y = 856, SC_K = 1.62;
   var BW = 92 * SC_K, BH = 150 * SC_K;
-  var CHX = MIDX + 352;                        // where Chuck stands
 
   /* A THOUSANDEYES TOWEL, spread on the sand - and the towel and the
      footprints are both drawn HERE, before the chair and the man, because
@@ -9978,30 +10087,10 @@ function sceneCabana(t, a){
   ctx.fillRect(MIDX - BKW/2 - 40, SC_Y, 42, 12);
   ctx.fillRect(MIDX + BKW/2 - 2,  SC_Y, 42, 12);
 
-  /* AND CHUCK, standing beside him. He handed the award over on the stage
-     two scenes ago; this is the part of the week where he is in a linen
-     shirt at the back of a resort like everybody else, and the whole joke
-     of the beach is that both of these men have finished working.
-
-     To his right, feet a touch nearer the camera than the chair so he
-     stands slightly in front of it, and drawn AFTER the chair and the man
-     so he overlaps the post rather than being cut in half by it. */
-  ctx.globalAlpha = a * 0.22; ctx.fillStyle = "#8a6336";
-  ctx.beginPath();
-  ctx.ellipse(CHX, SC_Y + 14, 86, 15, 0, 0, Math.PI*2); ctx.fill();
-  ctx.globalAlpha = a;
-  /* Stone trousers rather than white ones. In linen-on-linen the shirt and
-     the legs merged into one tall white shape and he read as a chef. */
-  sceneGuyResort(CHX, SC_Y + 10, 1.74,
-                 { skin:"#d2a07c", hair:"#c2c6cb",
-                   linen:"#f8f6f1", trews:"#cfc6b0" });
-
   /* THE BLAZER, over the near arm of the chair. Fifth place it has been and
      the first that is unarguable: a jacket over the arm of the chair you
      are sitting in is what a jacket does. */
   ctx.save();
-  /* The FAR arm, so the near side of the chair is clear for Chuck and the
-     table. On the near arm it tangled with both of them. */
   ctx.translate(MIDX - BKW/2 - 34, ARMY + 6); ctx.rotate(-0.05);
   ctx.fillStyle = shade(BLAZER, -0.12); ctx.fillRect(-30, 0, 60, 88);
   ctx.fillStyle = BLAZER;               ctx.fillRect(-34, -11, 68, 17);
@@ -10017,9 +10106,7 @@ function sceneCabana(t, a){
      checking it. That is the entire reward. */
   /* Off his own footprint, like the chair - HX and SEATY belonged to the
      hand-drawn figure and went with it. */
-  /* Between the two of them rather than off to the right, where Chuck is
-     now standing. */
-  var TBX = MIDX + BW * 1.08, TBY = SEAT + 62;
+  var TBX = MIDX + BW * 1.26, TBY = SEAT + 58;
   ctx.fillStyle = "#7a5c3c"; ctx.fillRect(TBX - 7, TBY, 14, 52);
   ctx.fillStyle = "#8a6a46";
   ctx.beginPath(); ctx.ellipse(TBX, TBY, 54, 15, 0, 0, Math.PI*2); ctx.fill();
@@ -10073,16 +10160,63 @@ var SCENES = {
    opposite order, because both are keyed on the street number. */
 var SCENES_BACK = {
   34: { title:"PENN 1",             sub:"Thirty-fourth and Seventh",  draw:scenePenn,
-        secs:8.3, music:"city", then:"stage" }
+        secs:8.3, music:"city", then:"flyVegas",
+        /* BOOKED lands at 3.2 into the desk shot, which is PENN_CUT + 3.2
+           absolute. It used to land in silence, which is the one moment in
+           the whole run the player has been walking towards. */
+        beats:[[6.30,"booked"]] }
 };
 
 /* The two that are not on any street. They are chained off `then` rather
    than keyed on a street number, because neither of them is in Midtown. */
+/* The two legs, as data. Same function, different sky and different ground
+   at each end - a night hop west to the desert, then a morning one out over
+   the Pacific. */
+var FLY_VEGAS = {
+  secs:4.6, stars:true,
+  sky:["#0a1128", "#121a38", "#1d2347", "#2c2a52", "#45305a"],
+  cloud:"#2a2f52", ground:"#07080e", trail:"#ffd24a",
+  plane:"#e8eefc", win:"#ffd24a", neon:true,
+  fromName:"NEW YORK", toName:"LAS VEGAS",
+  cardSub:"THE RED EYE, WEST. GSX IS ON MONDAY.",
+  /* Manhattan behind him: tall, dense, a couple of spires. */
+  from:[[0,210,34],[40,300,30],[76,170,26],[108,250,38],[152,140,30],
+        [188,330,26],[220,190,34],[260,240,28],[300,160,36]],
+  /* And the Strip ahead: lower, wider, a pyramid and a tower. */
+  to:[[0,120,44],[52,180,38],[98,90,52],[156,150,40],[204,230,22],
+      [232,110,58],[298,160,34],[340,100,46]]
+};
+var FLY_KONA = {
+  secs:4.6, stars:false,
+  sky:["#1d3b6b", "#2f5f94", "#4e87ae", "#7fb1c4", "#b9d7d8"],
+  cloud:"#eaf2f6", ground:"#1b3a3a", trail:"#ffffff",
+  plane:"#f6f8fb", win:"#2f6b8a", neon:false,
+  fromName:"LAS VEGAS", toName:"KONA",
+  cardSub:"OUT OVER THE PACIFIC. YOU EARNED THIS ONE.",
+  from:[[0,120,44],[52,180,38],[98,90,52],[156,150,40],[204,230,22],
+        [232,110,58],[298,160,34],[340,100,46]],
+  /* An island: one volcano and a line of palms, not a skyline. */
+  to:[[40,70,40],[82,130,70],[150,168,96],[244,120,64],[302,64,40],
+      [352,38,26],[386,52,22]]
+};
+
 var SCENES_END = {
+  /* Penn 1 is on 33rd, GSX is in Las Vegas and the beach is in Hawaii. A
+     cut straight from a lobby desk to an arena asks the player to have
+     crossed the country between two frames; five seconds of aeroplane does
+     the explaining and the scene after it is free. */
+  flyVegas: { title:"WHEELS UP", sub:"Thirty-three hundred miles to the desert",
+              draw:function(t, a){ sceneFlight(t, a, FLY_VEGAS); },
+              secs:FLY_VEGAS.secs, music:"flight",
+              beats:[[0.30,"stage"]], then:"stage" },
   stage: { title:"CISCO CLUB",  sub:"Up on the big stage at GSX",
            draw:sceneStage, secs:9.4, music:"stage",
            beats:[[2.3,"stage"], [4.45,"deal"], [4.8,"chaChing"], [5.4,"cheer"]],
-           then:"cabana" },
+           then:"flyKona" },
+  flyKona:  { title:"ONE MORE FLIGHT", sub:"Twenty-seven hundred more, and then nothing",
+              draw:function(t, a){ sceneFlight(t, a, FLY_KONA); },
+              secs:FLY_KONA.secs, music:"flight",
+              beats:[[0.30,"stage"]], then:"cabana" },
   /* The last line of the game, and the only joke in it that is about the
      job rather than about the walk. Everything up to here has been reward;
      this is the one that lands on the way out of the room. */
@@ -10151,7 +10285,8 @@ function startEndScene(key){
   G.scene = { st:0, t:0, len:sc.secs || SCENE_SECS, sc:sc, fired:{} };
   AUDIO.stage();
   if (sc.music){
-    var tune = { stage:AUDIO.stageTheme, island:AUDIO.islandTheme }[sc.music];
+    var tune = { stage:AUDIO.stageTheme, island:AUDIO.islandTheme,
+                 flight:AUDIO.flightTheme }[sc.music];
     if (tune) tune();
   }
 }

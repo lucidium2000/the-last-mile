@@ -99,6 +99,12 @@ hands off to two more scenes, chained on a `then` field rather than keyed to a
 street, because neither of them is in Midtown. 25.2 seconds of ending in all,
 verified by running the whole chain through the real `updateScene`.
 
+**And BOOKED has a sound.** The stamp, the paper under it and the money, in
+that order and overlapping — because that is the order those three things
+happen in and a chord of them is a noise rather than an event. It used to land
+in silence, which is the one moment in the whole run the player has been
+walking towards.
+
 **PENN 1 is two shots now.** The building, then the desk — one title card,
 because it is one arrival and cutting to a second card that also said PENN 1
 would be an edit rather than a beat. One Penn Plaza is a black slab standing
@@ -119,6 +125,29 @@ away at the ends, with the ribs hanging straight **down** off it rather than
 radiating out of a centre. Radial ribs were the other half of the
 wheel-on-its-side problem. It is drawn **before** the tower so the tower
 stands in front of it, which is how they sit.
+
+**WHEELS UP** and **ONE MORE FLIGHT** — Penn 1 is on 33rd, GSX is in Las
+Vegas and the beach is in Hawaii. Cutting straight from a lobby desk to an
+arena asks the player to have crossed the country between two frames. Five
+seconds of aeroplane is the oldest fix in cinema and it still works: the map
+does the explaining and the scene after it is free.
+
+One function, two destinations — the sky, the ground at each end and the words
+on the card all come in as data, because two near-identical scene functions is
+how a file ends up with two different aeroplanes. Manhattan behind him and the
+Strip ahead on the first; the Strip behind and an island ahead on the second,
+with the clock run forward from night to morning.
+
+The plane flies an **arc**, not a line: a straight line across a frame is a
+sprite being dragged, a curve is a journey, and the bank angle falls out of
+the tangent for free. The dotted trail and the aeroplane are sampled off the
+same quadratic, so they cannot disagree about where the route is. The cloud
+deck scrolls the other way, which is the only thing telling you the aeroplane
+is moving rather than the frame.
+
+The cue is deliberately almost nothing — filtered noise in two octaves with a
+long rise and fall, and a two-tone cabin chime over it. A transition with a
+tune on it is a scene.
 
 **CISCO CLUB** — up on the big stage at GSX. An arena: LED wall, truss with
 six heads swinging on their own phase, a lit deck, and four ranks of audience
