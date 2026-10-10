@@ -3593,6 +3593,17 @@ saying it. Two gradient stops rather than three: this one has to stay a glow,
 and a bright middle band turns a column of light into a shaft of something
 solid. Measured at (42, 88, 67) against a (61, 73, 84) backdrop.
 
+**But only if that square is empty.** Taking the row above on trust put
+routes down whose first node was inside a **newsstand** — which is `#1f4a3c`,
+the dark green box in the report — so the path was drawn over the top of
+something solid the player could not step on, and the one thing a route is
+for, getting on it, was the one thing it would not let him do. `addonTraceRow`
+checks, and drops back to the box's own square when the one above is occupied;
+that one is always walkable by then, because taking the pack unblocks it.
+Verified both ways: anchored above when clear, on the box when not, **zero
+nodes on blocked squares** in either case, and the hero reaches the first node
+and reads `onTrace` true from it.
+
 **And you can walk through it the moment it opens.** The lid is off, the route
 is pouring out of the middle of it and the path runs up the square beyond —
 and the one thing between him and getting on it was the box he had just

@@ -5071,8 +5071,16 @@ function act(dir){
            box's own square has its first node UNDER the box, which hides the
            one end that needed to be seen. One row further on and the line
            starts clear of the lid and runs away up the street, which is the
-           illusion: it came out of the top. */
-        G.trace = buildTrace(nr + 1, nc);
+           illusion: it came out of the top.
+
+           ONLY IF THAT SQUARE IS EMPTY. Taking the row above on trust put
+           routes down whose first node was inside a newsstand - the path was
+           drawn over the top of a solid green box the player could not step
+           on, so the one thing the route is for, getting on it, was the one
+           thing it would not let him do. If the square above is occupied the
+           anchor drops back to the box's own, which is clear by now because
+           the line above just unblocked it. */
+        G.trace = buildTrace(addonTraceRow(nr, nc), nc);
         /* The attach. Same money shape as a TAM payout - straight onto the
            pipeline, with a banner that says so - because that is what it
            is. The trace is the feature; the 150k is the deal. */
@@ -13052,6 +13060,17 @@ function drawBill(p){
    than hard-coded, because the open one and the shut one have different
    bounds and both have to land on the same column. */
 function kioskDX(sp){ return TILE*0.5 - (sp.w*0.5 - sp.ox); }
+
+/* Which row the route out of the pack should start on. Above the box when
+   that square is walkable, because that is what sells it as coming out of
+   the lid; the box's own square otherwise, which is always walkable by the
+   time this is asked - taking the pack unblocks it. A route has to begin
+   somewhere the player can stand, or it is scenery. */
+function addonTraceRow(r, c){
+  var up = rows[r + 1];
+  if (up && !(up.blocked && up.blocked[c])) return r + 1;
+  return r;
+}
 
 function drawKiosk(col, sy, used, usedAt){
   var cx = col*TILE + TILE*0.5, ground = sy - ROW_H*0.46;
