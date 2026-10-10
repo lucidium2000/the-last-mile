@@ -3548,26 +3548,91 @@ Measured: every step 5 minutes, one change every 0.70–0.72s, **zero** backward
 changes, and 1,199 frames held still across twenty seconds of hard banking.
 
 
-## Out of the top of the box
 
-The TE-ADDON beam used to start at the **ground** and run three hundred pixels
-up through the whole model, which read as a box standing in a column of light
-rather than light coming out of a box. The route it hands you was in there; it
-should leave the way anything leaves a parcel.
+## The present opens
 
-`KIOSK_LID` is the top of the lid in model z, shared with `kioskModel` so a
-number copied into the draw cannot drift the first time the box changes shape.
-A model's z maps to screen pixels at `ZH` to the unit off the blit anchor —
-the same anchor the sprite is drawn from, `bob` included — so the light stays
-welded to the lid while the box floats.
+The pack is **two sprites: shut, and burst open.**
 
-The beam is still drawn **before** the sprite, and that is what finishes it:
-the bow is painted over the bottom of the beam, so the light appears from
-behind the ribbon instead of starting in mid-air above it.
+Shut is what stands on the pavement, and it is the original box — lid proud,
+ribbon round it, bow on top — because an unopened present is the whole of the
+idea. Nothing about it moves except the float and the light leaving the top
+of the lid.
 
-The packets leave from the same place, and their spread now opens as they go —
-on top of each other at the lid, apart by the top — which is what makes it read
-as a thing emptying rather than six dots rising.
+Open is what it becomes the moment somebody takes it, and it exists only for
+the two seconds the pack is leaving. The lid has gone and the sides have burst
+into **two flaps thrown up and out**, which is the shape that makes the route
+pouring out of the middle make sense: the path was in the box, the box is
+open, there is the path. Each flap is a short staircase of boxes — an
+axis-aligned world has no diagonals, and three steps climbing away from the
+hinge is how it gets one — with the ribbon carrying on over them so they are
+plainly the lid that was tied shut a moment ago.
+
+Two seconds in two halves. **The first is the present being opened**: full
+strength, no blink, because the one moment the player is looking straight at
+it is the moment they just earned. **The second is it leaving**, on a steady
+blink that simply stops.
+
+That blink started as the TAM flight's — 9 rising to 26, quickening as it runs
+down — and was simplified to an even 2.4Hz. The quickening carries information
+in the flight, where it is counting down to something you can still act on.
+Nothing here can be acted on, so the extra was noise, and a steady rate is
+calmer to sit next to on a panel that runs all day.
+
+**And the route starts a square above it.** Anchored on the box's own square
+the path's first node sits *under* the box, hiding the one end that needed to
+be seen; one row further on it starts clear of the lid and runs away up the
+street. `buildTrace` takes an origin now and defaults to the player, which is
+right for Path Visualization — that one is a thing he switches on from where
+he stands. The TE-ADDON is not.
+
+**The beam is centred properly too.** `cx` is the middle of the *square*, and
+in cabinet projection that is not the middle of the thing standing on it:
+everything is sheared right by `SKEW` per unit of depth, so a box half a tile
+deep sits half a SKEW right of its own column. The beam and the eye were both
+drawn at `cx` and both hung visibly off the left. They come off the baked
+sprite now — where it is drawn and how wide it is — so it is right by
+construction: 74px from the column start, not 60.
+
+## A candy bar, from a stranger
+
+One in four of the people who notice he is struggling **does something about
+it** instead of commenting on it. The other three are the joke — a pavement
+full of New Yorkers telling a man he looks terrible — and the fourth is what
+makes the joke bearable, because a city that only ever says *"you don't look
+good"* is a city nobody wants to walk ninety blocks through.
+
+It is the only thing in the game that gives health away. Food costs money at a
+cart; this costs nothing, from somebody who had no reason to, which is worth
+more than the ten per cent. It is **not** taken off the pipeline — every other
+mouthful is paid for, and charging him three dollars for a gift would be the
+wrong joke.
+
+**One each.** `gaveCandy` is set on the person, not the player: without it,
+bumping the same pedestrian repeatedly is an unlimited health supply and the
+hunger mechanic goes away. Verified — 24.8% offer rate against a 25% target,
+0 further offers from anyone who has already given one, 0 at full health, and
+the hooded man never offers at all.
+
+**The hand-over is the point.** A number appearing over his head is a stat
+changing; a chocolate bar crossing the pavement from somebody else's hand to
+his is a person doing something for him, which is the only reason this exists.
+So the bar is thrown — eased and lobbed, because a straight line between two
+hands is a cursor moving and an arc is something thrown — tumbling once on the
+way, with crumbs trailing it. **The health does not land until the bar does.**
+The giver's row is kept rather than a screen position, because the camera is
+still easing while it is in the air.
+
+The carriage hands it over without the throw: the two of them are already
+standing on top of each other in a five-foot car, and an arc across that gap
+would be a lob from one shoulder to the other.
+
+**One bug worth recording.** The first version ran the cart's eating animation
+with `yumKind = "candy"`, and `foodGlyph` ends in a bare `else` that draws a
+bagel — so a bagel appeared out of nowhere after every candy bar. The real
+error was upstream of the glyph: that animation is a *transaction*, a five
+going across and the vendor handing food back, and there is no vendor here and
+nothing was paid. It is gone. The throw already showed the hand-over and the
+bar over his head shows what it was worth.
 
 ## An hourglass, not a crate
 

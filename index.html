@@ -720,6 +720,16 @@ var AUDIO = (function(){
       hit({ f:5200, hp:true, dur:0.16, g:0.12, at:0.02 });
       tone({ f:300, to:190, dur:0.5, type:"triangle", g:0.10, at:0.12, lp:900 });
     },
+    /* Somebody hands him a chocolate bar. Two notes up and a soft bloom
+       under them - small, warm, and nothing like the cash register the carts
+       use, because nobody paid for this one. */
+    gift: function(){
+      tone({ f:523.25, dur:0.16, type:"sine",     g:0.16, lp:2600 });
+      tone({ f:783.99, dur:0.30, type:"sine",     g:0.15, at:0.10, lp:2600 });
+      tone({ f:261.63, dur:0.42, type:"triangle", g:0.07, at:0.06, lp:900 });
+      hit({ f:5200, hp:true, dur:0.10, g:0.03, at:0.10 });
+    },
+
     /* flight lapsing: a short blip that climbs as the seconds go */
     /* The shoes landing: a rising sweep with a crack on the front of it. It
        has to cut through whatever is already playing, because the strobe is
@@ -3645,10 +3655,25 @@ function facadeModel(kind){
 
    It floats, the way the TAM cube floats. A pallet was tried under it and a
    pallet that bobs nine pixels off the pavement is worse than no pallet. */
-/* The top of the lid, in model z. Shared, because drawKiosk aims the beam
-   and the packets at it and a number copied into the draw would drift the
-   first time the box changed shape. */
-var KIOSK_LID = 0.73;
+/* THE PACK IS TWO SPRITES: SHUT, AND BURST OPEN.
+
+   Shut is what stands on the pavement, and it is the original box - lid
+   proud, ribbon round it, bow on top - because an unopened present is the
+   whole of the idea. Nothing about it moves except the float and the light
+   over it.
+
+   Open is what it becomes the moment somebody takes it, and it only ever
+   exists for the two seconds the pack is leaving. The lid has gone and the
+   sides have burst into two flaps thrown up and out, which is the shape that
+   makes the route pouring out of the middle make sense: the path was in the
+   box, the box is open, there is the path.
+
+   KIOSK_LID is the top of the shut one and KIOSK_TOP the rim of the open
+   one, both in model z and both shared with drawKiosk, so the light and the
+   packets cannot drift away from the thing they are supposed to be leaving
+   the first time the box changes shape. */
+var KIOSK_LID = 0.73, KIOSK_TOP = 0.64;
+
 function kioskModel(){
   var box = C.pw3, lid = shade(box, 0.22), rib = TRACE.line;
   var ribL = shade(rib, 0.26);
@@ -3669,6 +3694,40 @@ function kioskModel(){
     E(0.300, 0.415, 0.08, 0.13, 0.690, 0.060, shade(rib, -0.14)),
     E(0.620, 0.415, 0.08, 0.13, 0.690, 0.060, shade(rib, -0.14))
   ], decals:[
+    { x:0.265, y:0.27, w:0.47, z:0.33, h:0.22, bg:shade(box, -0.34),
+      core:shade(box, 0.40), glow:true, fg:"#2a1400",
+      text:"TE-ADDON", size:14 },
+    { x:0.23, y:0.27, w:0.54, z:0.185, h:0.085, bg:rib, glow:true }
+  ], W:1 };
+}
+
+/* The same box, taken. Two flaps thrown up and out off the rim, each one a
+   short staircase of boxes - an axis-aligned world has no diagonals, and
+   three steps climbing away from the hinge is how it gets one. The ribbon
+   carries on over them, so they are plainly the lid that was tied shut a
+   moment ago and not two new objects. */
+function kioskOpenModel(){
+  var box = C.pw3, lid = shade(box, 0.22), rib = TRACE.line;
+  var parts = [
+    P(0.37, 0.37, 0.26, 0.26, 0.02, 0.12, shade(box, -0.58)),   // the pedestal
+    P(0.23, 0.27, 0.54, 0.46, 0.14, 0.50, box),                 // the box
+    /* The inside, a shade off black and set down from the rim, so the walls
+       have a thickness and the opening reads as a hole rather than a lid. */
+    P(0.26, 0.30, 0.48, 0.40, 0.600, 0.040, "#1c1205")
+  ];
+  /* step: [x, z, w, shade] - mirrored about the middle for the other flap. */
+  var STEP = [[0.115, 0.640, 0.125,  0.00],
+              [0.020, 0.700, 0.115, -0.07],
+              [-0.060, 0.762, 0.105, -0.14]];
+  for (var i = 0; i < STEP.length; i++){
+    var st = STEP[i], w = st[2];
+    parts.push(P(st[0],           0.27, w, 0.46, st[1], 0.055, shade(lid, st[3])));
+    parts.push(P(1 - st[0] - w,   0.27, w, 0.46, st[1], 0.055, shade(lid, st[3])));
+    // the ribbon running over the flap, a shade proud of it
+    parts.push(E(st[0] + w*0.33,         0.42, w*0.34, 0.12, st[1] + 0.055, 0.012, rib));
+    parts.push(E(1 - st[0] - w + w*0.33, 0.42, w*0.34, 0.12, st[1] + 0.055, 0.012, rib));
+  }
+  return { parts:parts, decals:[
     { x:0.265, y:0.27, w:0.47, z:0.33, h:0.22, bg:shade(box, -0.34),
       core:shade(box, 0.40), glow:true, fg:"#2a1400",
       text:"TE-ADDON", size:14 },
@@ -3877,6 +3936,7 @@ function bakeAll(){
   /* Baked off PROP_MODELS rather than off a pool, so a weight of 0 still
      gets a sprite and nothing is baked twice. */
   for (var pmk in PROP_MODELS) S["pr_"+pmk] = bake(PROP_MODELS[pmk]());
+  S.pr_kioskOpen = bake(kioskOpenModel());    // the two seconds after it is taken
   for (i=0;i<FACADE_KINDS.length;i++) S["pr_"+FACADE_KINDS[i]] = bake(facadeModel(i));
   S.pr_tree = bake(treeModel(0)); S.pr_tree2 = bake(treeModel(1));
   S.walk0 = bakeStrip("walk",0);            // one pavement strip, not two
@@ -4256,6 +4316,9 @@ function makeWalk(r, park, crowd, hood){
 
 /* How long a spent terminal takes to go, and the blink on the way out. */
 var KIOSK_GONE = 2.0;
+/* How long the burst lasts before the blink takes over, and how fast that
+   blink is - see drawKiosk. */
+var KIOSK_BURST = 0.55, KIOSK_BLINK = 2.4;
 
 /* Clears the ones whose two seconds are up: the prop goes, and so does the
    block it put in `row.blocked` at generation - which is the half that
@@ -4509,7 +4572,7 @@ function reset(){
     leapT:0, leapDir:1, dashBeep:0, idleT:0, saver:false, hushed:false, spin:null,
     dashFlash:0, dashPulse:0, dashWhole:0,
     scene:null, scenePend:null, scenesSeen:{}, ticker:null, notice:null, southT:0,
-    report:false, reportY:0, spinR:0,
+    report:false, reportY:0, spinR:0, candy:null,
     leg:1, po:false, won:false,
     fiscT:FISC_MAX, fiscMin:FISC_START_MIN,
     missedClose:false,
@@ -4979,7 +5042,14 @@ function act(dir){
            column comes back with it. */
         kp.usedAt = G.t;
         G.revealT = Math.max(G.revealT, POWERS.path.secs);
-        G.trace = buildTrace();
+        /* From the square ABOVE the box, not from him and not from the box
+           itself. The route was inside it - that is the whole reason the pack
+           is a wrapped present that bursts open - but a path anchored on the
+           box's own square has its first node UNDER the box, which hides the
+           one end that needed to be seen. One row further on and the line
+           starts clear of the lid and runs away up the street, which is the
+           illusion: it came out of the top. */
+        G.trace = buildTrace(nr + 1, nc);
         /* The attach. Same money shape as a TAM payout - straight onto the
            pipeline, with a banner that says so - because that is what it
            is. The trace is the feature; the 150k is the deal. */
@@ -5166,11 +5236,14 @@ function act(dir){
       if (G.t - (fo.blockAt || -99) > FOLK_GRACE){
         fo.blockAt = G.t;
         fo.sayAt = G.t;
-        var pool = fo.hood ? SHADY_LINES
-                 : (G.hp <= HP_WORN ? FOLK_LINES_LOW : FOLK_LINES);
+        var kind = candyFrom(fo);
+        var pool = kind ? FOLK_CANDY
+                 : (fo.hood ? SHADY_LINES
+                 : (G.hp <= HP_WORN ? FOLK_LINES_LOW : FOLK_LINES));
         fo.line = pool[(Math.random()*pool.length)|0];
         AUDIO.jostle();
-        AUDIO.say(fo.seed, sayFor(fo.line, SAY_CROSS));
+        AUDIO.say(fo.seed, sayFor(fo.line, kind ? SAY_WARM : SAY_CROSS));
+        if (kind) giveCandy(fo, nr);
         return;                              // he does not get the square
       }
       /* Second go. They give it up, and shuffle over about it. */
@@ -5953,10 +6026,18 @@ function traceLand(path){
   }
 }
 
-function buildTrace(){
-  ensureRows(G.row + 84);
+/* `r0`/`c0` are where the route BEGINS, and default to wherever he is
+   standing - which is right for Path Visualization, because that one is a
+   thing he switches on from where he is. The TE-ADDON is not: the route was
+   in the box, so that one passes the box's own square and the path is drawn
+   leaving it. Everything after the first node is unchanged; only the anchor
+   moves. */
+function buildTrace(r0, c0){
+  if (r0 == null) r0 = G.row;
+  if (c0 == null) c0 = G.col;
+  ensureRows(r0 + 84);
   var streets = 6 + ((Math.random() * 3) | 0);          // 6-8 crossings
-  var main = [{ r:G.row, c:G.col }];
+  var main = [{ r:r0, c:c0 }];
 
   /* Now and then the route is dead straight - no lateral movement at all.
      Only claimed when a column really is clear the whole way, so "perfectly
@@ -5968,16 +6049,16 @@ function buildTrace(){
        sideways steps first produced routes with three or four columns in them,
        which is not what "perfectly straight" means. */
     var reach = streets * 2 + 3;
-    if (traceColClear(G.col, G.row, reach)) straightCol = G.col;
+    if (traceColClear(c0, r0, reach)) straightCol = c0;
   }
 
   if (straightCol >= 0){
-    var col = G.col, step = straightCol > col ? 1 : -1;
+    var col = c0, step = straightCol > col ? 1 : -1;
     while (col !== straightCol){
-      if (rows[G.row] && rows[G.row].blocked && rows[G.row].blocked[col + step]) break;
-      col += step; main.push({ r:G.row, c:col });
+      if (rows[r0] && rows[r0].blocked && rows[r0].blocked[col + step]) break;
+      col += step; main.push({ r:r0, c:col });
     }
-    var rr = G.row, crossed = 0, guard = 0;
+    var rr = r0, crossed = 0, guard = 0;
     while (crossed < streets && guard++ < 90){
       var row = rows[rr + 1];
       if (!row || (row.blocked && row.blocked[col])) break;
@@ -5988,7 +6069,7 @@ function buildTrace(){
     return { paths:[main], straight:true };
   }
 
-  traceRun(G.row, G.col, streets, main);
+  traceRun(r0, c0, streets, main);
   var paths = [main];
   var nb = Math.random() < 0.55 ? (Math.random() < 0.4 ? 2 : 1) : 0;
   for (var b = 0; b < nb; b++){
@@ -6562,10 +6643,20 @@ function rideAct(dir){
     if (px2 && !px2.used){
       px2.used = true;
       px2.sayAt = R.t;
-      px2.line = G.hp <= HP_WORN
-               ? FOLK_LINES_LOW[(Math.random()*FOLK_LINES_LOW.length)|0]
-               : TRAIN_BUMP[(Math.random()*TRAIN_BUMP.length)|0];
-      AUDIO.say(px2.seed, sayFor(px2.line, SAY_CROSS));
+      /* The carriage does it too. Somebody who has watched a man sway on a
+         pole for three stops is exactly who hands over a chocolate bar. */
+      var kindP = candyFrom(px2);
+      px2.line = kindP
+               ? FOLK_CANDY[(Math.random()*FOLK_CANDY.length)|0]
+               : (G.hp <= HP_WORN
+                  ? FOLK_LINES_LOW[(Math.random()*FOLK_LINES_LOW.length)|0]
+                  : TRAIN_BUMP[(Math.random()*TRAIN_BUMP.length)|0]);
+      AUDIO.say(px2.seed, sayFor(px2.line, kindP ? SAY_WARM : SAY_CROSS));
+      /* The carriage hands it over without the throw: the two of them are
+         already standing on top of each other in a five-foot car, and an arc
+         across that gap would be a lob from one shoulder to the other. The
+         bar goes straight in. */
+      if (kindP){ px2.gaveCandy = true; AUDIO.gift(); candyLand(); }
     }
   }
   ns = Math.max(0, Math.min(RIDE_SLOTS - 1, ns));
@@ -7587,6 +7678,118 @@ var FOLK_LINES_BUSY = [
    both of those say the same thing to the player: you are in trouble, and the
    fix is food. It is the one piece of coaching in the game that arrives in
    somebody else's voice. */
+/* A CANDY BAR, FROM A STRANGER.
+
+   One in four of the people who notice he is struggling does something about
+   it instead of commenting on it. The other three are the joke - a pavement
+   full of New Yorkers telling a man he looks terrible - and the fourth is
+   what makes the joke bearable, because a city that only ever says "you
+   don't look good" is a city nobody wants to walk ninety blocks through.
+
+   It is the only thing in the game that gives health away. Food costs money
+   at a cart; this costs nothing, from somebody who had no reason to, which
+   is worth more than the ten per cent.
+
+   ONE EACH. `gaveCandy` is set on the person, not the player: without it,
+   bumping the same pedestrian repeatedly is an unlimited health supply and
+   the whole hunger mechanic goes away. */
+var CANDY_ODDS = 0.25, CANDY_HEAL = 0.10;
+var FOLK_CANDY = [
+  "Here \u2014 take my candy bar.",
+  "I always keep a spare. Go on.",
+  "Eat this. You'll feel human.",
+  "Low blood sugar. I know the look.",
+  "Take it, I'm not gonna eat it.",
+  "Chocolate. Trust me, it works."
+];
+/* True if this one is about to hand something over rather than comment. */
+function candyFrom(fo){
+  return !fo.hood && !fo.gaveCandy && G.hp <= HP_WORN && G.hp > 0 &&
+         Math.random() < CANDY_ODDS;
+}
+/* How long the bar is in the air, and how high it lobs. */
+var CANDY_FLY = 0.52, CANDY_ARC = 58;
+
+/* THE HAND-OVER IS THE POINT. A number appearing over his head is a stat
+   changing; a chocolate bar crossing the pavement from somebody else's hand
+   to his is a person doing something for him, which is the only reason this
+   exists. So the gift is thrown, and the health does not land until the bar
+   does - `fr` is the row the giver is standing on, kept rather than a screen
+   position, because the camera is still easing while it is in the air. */
+function giveCandy(fo, fr){
+  fo.gaveCandy = true;
+  G.candy = { t:0, fr:fr, fx:folkX(fo), fl:folkLane(fo) };
+  AUDIO.gift();
+}
+
+function candyLand(){
+  var was = G.hp;
+  G.hp = Math.min(HP_MAX, G.hp + HP_MAX * CANDY_HEAL);
+  /* The same readout the carts use - the bar over his head, held, and the
+     number that floated off it - because it is the same event: he ate. */
+  G.hpFrom = hpDisplay(); G.hpHold = HP_HOLD; G.hpFill = HP_FILL;
+  G.hpGain = { life:1.5, amt:Math.round(G.hp - was) };
+  G.hpShow = HP_SHOW;
+  G.meals = (G.meals || 0) + 1;
+  /* And it is NOT taken off the pipeline. Every other mouthful in this game
+     is paid for; this one is a gift, and charging him three dollars for it
+     would be the wrong joke. */
+  /* NOT the cart animation. That one is a transaction - a five goes across,
+     the vendor takes it, the food comes back - and there is no vendor here
+     and nothing was paid. The throw already showed the hand-over and the bar
+     over his head shows what it was worth; a second animation about money
+     would contradict both. */
+  AUDIO.pay();
+}
+
+/* The bar itself, mid-air. Drawn rather than baked: it is one small object
+   that exists for half a second at a time, and a sprite for it would be a
+   sprite for the whole run. */
+function drawCandyFly(){
+  var C2 = G.candy;
+  if (!C2) return;
+  var k = Math.max(0, Math.min(1, C2.t / CANDY_FLY));
+  var pp = playerPos();
+  var fx = C2.fx*TILE + TILE*0.5 + C2.fl*SKEW;
+  var fy = rowScreenY(C2.fr) - C2.fl*ROW_H - 62;
+  var tx = pp.col*TILE + TILE*0.5;
+  var ty = rowScreenY(pp.row) - 46;
+  /* Eased along, and lobbed: a straight line between two hands is a cursor
+     moving, an arc is something thrown. */
+  var e = k*k*(3 - 2*k);
+  var x = fx + (tx - fx)*e;
+  var y = fy + (ty - fy)*e - Math.sin(k*Math.PI) * CANDY_ARC;
+
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.rotate(-0.5 + k * 3.4);                  // one lazy tumble on the way
+  var W = 30, H = 13;
+  ctx.fillStyle = "#3a2213";                   // the bar, in shadow
+  ctx.fillRect(-W/2 + 2, -H/2 + 2, W, H);
+  ctx.fillStyle = "#c0392b";                   // the wrapper
+  ctx.fillRect(-W/2, -H/2, W, H);
+  ctx.fillStyle = "#e8604f";                   // the light down the top edge
+  ctx.fillRect(-W/2, -H/2, W, 4);
+  ctx.fillStyle = "#f6efe2";                   // the band across it
+  ctx.fillRect(-5, -H/2, 10, H);
+  ctx.fillStyle = "#8e2a1f";                   // crimped ends
+  ctx.fillRect(-W/2 - 4, -3, 4, 6);
+  ctx.fillRect(W/2, -3, 4, 6);
+  ctx.restore();
+
+  /* A couple of crumbs trailing it, so it reads as moving rather than as a
+     sprite being slid across the screen. */
+  ctx.fillStyle = "#e8b06a";
+  for (var i = 0; i < 3; i++){
+    var kb = Math.max(0, k - 0.06*(i+1));
+    var eb = kb*kb*(3 - 2*kb);
+    ctx.globalAlpha = 0.5 - i*0.14;
+    ctx.fillRect(fx + (tx-fx)*eb - 2,
+                 fy + (ty-fy)*eb - Math.sin(kb*Math.PI)*CANDY_ARC - 2, 4, 4);
+  }
+  ctx.globalAlpha = 1;
+}
+
 var FOLK_LINES_LOW = [
   "Whoa \u2014 you all right, buddy?",
   "Get away from me.",
@@ -11524,6 +11727,12 @@ function update(dt){
     spendHp(HP_PER_SEC * dt);
     tickScenePend(dt);
     sweepKiosks();
+    /* The bar in the air. It lands exactly once, and the health lands with
+       it - see giveCandy. */
+    if (G.candy){
+      G.candy.t += dt;
+      if (G.candy.t >= CANDY_FLY){ G.candy = null; candyLand(); }
+    }
     G.fiscT -= dt;
     /* The face counts toward the evening, forward only, one minute at a
        time - see FISC_CATCH. Clamped to the distance left, so it tracks the
@@ -12810,58 +13019,111 @@ function drawBill(p){
 function drawKiosk(col, sy, used, usedAt){
   var cx = col*TILE + TILE*0.5, ground = sy - ROW_H*0.46;
   if (used){
-    /* SPENT, AND GOING - and it leaves exactly the way the TAM flight does.
+    /* TAKEN. Two seconds, in two halves.
 
-       The game already has a word for "this is about to be over": the hard
-       on/off blink on the hero when the flight is lapsing, quickening as it
-       runs down. Not a fade. A fade is a thing settling; a blink is a thing
-       switching off, and both of these are powers running out. Same two
-       constants as the flight and the suit - 9 rising to 26 - so a player who
-       has seen either one already knows what this means.
+       THE FIRST HALF IS THE PRESENT BEING OPENED. The flaps are thrown up
+       and out, the inside lights, and the route pours out of the middle of
+       it - which is the whole point of the pack having been a wrapped box
+       for the ninety blocks before this. It is at full strength and does not
+       blink, because the one moment the player is looking straight at it is
+       the moment they just earned.
 
-       Drawn at the spent alpha on the frames it is drawn at all, so it cuts
-       between a faded box and nothing, the way the figure cuts in and out
-       while its shadow stays put. */
+       THE SECOND HALF IS IT LEAVING, the way the TAM flight leaves: a hard
+       on/off blink, quickening as it runs down, on the same two constants -
+       9 rising to 26 - so anybody who has watched the flight or the suit
+       expire already knows what it means. Not a fade; a fade is a thing
+       settling and a blink is a thing switching off. */
     var age = G.t - (usedAt == null ? G.t : usedAt);
     var k = Math.max(0, Math.min(1, age / KIOSK_GONE));
-    var blink = 9 + k * 17;
-    if (Math.floor(G.t * blink) % 2 === 0) return;
-    ctx.globalAlpha = 0.4;
-    blit(S.pr_kiosk, col*TILE, sy);
+    var kb0 = S.pr_kioskOpen;
+    var mx0 = col*TILE - kb0.ox + kb0.w*0.5;
+    var open = Math.max(0, 1 - age / KIOSK_BURST);      // 1 at the instant, 0 after
+    var dim = 1;
+    if (age >= KIOSK_BURST){
+      /* Three even blinks, not an accelerating strobe. The quickening one
+         was borrowed from the TAM flight, where it is counting down to
+         something the player can still act on; nothing here can be acted on,
+         so the extra information was noise - and a steady 2.4Hz is calmer to
+         sit next to on a panel that runs all day. */
+      if (Math.floor((age - KIOSK_BURST) * KIOSK_BLINK * 2) % 2 === 1) return;
+      dim = 0.4;
+    }
+    var mouth0 = sy - KIOSK_TOP * ZH;
+
+    /* The route going up out of it. Wide and bright on the first frame,
+       narrowing and dimming as the pack empties. */
+    ctx.save();
+    ctx.translate(mx0, mouth0);
+    ctx.globalAlpha = dim * (0.25 + 0.70 * open);
+    ctx.fillStyle = addonBeamGrad;
+    ctx.fillRect(-52, -340, 104, 340);
+    ctx.globalAlpha = dim * (0.20 + 0.55 * open);
+    ctx.fillRect(-15, -340, 30, 340);
+    ctx.restore();
+
+    ctx.globalAlpha = dim;
+    blit(kb0, col*TILE, sy);
+
+    // the light sitting in the open mouth
+    ctx.globalAlpha = dim * (0.30 + 0.45 * open);
+    ctx.fillStyle = TRACE.pale;
+    ctx.beginPath();
+    ctx.ellipse(mx0, mouth0 + 2, 30, 11, 0, 0, Math.PI*2);
+    ctx.fill();
+
+    /* And the contents leaving - faster and further than the idle drift,
+       because this is the thing actually coming out rather than a hint that
+       something is in there. */
+    ctx.fillStyle = TRACE.pale;
+    for (var q = 0; q < 8; q++){
+      var tq = ((age * 1.5) + q/8) % 1;
+      var szq = 10 - tq*6;
+      ctx.globalAlpha = dim * (1 - tq) * 0.9 * (0.35 + 0.65*open);
+      ctx.fillRect(mx0 + Math.sin(q*2.1 + age*2.2) * (4 + tq*44) - szq/2,
+                   mouth0 - 6 - tq*190 - szq/2, szq, szq);
+    }
     ctx.globalAlpha = 1;
     return;
   }
   var phase = col * 1.7, pul = 0.5 + 0.5*Math.sin(G.t*2.6 + phase), i;
   var bob = Math.sin(G.t*2.1 + phase) * 9;
 
-  /* IT COMES OUT OF THE LID. The beam used to start at the GROUND and run
-     three hundred pixels up through the whole model, which read as a box
-     standing in a column of light rather than light coming out of a box.
-     The route it hands you was in there; it should leave the way anything
-     leaves a parcel.
+  /* WHERE THE MIDDLE OF IT ACTUALLY IS. `cx` is the middle of the SQUARE,
+     and in cabinet projection that is not the middle of the thing standing
+     on it: everything is sheared right by SKEW per unit of depth, so a box
+     half a tile deep sits half a SKEW to the right of its own column. The
+     beam and the eye were both drawn at cx and both hung visibly off the
+     left of the pack. Taken off the baked sprite instead - where it is drawn
+     and how wide it is - so it is right by construction and stays right if
+     the model changes. */
+  var kb = S.pr_kiosk;
+  var mx = col*TILE - kb.ox + kb.w*0.5;
 
-     KIOSK_LID is the top of the lid in model z, and a model's z maps to
-     screen pixels at ZH to the unit off the blit anchor - the same anchor
-     the sprite itself is drawn from, bob included, so the light stays
-     welded to the lid while the box floats.
+  /* SHUT, AND LIT FROM INSIDE. The light leaves off the top of the lid - it
+     used to start at the ground and run three hundred pixels up through the
+     whole model, which read as a box standing in a column of light rather
+     than a box with something in it.
 
      Drawn BEFORE the sprite, which is what finishes it: the bow is painted
-     over the bottom of the beam, so the light appears from behind the
-     ribbon instead of starting in mid-air above it. */
-  var topY = (sy - bob) - KIOSK_LID * ZH;
+     over the bottom of the beam, so the light appears from behind the ribbon
+     rather than starting in mid-air above it. */
+  var mouthY = (sy - bob) - KIOSK_LID * ZH;
 
   ctx.save();
-  ctx.translate(cx, topY);
+  ctx.translate(mx, mouthY);
   ctx.globalAlpha = 0.74 + 0.26*pul;
   ctx.fillStyle = addonBeamGrad;
   ctx.fillRect(-44, -300, 88, 300);
   ctx.globalAlpha = 0.28 + 0.22*pul;
   ctx.fillRect(-13, -300, 26, 300);
   ctx.restore();
+  ctx.globalAlpha = 1;
+
+  blit(kb, col*TILE, sy - bob);
 
   ctx.globalAlpha = 0.20 + 0.14*pul; ctx.fillStyle = C.pw3;
   ctx.beginPath();
-  ctx.ellipse(cx, ground, 52 + 8*pul, 20 + 3*pul, 0, 0, Math.PI*2);
+  ctx.ellipse(mx, ground, 52 + 8*pul, 20 + 3*pul, 0, 0, Math.PI*2);
   ctx.fill();
 
   ctx.lineWidth = 3;
@@ -12870,11 +13132,10 @@ function drawKiosk(col, sy, used, usedAt){
     ctx.globalAlpha = (1 - ph) * 0.55;
     ctx.strokeStyle = i ? TRACE.line : C.pw3;
     ctx.beginPath();
-    ctx.ellipse(cx, ground, 25 + ph*44, 9 + ph*17, 0, 0, Math.PI*2);
+    ctx.ellipse(mx, ground, 25 + ph*44, 9 + ph*17, 0, 0, Math.PI*2);
     ctx.stroke();
   }
   ctx.globalAlpha = 1;
-  blit(S.pr_kiosk, col*TILE, sy - bob);
 
   /* Packets leaving the pack, in the colour of the route it hands you, and
      leaving from the same place the beam does. They used to start at a fixed
@@ -12887,8 +13148,8 @@ function drawKiosk(col, sy, used, usedAt){
     var t = ((G.t*0.5) + i/6) % 1;
     var sz = 8 - t*4;
     ctx.globalAlpha = (1 - t) * 0.85;
-    ctx.fillRect(cx + Math.sin(i*2.3 + G.t*0.7) * (6 + t*26) - sz/2,
-                 topY - 4 - t*132 - sz/2, sz, sz);
+    ctx.fillRect(mx + Math.sin(i*2.3 + G.t*0.7) * (6 + t*26) - sz/2,
+                 mouthY - 6 - t*150 - sz/2, sz, sz);
   }
   ctx.globalAlpha = 1;
 
@@ -12897,9 +13158,13 @@ function drawKiosk(col, sy, used, usedAt){
      rather than measured down from the row: the card used to be pinned
      182px above sy, which is where the box is, and the two of them sat on
      top of each other. */
+  /* Above the LID, not above the ground. The eye used to be pinned 136px off
+     the pavement, which cleared a closed box - and the lid now floats thirty
+     above the mouth and went straight through it. Measured off the lid's own
+     sprite so it keeps its clearance whatever the box does. */
   var eyeY = ground - 136 - bob * 0.6;
   ctx.globalAlpha = 0.88 + 0.12*pul;
-  drawEye(cx, eyeY, 23 + 3*pul, C.pw3, "#2a1400", C.brand);
+  drawEye(mx, eyeY, 23 + 3*pul, C.pw3, "#2a1400", C.brand);
   ctx.globalAlpha = 1;
   drawKioskLabel(col, eyeY - 34, bob);
 }
@@ -16581,6 +16846,7 @@ function render(){
   drawHaze();
   drawSlowTint();
   if (G.ride) drawRide();
+  drawCandyFly();                 // over the world, under the HUD
   drawHurt();
   drawLowHealth();
   drawSouth();
