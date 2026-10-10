@@ -2618,17 +2618,31 @@ crack was put there for them and has been left — without the bolts it simply
 reads as a deeper pickup. Worth knowing if anyone wonders why the sound has a
 roll in it.
 
-**A ring that drains, with the number inside it.** At y 268: below the
-pipeline and departure readouts, above `HORIZON`, so it covers sky and the
-tops of distant buildings and **nothing he can walk into**. It pops on each
-whole second so the count is felt as well as read, and the number carries a
-decimal because three integers in a row is not a countdown, it is a list. The
-SKU name sits under it — three seconds of somebody looking straight at the
-words is the entire exercise. It is held back while the pickup's own brand
-banner is up, though: both say CLOUD INSIGHTS and for the first second and a
-half they were both on screen saying it a hundred pixels apart, which does not
-burn the name in twice as hard, it reads as a layout fault. They take turns —
-the banner has the opening, the ring label has the rest of the countdown.
+**A ring that drains, pinned to his shoulder.** It started as a 92px ring
+parked at y 268, up in the sky band — safely clear of the lanes, and
+completely detached from the man it was counting for. Something at the top of
+the screen is *the game's* clock; something on his shoulder is **his**, and
+what is running out is his.
+
+So it is sized off him rather than off the screen: 38px radius against a
+figure about 70 wide and 110 tall, beside the head rather than over it, since
+the sprite is the thing you are actually watching. It tracks the interpolated
+position *including the lift*, so it stays on his shoulder through the arc of
+a three-square leap instead of waiting at the kerb for him to land. It swaps
+to his other side within two columns of either kerb — a badge hanging off his
+right shoulder in column 15 is a badge half off the screen. Verified on
+screen at every column, both facings.
+
+The plate is near-opaque at this size, unlike the big version: 76px across on
+a street full of yellow cabs, and a translucent disc with a number in it over
+a taxi roof is not a number. It pops on each whole second so the count is felt
+as well as read, and the number carries a decimal because three integers in a
+row is not a countdown, it is a list.
+
+**No name under it.** At 76px across, in the middle of the street, a 24px
+"CLOUD INSIGHTS" was wider than the badge and sat across whatever he was about
+to walk into. The name is still on screen for all three seconds — the HUD chip
+bottom-left carries it — and the pickup banner still gives it the big moment.
 
 **Edges that beat.** They thicken and quicken as the clock runs down and turn
 red for the last second, so the pressure is readable without looking away from

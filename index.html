@@ -2661,8 +2661,23 @@ var DASH_WARN = 1.0;
    one decimal and "3.5" on the face of a countdown reads as a bug. */
 var DASH_SHOW   = 3;
 var DASH_FLASH  = 0.42;        // the pickup strobe
-var DASH_RING_Y = 268;         // clear of the HUD, above HORIZON, off the lanes
-var DASH_RING_R = 92;
+/* THE CLOCK RIDES WITH HIM. It was a 92px ring parked at y 268, up in the
+   sky band - safely clear of the lanes, and completely detached from the man
+   it was counting for. Something at the top of the screen is the game's
+   clock; something pinned to his shoulder is HIS clock, and what is running
+   out is his.
+
+   It is sized off him rather than off the screen: 38px radius against a
+   figure about 70 wide and 110 tall, so it reads as a thing he is carrying
+   rather than a panel laid over him. Beside the head, not over it - the
+   sprite is the thing you are actually watching.
+
+   It swaps to his other side near the kerb, because a badge hanging off his
+   right shoulder in column 15 is a badge half off the screen. */
+var DASH_RING_R  = 38;
+var DASH_RING_DX = 74;         // how far off his centre the badge sits
+var DASH_RING_DY = 58;         // and how far up - shoulder height, not over his head
+var DASH_RING_EDGE = 2;        // columns from either kerb where it flips sides
 var TAM_COOLDOWN_ROWS = 16;   // uncommon, not rare - it is the headline SKU
 
 /* Things a ThousandEyes TAM actually does. One fires on a timer for as long as
@@ -11232,41 +11247,48 @@ function drawDashHud(){
   ctx.fillRect(0, 0, th, LOGICAL_H);
   ctx.fillRect(LOGICAL_W - th, 0, th, LOGICAL_H);
 
-  /* 3. THE RING. It pops on each whole second so the count is felt as well
-     as read, and the number carries a decimal because three integers in a
-     row is not a countdown, it is a list. */
-  var cx = LOGICAL_W / 2, cy = DASH_RING_Y;
+  /* 3. THE RING, pinned to him. It pops on each whole second so the count is
+     felt as well as read, and the number carries a decimal because three
+     integers in a row is not a countdown, it is a list.
+
+     It tracks the interpolated position including the lift, so it stays on
+     his shoulder through the arc of a three-square leap rather than waiting
+     at the kerb for him to land. That is the whole point of moving it down
+     here: it is his. */
+  var pp2 = playerPos();
+  var side = pp2.col > COLS - 1 - DASH_RING_EDGE ? -1
+           : (pp2.col < DASH_RING_EDGE ? 1 : (G.facing > 0 ? 1 : -1));
+  var cx = pp2.col * TILE + TILE * 0.5 + side * DASH_RING_DX;
+  var cy = rowScreenY(pp2.row) - pp2.lift - DASH_RING_DY;
   var pop = 1 + G.dashPulse * 0.20;
   var r = DASH_RING_R * pop;
   var frac = face / DASH_SHOW;
 
-  ctx.globalAlpha = 0.55; ctx.fillStyle = "#0a0c11";
-  ctx.beginPath(); ctx.arc(cx, cy, r + 12, 0, Math.PI*2); ctx.fill();
-  ctx.globalAlpha = 0.22; ctx.strokeStyle = "#ffffff"; ctx.lineWidth = 11;
+  /* The plate is near-opaque at this size. It is 76px across sitting on a
+     street full of yellow cabs, and a translucent disc with a number in it
+     over a taxi roof is not a number. */
+  ctx.globalAlpha = 0.78; ctx.fillStyle = "#0a0c11";
+  ctx.beginPath(); ctx.arc(cx, cy, r + 7, 0, Math.PI*2); ctx.fill();
+  ctx.globalAlpha = 0.22; ctx.strokeStyle = "#ffffff"; ctx.lineWidth = 6;
   ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI*2); ctx.stroke();
 
   var a0 = -Math.PI/2, a1 = a0 + Math.PI*2*frac;
   for (var g2 = 0; g2 < 3; g2++){
     ctx.globalAlpha = g2 === 2 ? 0.96 : 0.20;
-    ctx.lineWidth   = g2 === 2 ? 12   : 12 + (2 - g2) * 11;
+    ctx.lineWidth   = g2 === 2 ? 7    : 7 + (2 - g2) * 7;
     ctx.strokeStyle = ec;
     ctx.beginPath(); ctx.arc(cx, cy, r, a0, a1); ctx.stroke();
   }
   ctx.globalAlpha = 1;
-  txt(Math.max(0, face).toFixed(1), cx, cy + 3, Math.round(70 * pop), ec, "center");
+  txt(Math.max(0, face).toFixed(1), cx, cy + 2, Math.round(30 * pop), ec, "center");
   /* The SKU name under it. The whole exercise is that these words should be
      the thing people remember, and a three second timer is three seconds of
      somebody looking straight at it. */
-  /* Anchored to the UNPOPPED radius, or it hops down the screen twice a
-     second along with the ring.
-
-     Held back while the pickup's own brand banner is up. Both say CLOUD
-     INSIGHTS and for the first second and a half they were both on screen
-     saying it, a hundred pixels apart - which does not burn the name in
-     twice as hard, it just reads as a layout fault. They take turns: the
-     banner has the opening, the ring label has the rest of the countdown. */
-  if (!(G.brand && G.brand.what === "CLOUD INSIGHTS"))
-    txt("CLOUD INSIGHTS", cx, cy + DASH_RING_R + 38, 24, col, "center");
+  /* No name under it any more. At 76px across, hanging off his shoulder in
+     the middle of the street, a 24px "CLOUD INSIGHTS" was wider than the
+     badge and sat across whatever he was about to walk into. The name is
+     still on screen for the whole three seconds - the HUD chip bottom-left
+     carries it - and the pickup banner still gives it the big moment. */
   ctx.globalAlpha = 1;
 }
 /* ===================== INTERNET INSIGHTS ==================================
