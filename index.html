@@ -7271,13 +7271,21 @@ var TRAIN_CHAT_RARE = [
    you the time; this one is the same man noticing that you are hurt, and
    every line is help offered in a way that is worse than being ignored.
 
-   They escalate on their own: carry YOU, hold your STUFF, wear your JACKET.
-   Nothing in the game ever acts on any of it - he is still the nine-in-ten
-   man doing nothing - which is exactly why it lands. He only says these
-   while you are actually hurt or worn out, so they can never be mistaken
-   for small talk. */
+   They escalate on their own: be your CHAMPION, hold your STUFF, wear your
+   JACKET. Nothing in the game ever acts on any of it - he is still the
+   nine-in-ten man doing nothing - which is exactly why it lands. He only
+   says these while you are actually hurt or worn out, so they can never be
+   mistaken for small talk.
+
+   The first one is the sharpest of the three because it is the only one in
+   the seller's own vocabulary. A champion is the person inside the account
+   who carries the deal when you are not in the room - the thing every one
+   of these runs is actually short of, and the thing the tally counts at the
+   end. Offered by a stranger on Eighth Avenue, to a man on his last few
+   points of health, it is the right words from entirely the wrong person.
+   Capitalised for that reason: it is the job title, not the adjective. */
 var HOOD_HURT = [
-  "Hey man, you need me to carry you?",
+  "I can be your Champion.",
   "I can hold your stuff while you catch your breath.",
   "I wonder if your jacket would fit me?"
 ];
@@ -8464,52 +8472,115 @@ function sceneRock(t, a){
    little stone arch at the south end. So the scene is built in planes, back to
    front: skyline, treeline, water with the skyline upside down in it, the
    bridge, then the drive with the carriage on it. */
-function scenePark(t, a){
-  var TREE = 430, WATER = 596, BANK = 742;
+/* ---------------------------------------------------- CENTRAL PARK, BAKED
 
-  // ---- Midtown over the treeline, lit -------------------------------------
-  /* A continuous wall of towers. The first pass left the middle empty, which
-     was meant to be the park opening up and instead read as a hole punched in
-     the skyline - from the Pond looking south it is buildings the whole way
-     across. */
-  var sk = [[0,116,250],[112,84,318],[192,104,214],[292,70,286],[358,96,232],
-            [450,124,294],[570,78,206],[644,108,262],[748,90,340],[834,132,228],
-            [962,86,288],[1044,110,206],[1150,74,264],[1220,120,330],
-            [1336,92,224],[1424,104,286],[1524,80,246],[1600,128,196],
-            [1724,96,272],[1816,110,236]];
-  for (var k = 0; k < sk.length; k++){
-    var bx = sk[k][0], bw = sk[k][1], bh = sk[k][2], by = TREE - bh;
-    ctx.fillStyle = k % 2 ? "#191317" : "#1e171b";
-    ctx.fillRect(bx, by, bw, bh);
-    ctx.fillStyle = "#241c21"; ctx.fillRect(bx, by, bw, 5);
-    for (var wy = by + 16; wy < TREE - 20; wy += 26){
+   This scene was costing 1,514 draw calls a frame - 1,299 fillRects and 208
+   ellipse path-fills - against 478 for Times Square and 13 for the steak
+   dinner. It measured 1.26ms of scene on top of a 0.66ms world, and a
+   cutscene draws BOTH: the full frame went 0.66ms -> 2.27ms and stayed there
+   for the eight seconds the scene is up. On a desktop that is invisible. On
+   a Desk Pro, which is the better part of an order of magnitude slower at
+   canvas work, it is eight straight seconds over the frame budget - and that
+   is the scene the panel died on.
+
+   Almost none of it was moving.
+
+   THE SKYLINE NEVER CHANGES. Twenty towers and about a thousand windows,
+   and the lit/unlit test is `(wx*7 + wy*13 + k*5) % 17 < 6` - no `t` in it
+   anywhere. The same thousand rectangles, recomputed sixty times a second,
+   to produce the same picture. It is one drawImage now.
+
+   THE TREES ONLY SWAY. Four ellipses and a trunk each, forty-five of them,
+   and the whole animation is `sin(t*0.7 + i + rk) * 3` - a three-pixel
+   horizontal nudge. So one tree per rank is baked and blitted at a swaying
+   x, which is pixel-identical and turns 180 ellipse fills into 45 blits.
+
+   The pond reflection and the ducks stay live, because those genuinely move.
+
+   On the alpha: the bake draws windows at 0.55/0.07 over an opaque tower and
+   is then blitted at the scene's `a`, where the original drew the tower at
+   `a` and each window at `a*0.55`. Those are identical at a=1, which is
+   where the scene sits for all but the 0.3s of fade at each end, and the
+   difference inside the fade is a shade of brightness on a window.
+
+   Lazily built and cached in S, so releaseAtlas() frees them with everything
+   else on a re-bake and the next frame makes them again at the new scale. */
+var PARK_SKY = [[0,116,250],[112,84,318],[192,104,214],[292,70,286],[358,96,232],
+                [450,124,294],[570,78,206],[644,108,262],[748,90,340],[834,132,228],
+                [962,86,288],[1044,110,206],[1150,74,264],[1220,120,330],
+                [1336,92,224],[1424,104,286],[1524,80,246],[1600,128,196],
+                [1724,96,272],[1816,110,236]];
+var PARK_TREE = 430;
+var PARK_RANKS = [[PARK_TREE - 34, "#13271a", 86, 150, 0],
+                  [PARK_TREE - 8,  "#17311f", 98, 132, 42],
+                  [PARK_TREE + 22, "#1d3f28", 112, 118, 86]];
+
+function bakeParkSky(){
+  var off = document.createElement("canvas");
+  off.width  = Math.max(1, Math.ceil(LOGICAL_W * BAKE));
+  off.height = Math.max(1, Math.ceil(PARK_TREE * BAKE));
+  var g = off.getContext("2d");
+  g.setTransform(BAKE, 0, 0, BAKE, 0, 0);
+  for (var k = 0; k < PARK_SKY.length; k++){
+    var bx = PARK_SKY[k][0], bw = PARK_SKY[k][1], bh = PARK_SKY[k][2];
+    var by = PARK_TREE - bh;
+    g.globalAlpha = 1;
+    g.fillStyle = k % 2 ? "#191317" : "#1e171b";
+    g.fillRect(bx, by, bw, bh);
+    g.fillStyle = "#241c21"; g.fillRect(bx, by, bw, 5);
+    for (var wy = by + 16; wy < PARK_TREE - 20; wy += 26){
       for (var wx = bx + 9; wx < bx + bw - 12; wx += 22){
         var on = ((wx * 7 + wy * 13 + k * 5) % 17) < 6;
-        ctx.globalAlpha = a * (on ? 0.55 : 0.07);
-        ctx.fillStyle = on ? "#ffc478" : "#7d7a76";
-        ctx.fillRect(wx, wy, 11, 13);
+        g.globalAlpha = on ? 0.55 : 0.07;
+        g.fillStyle = on ? "#ffc478" : "#7d7a76";
+        g.fillRect(wx, wy, 11, 13);
       }
     }
-    ctx.globalAlpha = a;
   }
+  return { img:off, ox:0, oy:0, w:LOGICAL_W, h:PARK_TREE };
+}
+
+function bakeParkTree(rk){
+  var rc = PARK_RANKS[rk][1], rr = PARK_RANKS[rk][2], PAD = 8;
+  /* The envelope, from the five shapes below: the canopy reaches 0.68rr left
+     and 0.72rr right, as high as the taller of the two top ellipses, and the
+     trunk hangs 90 straight down. */
+  var ox = 0.68 * rr + PAD;
+  var oy = Math.max(6 + 0.46 * rr, 20 + 0.24 * rr) + PAD;
+  var W = ox + 0.72 * rr + PAD, H = oy + 90 + PAD;
+  var off = document.createElement("canvas");
+  off.width  = Math.max(1, Math.ceil(W * BAKE));
+  off.height = Math.max(1, Math.ceil(H * BAKE));
+  var g = off.getContext("2d");
+  g.setTransform(BAKE, 0, 0, BAKE, 0, 0);
+  g.translate(ox, oy);                      // origin = the tree's (cx, ry)
+  g.fillStyle = "#2a1e15";
+  g.fillRect(-8, 0, 16, 90);
+  g.fillStyle = rc;
+  g.beginPath(); g.ellipse(0, -6, rr*0.62, rr*0.46, 0, 0, Math.PI*2); g.fill();
+  g.beginPath(); g.ellipse(-rr*0.28, 14, rr*0.40, rr*0.32, 0, 0, Math.PI*2); g.fill();
+  g.beginPath(); g.ellipse(rr*0.30, 10, rr*0.42, rr*0.33, 0, 0, Math.PI*2); g.fill();
+  g.fillStyle = shade(rc, 0.16);
+  g.beginPath(); g.ellipse(rr*0.10, -20, rr*0.34, rr*0.24, 0, 0, Math.PI*2); g.fill();
+  return { img:off, ox:ox, oy:oy, w:W, h:H };
+}
+
+function scenePark(t, a){
+  var TREE = PARK_TREE, WATER = 596, BANK = 742;
+  var sk = PARK_SKY, RANKS = PARK_RANKS;
+
+  // ---- Midtown over the treeline, lit: one blit ---------------------------
+  if (!S.parkSky || !S.parkSky.img.width) S.parkSky = bakeParkSky();
+  blit(S.parkSky, 0, 0);
 
   // ---- the treeline: three ranks, darkest at the back ---------------------
-  var RANKS = [[TREE - 34, "#13271a", 86, 150, 0],
-               [TREE - 8,  "#17311f", 98, 132, 42],
-               [TREE + 22, "#1d3f28", 112, 118, 86]];
   for (var rk = 0; rk < RANKS.length; rk++){
-    var ry = RANKS[rk][0], rc = RANKS[rk][1], rr = RANKS[rk][2],
-        pitch = RANKS[rk][3], off = RANKS[rk][4];
-    for (var i = -1; i * pitch + off < LOGICAL_W + pitch; i++){
-      var cx = i * pitch + off + Math.sin(t * 0.7 + i + rk) * 3;
-      ctx.fillStyle = "#2a1e15";
-      ctx.fillRect(cx - 8, ry, 16, 90);
-      ctx.fillStyle = rc;
-      ctx.beginPath(); ctx.ellipse(cx, ry - 6, rr*0.62, rr*0.46, 0, 0, Math.PI*2); ctx.fill();
-      ctx.beginPath(); ctx.ellipse(cx - rr*0.28, ry + 14, rr*0.40, rr*0.32, 0, 0, Math.PI*2); ctx.fill();
-      ctx.beginPath(); ctx.ellipse(cx + rr*0.30, ry + 10, rr*0.42, rr*0.33, 0, 0, Math.PI*2); ctx.fill();
-      ctx.fillStyle = shade(rc, 0.16);
-      ctx.beginPath(); ctx.ellipse(cx + rr*0.10, ry - 20, rr*0.34, rr*0.24, 0, 0, Math.PI*2); ctx.fill();
+    var ry = RANKS[rk][0], pitch = RANKS[rk][3], off2 = RANKS[rk][4];
+    var key = "parkTree" + rk;
+    if (!S[key] || !S[key].img.width) S[key] = bakeParkTree(rk);
+    for (var i = -1; i * pitch + off2 < LOGICAL_W + pitch; i++){
+      var cx = i * pitch + off2 + Math.sin(t * 0.7 + i + rk) * 3;
+      blit(S[key], cx, ry);
     }
   }
 
@@ -10493,6 +10564,17 @@ function sceneStepBack(){
 
 function startScene(st){
   sceneStepBack();
+  /* THE SHAKE DOES NOT COME WITH HIM. It is applied to the root transform in
+     render(), before anything is drawn, so everything after it inherits the
+     wobble - the cutscene included. Take a bus on the last row of a block and
+     the landmark card that follows arrived shuddering, which read as the
+     panel struggling rather than as the hit it came from.
+
+     Cleared here rather than only guarded in render(), because the world
+     stops simulating behind a scene and `G.shake` decays in update() - a
+     guard on its own would have held the shake at full strength for the
+     whole scene and then handed it back the moment the card lifted. */
+  G.shake = 0;
   var sc = (G.leg > 0 ? SCENES : SCENES_BACK)[st];
   /* The scene carries its own definition, because the leg can flip while it is
      still on screen - looking it up again on the way out would find the wrong
@@ -10514,6 +10596,7 @@ function startScene(st){
 function startEndScene(key){
   var sc = SCENES_END[key];
   if (!sc){ winGame(); return; }
+  G.shake = 0;                      // same reason as startScene
   G.scene = { st:0, t:0, len:sc.secs || SCENE_SECS, sc:sc, fired:{} };
   AUDIO.stage();
   if (sc.music){
@@ -15731,7 +15814,11 @@ var fps = { acc:0, frames:0, value:0 };
 function render(){
   if (G.saver){ ctx.setTransform(scale, 0, 0, scale, 0, 0); drawSaver(); return; }
   var sx = 0, sy = 0;
-  if (G.shake > 0){ sx = (Math.random()-0.5)*G.shake; sy = (Math.random()-0.5)*G.shake; }
+  /* Never while a scene is up. startScene clears it, so this is the backstop
+     for anything that manages to set it behind a card. */
+  if (G.shake > 0 && !G.scene){
+    sx = (Math.random()-0.5)*G.shake; sy = (Math.random()-0.5)*G.shake;
+  }
   ctx.setTransform(scale, 0, 0, scale, sx*scale, sy*scale);
   drawSky();
   drawWorld();

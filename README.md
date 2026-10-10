@@ -3324,6 +3324,69 @@ where the banked time comes from. **The subway keeps every one of its train
 names** — `TRAIN_ROB`, `TRAIN_CHAT`, `TRAIN APPROACHING` — because that one is
 a real train you really ride.
 
+
+## Central Park, and what a cutscene actually costs
+
+The Desk Pro died going into the Central Park scene, then started freezing
+after a few minutes generally — *"might be a common issue when it goes to
+level cutscenes."* It was, and the park was the worst of them by a mile.
+
+Counting draw calls rather than milliseconds, because on an embedded GPU the
+call count is what hurts:
+
+| scene | draw calls/frame |
+|---|---|
+| 81 Steak dinner | 13 |
+| 50 Rockefeller | 387 |
+| 42 Times Square | 478 |
+| **59 Central Park** | **1,514** |
+
+Almost none of it was moving.
+
+**The skyline never changes.** Twenty towers and about a thousand windows,
+and the lit/unlit test is `(wx*7 + wy*13 + k*5) % 17 < 6` — no `t` in it
+anywhere. The same thousand rectangles, recomputed sixty times a second, to
+produce the same picture. It is one `drawImage` now.
+
+**The trees only sway.** Four ellipses and a trunk each, forty-five of them,
+and the whole animation is `sin(t*0.7 + i + rk) * 3` — a three-pixel
+horizontal nudge. One tree per rank is baked and blitted at a swaying x, which
+is pixel-identical and turns 180 ellipse fills into 45 blits. The pond
+reflection and the ducks stay live, because those genuinely move.
+
+Central Park: **1,514 → 487 calls**, from twice Times Square to level with it.
+
+**And a cutscene draws the world as well.** The frozen world — verified
+frozen: zero of nineteen cars moved across sixty frames — is redrawn in full
+underneath the card, every frame, for the eight to eleven seconds the scene is
+up. That is why *every* scene costs about 3× a gameplay frame (528 calls →
+785–1,033), and why the complaint was about cutscenes in general rather than
+one of them. Caching the frozen world would remove it, and is deliberately
+**not** done here: the cache is a full-screen canvas, ~18MB at the Desk Pro's
+scale, on the machine whose crash was *caused* by canvas memory. Halving the
+worst scene was the fix that does not trade one crash for another.
+
+On the alpha: the bake draws windows at 0.55/0.07 over an opaque tower and is
+blitted at the scene's `a`, where the original drew the tower at `a` and each
+window at `a*0.55`. Identical at a=1, which is where the scene sits for all
+but the 0.3s of fade at each end. Lazily built and cached in `S`, so
+`releaseAtlas()` frees them with everything else on a re-bake.
+
+## The shake does not come with him
+
+Take a bus on the last row of a block and the landmark card that followed
+arrived shuddering. `G.shake` is applied to the **root transform** at the top
+of `render()`, before anything is drawn, so everything after it inherits the
+wobble — the cutscene included. It read as the panel struggling rather than
+as the hit it came from.
+
+Cleared in `startScene`/`startEndScene` rather than only guarded in `render`,
+because the world stops simulating behind a scene and `G.shake` decays in
+`update()`: a guard on its own would have held the shake at full strength for
+the whole scene and handed it back the moment the card lifted. The guard is
+there too, as the backstop. Verified: 21.3px of shake in gameplay, exactly 0
+during a cutscene.
+
 ## The stopped sanitation truck
 
 Reported: *"I had Traffic Insights and I was walking in traffic, all was good
