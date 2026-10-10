@@ -3549,6 +3549,76 @@ changes, and 1,199 frames held still across twenty seconds of hard banking.
 
 
 
+
+## Getting over things
+
+Walking into a bin and being told no, over and over, was the one obstacle in
+the game with no answer to it. A man who can leap three lanes of 42nd in a
+cape can get over a planter.
+
+So the **first push into something low bounces him** — he jumps on the spot
+against it, which is both the refusal and the suggestion — and the **second
+push the same way goes over**, landing on the square beyond. It falls through
+to the ordinary move, so it costs its two boxes and lands like any other step,
+with the same grace the suit's leaps get: come down on something moving and
+you are bumped clear rather than killed.
+
+**What counts as low is measured, not listed.** Every prop model is walked for
+its highest point, and anything at or under `VAULT_TOP` = 0.75 can be cleared:
+
+| | | | |
+|---|---|---|---|
+| citidock 0.35 | subway 0.65 | planter **0.71** | pizza 0.86 |
+| trash 0.50 | newsstand 0.69 | bagel 0.84 | hotdog 0.86 |
+| | | kiosk 0.85 | shed 0.96 |
+
+which puts the line between a planter and a food cart — a thing you could swing
+a leg over, against a thing with an umbrella on it. Measuring rather than
+listing means a model that grows a canopy later stops being vaultable on its
+own, with nobody having to remember.
+
+Two exceptions, both for **behaviour** rather than height: the subway is low
+enough but walking into it is a *ride*, and the pack is an *attach* — hurdling
+either would take the thing away from the player instead of giving it to them.
+And a blocker that is not a prop at all (the double-parked box truck lives in
+`row.parked`) is never vaultable, because the default for something nobody has
+measured has to be no.
+
+**The second swipe is strict.** At 1.4s it caught people who had simply pushed
+twice because the first one did nothing — the vault fired when they meant to
+walk. `VAULT_WINDOW` is 0.55, and the bounce takes 0.34 of it, so it has to be
+a genuine double swipe. Verified: vaults at 0s, 0.3s and 0.5s; refuses at 0.7s
+and 1.2s, and a refusal costs nothing because the next push bounces and re-arms.
+
+**One trap worth recording.** The prop heights were first measured in an IIFE
+at the point of declaration — and building a model means *calling its factory*,
+and `kioskModel` reaches for `TRACE.line`, which is declared eight thousand
+lines further down. It threw at the top level, so every `var` after it stayed
+undefined and the page reported `readyState: "complete"` with half its
+constants missing. The parse check passed the whole time, because
+`new Function(src)` compiles without executing. Deferred to first use now.
+
+## The carriage stops talking over itself
+
+The gap between conversations is measured from the **start** of one to the
+start of the next, not from the end — and a conversation runs 2.85s, the
+second speaker coming in 0.75 behind the first and each bubble lasting
+`FOLK_SAY`. At a gap of 3–6.5s the next pair opened before the last had shut up
+about half the time, so there were routinely two conversations and four
+bubbles up at once and the car read as everybody talking at the same moment.
+
+Doubled to 6–13s, a conversation occupies about 2.85s of every 6 to 13, so
+there is silence between them. Measured over a minute of carriage:
+
+| | conversations/min | time talking |
+|---|---|---|
+| before | 12 | 57% |
+| after | **6** | **29%** |
+
+**None of this touches the bump.** Walking into somebody still gets an
+immediate line out of them, because that one is a reaction to the player and
+the whole point of it is that it answers back.
+
 ## The present opens
 
 The pack is **two sprites: shut, and burst open.**

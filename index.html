@@ -3782,6 +3782,100 @@ var PROP_MODELS = {
   trash:trashModel, planter:planterModel, citidock:citiDockModel, kiosk:kioskModel
 };
 
+/* ------------------------------------------------------------- THE VAULT
+   Walking into a bin and being told no, over and over, is the one obstacle
+   in the game with no answer to it. A man who can leap three lanes of 42nd
+   in a cape can get over a planter.
+
+   So: the first push into something low BOUNCES him - he jumps on the spot,
+   against it, which is both the refusal and the suggestion. Push the same
+   way again and he goes over, landing on the square beyond.
+
+   WHAT COUNTS AS LOW is measured, not listed. Every prop model is walked
+   once at startup for the highest point in it, and anything at or under
+   VAULT_TOP can be cleared:
+
+       citidock 0.35   subway 0.65    planter 0.71    pizza  0.86
+       trash    0.50   newsstand 0.69  bagel  0.84    hotdog 0.86
+                                       kiosk  0.85    shed   0.96
+
+   which puts the line between a planter and a food cart - a thing you could
+   swing a leg over, against a thing with an umbrella on it. Measuring rather
+   than listing means a model that grows a canopy later stops being vaultable
+   on its own.
+
+   TWO EXCEPTIONS, both for behaviour rather than height. The subway is low
+   enough but walking into it is a RIDE, and the pack is an ATTACH; hurdling
+   either would take the thing away from the player instead of giving it to
+   them. And anything blocking a square that is not a prop at all - the
+   double-parked box truck lives in `row.parked` - is not vaultable, because
+   the default has to be "no" for a blocker nobody has measured. */
+/* VAULT_WINDOW is deliberately short. At 1.4s any second push in the same
+   direction within a second and a half went over, which caught people who
+   had simply pushed twice because the first one did nothing - the vault
+   fired when they meant to walk. At 0.55 it has to be a DOUBLE swipe: the
+   bounce takes 0.34 of it, so the second push has to follow the first almost
+   immediately, the way a double-tap does. Miss it and nothing is lost - the
+   next push bounces him again and re-arms. */
+var VAULT_TOP = 0.75, VAULT_WINDOW = 0.55, VAULT_HOP = 0.34, VAULT_AIR = 30;
+var VAULT_NEVER = { subway:1, kiosk:1 };
+/* MEASURED ON FIRST USE, not here. Building a model means calling its
+   factory, and those factories reach for colours - kioskModel wants
+   TRACE.line - that are declared thousands of lines further down the file.
+   Run at parse time this threw, and because it threw at the top level every
+   `var` after it stayed undefined: the page reported readyState "complete"
+   with half its constants missing. Deferred to the first vault instead, by
+   which point everything exists. */
+var PROP_TOP = null;
+function propTop(kind){
+  if (!PROP_TOP){
+    PROP_TOP = {};
+    for (var k in PROP_MODELS){
+      var m = PROP_MODELS[k](), hi = 0;
+      for (var i = 0; i < m.parts.length; i++){
+        var t = m.parts[i].z + m.parts[i].h;
+        if (t > hi) hi = t;
+      }
+      PROP_TOP[k] = hi;
+    }
+  }
+  return PROP_TOP[kind];
+}
+
+/* The refusal, and the offer. He jumps on the spot against whatever it is,
+   which arms the vault; push the same way again inside VAULT_WINDOW and he
+   goes over. With nowhere to land it is just the old dull thud, because
+   suggesting a move that cannot be made is worse than refusing it. */
+function nudge(nr, nc, dir, land, quiet){
+  if (!land){ if (!quiet) AUDIO.bump(); return; }
+  G.vault = { r:nr, c:nc, dir:dir, t:VAULT_WINDOW };
+  G.nudgeT = VAULT_HOP;
+  AUDIO.jostle();
+}
+
+/* The square he would land on, or null if there is nothing to go over, no
+   room on the far side, or the thing in the way is too tall to clear. */
+function vaultLanding(nr, nc, dir){
+  var row = rows[nr];
+  if (!row || !row.props) return null;
+  var kind = null;
+  for (var i = 0; i < row.props.length; i++){
+    if (row.props[i].col === nc){ kind = row.props[i].kind; break; }
+  }
+  if (!kind || VAULT_NEVER[kind]) return null;
+  if (!(propTop(kind) <= VAULT_TOP)) return null;
+
+  var lr = nr + (nr - G.row), lc = nc + (nc - G.col);
+  if (lc < 0 || lc > COLS - 1) return null;
+  /* The same floor the ordinary step obeys: he may not reverse further than
+     six rows behind his own best, and never off the bottom of the world. */
+  if (lr < Math.max(0, G.maxRow - 6)) return null;
+  var land = rows[lr];
+  if (!land) return null;
+  if (land.blocked && land.blocked[lc]) return null;
+  return { r:lr, c:lc };
+}
+
 /* ------------------------------------------------------------ ground strips */
 function bakeStrip(kind, alt){
   var h = ROW_H + 2;
@@ -4588,7 +4682,7 @@ function reset(){
     leapT:0, leapDir:1, dashBeep:0, idleT:0, saver:false, hushed:false, spin:null,
     dashFlash:0, dashPulse:0, dashWhole:0,
     scene:null, scenePend:null, scenesSeen:{}, ticker:null, notice:null, southT:0,
-    report:false, reportY:0, spinR:0, candy:null,
+    report:false, reportY:0, spinR:0, candy:null, vault:null, nudgeT:0,
     leg:1, po:false, won:false,
     fiscT:FISC_MAX, fiscMin:FISC_START_MIN,
     missedClose:false,
@@ -5137,13 +5231,25 @@ function act(dir){
      seconds a loading screen. */
   if (G.flyT <= 0 && (G.dashT <= 0 || sweptStop) &&
       target && target.blocked && target.blocked[nc]){
+    /* SECOND PUSH, SAME WAY: he goes over it - see vaultLanding. Settled
+       before any of the interactions below, because by the time a vault is
+       armed they have all already had their turn: the bin never had anything
+       to say, the newsstand has been read, the cart has been eaten at. */
+    var land = vaultLanding(nr, nc, dir);
+    var armed = !!(land && G.vault && G.vault.r === nr && G.vault.c === nc &&
+                   G.vault.dir === dir);
+
+    if (!armed){
     /* Walk into a bagel cart, a slice counter or a hot dog stand and he stops,
        pays and eats. It costs nothing - the step was already refused - and it
        is the only time anything on the pavement answers back. */
     var foodPr = foodPropAt(target, nc);
     var newsPr = propAtObj(target, nc, "newsstand");
     if (newsPr && newsPr.read){
-      G.sadT = 1.1; AUDIO.nope();          // he has already read this one
+      /* Nothing left to read, so this is a dead end and the bounce is the
+         only thing on offer. `quiet` keeps the thud off it - the sad face is
+         already saying no. */
+      G.sadT = 1.1; nudge(nr, nc, dir, land, true);
     } else if (newsPr){
       newsPr.read = true;
       var good = Math.random() < 0.5;
@@ -5157,7 +5263,7 @@ function act(dir){
     } else if (eatenFoodAt(target, nc)){
       /* He already bought from this one. The cart is still there, so without
          saying something the refusal looks like the controls ignoring him. */
-      G.sadT = 1.1; AUDIO.nope();
+      G.sadT = 1.1; nudge(nr, nc, dir, land, true);
     } else if (foodPr){
       foodPr.served = (foodPr.served || 0) + 1;  // that is one off the cart
       G.yumT = EAT_SECS; G.yumKind = foodPr.kind; G.yumBite = 0;
@@ -5175,8 +5281,19 @@ function act(dir){
       G.hpGain = { life:1.5, amt:Math.round(G.hp - was) };
       G.hpShow = HP_SHOW;                  // and the bar over his head, briefly
       AUDIO.pay();
-    } else AUDIO.bump();
+    } else nudge(nr, nc, dir, land);
     return;
+    }
+
+    /* Armed, and over it goes. nr/nc move to the far side and the step falls
+       through to the ordinary move below, so it costs its two boxes and lands
+       like any other - with the same grace the suit's leaps get, which is
+       what bumps him clear instead of killing him if he comes down on
+       something moving. */
+    G.vault = null; G.nudgeT = 0;
+    nr = land.r; nc = land.c;
+    G.leapT = LEAP_GRACE; G.leapDir = (dir === "b") ? -1 : 1;
+    AUDIO.hop();
   }
 
   /* The route has its own footsteps. Checked against the square he is
@@ -5348,6 +5465,9 @@ function act(dir){
   /* Half a point a box, counting every square the step covers - a three-row
      leap costs three boxes, a sideways dodge costs one. */
   spendHp(HP_PER_BOX * Math.max(1, Math.abs(nr - G.row) + Math.abs(nc - G.col)));
+  /* Any step that actually happens clears an arming. Nudging a bin, walking
+     away and coming back a minute later should take two pushes again. */
+  G.vault = null;
   G.fromRow = G.row; G.fromCol = G.col;
   G.row = nr; G.col = nc; G.hop = 0;
   if (nr > G.maxRow){ G.maxRow = nr; progress(); }
@@ -6190,6 +6310,11 @@ function playerPos(){
      like. */
   var span = leapSpan();
   if (span > 1 && G.hop < 1) lift += DASH_AIR * (span - 1) * Math.sin(G.hop * Math.PI);
+  /* The bounce off something low. He does not move, so none of the above
+     gives him any air - this is the whole of it, and it is what tells the
+     player there is a second push to make. */
+  if (G.nudgeT > 0)
+    lift += VAULT_AIR * Math.sin((1 - G.nudgeT / VAULT_HOP) * Math.PI);
   return { col:G.fromCol + (G.col-G.fromCol)*e, row:G.fromRow + (G.row-G.fromRow)*e,
            lift:lift, sq:s };
 }
@@ -6499,7 +6624,7 @@ function startRide(enterRow, enterCol){
                  a.push({ seed:i * 13 + 5, sayAt:-99, line:null, used:false });
                return a;
              })(),
-             chatT: 1.6 + Math.random() * 2.4,
+             chatT: 3.2 + Math.random() * 4.8,
              pause: 1 + Math.random() * 2 };
   G.col = enterCol; G.fromCol = enterCol;
   G.row = enterRow; G.fromRow = enterRow; G.hop = 1;
@@ -7045,7 +7170,7 @@ function updateRide(dt){
   if (R.pax){
     R.chatT -= dt;
     if (R.chatT <= 0){
-      R.chatT = 3.0 + Math.random() * 3.5;
+      R.chatT = TRAIN_CHAT_GAP[0] + Math.random() * TRAIN_CHAT_GAP[1];
       var a0 = (Math.random() * RIDE_SLOTS) | 0;
       var b0 = a0 + (Math.random() < 0.5 ? -1 : 1);
       var pa = carPaxAt(R, a0), pb = carPaxAt(R, b0);
@@ -7908,6 +8033,23 @@ var TRAIN_CHAT = [
   "I used to take the bus.",
   "Thirty-four was a zoo."
 ];
+/* HOW OFTEN THE CARRIAGE TALKS, and it is half what it was.
+
+   The gap is measured from the START of one conversation to the start of the
+   next, not from the end - and a conversation runs 2.85s, the second speaker
+   coming in 0.75 behind the first and each bubble lasting FOLK_SAY. At a gap
+   of 3.0 to 6.5 the next pair opened before the last had shut up roughly half
+   the time, so there were routinely two conversations and four bubbles up at
+   once and the car read as everybody talking at the same moment.
+
+   Doubled, a conversation occupies about 2.85s of every 6 to 13, so there is
+   silence between them and the carriage sounds like a carriage.
+
+   NONE OF THIS TOUCHES THE BUMP. Walking into somebody still gets an
+   immediate line out of them, because that one is a reaction to the player
+   and the whole point of it is that it answers back. */
+var TRAIN_CHAT_GAP = [6.0, 7.0];
+
 var TRAIN_CHAT_RARE = [
   "It smells like pee in here.",
   "Somebody is eating fish.",
@@ -11763,6 +11905,13 @@ function update(dt){
     if (G.candy){
       G.candy.t += dt;
       if (G.candy.t >= CANDY_FLY){ G.candy = null; candyLand(); }
+    }
+    if (G.nudgeT > 0) G.nudgeT = Math.max(0, G.nudgeT - dt);
+    /* The armed vault forgets itself. Walking away and coming back later
+       should take two pushes again, not one. */
+    if (G.vault){
+      G.vault.t -= dt;
+      if (G.vault.t <= 0) G.vault = null;
     }
     G.fiscT -= dt;
     /* The face counts toward the evening, forward only, one minute at a
