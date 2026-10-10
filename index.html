@@ -8473,30 +8473,50 @@ function scenePennOutside(t, a){
 
   /* THE GARDEN, behind. A fascia arc with ribs under it. Drawn before the
      tower so the tower stands in front of it, which is how they sit. */
-  var MX = 1430, MY = 980, MR = 430;
+  /* THE GARDEN IS A DRUM, NOT A DOME. The first pass drew a semicircle,
+     which from the pavement reads as something round lying on its side -
+     and that is not what you see. It is a very wide, very shallow cylinder:
+     from down here its roof edge is a long flat curve running most of the
+     way across, dropping away at the ends, with the ribs hanging straight
+     DOWN off it rather than radiating out of a centre.
+
+     So: an ellipse 1.25 times as wide as it is anything, clipped to the
+     frame, and ribs that are vertical bars from the fascia down. Radial
+     ribs were the other half of the wheel-on-its-side problem. */
+  var MX = 1480, MY = 712, MRX = 700, MRY = 128;
   ctx.save();
   ctx.beginPath(); ctx.rect(0, SKY_T, LOGICAL_W, GROUND - SKY_T); ctx.clip();
+  // the body of the drum, from the curve down to the street
   ctx.fillStyle = "#2b313b";
-  ctx.beginPath(); ctx.arc(MX, MY, MR, Math.PI, Math.PI * 2); ctx.fill();
-  ctx.fillRect(MX - MR, MY, MR * 2, 120);
-  // the pale fascia band along the top of the drum
-  ctx.strokeStyle = "#cdd3da"; ctx.lineWidth = 26;
-  ctx.beginPath(); ctx.arc(MX, MY, MR - 8, Math.PI, Math.PI * 2); ctx.stroke();
-  ctx.strokeStyle = "#9aa2ad"; ctx.lineWidth = 7;
-  ctx.beginPath(); ctx.arc(MX, MY, MR + 8, Math.PI, Math.PI * 2); ctx.stroke();
-  // ribs hanging off it
-  for (i = 0; i <= 26; i++){
-    var ra = Math.PI + (i / 26) * Math.PI;
-    var rx1 = MX + Math.cos(ra) * (MR - 22), ry1 = MY + Math.sin(ra) * (MR - 22);
-    var rx2 = MX + Math.cos(ra) * (MR - 104), ry2 = MY + Math.sin(ra) * (MR - 104);
-    ctx.strokeStyle = "#39404b"; ctx.lineWidth = 9;
-    ctx.beginPath(); ctx.moveTo(rx1, ry1); ctx.lineTo(rx2, ry2); ctx.stroke();
+  ctx.beginPath();
+  ctx.ellipse(MX, MY, MRX, MRY, 0, Math.PI, Math.PI * 2);
+  ctx.lineTo(MX + MRX, GROUND); ctx.lineTo(MX - MRX, GROUND);
+  ctx.closePath(); ctx.fill();
+  // the pale fascia along the roof edge
+  ctx.strokeStyle = "#cdd3da"; ctx.lineWidth = 30;
+  ctx.beginPath();
+  ctx.ellipse(MX, MY, MRX, MRY - 14, 0, Math.PI, Math.PI * 2); ctx.stroke();
+  ctx.strokeStyle = "#8f98a3"; ctx.lineWidth = 6;
+  ctx.beginPath();
+  ctx.ellipse(MX, MY, MRX, MRY + 4, 0, Math.PI, Math.PI * 2); ctx.stroke();
+  /* The ribs: straight down off the fascia, shortening toward the ends
+     where the drum turns away. */
+  for (i = 0; i <= 34; i++){
+    var rfr = i / 34;
+    var rx1 = MX - MRX + rfr * MRX * 2;
+    var ry1 = MY - Math.sqrt(Math.max(0, 1 - Math.pow((rx1 - MX) / MRX, 2))) * MRY;
+    var rlen = 54 + Math.sqrt(Math.max(0, 1 - Math.pow((rx1 - MX) / MRX, 2))) * 46;
+    ctx.strokeStyle = "#39404b"; ctx.lineWidth = 8;
+    ctx.beginPath();
+    ctx.moveTo(rx1, ry1 + 14); ctx.lineTo(rx1, ry1 + 14 + rlen); ctx.stroke();
   }
-  // a lit band of windows round the base of the drum
-  for (i = 0; i < 22; i++){
+  // a lit band of windows round the base
+  for (i = 0; i < 30; i++){
     ctx.fillStyle = ((i * 7 + 3) % 5) ? "#1d222a" : "#d8c489";
-    ctx.fillRect(MX - MR + 36 + i * 36, MY - 46, 22, 36);
+    ctx.fillRect(MX - MRX + 30 + i * 46, GROUND - 92, 28, 44);
   }
+  ctx.fillStyle = "#20252d";
+  ctx.fillRect(MX - MRX, GROUND - 40, MRX * 2, 40);
   ctx.restore();
 
   /* THE TOWER. Tapering, and running off the top of the frame. */
@@ -8784,13 +8804,29 @@ function beachModel(){
     { x:0.582, y:0.435, w:0.150, z:0.380, h:0.215, bg:"#eef1f4" },
     { x:0.455, y:0.436, w:0.090, z:0.380, h:0.190, bg:shade(skin, -0.03) },
     /* SUNGLASSES, on the eye line playerModel uses - 0.742 there on a head
-       at 0.655, so 0.787 here on a head at 0.700. One bar with two lighter
-       lenses on it reads as a pair; two separate dark rects read as the
-       ordinary eyes, which is what the hand-drawn one kept doing. */
-    { x:0.398, y:0.428, w:0.204, z:0.787, h:0.030, bg:"#15181d" },
-    { x:0.410, y:0.427, w:0.056, z:0.793, h:0.016, bg:"#44515e" },
-    { x:0.534, y:0.427, w:0.056, z:0.793, h:0.016, bg:"#44515e" },
-    { x:0.452, y:0.428, w:0.096, z:0.746, h:0.016, bg:"#8a5a44" }
+       at 0.655, so 0.787 here on a head at 0.700.
+
+       Bigger than the first pass and built as a PAIR: two deep lenses, a
+       bridge between them and a brow bar over the top. One thin dark strip
+       across the face read as a visor, or worse, as his ordinary eyes
+       drawn wide - which is exactly what it was doing. */
+    { x:0.392, y:0.428, w:0.218, z:0.772, h:0.014, bg:"#0d0f12" },   // brow bar
+    { x:0.392, y:0.428, w:0.092, z:0.742, h:0.044, bg:"#15181d" },   // lenses
+    { x:0.518, y:0.428, w:0.092, z:0.742, h:0.044, bg:"#15181d" },
+    { x:0.484, y:0.428, w:0.034, z:0.766, h:0.014, bg:"#0d0f12" },   // bridge
+    /* A sunset in each lens: a warm band low down, which is the only thing
+       that stops two black rectangles reading as empty sockets. */
+    { x:0.400, y:0.427, w:0.070, z:0.750, h:0.013, bg:"#8a5a3a" },
+    { x:0.526, y:0.427, w:0.070, z:0.750, h:0.013, bg:"#8a5a3a" },
+    { x:0.400, y:0.426, w:0.028, z:0.766, h:0.011, bg:"#4a5560" },
+    { x:0.526, y:0.426, w:0.028, z:0.766, h:0.011, bg:"#4a5560" },
+    /* AND A SMILE. Three steps rather than one bar - the ends sit a step
+       lower than the middle, which is the whole difference between a mouth
+       that is happy and a mouth that is a dash. The step has to be worth
+       about 3px on a head this size or the three rects line up. */
+    { x:0.438, y:0.428, w:0.030, z:0.712, h:0.018, bg:"#7a4a36" },
+    { x:0.466, y:0.428, w:0.064, z:0.700, h:0.018, bg:"#7a4a36" },
+    { x:0.528, y:0.428, w:0.030, z:0.712, h:0.018, bg:"#7a4a36" }
   ];
   /* A LEI. Seven blooms round the collar, the middle ones hanging lower,
      which is the only way a flat row of discs reads as a loop. */
@@ -9396,62 +9432,99 @@ function sceneCabana(t, a){
   torch(CX - CW/2 - 86, CB + 16, 1.00, 0);
   torch(CX + CW/2 + 86, CB + 24, 1.06, 2.2);
 
-  /* ------------------------------------------------- HIM, ON THE LOUNGER
-     The figure is the BAKED MODEL now (see beachModel) rather than anything
-     drawn here, so he is built out of the same voxels, lit by the same
-     projection and wearing the same face as the man in the game. Three
-     hand-drawn passes failed at this for a reason that was never about the
-     drawing: a figure made of flat bars is a different species from a voxel
-     sprite, and no amount of re-jointing it was going to close that gap.
+  /* ------------------------------------------------- HIM, IN THE CHAIR
+     The figure is the baked model (see beachModel) - same voxels, same
+     projection, same face as the man in the game.
 
-     Everything in here is the furniture he sits on. It is drawn around him
-     from his own footprint: SC is where he sits and BW is how wide he is,
-     so the chair can never end up a size that does not fit him. */
-  var SC_X = CX - 128, SC_Y = 858, SC_K = 2.20;
-  var BW = S.beachGuy ? S.beachGuy.w * SC_K : 240;
-  var SEAT = SC_Y - 92 * SC_K / 2.35;          // where the seat rail sits
+     THE CHAIR IS A FOLDING BEACH CHAIR, not a lounger. A lounger is for a
+     man lying flat and the model sits UP, so the two never agreed: he read
+     as crouching on a plank. A low folding chair is the thing an upright
+     seated figure actually sits in, and it is built so the back is BEHIND
+     him and the arms and front legs are IN FRONT - which is what finally
+     makes him sit in it rather than near it.
 
-  // the chair: a raked back behind him, a seat under him, four stubby legs
-  ctx.save();
-  ctx.translate(SC_X + BW * 0.46, SEAT - 6); ctx.rotate(-1.12);
-  ctx.fillStyle = "#8a6a46"; ctx.fillRect(0, -17, 196, 17);
-  ctx.fillStyle = "#7a5c3c"; ctx.fillRect(0, -17, 196, 5);
-  ctx.restore();
+     Everything is measured off his own footprint. SC is where he sits and
+     BW is how wide he is, so the chair can never come out a size that does
+     not fit him. */
+  var SC_X = CX - 136, SC_Y = 856, SC_K = 2.20;
+  var BW = S.beachGuy ? S.beachGuy.w * SC_K : 258;
+  var BH = S.beachGuy ? S.beachGuy.h * SC_K : 340;
+  var MIDX = SC_X + BW * 0.50;
+  var SEAT = SC_Y - BH * 0.30;                 // the seat rail, at his hips
+  var BKT  = SC_Y - BH * 0.94;                 // the top of the back
+
+  /* --- behind him: the back frame and its canvas, then the seat canvas. */
+  var BKW = BW * 0.86;
+  ctx.fillStyle = "#6b4a30";
+  ctx.fillRect(MIDX - BKW/2 - 11, BKT, 15, SEAT - BKT + 18);
+  ctx.fillRect(MIDX + BKW/2 - 4,  BKT, 15, SEAT - BKT + 18);
+  ctx.fillStyle = "#5a3d27";
+  ctx.fillRect(MIDX - BKW/2 - 11, BKT, 5, SEAT - BKT + 18);
+  ctx.fillRect(MIDX + BKW/2 - 4,  BKT, 5, SEAT - BKT + 18);
+  // the canvas, striped like the cabana so the set agrees with itself
+  for (var st2 = 0; st2 * 34 < BKW; st2++){
+    ctx.fillStyle = st2 % 2 ? "#f1ece1" : shade(C.brand, -0.08);
+    ctx.fillRect(MIDX - BKW/2 + st2 * 34, BKT + 8,
+                 Math.min(34, BKW - st2 * 34), SEAT - BKT - 4);
+  }
+  ctx.globalAlpha = a * 0.20; ctx.fillStyle = "#000";
+  ctx.fillRect(MIDX - BKW/2, BKT + 8, BKW, 14);
+  ctx.globalAlpha = a;
+  // a rolled top edge, so the canvas has a hem
   ctx.fillStyle = "#8a6a46";
-  ctx.fillRect(SC_X + BW * 0.02, SEAT, BW * 0.92, 19);
-  ctx.fillStyle = "#9a7a52";
-  ctx.fillRect(SC_X + BW * 0.02, SEAT, BW * 0.92, 6);
-  ctx.fillStyle = "#6f5436";
-  ctx.fillRect(SC_X + BW * 0.10, SEAT + 19, 15, 34);
-  ctx.fillRect(SC_X + BW * 0.78, SEAT + 19, 15, 34);
-  // a towel over the back of it
-  ctx.save();
-  ctx.translate(SC_X + BW * 0.50, SEAT - 14); ctx.rotate(-1.12);
-  ctx.fillStyle = "#efe9dc"; ctx.fillRect(0, -22, 150, 22);
-  ctx.restore();
+  ctx.fillRect(MIDX - BKW/2 - 11, BKT, BKW + 22, 14);
+  // the seat canvas, under where he sits
+  ctx.fillStyle = "#e4dccd";
+  ctx.fillRect(MIDX - BKW/2, SEAT - 6, BKW, 24);
+  ctx.fillStyle = "#cfc5b2";
+  ctx.fillRect(MIDX - BKW/2, SEAT + 12, BKW, 7);
 
-  /* THE BLAZER, over the arm of the chair. Fourth place it has been and the
-     first one that works: beside him, hanging, overlapping nothing. */
+  /* --- him. A shadow pool first, because a blitted sprite on flat sand
+     floats off it. */
+  ctx.globalAlpha = a * 0.22; ctx.fillStyle = "#8a6336";
+  ctx.beginPath();
+  ctx.ellipse(MIDX, SC_Y + 8, BW * 0.52, 16, 0, 0, Math.PI*2);
+  ctx.fill();
+  ctx.globalAlpha = a;
+  if (S.beachGuy) blitScaled(S.beachGuy, SC_X, SC_Y, SC_K, SC_K);
+
+  /* --- in front of him: the arms he is resting on and the front legs. The
+     near arm passes over his elbow, which is the single thing that says he
+     is INSIDE the chair. */
+  /* The arms are SHORT and stay at the sides. At half the back width they
+     reached across his chest and read as a safety bar on a fairground ride;
+     a real armrest only runs the front half of the frame anyway, and the
+     bit that matters is the end nearest the camera. */
+  var ARMY = SEAT - BH * 0.11, ARMW = BKW * 0.30;
+  ctx.fillStyle = "#8a6a46";
+  ctx.fillRect(MIDX - BKW/2 - 26, ARMY, ARMW, 13);
+  ctx.fillRect(MIDX + BKW/2 + 26 - ARMW, ARMY, ARMW, 13);
+  ctx.fillStyle = "#9a7a52";
+  ctx.fillRect(MIDX - BKW/2 - 26, ARMY, ARMW, 4);
+  ctx.fillRect(MIDX + BKW/2 + 26 - ARMW, ARMY, ARMW, 4);
+  // the uprights that carry them, down to the sand
+  ctx.fillStyle = "#7a5c3c";
+  ctx.fillRect(MIDX - BKW/2 - 26, ARMY, 13, SC_Y - ARMY + 4);
+  ctx.fillRect(MIDX + BKW/2 + 13, ARMY, 13, SC_Y - ARMY + 4);
+  // and the feet of it, splayed out on the sand
+  ctx.fillStyle = "#6f5436";
+  ctx.fillRect(MIDX - BKW/2 - 40, SC_Y, 42, 12);
+  ctx.fillRect(MIDX + BKW/2 - 2,  SC_Y, 42, 12);
+
+  /* THE BLAZER, over the near arm of the chair. Fifth place it has been and
+     the first that is unarguable: a jacket over the arm of the chair you
+     are sitting in is what a jacket does. */
   ctx.save();
-  ctx.translate(SC_X + BW * 1.02, SEAT - 2); ctx.rotate(0.06);
-  ctx.fillStyle = shade(BLAZER, -0.12); ctx.fillRect(-30, 0, 60, 86);
-  ctx.fillStyle = BLAZER;               ctx.fillRect(-34, -10, 68, 16);
-  ctx.fillStyle = shade(BLAZER, 0.12);  ctx.fillRect(-5, 8, 9, 70);
-  ctx.fillStyle = shade(BLAZER, -0.32); ctx.fillRect(-30, 72, 60, 14);
+  ctx.translate(MIDX + BKW/2 + 34, ARMY + 6); ctx.rotate(0.05);
+  ctx.fillStyle = shade(BLAZER, -0.12); ctx.fillRect(-30, 0, 60, 88);
+  ctx.fillStyle = BLAZER;               ctx.fillRect(-34, -11, 68, 17);
+  ctx.fillStyle = shade(BLAZER, 0.12);  ctx.fillRect(-5, 8, 9, 72);
+  ctx.fillStyle = shade(BLAZER, -0.32); ctx.fillRect(-30, 74, 60, 14);
   ctx.fillStyle = shade(BLAZER, 0.20);
   ctx.beginPath();
   ctx.moveTo(-18, 2); ctx.lineTo(-4, 2); ctx.lineTo(-14, 34);
   ctx.closePath(); ctx.fill();
   ctx.restore();
-
-  /* And the man himself, over his furniture. A shadow pool under him first,
-     because a blitted sprite on flat sand floats. */
-  ctx.globalAlpha = a * 0.20; ctx.fillStyle = "#8a6336";
-  ctx.beginPath();
-  ctx.ellipse(SC_X + BW * 0.48, SC_Y + 6, BW * 0.46, 15, 0, 0, Math.PI*2);
-  ctx.fill();
-  ctx.globalAlpha = a;
-  if (S.beachGuy) blitScaled(S.beachGuy, SC_X, SC_Y, SC_K, SC_K);
 
   /* FOOTPRINTS, coming in from the left and stopping at the chair. Nobody
      arrives at a beach by teleport, and two rows of dents in the sand are

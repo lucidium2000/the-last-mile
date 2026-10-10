@@ -111,9 +111,14 @@ and its window courses get shorter and tighter as they rise. The first pass
 narrowed it by a quarter over the frame and produced a ziggurat — a real slab
 converges by a few per cent and the eye reads even that as "very tall". It
 also runs off the top of the frame rather than stopping, because the one thing
-such a photograph never shows you is the roof. The Garden is a curved fascia
-band with ribs hanging off it, drawn **before** the tower so the tower stands
-in front of it, which is how they sit.
+such a photograph never shows you is the roof. **The Garden is a drum, not a dome.** The first pass drew a semicircle, which
+from the pavement reads as something round lying on its side — and that is not
+what you see. It is a very wide, very shallow cylinder: from down there its
+roof edge is a long flat curve running most of the way across and dropping
+away at the ends, with the ribs hanging straight **down** off it rather than
+radiating out of a centre. Radial ribs were the other half of the
+wheel-on-its-side problem. It is drawn **before** the tower so the tower
+stands in front of it, which is how they sit.
 
 **CISCO CLUB** — up on the big stage at GSX. An arena: LED wall, truss with
 six heads swinging on their own phase, a lit deck, and four ranks of audience
@@ -212,6 +217,21 @@ projection, and the head, neck, hair, sideburns and eye line lifted from
 `playerModel` at exactly the z values they have there, which is what makes it
 the same face rather than a similar one. Everything below the collar is
 holiday: open shirt, swim shorts, bare shins, flip-flops, a lei and a drink.
+
+**And the chair is a folding beach chair, not a lounger.** A lounger is for a
+man lying flat and the model sits up, so the two never agreed — he read as
+crouching on a plank. A low folding chair is what an upright seated figure
+actually sits in, and it is built so the striped canvas back is **behind** him
+and the arms and front legs are **in front**, which is what finally makes him
+sit *in* it rather than near it. The arms are short and stay at the sides: at
+half the back width they reached across his chest and read as a safety bar on
+a fairground ride.
+
+His face got the same treatment. The sunglasses are a **pair** now — two deep
+lenses, a bridge and a brow bar, with a warm band low in each lens so they do
+not read as empty sockets — and the smile is three steps rather than one bar,
+the ends a step below the middle, which is the whole difference between a
+mouth that is happy and a mouth that is a dash.
 
 He is **seated**, which a voxel model does cleanly without rotating anything:
 the thighs are blocks that run *forward* in y, from the hip at 0.47 to the
