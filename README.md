@@ -3576,18 +3576,26 @@ about a frame and a half each it says **a Lyft** instead, and then settles back
 on the first answer as though nothing happened — a sign with a loose
 connection, changing its mind in public.
 
-**It swaps the word and nothing else.** It took the article with it at first —
-"an Uber" for "a Lyft" — so the flash stayed grammatical, but that is the
-caption rewriting its sentence, and what this is meant to be is one word
-failing. Uber and Lyft are both four characters, so a centred line does not
-move at all: everything around the word holds still and the word alone changes,
-which is what a bad pixel on a sign actually looks like.
+**One word changes and nothing else moves.** Two earlier versions did more
+than that and both were wrong the same way. The first took the article with it,
+"an Uber" for "a Lyft", which is the caption rewriting its sentence rather than
+one word failing. The second drew the whole line white with an RGB split and a
+per-frame jitter — which is the whole *sign* breaking, and the moment the entire
+sentence twitches the eye reads "effect" instead of reading the word.
 
-The look is an RGB split and a pixel or two of jitter: the same two offset
-copies in red and cyan that every broken display in every film has used since
-the eighties, and the shortest possible way to say *this text is not behaving*.
-The jitter is re-rolled every frame on purpose — a fixed offset is a shadow, a
-moving one is a fault.
+So the sentence is drawn once, normally, in the brand colour, and the glitch
+repaints the word **alone**: measure the prefix, blank exactly that one word's
+box, print the other word at the same left edge in the same colour at the same
+size. Every other pixel in the line is identical between a flash frame and an
+ordinary one, because every other pixel was drawn by the same call.
+
+Measured rather than assumed: diffing the caption band between a normal frame
+and a flash frame gives 327 differing pixels, every one of them inside
+x 1170–1244 — the word's own box.
+
+Blanking is safe at a flat `#07080c` because this sits inside the letterbox
+band, which is filled with that colour at alpha `a` — and `a` is 1 from 0.3s to
+2.55s, which contains the whole glitch.
 
 Timed off the **scene clock**, not `G.t`, so it lands at the same moment every
 time the card comes up: 85ms on, 155ms apart, starting at 1.05s. Late enough
