@@ -3186,7 +3186,7 @@ under twelve, the whole of `FISC_PER_HOP`. What changed is what it counts down
 *to*:
 
 ```
-        Q4 FY26  ·  11:59 PM  ·  NYC COMMERCIAL
+        Q4 FY27  ·  11:59 PM  ·  NYC COMMERCIAL
               END OF FISCAL   0:58
 ```
 
@@ -3198,7 +3198,33 @@ transferred without a line of logic changing.
 
 The board keeps its three fields and its cadence, because a departure board is
 still the right *shape* for a deadline you are running at: QUARTER — TIME —
-who it is for. **All three are fixed.** The territory was rolled from ten at
+who it is for.
+
+**The fiscal year works itself out**, because a hard-coded one is wrong from
+the next July onwards and nobody is coming back to change it — a panel left in
+a hallway should still be telling the truth in eighteen months. Cisco's fiscal
+year ends on the **last Saturday of July**, not the 31st, so the boundary is
+computed rather than assumed: take 31 July and walk back to the nearest
+Saturday, which `(getDay() + 1) % 7` gives in one step.
+
+| | FY ends | | FY ends |
+|---|---|---|---|
+| 2025 | Sat 26 Jul | 2027 | Sat 31 Jul |
+| 2026 | Sat 25 Jul | 2028 | Sat 29 Jul |
+
+Past that line you are in next year's FY. Today, October 2026, that is **FY27**
+— and it stays FY27 until the last Saturday of July 2027, when it becomes FY28
+on its own. Using plain July would have been off by up to three and a half
+weeks a year: 10 July 2027 is still FY27, and a month boundary would have
+called it FY28. The whole clock is about a date that does not move for you, so
+the date it names had better be the real one. Checked across a decade of
+boundaries, the year-end day itself (still the old FY until 23:59) and the
+two-digit roll at the century.
+
+Q4 stays Q4: the clock counts down to the *end* of fiscal, and that is the
+quarter the end of fiscal is in.
+
+The other two are fixed outright. The territory was rolled from ten at
 first, reasoning that the old board rolled its destination — but a departure
 board rolls because there are eleven trains and you are catching one of them,
 and there is only ever one territory. It is NYC COMMERCIAL, every run, because
@@ -3211,7 +3237,7 @@ Running out of it used to be **MISSED YOUR TRAIN** over `LIRR · HUNTINGTON ·
 THE 5:01`. It is now:
 
 > **THE QUARTER CLOSED**
-> Q4 FY26 · NYC COMMERCIAL · 11:59 PM
+> Q4 FY27 · NYC COMMERCIAL · 11:59 PM
 > *You stood on the corner too long.*
 > **REMEMBER** — The quarter closes whether or not you are ready.
 

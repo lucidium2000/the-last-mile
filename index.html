@@ -1751,7 +1751,43 @@ var MILESTONES_BACK = {
    board rolls because there are eleven trains and you are catching one of
    them, and there is only ever one territory. It is NYC COMMERCIAL, every
    run, because that is whose quarter this is. */
-var FISC_Q = "Q4 FY26", FISC_CLOSE = "11:59 PM", FISC_SEG = "NYC COMMERCIAL";
+var FISC_CLOSE = "11:59 PM", FISC_SEG = "NYC COMMERCIAL";
+
+/* THE FISCAL YEAR WORKS ITSELF OUT, because a hard-coded one is wrong from
+   the next July onwards and nobody is going to remember to come back and
+   change it. A panel left in a hallway should still be telling the truth in
+   eighteen months.
+
+   Cisco's fiscal year ends on the LAST SATURDAY OF JULY, not on the 31st, so
+   the boundary is computed rather than assumed: take 31 July and walk back to
+   the nearest Saturday. `(getDay() + 1) % 7` is how far back that is - 0 when
+   the 31st is already a Saturday, 6 when it is a Friday.
+
+       2025 -> Sat 26 Jul      2027 -> Sat 31 Jul
+       2026 -> Sat 25 Jul      2028 -> Sat 29 Jul
+
+   Past that line and you are in next year's FY. Today, October 2026, that is
+   FY27 - and it stays FY27 until the last Saturday of July 2027, which is
+   when it becomes FY28 on its own.
+
+   Using plain July would have been off by up to three and a half weeks every
+   year: 10 July 2027 is still FY27, and a month boundary would have called
+   it FY28. The whole clock is about a date that does not move for you, so
+   the date it names had better be the real one.
+
+   Q4 stays Q4. The clock counts down to the END of fiscal, and that is the
+   quarter the end of fiscal is in. */
+var FISC_Q = (function(){
+  function fyEnd(yr){
+    var d = new Date(yr, 6, 31);                 // 31 July
+    d.setDate(31 - ((d.getDay() + 1) % 7));      // back to the last Saturday
+    d.setHours(23, 59, 59, 999);
+    return d;
+  }
+  var now = new Date(), y = now.getFullYear();
+  if (now > fyEnd(y)) y += 1;
+  return "Q4 FY" + ("0" + (y % 100)).slice(-2);
+})();
 
 /* ----------------------------------------------------------- hazard models */
 var TYRE = "#0a0d11";
