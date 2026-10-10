@@ -90,6 +90,58 @@ is not what was crashing the panel, but it is worth knowing: the liveries could
 be cut to one bus body plus nine small sign strips composited at draw time,
 which would give back about 3.5 MB.
 
+## The ending, in three parts
+
+Penn 1 used to end the game: paper on the desk, BOOKED, tally. That is the end
+of the **work**, which is not the same thing as the end of the story — and the
+story is the reason anybody in this job does the walk twice. So the booking
+hands off to two more scenes, chained on a `then` field rather than keyed to a
+street, because neither of them is in Midtown. 25.2 seconds of ending in all,
+verified by running the whole chain through the real `updateScene`.
+
+**CISCO CLUB** — up on the big stage at GSX. An arena: LED wall, truss with
+six heads swinging on their own phase, a lit deck, and four ranks of audience
+in the dark with phones going off in them. He comes up the steps stage left,
+Chuck Robbins comes in from the right, and they meet in the middle and shake
+on it. Flashbulbs on the shake, confetti after.
+
+Three things took a second pass. The wall says its piece in the **top** of
+itself, because two men are about to stand in the bottom and a stage screen
+with its name halfway up is a screen with a head in front of its name — the
+figure scale (`K` 1.08) is set by exactly that: 218K of man under a rule that
+ends at 410, with feet on the deck at 664. Both of them get a **pool of
+light**, without which they are two dark shapes on a dark deck in front of a
+dark wall. And their two marks are **named** rather than derived — the first
+pass worked one travel distance out from the wrong side and both of them
+walked to x 788, where they shook hands with themselves.
+
+The wall carries the **Cisco mark**, drawn rather than inlined: nine rounded
+bars on a common baseline in the real pattern (short, mid, TALL, mid, short,
+mid, TALL, mid, short) with the wordmark under them. A PNG of this would cost
+more bytes than the code and would be the only logo in the file that could not
+take a colour. The wordmark is measured and rescaled to 86% of the bars'
+width, because the panel may resolve a different face and a logo whose two
+halves disagree about their width is worse than no logo.
+
+**HANALEI BAY** — a sunset, a cabana and a man who is not walking anywhere.
+Sky in six bands, sea in lines, a glitter path under the sun, palms that sway,
+drapes that blow, and him on a lounger with a drink and his blazer over the
+arm of the chair, done with. *"Soak it in and ENJOY! Your number goes back to
+0 tomorrow."*
+
+The figure is built from **bars between named points** — hip, shoulder, knee,
+ankle — rather than from rotated rectangles. The first pass rotated a shirt
+about its corner and produced something that read as a sail; once the five
+points are placed the drawing cannot come apart. The whole lounger group is
+then scaled about the seat by one transform, because hand-retuning nine points
+to make a man an eighth bigger is nine chances to pull a limb off.
+
+Both scenes get their own theme. The stage is the only music in the file built
+on stacked fifths and a timpani rather than on a progression you could sit
+under — everything else here is a mood, and this one is an announcement. The
+beach is a ukulele: four strings plucked a few milliseconds apart, which is
+the whole difference between a strum and a chord, with the sea under it.
+
 ## RoomOS notes
 
 - Must be served over HTTPS with a valid certificate. RoomOS will not load a
@@ -2106,6 +2158,53 @@ happened. The amount now rises over his head in the same green as every other
 winning number, off the same `chuckRoll()` the card would have shown, with the
 SKU under it — a figure with no name on it is a number, and the whole exercise
 is that it should be a product.
+
+### And he can see that you are struggling
+
+The ordinary pool is a man asking you the time. `HOOD_HURT` is the same man
+noticing that you are hurt, and every line is help offered in a way that is
+worse than being ignored — *"Hey man, you need me to carry you?"*, *"I can
+hold your stuff while you catch your breath."*, *"I wonder if your jacket
+would fit me?"*
+
+They escalate on their own: carry **you**, hold your **stuff**, wear your
+**jacket**. Nothing in the game ever acts on any of it — he is still the
+nine-in-ten man doing nothing — which is exactly why it lands.
+
+He only says them while it is **true**: hurt, or under `HP_WORN`, and within
+`HOOD_REACH`. A man offering to carry you at full health is a non sequitur,
+and the whole weight of these is that he is right. Not while he is on his way
+to a pickup either — he has stopped being interested in you by then, and that
+is its own joke. Measured over 90 seconds: about one line every six seconds
+while worn or hurt, and **never once** at full health. The carriage version
+has them too, because the clock drains on a train as well.
+
+### Everybody else wants it too
+
+A roll of notes lying on a pavement in Midtown has about five seconds in it,
+and the man in the hood is not the only person on the street who can see it.
+After `FOLK_GREED_AFTER`, one ordinary pedestrian on that pavement walks over
+and pockets it.
+
+**One of them, not four.** The nearest on the row, chosen once — re-picking
+every frame would hand it to whoever drifted nearest this tick, and four
+pedestrians converging on a pickup is a scrum. What this is for is the small
+sinking feeling of watching somebody else bend down.
+
+**And only along their own pavement.** Crossing the road for it is the hood's
+trick and it is the only thing that makes him different from the crowd. They
+also only want **Chuck Bucks** — measured: a metrocard and a TAM on the same
+square are never even noticed.
+
+Pedestrians carry no state normally (`x0 + v*t`, wrapped), so a grabber gets a
+real column in `f.gx` and `folkRaw` returns it while it is set. When he is
+done — or when somebody beats him to it — the walked position is folded back
+into `x0` so he carries on drifting from where he is standing rather than
+snapping back.
+
+Measured end to end: noticed at **5.02s**, taken at **6.83s** from two columns
+away and **13.5s** from nine. A player walking straight at it wins
+comfortably; one who stops to count the lanes may not.
 
 ### And he does it on the street too
 

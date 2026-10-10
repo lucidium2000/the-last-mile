@@ -860,6 +860,80 @@ var AUDIO = (function(){
       }
     },
 
+    /* THE STAGE - a brass fanfare that keeps going. Everything else in this
+       file is a mood; this one is an announcement, so it is the only theme
+       built on stacked fifths and a timpani rather than on a progression you
+       could sit under. Sawtooth low-passed hard reads as brass on a panel
+       speaker; a square reads as a toy.
+
+       Nine and a half seconds, because the scene is, and the last chord is
+       held long enough to still be there under the confetti. */
+    stageTheme: function(){
+      var I  = [261.63, 329.63, 392.00, 523.25];   // C
+      var IV = [349.23, 440.00, 523.25, 698.46];   // F
+      var V  = [392.00, 493.88, 587.33, 783.99];   // G
+      var VI = [440.00, 523.25, 659.26, 880.00];   // Am
+      var prog = [[0, I, 1.5], [1.5, IV, 1.5], [3.0, V, 1.5], [4.5, VI, 1.5],
+                  [6.0, IV, 1.2], [7.2, V, 1.0], [8.2, I, 1.9]];
+      for (var b = 0; b < prog.length; b++){
+        var at = prog[b][0], ch = prog[b][1], len = prog[b][2];
+        // the bass, an octave down and square-ish for weight
+        tone({ f:ch[0] / 2, dur:len * 0.98, type:"sawtooth", g:0.070,
+               at:at, lp:260 });
+        for (var c = 0; c < ch.length; c++){
+          tone({ f:ch[c], dur:len * 0.92, type:"sawtooth", g:0.040,
+                 at:at + c * 0.022, lp:1500 });
+        }
+        // timpani on the downbeat
+        hit({ f:70, dur:0.42, g:0.085, at:at });
+      }
+      /* A triplet pickup into each of the first four bars - the thing that
+         makes it a fanfare rather than four chords in a row. */
+      var pick = [1.26, 1.38, 2.76, 2.88, 4.26, 4.38];
+      for (var i = 0; i < pick.length; i++){
+        tone({ f:[523.25, 587.33][i % 2], dur:0.11, type:"sawtooth",
+               g:0.045, at:pick[i], lp:2600 });
+      }
+      // and a cymbal under the first hit and the last
+      hit({ f:7200, hp:true, dur:0.9,  g:0.030, at:0 });
+      hit({ f:6400, hp:true, dur:1.4,  g:0.034, at:8.2 });
+    },
+
+    /* THE BEACH - a ukulele. Four strings plucked one after another with a
+       few milliseconds between them, which is the whole difference between a
+       strum and a chord; triangle rather than sine because a uke has an edge
+       on it. A soft low root under each bar, a shaker on the offbeat, and
+       nothing else - the scene is about nothing happening. */
+    islandTheme: function(){
+      var prog = [
+        [392.00, 523.25, 659.26, 783.99],   // C  (G-C-E-A shape)
+        [349.23, 440.00, 523.25, 698.46],   // F
+        [392.00, 493.88, 587.33, 783.99],   // G
+        [329.63, 440.00, 523.25, 659.26]    // Am-ish
+      ];
+      var bar = 1.3, bars = 8;
+      for (var b = 0; b < bars; b++){
+        var ch = prog[b % prog.length], at = b * bar;
+        // two strums a bar, the second lighter
+        for (var s2 = 0; s2 < 2; s2++){
+          var sat = at + s2 * (bar * 0.52), g0 = s2 ? 0.026 : 0.040;
+          for (var c = 0; c < ch.length; c++){
+            tone({ f:ch[c], dur:0.52, type:"triangle", g:g0,
+                   at:sat + c * 0.016, lp:2600 });
+          }
+        }
+        tone({ f:ch[0] / 2, dur:bar * 0.9, type:"sine", g:0.055, at:at, lp:240 });
+        // shaker, off the beat
+        hit({ f:7600, hp:true, dur:0.05, g:0.013, at:at + bar * 0.26 });
+        hit({ f:7600, hp:true, dur:0.05, g:0.013, at:at + bar * 0.76 });
+      }
+      /* The sea, under all of it: four long noise washes that come and go.
+         It is the one sound that has to still be there between the chords. */
+      for (var w = 0; w < 5; w++){
+        hit({ f:420, dur:1.7, g:0.022, at:w * 2.1 });
+      }
+    },
+
     cityTheme: function(){
       var bars = [
         [130.81, [261.63, 329.63, 392.00, 523.25]],
@@ -2373,8 +2447,14 @@ function wpick(w){
    5.78 is the number that makes the SKU land 15.0% more often, which is
    what was asked for - the others are untouched and each give up 0.5% of
    their own share to pay for it. */
+/* Chuck Bucks is 29.21 rather than 26, which is +10% of the DROP RATE and
+   not of the weight - the same arithmetic as the Cloud Insights line above.
+   26 of 150.78 is 17.244%; the target is 18.968%, and x/(124.78+x) only
+   reaches that at 29.21. Rounding up to 29 or across to 28.6 both miss.
+   The other five give up 1.9% of their own share between them to pay for
+   it, which is unavoidable - the shares have to sum to one. */
 var POWER_WEIGHTS = {
-  metro:77, chuck:26, agent:23, traffic:14, insight:5, sponsor:5.78
+  metro:77, chuck:29.21, agent:23, traffic:14, insight:5, sponsor:5.78
 };
 /* How far the world is throttled while Internet Insights is up. One constant,
    because the mover and the crossing test both read it and they must agree -
@@ -3462,6 +3542,24 @@ function makeSweep(r, streetNo, dir){
    get clear, so a player who breaks line of sight for half a second has not
    bought himself a fresh four. */
 var HOOD_GREED_AFTER = 4.0, HOOD_LOOT_K = 1.5;
+/* AND SO DOES EVERYONE ELSE. A roll of notes lying on a pavement in Midtown
+   has about five seconds in it, and the man in the hood is not the only
+   person on the street who can see it.
+
+   Only ONE of them goes - the nearest on that pavement - because four
+   pedestrians converging on a pickup is a scrum, and the thing this is for
+   is the small sinking feeling of watching somebody else bend down. They do
+   not cross the road for it either: that is the hood's trick and it is the
+   only thing that makes him different from the crowd.
+
+   Five seconds against the hood's four, and slower when they get going, so
+   the order of who beats you to it is always the same. A player walking
+   straight at it wins comfortably; one who stops to count the lanes may
+   not. */
+var FOLK_GREED_AFTER = 5.0, FOLK_GREED_V = 1.05;
+var FOLK_GRAB = ["Oh, hello.", "Is that money?", "Wait - ", "Finders keepers."];
+var FOLK_GOT  = ["My lucky day.", "Somebody dropped this.", "Don't mind if I do.",
+                 "That is rent."];
 var HOOD_ODDS = 0.045, HOOD_CREEP = 0.42, HOOD_KEEP = 0.95;
 var HOOD_ROWV = 1.15, HOOD_REACH = 5, HOOD_KO = 3.2;
 /* He looks before he steps off. HOOD_LOOK seconds of the lane's own traffic
@@ -5457,7 +5555,10 @@ function startRide(enterRow, enterCol){
      Pulled BEFORE the hooded man, so he can never be standing on it at the
      moment the doors close. */
   var ends = [0, RIDE_SLOTS - 1];
-  var cash = Math.random() < 0.55 ? ends[(Math.random() * 2) | 0] : -1;
+  /* 0.605 rather than 0.55: the same +10% as the pavement, and a straight
+     multiply here because this roll has no denominator to fight - a ride
+     either has a roll on it or it does not. */
+  var cash = Math.random() < 0.605 ? ends[(Math.random() * 2) | 0] : -1;
   if (cash >= 0){
     var ci = free.indexOf(cash);
     if (ci >= 0) free.splice(ci, 1);
@@ -5911,8 +6012,17 @@ function updateShady(dt){
          is the whole of him. */
       if (R.moving && Math.random() < 0.25){ R.lurch = 0.5; R.pause = 0.5; }
       /* He speaks on the beats where something nearly happens, which is what
-         makes an ordinary question land wrong. */
-      if (Math.random() < 0.42) shadySay(R, false);
+         makes an ordinary question land wrong - and if the man opposite him
+         is visibly done in, he has something more particular to say. Same
+         man, same lines, and the clock still drains on a train. */
+      if (G.hp <= HP_WORN && Math.random() < 0.55){
+        if (R.t - (R.sayAt || -99) >= 4){
+          R.sayAt = R.t;
+          R.sayLine = HOOD_HURT[(Math.random() * HOOD_HURT.length) | 0];
+          AUDIO.say(11, sayFor(R.sayLine, SAY_CROSS));
+        }
+      }
+      else if (Math.random() < 0.42) shadySay(R, false);
       /* And now and then, standing still, a hand comes out of the pocket
          with something in it. Then it goes back. */
       if (!R.moving && R.tell <= 0 && Math.random() < 0.30){
@@ -6724,6 +6834,20 @@ var TRAIN_CHAT_RARE = [
 
    The hard set only comes out with the blade, where there is nothing left to
    wonder about. */
+/* WHAT HE SAYS WHEN YOU ARE STRUGGLING. The ordinary pool is a man asking
+   you the time; this one is the same man noticing that you are hurt, and
+   every line is help offered in a way that is worse than being ignored.
+
+   They escalate on their own: carry YOU, hold your STUFF, wear your JACKET.
+   Nothing in the game ever acts on any of it - he is still the nine-in-ten
+   man doing nothing - which is exactly why it lands. He only says these
+   while you are actually hurt or worn out, so they can never be mistaken
+   for small talk. */
+var HOOD_HURT = [
+  "Hey man, you need me to carry you?",
+  "I can hold your stuff while you catch your breath.",
+  "I wonder if your jacket would fit me?"
+];
 var SHADY_LINES = [
   "Hey. Can I use your phone?",
   "Who do you work for?",
@@ -6802,6 +6926,7 @@ function folkOrder(kind){
    projection already shifts x and y by it. */
 function folkRaw(f){
   if (f.hood) return f.hx;                    // he steers, he does not drift
+  if (f.gx != null) return f.gx;              // on his way to something
   if (f.q) return f.qx;                       // standing in a line
   var span = COLS + 3;
   return ((f.x0 + f.v * (G.t - (f.frozen || 0))) % span + span) % span - 1.5;
@@ -6849,6 +6974,35 @@ function updateFolk(dt){
     if (!row || row.type !== "safe" || !row.folk || !row.folk.length) continue;
     var i, j, f, g;
 
+    /* How long the money has been lying there, and who is going to go and
+       get it. One per pavement, chosen once - re-picking every frame would
+       hand it to whoever drifted nearest this tick. */
+    var pk2 = row.pickup;
+    if (pk2 && pk2.kind === "chuck"){
+      pk2.seenT = (pk2.seenT || 0) + dt;
+      if (pk2.seenT >= FOLK_GREED_AFTER && !row.grabber){
+        var near = null, nd = 1e9;
+        for (var gi = 0; gi < row.folk.length; gi++){
+          var gf = row.folk[gi];
+          /* Not the man in the hood - he has his own version of this and it
+             is better. Not somebody in a queue, not a champion mid-sentence,
+             and not anybody who has been knocked over. */
+          if (gf.hood || gf.q || (gf.ko || 0) > 0 || gf.champ) continue;
+          var gd = Math.abs(folkRaw(gf) - pk2.col);
+          if (gd < nd){ nd = gd; near = gf; }
+        }
+        if (near){
+          row.grabber = near;
+          near.gx = folkRaw(near);
+          near.sayAt = G.t;
+          near.line = FOLK_GRAB[(Math.random() * FOLK_GRAB.length) | 0];
+          AUDIO.say(near.seed, SAY_ASK);
+        }
+      }
+    } else if (row.grabber){
+      row.grabber = null;                    // nothing left to walk to
+    }
+
     for (i = 0; i < row.folk.length; i++){
       f = row.folk[i];
       if (f.lane == null) f.lane = 0.80 + ((f.seed % 7) / 6) * 0.12;
@@ -6858,6 +7012,35 @@ function updateFolk(dt){
         continue;                              // queues are stepped below
       }
       if (f.coolT > 0) f.coolT -= dt;
+
+      /* ON HIS WAY TO IT. Everything else he might have been doing is off
+         while he is: he is not eating, not queueing, not saying excuse me.
+         He goes straight there, bends, and goes back to being scenery. */
+      if (f.gx != null){
+        var tg = (row.pickup && row.pickup.kind === "chuck") ? row.pickup.col : null;
+        if (tg === null){
+          /* Somebody got there first - the player, or the man in the hood.
+             Fold the walked position back into the drift so he carries on
+             from where he is standing rather than snapping back. */
+          f.x0 = (f.gx + 1.5) - f.v * (G.t - (f.frozen || 0));
+          f.gx = null; row.grabber = null;
+        } else {
+          var gdx = tg - f.gx, gstep = FOLK_GREED_V * dt;
+          if (Math.abs(gdx) <= gstep) f.gx = tg;
+          else f.gx += (gdx > 0 ? gstep : -gstep);
+          if (Math.abs(f.gx - tg) < 0.08){
+            row.pickup = null;
+            f.sayAt = G.t;
+            f.line = FOLK_GOT[(Math.random() * FOLK_GOT.length) | 0];
+            AUDIO.say(f.seed, SAY_WARM); AUDIO.chaChing();
+            burst(tg * TILE + TILE/2, rowScreenY(r) - 30, POWERS.chuck.col);
+            f.x0 = (f.gx + 1.5) - f.v * (G.t - (f.frozen || 0));
+            f.gx = null; row.grabber = null;
+          }
+        }
+        continue;
+      }
+
       if (f.hood){
         if (f.ko > 0){ f.ko += dt; continue; }     // down, and staying down
         if (f.loot > 0) f.loot = Math.max(0, f.loot - dt);
@@ -6878,6 +7061,20 @@ function updateFolk(dt){
           AUDIO.say(f.seed, SAY_ASK);
         }
         if (!loot) f.sawLoot = false;
+
+        /* AND HE CAN SEE THAT YOU ARE STRUGGLING. Only while he is near and
+           only while it is true - a man offering to carry you when you are
+           on full health is a non sequitur, and the whole weight of these
+           lines is that he is right. Not while he is on his way to
+           something: he has stopped being interested in you by then, which
+           is its own joke and should not be stepped on. */
+        if (!loot && (G.hurtT > 0 || G.hp <= HP_WORN) &&
+            Math.abs(ppH.row - f.hr) <= HOOD_REACH &&
+            G.t - (f.sayAt || -99) > 5.5 && Math.random() < dt * 0.9){
+          f.sayAt = G.t;
+          f.line = HOOD_HURT[(Math.random() * HOOD_HURT.length) | 0];
+          AUDIO.say(f.seed, sayFor(f.line, SAY_CROSS));
+        }
 
         /* He will come off the kerb after you, up to HOOD_REACH rows from
            where he started. Past that he gives up and goes back to walking
@@ -8233,6 +8430,568 @@ function scenePenn(t, a){
   }
 }
 
+
+/* ===================== THE TWO THAT COME AFTER ===========================
+   Penn 1 used to end the game: paper on the desk, BOOKED, tally. That is the
+   end of the WORK, which is not the same thing as the end of the story - and
+   the story is the reason anybody in this job does the walk twice.
+
+   So the booking hands off to two more. The stage, which is what the year
+   buys you, and the beach, which is what the stage buys you. Neither is
+   playable and neither should be: they are the reward for forty-seven blocks
+   each way, and the only thing asked of the player is that he watches.
+
+   Both are drawn in the same flat rectangles as every other scene in this
+   file - no gradients where a band will do, nothing per-pixel - because they
+   run on the same panel as the rest of it. */
+
+/* THE CISCO MARK. Nine rounded bars on a common baseline and the wordmark
+   under them - the bridge, or the waveform, depending on who you ask.
+
+   It is drawn rather than inlined because it is nine rounded rectangles and
+   a word: a PNG of this would cost more bytes than the code and would be the
+   only logo in the file that could not take a colour. The heights are the
+   real pattern, symmetrical about the middle bar:
+
+     short  mid  TALL  mid  short  mid  TALL  mid  short
+
+   Everything scales off `w`, the overall width, so it can go on a wall at
+   260 and in a corner at 40 and still be the same mark. The wordmark is
+   MEASURED and then rescaled to sit at 86% of the bars' width, because the
+   panel may resolve a different face and a logo whose two halves disagree
+   about their width is worse than no logo. */
+function drawCiscoLogo(cx, topY, w, col){
+  var H = [0.40, 0.60, 1.00, 0.56, 0.38, 0.60, 1.00, 0.56, 0.38];
+  var pitch = w / H.length, bw = Math.max(2, w * 0.042), tallH = w * 0.245;
+  var baseY = topY + tallH;
+  ctx.fillStyle = col;
+  for (var i = 0; i < H.length; i++){
+    var bx = cx - w / 2 + pitch * (i + 0.5) - bw / 2, bh = tallH * H[i];
+    rr(bx, baseY - bh, bw, bh, bw / 2);
+    ctx.fill();
+  }
+  var fs = w * 0.235;
+  ctx.font = '500 ' + fs + 'px "Helvetica Neue",Helvetica,Arial,sans-serif';
+  var have = ctx.measureText("CISCO").width || 1;
+  fs = fs * ((w * 0.86) / have);
+  ctx.font = '500 ' + fs + 'px "Helvetica Neue",Helvetica,Arial,sans-serif';
+  ctx.textAlign = "center"; ctx.fillStyle = col;
+  ctx.fillText("CISCO", cx, baseY + fs * 0.74);
+  return baseY + fs * 1.18;                      // where the logo ends
+}
+
+/* A person, blocky, at the scale the scenes use. One function, because the
+   stage has four of them on it and they have to be the same man. */
+function sceneGuy(x, feet, k, coat, skin, hair, opt){
+  opt = opt || {};
+  var bw = 92 * k, bh = 150 * k;
+  var top = feet - bh;
+  // legs under the coat, so the hem reads
+  ctx.fillStyle = opt.trews || "#20242c";
+  ctx.fillRect(x - bw * 0.40, feet - bh * 0.34, bw * 0.30, bh * 0.34);
+  ctx.fillRect(x + bw * 0.10, feet - bh * 0.34, bw * 0.30, bh * 0.34);
+  ctx.fillStyle = "#15181d";
+  ctx.fillRect(x - bw * 0.44, feet - 9 * k, bw * 0.38, 9 * k);
+  ctx.fillStyle = "#15181d";
+  ctx.fillRect(x + bw * 0.06, feet - 9 * k, bw * 0.38, 9 * k);
+  // the coat
+  ctx.fillStyle = coat; ctx.fillRect(x - bw / 2, top, bw, bh * 0.74);
+  // shirt and tie
+  ctx.fillStyle = "#f2f4f6"; ctx.fillRect(x - 9 * k, top, 18 * k, 66 * k);
+  ctx.fillStyle = opt.tie || C.brand; ctx.fillRect(x - 6 * k, top + 16 * k, 12 * k, 50 * k);
+  // head
+  ctx.fillStyle = skin; ctx.fillRect(x - 25 * k, top - 58 * k, 50 * k, 58 * k);
+  ctx.fillStyle = hair;
+  ctx.fillRect(x - 27 * k, top - 68 * k, 54 * k, 14 * k);
+  ctx.fillRect(x - 27 * k, top - 58 * k, 6 * k, 24 * k);
+  ctx.fillRect(x + 21 * k, top - 58 * k, 6 * k, 24 * k);
+  if (opt.cap){
+    ctx.fillStyle = opt.cap;
+    ctx.fillRect(x - 28 * k, top - 72 * k, 56 * k, 12 * k);
+  }
+  return { top:top, shoulder: top + 18 * k, bw:bw };
+}
+
+/* An arm, as a bar from the shoulder to a point. Two of these meeting in the
+   middle is the entire handshake, and it is more convincing than any amount
+   of elbow. */
+function sceneArm(x0, y0, x1, y1, w, col){
+  var dx = x1 - x0, dy = y1 - y0, L = Math.sqrt(dx*dx + dy*dy) || 1;
+  ctx.save();
+  ctx.translate(x0, y0); ctx.rotate(Math.atan2(dy, dx));
+  ctx.fillStyle = col; ctx.fillRect(0, -w/2, L, w);
+  ctx.restore();
+}
+
+/* ------------------------------------------------------------- THE STAGE
+   An arena: LED wall, truss, a lit deck and three thousand people in the
+   dark. He comes up the steps from the left; Chuck comes in from the right;
+   they meet in the middle and the room goes off.
+
+   The audience is what sells the size of it. Four ranks of heads, each rank
+   bigger and darker than the one behind, with phones going off in them at
+   random - a crowd drawn as one texture reads as carpet. */
+function sceneStage(t, a){
+  var i;
+  // the room
+  ctx.fillStyle = "#07090e"; ctx.fillRect(0, 150, LOGICAL_W, 740);
+
+  /* THE LED WALL. Everything it says lives in the TOP of it, because two men
+     are about to stand in the bottom - a stage screen with its name halfway
+     up is a screen with a head in front of its name. The deck line, the head
+     height and the baseline of the wordmark were worked out together and
+     they are the only three numbers in here that cannot move on their own. */
+  var up = Math.min(1, t / 1.1);
+  var WX = 150, WY = 168, WW = LOGICAL_W - 300, WH = 340;
+  ctx.fillStyle = "#0b1119"; ctx.fillRect(WX, WY, WW, WH);
+  ctx.globalAlpha = a * up * 0.45;
+  ctx.fillStyle = "#12243a"; ctx.fillRect(WX, WY, WW, WH);
+  // the sweep
+  var sw = ((t * 0.20) % 1) * (WW + 420) - 210;
+  for (i = 0; i < 16; i++){
+    ctx.globalAlpha = a * up * 0.045 * (1 - i / 16);
+    ctx.fillStyle = "#4aa3e0";
+    ctx.fillRect(WX + sw - i * 13, WY, 13, WH);
+    ctx.fillRect(WX + sw + i * 13, WY, 13, WH);
+  }
+  // scanlines, so it reads as a screen and not as a wall
+  ctx.globalAlpha = a * up * 0.18; ctx.fillStyle = "#000";
+  for (i = WY; i < WY + WH; i += 6) ctx.fillRect(WX, i, WW, 3);
+  ctx.globalAlpha = a * up;
+  /* The Cisco mark, because this is a Cisco stage - the eye is the product
+     and belongs on a pickup, not on the back wall at GSX. Everything above
+     y 400 or so, because two heads are about to arrive at 429. */
+  drawCiscoLogo(LOGICAL_W/2, WY + 28, 260, "#eaf2ff");
+  /* NOT "CISCO CLUB" again. The scene's own title card says it in 56px at
+     the bottom of the screen, and a wall that says it too reads as the same
+     words printed three times - logo, wall, card. The wall gets the event
+     the club happens AT, which is the one thing the card does not say. */
+  txt("GLOBAL SALES EXPERIENCE", LOGICAL_W/2, WY + 206, 30, "#8fbede");
+  ctx.fillStyle = C.brand;
+  ctx.fillRect(LOGICAL_W/2 - 150, WY + 236, 300, 4);
+  ctx.globalAlpha = a;
+
+  /* THE TRUSS AND THE BEAMS. Four heads swinging on their own phase; the
+     beams are flat triangles at low alpha, which is all a beam is. */
+  ctx.fillStyle = "#1a1f27"; ctx.fillRect(110, 150, LOGICAL_W - 220, 18);
+  for (i = 0; i < 6; i++){
+    var lx = 230 + i * ((LOGICAL_W - 460) / 5);
+    ctx.fillStyle = "#2b323c"; ctx.fillRect(lx - 16, 166, 32, 22);
+    var ang = Math.sin(t * 0.9 + i * 1.1) * 0.42;
+    var fx = lx + Math.sin(ang) * 520;
+    ctx.globalAlpha = a * (0.10 + 0.05 * Math.sin(t * 3 + i));
+    ctx.fillStyle = i % 2 ? "#79c7ff" : "#ffd9a0";
+    ctx.beginPath();
+    ctx.moveTo(lx - 14, 186); ctx.lineTo(lx + 14, 186);
+    ctx.lineTo(fx + 130, 664); ctx.lineTo(fx - 130, 664);
+    ctx.closePath(); ctx.fill();
+    ctx.globalAlpha = a;
+  }
+
+  /* THE DECK, at 660. Deeper than it was and with a proper nose on it: a
+     stage you can see the edge of is a stage somebody is standing ON. */
+  var DECK = 660;
+  ctx.fillStyle = "#1a1f28"; ctx.fillRect(120, DECK, LOGICAL_W - 240, 44);
+  ctx.fillStyle = "#0c0f15"; ctx.fillRect(120, DECK + 44, LOGICAL_W - 240, 50);
+  ctx.fillStyle = C.brand;   ctx.fillRect(120, DECK + 40, LOGICAL_W - 240, 7);
+  ctx.globalAlpha = a * 0.16; ctx.fillStyle = C.brand;
+  ctx.fillRect(120, DECK + 47, LOGICAL_W - 240, 30);
+  ctx.globalAlpha = a;
+  // the steps he comes up, stage left
+  for (i = 0; i < 3; i++){
+    ctx.fillStyle = "#151a22";
+    ctx.fillRect(120 - (i + 1) * 58, DECK + (i + 1) * 15, 58, 94 - (i + 1) * 15);
+    ctx.fillStyle = "#2a313d";
+    ctx.fillRect(120 - (i + 1) * 58, DECK + (i + 1) * 15, 58, 5);
+  }
+
+  /* THE CROWD. Back ranks first, each lighter and smaller, so the near ones
+     sit in front. Phones fire on a hash of the index and the second - a
+     crowd drawn as one texture reads as carpet. */
+  var RANKS = [[744, 0.60, "#0b0e14"], [786, 0.72, "#090c11"],
+               [834, 0.86, "#06080c"], [890, 1.02, "#04060a"]];
+  for (var rk = 0; rk < RANKS.length; rk++){
+    var ry = RANKS[rk][0], rs = RANKS[rk][1], rc = RANKS[rk][2];
+    var n = Math.ceil(LOGICAL_W / (62 * rs)) + 2;
+    for (i = 0; i < n; i++){
+      var hx = -40 + i * 62 * rs + (rk % 2) * 20;
+      var sway = Math.sin(t * 1.6 + i * 0.7 + rk) * 2.4 * (t > 5.4 ? 2.6 : 1);
+      ctx.fillStyle = rc;
+      ctx.fillRect(hx + sway, ry, 40 * rs, 70 * rs);
+      ctx.fillRect(hx + 7 * rs + sway, ry - 30 * rs, 26 * rs, 32 * rs);
+      var ph = ((i * 37 + rk * 91 + ((t * 2.3) | 0) * 53) % 97);
+      if (ph < 6 && t > 1.2){
+        ctx.globalAlpha = a * 0.75;
+        ctx.fillStyle = "#cfe6ff";
+        ctx.fillRect(hx + 12 * rs + sway, ry - 44 * rs, 10 * rs, 16 * rs);
+        ctx.globalAlpha = a * 0.13;
+        ctx.fillRect(hx + 2 * rs + sway, ry - 54 * rs, 30 * rs, 36 * rs);
+        ctx.globalAlpha = a;
+      }
+    }
+  }
+
+  /* WHERE THE TWO OF THEM STAND. k 1.08 is the largest they can be and still
+     keep their heads clear of the wall: 218k of figure with feet on the deck
+     at 664 puts the top of a head at 429, against a rule under CISCO CLUB
+     that ends at 410. Bigger than this and the name is behind a head, which
+     is what the first pass of this scene did. */
+  var K = 1.08, FEET = DECK + 4;
+
+  /* A pool of light under each of them, drawn before they are. Without it
+     they are two dark shapes on a dark deck in front of a dark wall, which
+     is exactly what the first pass looked like. */
+  function pool(px, lit){
+    ctx.globalAlpha = a * 0.20 * lit; ctx.fillStyle = "#ffe6bd";
+    ctx.beginPath(); ctx.ellipse(px, FEET + 4, 150, 26, 0, 0, Math.PI*2); ctx.fill();
+    ctx.globalAlpha = a * 0.13 * lit;
+    ctx.beginPath(); ctx.ellipse(px, FEET + 2, 96, 17, 0, 0, Math.PI*2); ctx.fill();
+    ctx.globalAlpha = a;
+  }
+
+  /* HIM, up the steps and on. He starts off the left of the deck and low,
+     and arrives at his mark a third of the way in. */
+  /* Their two marks, named rather than arrived at by arithmetic - the first
+     pass had both of them walking to 788 because one travel distance was
+     worked out from the wrong side, and they shook hands with themselves. */
+  var HERO_X = LOGICAL_W/2 - 180, CHUCK_X = LOGICAL_W/2 + 180;
+  var walk = Math.min(1, t / 2.6);
+  var ease = 1 - Math.pow(1 - walk, 2.2);
+  var hx2 = -40 + ease * (HERO_X + 40);
+  var hFeet = FEET + 96 - ease * 96;
+  pool(hx2, Math.min(1, ease * 1.6));
+  var hero = sceneGuy(hx2, hFeet, K, BLAZER, HERO_SKIN, "#2b1d14",
+                      { cap:"#2b1d14", tie:C.brand });
+
+  /* CHUCK, in from the right, a beat later. He stops a stride short, because
+     the man who has walked ninety-four blocks gets the middle of the stage. */
+  var cw2 = Math.max(0, Math.min(1, (t - 2.2) / 2.0));
+  var ce = 1 - Math.pow(1 - cw2, 2.2);
+  var cx2 = (LOGICAL_W + 40) - ce * ((LOGICAL_W + 40) - CHUCK_X);
+  if (cw2 > 0) pool(cx2, Math.min(1, ce * 1.6));
+  var chuck = sceneGuy(cx2, FEET, K, "#223049", "#d8ab86", "#b9bdc2",
+                       { tie:"#7fb3d8" });
+
+  /* THE HANDSHAKE. Both arms out to a point between them, and a pump - two
+     up-and-downs and done, because a hand that keeps shaking is a loop. */
+  var sh = Math.max(0, Math.min(1, (t - 4.3) / 0.45));
+  if (sh > 0){
+    var mid = (hx2 + cx2) / 2;
+    var age = Math.max(0, t - 4.75);
+    var pump = Math.sin(age * 11) * 8 * Math.max(0, 1 - age / 1.5);
+    var hy = hero.shoulder + 40, cy2 = chuck.shoulder + 40;
+    var my = (hy + cy2) / 2 + pump;
+    sceneArm(hx2 + 38, hy, mid - 8, my, 20, BLAZER);
+    sceneArm(cx2 - 38, cy2, mid + 8, my, 20, "#223049");
+    ctx.fillStyle = HERO_SKIN; ctx.fillRect(mid - 23, my - 13, 46, 26);
+    /* The flash of a hundred cameras. White, short, and nowhere near a full
+       screen fill - it is the room, not a transition. */
+    if (t > 4.5 && t < 6.4){
+      for (i = 0; i < 9; i++){
+        var fseed = (i * 53 + ((t * 9) | 0) * 29) % 101;
+        if (fseed > 26) continue;
+        var fx2 = 120 + ((i * 211 + fseed * 7) % (LOGICAL_W - 240));
+        var fy2 = 756 + ((fseed * 13) % 120);
+        ctx.globalAlpha = a * 0.55; ctx.fillStyle = "#ffffff";
+        ctx.fillRect(fx2 - 28, fy2 - 11, 56, 22);
+        ctx.globalAlpha = a * 0.12;
+        ctx.fillRect(fx2 - 74, fy2 - 36, 148, 72);
+        ctx.globalAlpha = a;
+      }
+    }
+  }
+
+  /* His name, on a plate on the deck under him - the deck is dark and the
+     type is small, and a grey word on a grey board is not a label. */
+  if (cw2 > 0.6){
+    ctx.globalAlpha = a * Math.min(1, (cw2 - 0.6) / 0.3);
+    ctx.font = 'bold 24px "Helvetica Neue",Helvetica,Arial,sans-serif';
+    var nw = ctx.measureText("CHUCK ROBBINS").width + 34;
+    plate(cx2 - nw/2, DECK + 8, nw, 34, "rgba(8,11,17,0.86)", 7);
+    txt("CHUCK ROBBINS", cx2, DECK + 26, 24, "#bcd4ff");
+    ctx.globalAlpha = a;
+  }
+
+  /* CONFETTI, after the shake, in the brand colours. Each piece falls on its
+     own seed and tumbles, which is one extra sine per piece. */
+  if (t > 5.3){
+    var ct = t - 5.3;
+    for (i = 0; i < 110; i++){
+      var sx2 = (i * 193) % LOGICAL_W;
+      var sp = 130 + (i % 7) * 36;
+      var yy = 150 + ((ct * sp + i * 61) % 840);
+      var tw = Math.sin(ct * 5 + i) * 7;
+      ctx.globalAlpha = a * 0.92;
+      ctx.fillStyle = [C.brand, "#7fb3d8", "#ffffff", "#ffd24a"][i % 4];
+      ctx.fillRect(sx2 + tw, yy, 10, 4 + Math.abs(tw) * 0.5);
+    }
+    ctx.globalAlpha = a;
+  }
+}
+
+/* ------------------------------------------------------------- THE BEACH
+   Sunset, water, a cabana and a man who is not walking anywhere. Everything
+   is bands: the sky is six of them, the sea is lines, the sand is two. The
+   only motion is the water, the drapes and the palms, which is the point -
+   after ninety-four blocks the reward is that nothing is coming at him. */
+function sceneCabana(t, a){
+  var i;
+  var SKY = ["#231a3c", "#4a2a52", "#8c3f55", "#c9604a", "#e88c4a", "#f2b566"];
+  var top = 150, band = 64;
+  for (i = 0; i < SKY.length; i++){
+    ctx.fillStyle = SKY[i];
+    ctx.fillRect(0, top + i * band, LOGICAL_W, band + 1);
+  }
+  ctx.fillStyle = "#f6cf8e"; ctx.fillRect(0, top + SKY.length * band, LOGICAL_W, 60);
+
+  // the sun, sitting on the horizon
+  var sunY = 586, sunX = LOGICAL_W * 0.62;
+  ctx.globalAlpha = a * 0.22; ctx.fillStyle = "#ffd9a0";
+  ctx.beginPath(); ctx.arc(sunX, sunY, 180, 0, Math.PI*2); ctx.fill();
+  ctx.globalAlpha = a * 0.30;
+  ctx.beginPath(); ctx.arc(sunX, sunY, 122, 0, Math.PI*2); ctx.fill();
+  ctx.globalAlpha = a; ctx.fillStyle = "#fff0c4";
+  ctx.beginPath(); ctx.arc(sunX, sunY, 74, 0, Math.PI*2); ctx.fill();
+
+  /* A boat on the horizon, because an empty sea is a wall. */
+  var bx = 300 + ((t * 7) % 340);
+  ctx.fillStyle = "#3b2a3f";
+  ctx.fillRect(bx, 600, 46, 7);
+  ctx.beginPath();
+  ctx.moveTo(bx + 20, 600); ctx.lineTo(bx + 20, 566); ctx.lineTo(bx + 44, 600);
+  ctx.closePath(); ctx.fill();
+
+  /* The sea is shallower than it was and the sand is deeper. The first pass
+     split the frame half and half, which left the man on a ledge - a beach
+     scene is mostly beach, and he needs the room to lie down in. */
+  ctx.fillStyle = "#2b4f6b"; ctx.fillRect(0, 606, LOGICAL_W, 104);
+  for (i = 0; i < 16; i++){
+    var wy = 610 + i * 6.3;
+    var amp = 2 + i * 0.9, spd = 0.5 + i * 0.09;
+    ctx.globalAlpha = a * (0.10 + i * 0.022);
+    ctx.fillStyle = "#8fc6e2";
+    for (var xq = -120; xq < LOGICAL_W + 120; xq += 150){
+      var off = Math.sin(t * spd + i * 0.8 + xq * 0.004) * amp * 4;
+      ctx.fillRect(xq + off, wy, 86 + i * 3, 3 + i * 0.12);
+    }
+  }
+  ctx.globalAlpha = a;
+  /* The glitter path under the sun - the one thing that says the light is
+     coming from somewhere. */
+  for (i = 0; i < 26; i++){
+    var gy = 612 + i * 3.7;
+    var gw = 10 + i * 5;
+    var gj = Math.sin(t * 3 + i * 1.7) * (6 + i);
+    ctx.globalAlpha = a * (0.42 - i * 0.012);
+    ctx.fillStyle = "#ffe9bd";
+    ctx.fillRect(sunX - gw / 2 + gj, gy, gw, 3);
+  }
+  ctx.globalAlpha = a;
+
+  // the sand
+  ctx.fillStyle = "#d9b183"; ctx.fillRect(0, 702, LOGICAL_W, 188);
+  ctx.fillStyle = "#c79c6c"; ctx.fillRect(0, 702, LOGICAL_W, 16);
+  ctx.globalAlpha = a * 0.5; ctx.fillStyle = "#e8cba4";
+  for (i = 0; i < 52; i++){
+    var dxs = (i * 173) % LOGICAL_W;
+    ctx.fillRect(dxs, 730 + ((i * 53) % 150), 22, 3);
+  }
+  ctx.globalAlpha = a;
+  // the last of the water running up the sand
+  var run = 706 + Math.sin(t * 0.7) * 8;
+  ctx.globalAlpha = a * 0.55; ctx.fillStyle = "#bfe3f0";
+  ctx.fillRect(0, run, LOGICAL_W, 7);
+  ctx.globalAlpha = a;
+
+  /* PALMS, one each side, leaning away from the camera and swaying on their
+     own phase. The trunk is a stack of narrowing blocks; the fronds are
+     eight tapered bars off one point. */
+  function palm(px, base, k, phase){
+    var lean = Math.sin(t * 0.8 + phase) * 0.055;
+    ctx.save();
+    ctx.translate(px, base); ctx.rotate(lean);
+    for (i = 0; i < 11; i++){
+      var seg = 1 - i * 0.045;
+      ctx.fillStyle = i % 2 ? "#6b4a30" : "#5c3f28";
+      ctx.fillRect(-16 * k * seg, -(i + 1) * 34 * k, 32 * k * seg, 35 * k);
+    }
+    var ty = -11 * 34 * k;
+    for (i = 0; i < 9; i++){
+      var fa = -Math.PI + i * (Math.PI / 8) + Math.sin(t * 1.1 + i + phase) * 0.05;
+      ctx.save();
+      ctx.translate(0, ty); ctx.rotate(fa);
+      for (var fq = 0; fq < 7; fq++){
+        ctx.fillStyle = fq < 4 ? "#2f6b3a" : "#27583049";
+        ctx.fillStyle = fq < 4 ? "#2f6b3a" : "#275830";
+        ctx.fillRect(fq * 26 * k, -7 * k + fq * 1.6 * k, 27 * k, (14 - fq * 1.6) * k);
+      }
+      ctx.restore();
+    }
+    // a couple of coconuts
+    ctx.fillStyle = "#4a3221";
+    ctx.beginPath(); ctx.arc(-14 * k, ty + 12 * k, 9 * k, 0, Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.arc(6 * k, ty + 16 * k, 8 * k, 0, Math.PI*2); ctx.fill();
+    ctx.restore();
+  }
+  palm(176, 836, 1.04, 0);
+  palm(LOGICAL_W - 142, 862, 1.16, 2.1);
+
+  /* THE CABANA. Two posts in the sand, a striped canopy with a scalloped
+     hem, and drapes at the posts that move. Based at 790 so the posts are IN
+     the sand rather than standing on the water line, and wide enough that
+     the lounger sits under it with room either side - a cabana the same
+     width as the chair reads as a market stall. */
+  var CX = LOGICAL_W * 0.40, CB = 790, CW = 600;
+  ctx.fillStyle = "#6b4a30";
+  ctx.fillRect(CX - CW/2, CB - 262, 18, 264);
+  ctx.fillRect(CX + CW/2 - 18, CB - 262, 18, 264);
+  ctx.fillStyle = "#5a3d27";
+  ctx.fillRect(CX - CW/2, CB - 262, 6, 264);
+  ctx.fillRect(CX + CW/2 - 18, CB - 262, 6, 264);
+  // canopy, striped
+  var cx0 = CX - CW/2 - 28, cwid = CW + 56;
+  for (var ci = 0; ci * 56 < cwid; ci++){
+    ctx.fillStyle = ci % 2 ? "#f6f2ea" : C.brand;
+    ctx.fillRect(cx0 + ci * 56, CB - 296, Math.min(56, cwid - ci * 56), 38);
+  }
+  ctx.globalAlpha = a * 0.22; ctx.fillStyle = "#000";
+  ctx.fillRect(cx0, CB - 266, cwid, 8);
+  ctx.globalAlpha = a;
+  // scalloped hem
+  for (ci = 0; ci * 34 < cwid; ci++){
+    ctx.fillStyle = ci % 2 ? "#f6f2ea" : shade(C.brand, 0.18);
+    ctx.beginPath();
+    ctx.arc(cx0 + 17 + ci * 34, CB - 258, 17, 0, Math.PI);
+    ctx.fill();
+  }
+  // drapes down the inside of each post, blowing
+  for (var sd = 0; sd < 2; sd++){
+    var sgn = sd ? 1 : -1;
+    var dx0 = CX + sgn * (CW/2 - 18);
+    for (i = 0; i < 8; i++){
+      var dy0 = CB - 252 + i * 30;
+      var blow = Math.sin(t * 1.4 + i * 0.55 + sd * 2) * (2 + i * 1.5) * -sgn;
+      ctx.globalAlpha = a * (0.92 - i * 0.02);
+      ctx.fillStyle = i % 2 ? "#f6f2ea" : "#eae5db";
+      ctx.fillRect(dx0 + (sgn < 0 ? 0 : -40) + blow, dy0, 40, 31);
+    }
+    ctx.globalAlpha = a;
+  }
+
+  /* Everything from here to the blazer is one group, scaled about the seat.
+     Hand-retuning nine points to make a man an eighth bigger is nine chances
+     to pull a limb off; one transform about the point he is lying on is
+     none, and it keeps the proportions that already work. */
+  ctx.save();
+  ctx.translate(CX, 806); ctx.scale(1.18, 1.18); ctx.translate(-CX, -806);
+
+  /* THE LOUNGER, and him on it. Head to the left, feet to the right, laid
+     along a raked back and a flat seat.
+
+     The figure is built from BARS between named points rather than from
+     rotated rectangles - the first pass rotated a shirt about its corner and
+     produced something that read as a sail. A torso is a thick bar from the
+     hip to the shoulder, a thigh is a bar from the hip to the knee, and once
+     the five points are placed the drawing cannot come apart. */
+  var SEAT = 806, HIPX = CX - 120, HIPY = SEAT - 26;
+  var SHOX = HIPX - 118, SHOY = HIPY - 100;          // shoulder, up the rake
+  var KNEX = HIPX + 132, KNEY = SEAT - 30;           // knee
+  var FOOX = KNEX + 118, FOOY = SEAT - 18;           // ankle
+
+  // the chair: raked back, flat seat, four short legs
+  sceneArm(HIPX + 8, SEAT - 2, SHOX - 26, SHOY - 20, 20, "#8a6a46");
+  ctx.fillStyle = "#8a6a46"; ctx.fillRect(HIPX - 10, SEAT - 4, 300, 18);
+  ctx.fillStyle = "#6f5436";
+  ctx.fillRect(HIPX + 6, SEAT + 14, 15, 36);
+  ctx.fillRect(HIPX + 262, SEAT + 14, 15, 36);
+  // a towel over the back and the seat
+  sceneArm(HIPX + 8, SEAT - 10, SHOX - 18, SHOY - 14, 26, "#e8e2d6");
+  ctx.fillStyle = "#e8e2d6"; ctx.fillRect(HIPX - 4, SEAT - 14, 250, 12);
+
+  // legs: thigh in shorts, shin bare, one flip-flop
+  sceneArm(HIPX, HIPY, KNEX, KNEY, 44, "#2f6b8a");
+  ctx.fillStyle = shade("#2f6b8a", 0.16);
+  ctx.fillRect(HIPX - 6, HIPY - 22, 26, 44);
+  sceneArm(KNEX, KNEY, FOOX, FOOY, 34, HERO_SKIN);
+  ctx.fillStyle = "#1b2027";
+  ctx.fillRect(FOOX - 6, FOOY - 20, 34, 30);
+
+  // torso, then the placket down the middle of it
+  sceneArm(HIPX, HIPY, SHOX, SHOY, 80, "#f6f7f9");
+  sceneArm(HIPX, HIPY, SHOX, SHOY, 13, "#e2e6ea");
+
+  /* The head, a little past the shoulder along the same line, so it sits ON
+     the body instead of near it. */
+  var tdx = SHOX - HIPX, tdy = SHOY - HIPY, tL = Math.sqrt(tdx*tdx + tdy*tdy) || 1;
+  var ux = tdx / tL, uy = tdy / tL;
+  var HCX = SHOX + ux * 40, HCY = SHOY + uy * 40;
+  ctx.fillStyle = HERO_SKIN; ctx.fillRect(HCX - 29, HCY - 32, 58, 64);
+  ctx.fillStyle = "#2b1d14";
+  ctx.fillRect(HCX - 32, HCY - 42, 64, 16);           // hair
+  ctx.fillRect(HCX - 32, HCY - 30, 8, 26);
+  ctx.fillRect(HCX + 24, HCY - 30, 8, 26);
+  // sunglasses, with the sunset in them
+  ctx.fillStyle = "#15181d"; ctx.fillRect(HCX - 22, HCY - 14, 46, 15);
+  ctx.globalAlpha = a * 0.55; ctx.fillStyle = "#ffd9a0";
+  ctx.fillRect(HCX - 19, HCY - 11, 15, 6);
+  ctx.fillRect(HCX + 3,  HCY - 11, 15, 6);
+  ctx.globalAlpha = a;
+  // a content mouth, because the whole scene is about his face being this
+  ctx.fillStyle = "#8a5a44"; ctx.fillRect(HCX - 7, HCY + 12, 18, 4);
+
+  /* The near arm, up with the drink. It lifts once early on and then stays
+     - a man who keeps raising his glass is a loop, same as the handshake. */
+  var lift = Math.max(0, Math.min(1, (t - 2.4) / 0.9));
+  var le = 1 - Math.pow(1 - lift, 2);
+  var ELX = HIPX - 48, ELY = HIPY - 66;
+  var HNX = ELX + 76, HNY = ELY - 26 - le * 26 + Math.sin(t * 1.3) * 2;
+  sceneArm(SHOX + 16, SHOY + 34, ELX, ELY, 24, "#f6f7f9");
+  sceneArm(ELX, ELY, HNX, HNY, 21, HERO_SKIN);
+  // the glass, sitting in the hand
+  ctx.fillStyle = "#cfe9f2"; ctx.fillRect(HNX - 4, HNY - 46, 38, 50);
+  ctx.fillStyle = "#f2a13c"; ctx.fillRect(HNX - 4, HNY - 24, 38, 28);
+  ctx.globalAlpha = a * 0.5; ctx.fillStyle = "#ffffff";
+  ctx.fillRect(HNX, HNY - 44, 8, 46);
+  ctx.globalAlpha = a;
+  ctx.fillStyle = "#e8e2d6"; ctx.fillRect(HNX - 8, HNY - 49, 46, 6);
+  // a slice on the rim and the little umbrella
+  ctx.fillStyle = "#f6d64a";
+  ctx.beginPath(); ctx.arc(HNX + 36, HNY - 48, 13, Math.PI, 0); ctx.fill();
+  ctx.save();
+  ctx.translate(HNX + 14, HNY - 50); ctx.rotate(0.42);
+  ctx.fillStyle = "#8a6a46"; ctx.fillRect(-2, -40, 4, 46);
+  for (var up2 = 0; up2 < 4; up2++){
+    ctx.fillStyle = up2 % 2 ? "#f6f2ea" : C.brand;
+    ctx.beginPath();
+    ctx.moveTo(0, -56);
+    ctx.lineTo(-28 + up2 * 14, -38);
+    ctx.lineTo(-28 + (up2 + 1) * 14, -38);
+    ctx.closePath(); ctx.fill();
+  }
+  ctx.restore();
+
+  /* And the blazer over the arm of the chair, done with. It is the only
+     thing in the picture from the other ninety-four blocks. */
+  ctx.fillStyle = BLAZER;
+  ctx.fillRect(HIPX + 256, SEAT - 46, 74, 62);
+  ctx.fillStyle = shade(BLAZER, -0.22);
+  ctx.fillRect(HIPX + 256, SEAT - 46, 74, 12);
+  ctx.fillStyle = shade(BLAZER, 0.14);
+  ctx.fillRect(HIPX + 286, SEAT - 34, 8, 50);
+  ctx.restore();
+
+  /* Two birds, high and slow, on a long loop. */
+  for (i = 0; i < 2; i++){
+    var px2 = ((t * 26 + i * 700) % (LOGICAL_W + 300)) - 150;
+    var py2 = 250 + i * 46 + Math.sin(t * 0.8 + i) * 12;
+    var fl = Math.sin(t * 4 + i * 2) * 7;
+    ctx.globalAlpha = a * 0.6; ctx.fillStyle = "#3b2a3f";
+    ctx.fillRect(px2 - 16, py2 - fl, 16, 3);
+    ctx.fillRect(px2, py2 + fl, 16, 3);
+    ctx.globalAlpha = a;
+  }
+}
+
 var SCENES = {
   42: { title:"TIMES SQUARE",        sub:"Probably should have gotten an Uber",
         draw:sceneTimes, music:"city" },
@@ -8252,7 +9011,22 @@ var SCENES = {
    opposite order, because both are keyed on the street number. */
 var SCENES_BACK = {
   34: { title:"PENN 1",             sub:"Thirty-fourth and Seventh",  draw:scenePenn,
-        secs:5.2, music:"city", win:true }
+        secs:5.2, music:"city", then:"stage" }
+};
+
+/* The two that are not on any street. They are chained off `then` rather
+   than keyed on a street number, because neither of them is in Midtown. */
+var SCENES_END = {
+  stage: { title:"CISCO CLUB",  sub:"Up on the big stage at GSX",
+           draw:sceneStage, secs:9.4, music:"stage",
+           beats:[[2.3,"stage"], [4.45,"deal"], [4.8,"chaChing"], [5.4,"cheer"]],
+           then:"cabana" },
+  /* The last line of the game, and the only joke in it that is about the
+     job rather than about the walk. Everything up to here has been reward;
+     this is the one that lands on the way out of the room. */
+  cabana:{ title:"HANALEI BAY",
+           sub:"Soak it in and ENJOY! Your number goes back to 0 tomorrow",
+           draw:sceneCabana, secs:10.6, music:"island", win:true }
 };
 
 /* A scene can fire on the step that lands him in the middle of a road, and a
@@ -8299,8 +9073,23 @@ function startScene(st){
   if (sc && sc.sound === "deal") AUDIO.deal(); else AUDIO.stage();
   if (sc && sc.music){
     var tune = { city:AUDIO.cityTheme, rock:AUDIO.rockTheme,
-                 park:AUDIO.parkTheme, dinner:AUDIO.dinnerTheme }[sc.music];
+                 park:AUDIO.parkTheme, dinner:AUDIO.dinnerTheme,
+                 stage:AUDIO.stageTheme, island:AUDIO.islandTheme }[sc.music];
     (tune || AUDIO.cityTheme)();
+  }
+}
+
+/* The ending scenes, which have no street. Same shape as startScene without
+   the step-back - he is not standing in a road any more, the run is over
+   bar the watching. */
+function startEndScene(key){
+  var sc = SCENES_END[key];
+  if (!sc){ winGame(); return; }
+  G.scene = { st:0, t:0, len:sc.secs || SCENE_SECS, sc:sc, fired:{} };
+  AUDIO.stage();
+  if (sc.music){
+    var tune = { stage:AUDIO.stageTheme, island:AUDIO.islandTheme }[sc.music];
+    if (tune) tune();
   }
 }
 function updateScene(dt){
@@ -8355,6 +9144,10 @@ function updateScene(dt){
            C.good, sc.turn ? "downtown" : null);
     if (sc.turn) G.notice.turn = true;
   }
+  /* One scene can hand straight to another. Penn 1 books the deal; the stage
+     is what the year buys you and the beach is what the stage buys you, and
+     the tally waits until all three have been watched. */
+  if (sc.then){ startEndScene(sc.then); return; }
   if (sc.win) winGame();
 }
 
