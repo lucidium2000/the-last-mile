@@ -3580,9 +3580,15 @@ three things the first attempt got wrong:
   behind him rather than worn over his chin. It stops at the jaw — at 0.81 it
   came past his cheekbones and the face was a slot in a box.
 - **The coat hangs at the sides**, not across the front. Two long panels down
-  the outside with the torso visible between them, flaring at the hem. The
-  first version banded three slabs straight across the body and made a
-  wardrobe; you should be able to see the shirt, and the harness over it.
+  the outside with the torso visible between them. The first version banded
+  three slabs straight across the body and made a wardrobe; you should be able
+  to see the shirt, and the harness over it.
+- **And it is narrower than the arms.** The panels were 0.115 wide at the same
+  x as the sleeves, with the hem flaring past them to 0.875, so the coat stuck
+  out either side and he read as a wardrobe with a head. A coat hangs *behind*
+  the arms and barely wider than them; the flare belongs below the elbow,
+  where there is no arm left to be wider than. The sprite went from wider than
+  the base figure to **117px against its 129**.
 - **The lenses are grey**, not black. They are mirrors, and black ovals on a
   figure this dark are two holes in his face.
 
