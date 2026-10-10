@@ -491,6 +491,12 @@ painted on it: ratio 2.09:1 and +$31,250 a stand. They are still the
 industry's weather rather than anything the seller did, which is the conceit
 of the whole good pool — just a slower news day.
 
+**Any tap or swipe folds it.** 2.6s is right the first time and long by the
+fortieth, and a player who has finished reading is a player waiting. The input
+is swallowed rather than passed through — dismissing a card should not also
+walk him into a road he cannot currently see. The money is already on the
+pipeline by then; the card is only telling him.
+
 The card is 2.6s and it **freezes the world** while it is up, because at the
 size a front page has to be to be readable it covers the traffic he is standing
 next to. The ticker card used to do the same and no longer does — the paper is
@@ -2033,6 +2039,43 @@ concern wherever he is standing.
 **The man with the knife measures against the drawn position, not the logical
 one**, so the gap he is judging is the gap the player can see.
 
+**He walks the car in quarter slots.** A slot is a fifth of a 1740-wide car —
+330px — which is a stride no man takes, so he used to teleport window to
+window. It went to half a slot and is now a **quarter: 83px**, about two
+thirds of his own width. Because the stride time scales with the distance, he
+crosses the car at exactly the same speed either way (5 slots/sec, measured
+before and after) — 16 steps instead of 8. The one number that had to move
+with it is the floor on `stepDur`: `RIDE_STEP * 0.25` is exactly 0.05, and the
+old 0.06 clamp would have made every small step run 17% slow and quietly made
+the whole car longer to cross.
+
+`RIDE_SUB` is also the **reach** — what he is within one step of, he picks up
+— so halving the step halves that too. That is the point: a roll of notes two
+full windows away should not jump into his hand.
+
+**The benches.** Cantilevered off the wall with no legs, the way they are in a
+real car: a lip where the seat meets the panel, a lit edge along the front, a
+dark apron under it and moulded dividers across it, because a flat slab three
+hundred pixels long reads as a shelf. Drawn before the passengers so they
+stand in front of it rather than on it, and it stops at the bay rather than
+running through the doors, which is where the standing room is.
+
+**And the money is drawn last.** It used to be drawn inside the slot loop,
+which put it behind everything that came after. Nobody *stands* in its slot
+(`carPaxAt` returns null there), so the people in the windows were never the
+problem — the **hooded man** is. He is drawn at his own floating position
+after the loop and drifts up the car, and he could park himself squarely over
+the one thing in the carriage worth walking to. Money you cannot see is money
+that is not there. It now draws after the passengers, after him and after the
+hero; the hero cannot cover it either way, since he collects it the moment he
+is within one step. Verified by parking the hooded man on the cash slot — the
+roll draws over him.
+
+It sits **on the bench** now rather than floating in the middle of the window,
+which is what *"someone left it on the seat"* always said it was doing, and
+the bob is down from 5px to 3: a roll of notes on a seat should settle, not
+hover.
+
 Collecting Chuck Bucks on the train **does not raise the ticker card**. It is
 laid out against the street — it sits high and clear of where the walking
 figure stands, and the carriage puts him somewhere else entirely — and the ride
@@ -2399,6 +2442,13 @@ function of how many rows it has — and rows get added. `SPARE BLAZERS` made it
 eight, which pushed the total to y 1060 and put the rank, the personal best
 and *the line telling you how to start another run* clean off the bottom of a
 1080-high canvas.
+
+The strip of non-money stats sits **128 below the rule, not 96**. The total is
+set at 76 and *pops* to 1.10 as it lands, so its ink reaches about `ly+97`,
+and the strip at `ly+96` was being printed straight through the bottom of the
+one number anybody repeats. At 128 there is a measured 36px gap and the tap
+line still lands inside `TALLY_BOTTOM`; the fit scale accounts for the extra
+32 in `natural`.
 
 Rather than re-tune every number each time a row appears, the whole block is
 measured and scaled to the space between `top` and `TALLY_BOTTOM` (1020),

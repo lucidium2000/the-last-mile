@@ -4123,6 +4123,13 @@ function wake(){
 
 function act(dir){
   if (wake()) return;
+  /* A FRONT PAGE IS A THING YOU PUT DOWN. It freezes the world for 2.6s,
+     which is right the first time and long by the fortieth - and a player
+     who has read it is a player waiting. Any tap or swipe folds it, and the
+     input is swallowed rather than passed through: dismissing a card should
+     not also walk him into the road he cannot currently see. The money has
+     already been paid at this point; the card is only telling him. */
+  if (G.paper){ G.paper = null; AUDIO.ui(); return; }
   if (G.state === ST_TITLE){ G.state = ST_PLAY; AUDIO.ui(); return; }
   // nobody takes a call mid-change
   if (G.booth && G.state === ST_PLAY) return;
@@ -5461,10 +5468,17 @@ var RIDE_SLOTS = 5;
    commuter. Everything else here is the window you get once he is close. */
 var RIDE_STEP = 0.20;      // how long he takes to cross from one slot to the next
 /* And he does not have to cross a whole one. A full slot is a fifth of the
-   car, which is a stride a man cannot take - he teleported from window to
-   window. Half of that is a step, and because the stride time scales with
-   the distance he walks at the same speed either way. */
-var RIDE_SUB = 0.5;
+   car - 330px, which is a stride a man cannot take, so he teleported from
+   window to window. It went to half a slot, and now to a QUARTER: 82px, or
+   about two thirds of his own width, which is a step rather than a lunge.
+   Because the stride time scales with the distance, he crosses the car at
+   exactly the same speed either way - it is the granularity that changed,
+   not the pace.
+
+   It is also the reach: what he is within one step of, he picks up. Halving
+   the step halves that too, which is the point - a roll of notes two full
+   windows away should not jump into his hand. */
+var RIDE_SUB = 0.25;
 var SHADY_SPEED = 0.52;    // slots a second, when he means it
 /* Nine times in ten he is just a man on a train. He still gets on, he still
    watches, he may still drift up the car - but he does not draw anything and
@@ -5570,7 +5584,11 @@ function rideAct(dir){
      the distance, so half a slot takes half as long and the walking speed
      is the same whatever the step size is set to. */
   R.slotFrom = rideManX(R);
-  R.stepDur = Math.max(0.06, RIDE_STEP * Math.abs(ns - R.slotFrom));
+  /* The floor is 0.05 rather than 0.06 so a quarter-slot step is not
+     clamped: RIDE_STEP * 0.25 is exactly 0.05, and at 0.06 every small step
+     would have run 17% slow and quietly made the whole car longer to
+     cross. */
+  R.stepDur = Math.max(0.05, RIDE_STEP * Math.abs(ns - R.slotFrom));
   R.slot = ns; R.stepT = 0; R.face = d;
   // any step at all buys a moment: the grace clock restarts from here
   if (R.knife > 0) R.knife = 0.0001;
@@ -5603,6 +5621,59 @@ function carPaxAt(R, i){
   if (!R.pax || i < 0 || i >= RIDE_SLOTS) return null;
   if (i === R.cash && !R.cashGot) return null;
   return R.pax[i];
+}
+
+/* THE ROLL OF NOTES, drawn LAST - after the standing passengers, after the
+   hooded man, after the hero.
+
+   It used to be drawn inside the slot loop, which put it behind everything
+   that came after it in the car. Nobody STANDS in its slot (see carPaxAt),
+   so the people in the windows were never the problem: the hooded man is,
+   because he is drawn at his own floating position after the loop and drifts
+   up the car, and he could park himself squarely over the one thing in the
+   carriage worth walking to. Money you cannot see is money that is not
+   there.
+
+   The hero cannot cover it either way - he collects it the moment he is
+   within one step - so drawing it over everything costs nothing and
+   guarantees it is findable.
+
+   It sits ON the bench now rather than floating in the middle of the window,
+   which is what "someone left it on the seat" has always said it was doing.
+   The bob is down from 5px to 3: a roll of notes on a seat should settle,
+   not hover. */
+function drawCarCash(mx, cy){
+  var bob = Math.sin(G.t * 3.4) * 3, pul = 0.5 + 0.5 * Math.sin(G.t * 5);
+  var yy = cy + 190 + bob;
+  ctx.globalAlpha = 0.16 + 0.12 * pul; ctx.fillStyle = POWERS.chuck.col;
+  ctx.beginPath(); ctx.arc(mx, yy, 40, 0, Math.PI * 2); ctx.fill();
+  ctx.globalAlpha = 1;
+  ctx.save(); ctx.translate(mx, yy); ctx.rotate(-0.12);
+  plate(-30, -19, 60, 38, "#3f8f5a", 4);
+  plate(-24, -13, 48, 26, "#57a76f", 3);
+  txt("$", 0, 9, 26, "#eaf6ee");
+  ctx.restore();
+  txt("CHUCK", mx, yy + 36, 15, POWERS.chuck.col);
+}
+
+/* THE BENCH, under the window and behind the people, the way it is in a real
+   car: cantilevered off the wall with no legs, a lip where it meets the
+   panel, a lit edge along the front and a dark apron under it.
+
+   Drawn before the passengers so they stand in front of it rather than on
+   it, and it stops at the bay rather than running through the doors, which
+   is where the standing room is. Moulded dividers across the seat, because a
+   flat slab three hundred pixels long reads as a shelf. */
+function drawCarBench(wx, ww, cy){
+  var bx0 = wx - 4, bw = ww - 22;
+  plate(bx0, cy + 196, bw, 12, "#2b4354", 4);          // the lip at the wall
+  plate(bx0, cy + 206, bw, 17, "#3a5a70", 5);          // the seat itself
+  plate(bx0 + 6, cy + 208, bw - 12, 7, "#4d7792", 3);  // light along the front
+  ctx.fillStyle = "#1b2a35";
+  ctx.fillRect(bx0, cy + 222, bw, 11);                 // the apron
+  ctx.fillStyle = "#2b4354";
+  for (var sdv = 1; sdv < 3; sdv++)
+    ctx.fillRect(bx0 + bw * sdv / 3 - 2, cy + 206, 4, 17);
 }
 
 /* Where a slot sits on screen. One place, so the man and the people standing
@@ -6996,10 +7067,12 @@ function drawCar(ox, rock, lit){
 
   var R2 = G.ride || {}, wn = RIDE_SLOTS, ww = (cw - 90) / wn;
   if (R2.swing > 0) drawSwing(rideSlotX(rideManX(R2), cx0, cw), cy, R2);
+  var cashMX = null;                       // drawn after everybody, see below
   for (var i = 0; i < wn; i++){
     var wx = cx0 + 45 + i*ww, mx = wx + (ww-30)/2;
     plate(wx, cy+66, ww-30, 132, "#0b0f14", 10);
     plate(wx+5, cy+71, ww-40, 122, lit ? "#1d3d4e" : "#121c24", 8);
+    drawCarBench(wx, ww, cy);
     // grab pole
     ctx.fillStyle = "#8e969e"; ctx.fillRect(mx - 3, cy+66, 6, 132);
     /* Everybody stays where they are. The old rule emptied the slot he was
@@ -7009,17 +7082,8 @@ function drawCar(ox, rock, lit){
        so he simply passes in front of them, which is what happens on a
        train. */
     if (i === R2.cash && !R2.cashGot){
-      // a roll of Chuck Bucks nobody has noticed yet
-      var bob = Math.sin(G.t * 3.4) * 5, pul = 0.5 + 0.5*Math.sin(G.t * 5);
-      ctx.globalAlpha = 0.16 + 0.12*pul; ctx.fillStyle = POWERS.chuck.col;
-      ctx.beginPath(); ctx.arc(mx, cy+150 + bob, 40, 0, Math.PI*2); ctx.fill();
-      ctx.globalAlpha = 1;
-      ctx.save(); ctx.translate(mx, cy+150 + bob); ctx.rotate(-0.12);
-      plate(-30, -19, 60, 38, "#3f8f5a", 4);
-      plate(-24, -13, 48, 26, "#57a76f", 3);
-      txt("$", 0, 9, 26, "#eaf6ee");
-      ctx.restore();
-      txt("CHUCK", mx, cy+150 + bob + 38, 15, POWERS.chuck.col);
+      // noted, and drawn once everybody else is down - see drawCarCash
+      cashMX = mx;
     } else {
       /* One rider, standing at the hero's own scale, swaying with the car.
          Each on a slightly different phase down the length of it, the way
@@ -7056,6 +7120,8 @@ function drawCar(ox, rock, lit){
      is not standing in one - he is walking down the car. */
   drawRider(cx0, cw, cy);
   drawShady(cx0, cw, cy);
+  /* Last of all, so nobody in the carriage can stand in front of it. */
+  if (cashMX != null) drawCarCash(cashMX, cy);
 
   // doors between windows
   for (var d = 1; d < wn; d++){
@@ -12723,7 +12789,7 @@ function drawTally(top, accent){
      block is measured and scaled to the space between `top` and
      TALLY_BOTTOM, about its own top edge, so every coordinate inside it
      still holds. Clamped at 1: it shrinks to fit and never grows to fill. */
-  var natural = 78 + T.rows.length * 52 + 224;
+  var natural = 78 + T.rows.length * 52 + 256;
   var fitK = Math.min(1, (TALLY_BOTTOM - top) / natural);
   ctx.save();
   ctx.translate(LOGICAL_W / 2, top);
@@ -12774,9 +12840,14 @@ function drawTally(top, accent){
     ctx.globalAlpha = 1;
   }
 
-  // the things that are not money
+  /* The things that are not money. 128 below the rule rather than 96: the
+     total is set at 76 and POPS to 1.10 as it lands, so its ink reaches
+     about ly+97, and the strip at ly+96 was being printed through the
+     bottom of the number anybody actually repeats. 128 clears the pop with
+     room to spare and still leaves the tap line inside TALLY_BOTTOM - the
+     fit scale above accounts for the extra 32 (see `natural`). */
   if (tallyOver()){
-    var sy2 = ly + 96, line = "";
+    var sy2 = ly + 128, line = "";
     for (i = 0; i < T.stats.length; i++)
       line += (i ? "   \u00B7   " : "") + T.stats[i][0] + " " + T.stats[i][1];
     txt(line, LOGICAL_W/2, sy2, 24, "rgba(253,244,238,0.52)", "center", W - 40);
