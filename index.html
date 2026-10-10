@@ -4032,7 +4032,7 @@ function reset(){
     brand:null, pipePop:0, rise:null, tam:false, tamT:0, tamWins:0, tamWin:null, hurtT:0, nahT:0, nahSay:null, walkSaid:false,
     yumT:0, yumKind:null, yumDir:0, yumBite:0, wowT:0, cheerT:0,
     metro:0, ride:null, trace:null, rides:0, bonus:0, tamLeft:0, riskT:0, dashT:0,
-    leapT:0, leapDir:1, dashBeep:0, idleT:0, saver:false, hushed:false,
+    leapT:0, leapDir:1, dashBeep:0, idleT:0, saver:false, hushed:false, spin:null,
     dashFlash:0, dashPulse:0, dashWhole:0,
     scene:null, scenesSeen:{}, ticker:null, notice:null, southT:0,
     leg:1, po:false, won:false,
@@ -4752,7 +4752,22 @@ var DEATH_HOLD = 1.50;
    afternoon. */
 var SAVER_AFTER = 120;
 var TALLY_BOTTOM = 1020;
+/* TWO OF THESE FOUR LINES ARE THE GAME.
+
+   Ground covered is what he did and Chuck Bucks is a gag. TE-ADDONS and TAM
+   PAYOUTS are the product, and on a readout where every row was the same
+   height, the same size and the same 0.66s of counting, they were two rows
+   in a list. The whole purpose of this screen is that somebody who has
+   played forty runs can still name two things.
+
+   So those two are marked `big` and get: a taller slot, bigger type, a
+   plate in their own colour behind them, nearly twice the count, a pop as
+   the number lands and a cash register on it. Everything that follows reads
+   off the row rather than off the index, so adding or reordering a row
+   cannot desynchronise the clock from the layout again. */
 var TALLY_T0 = 1.15, TALLY_GAP = 0.80, TALLY_RUN = 0.66, TALLY_TOTAL = 1.15;
+var TALLY_GAP_BIG = 1.30, TALLY_RUN_BIG = 1.22;
+var TALLY_H = 52, TALLY_H_BIG = 78;
 function buildTally(){
   var base = G.maxRow * DOLLARS_PER_ROW;
   /* FOUR LINES, AND THEY ARE THE FOUR THE GAME IS ABOUT.
@@ -4774,10 +4789,21 @@ function buildTally(){
     { label:"CHUCK BUCKS", note:(G.got.chuck || 0) + " collected",
       amt:G.bonusChuck, col:"#7fd49a" },
     { label:"TE-ADDONS", note:G.addons + (G.addons === 1 ? " terminal" : " terminals"),
-      amt:G.bonusAddon, col:POWERS.path.col },
+      amt:G.bonusAddon, col:POWERS.path.col, big:true },
     { label:"TAM PAYOUTS", note:G.tamWins + (G.tamWins === 1 ? " win" : " wins"),
-      amt:G.bonusTam, col:C.pw5 }
+      amt:G.bonusTam, col:C.pw5, big:true }
   ];
+  /* Each row carries its own start, length and height, worked out once.
+     The clock and the layout then read the same numbers. */
+  var at = TALLY_T0, yy = 0;
+  for (var ri = 0; ri < rows.length; ri++){
+    rows[ri].at  = at;
+    rows[ri].run = rows[ri].big ? TALLY_RUN_BIG : TALLY_RUN;
+    rows[ri].y   = yy;
+    rows[ri].h   = rows[ri].big ? TALLY_H_BIG : TALLY_H;
+    at += rows[ri].big ? TALLY_GAP_BIG : TALLY_GAP;
+    yy += rows[ri].h;
+  }
   var powers = 0;
   for (var k in G.got) powers += G.got[k];
   G.tally = {
@@ -4792,7 +4818,9 @@ function buildTally(){
       ["POWER-UPS", powers],
       ["FURTHEST", "W " + Math.max(START_ST, G.street) + " ST"]
     ],
-    was:best()
+    was:best(),
+    totalAt:at + 0.25,
+    stackH:yy
   };
 }
 /* How far through a row's count we are, 0..1. `rush` is a tap landing before
@@ -4801,15 +4829,15 @@ function tallyAt(i){
   var T = G.tally;
   if (!T) return 0;
   if (T.rush) return 1;
-  var start = TALLY_T0 + i * TALLY_GAP;
-  return Math.max(0, Math.min(1, (T.t - start) / TALLY_RUN));
+  var R = T.rows[i];
+  if (!R) return 0;
+  return Math.max(0, Math.min(1, (T.t - R.at) / R.run));
 }
 function tallyTotalAt(){
   var T = G.tally;
   if (!T) return 0;
   if (T.rush) return 1;
-  var start = TALLY_T0 + T.rows.length * TALLY_GAP + 0.25;
-  return Math.max(0, Math.min(1, (T.t - start) / TALLY_TOTAL));
+  return Math.max(0, Math.min(1, (T.t - (T.totalAt || 0)) / TALLY_TOTAL));
 }
 function tallyOver(){
   var T = G.tally;
@@ -4825,7 +4853,12 @@ function tallyAudio(dt){
   for (i = 0; i < T.rows.length; i++){
     var k = tallyAt(i);
     if (T.rows[i].amt > 0 && k > 0 && k < 1) climbing = true;
-    if (k >= 1 && !T.done["r" + i]){ T.done["r" + i] = 1; if (T.rows[i].amt > 0) AUDIO.stage(); }
+    if (k >= 1 && !T.done["r" + i]){
+      T.done["r" + i] = 1;
+      /* The two that matter get a register rather than a chime. A row that
+         sounds like every other row is a row. */
+      if (T.rows[i].amt > 0) (T.rows[i].big ? AUDIO.chaChing : AUDIO.stage)();
+    }
   }
   var tk = tallyTotalAt();
   if (tk > 0 && tk < 1) climbing = true;
@@ -4870,10 +4903,66 @@ function inMuteBtn(lx, ly){
          ly > MUTE_BTN.y - 14 && ly < MUTE_BTN.y + MUTE_BTN.h + 14;
 }
 
+/* ===================== THE INITIALS WHEEL ================================
+   Three columns of letters with an arrow at each end is a wheel drawn on a
+   screen, and it should behave like one: you put a finger on it, it follows
+   your finger, and when you let go it carries on and slows down.
+
+   Two things were wrong. A tap anywhere on the screen fell through to
+   act("f"), which on this screen means "next letter" - so putting a finger
+   down anywhere at all changed somebody's initials. And a swipe was worth
+   exactly one letter however hard you threw it, which is a button with
+   extra steps.
+
+   So: dragging on a column moves it live, one letter per INI_DRAG pixels,
+   and letting go hands the remaining velocity to a spin that decays
+   exponentially. The decay is per-second-to-the-power-of-dt rather than a
+   flat subtraction, so it is frame-rate independent - at 24fps on a Board
+   it coasts exactly as far as it does at 60 on a laptop.
+
+   Taps are unchanged where they already worked: the arrows step one, the
+   box selects that column, OK submits. A tap on nothing now does nothing,
+   which is the whole of the first fix. */
+var INI_DRAG = 46;        // pixels of drag per letter
+var INI_FLICK = 0.42;     // velocity below this and it is a tap, not a throw
+var INI_DECAY = 0.055;    // what is left of the velocity after one second
+
 var ptr = null;
 cv.addEventListener("pointerdown", function(e){
   e.preventDefault(); AUDIO.unlock();
-  ptr = { sx:e.clientX, sy:e.clientY, used:false };
+  ptr = { sx:e.clientX, sy:e.clientY, used:false,
+          lx:e.clientX, ly:e.clientY, lt:performance.now(),
+          vy:0, acc:0, col:-1, drag:false };
+  /* Which column the finger went down on, if any. Grabbing a column stops
+     whatever it was doing - a wheel you catch is a wheel that stops. */
+  if (G.state === ST_NAME){
+    var rect = cv.getBoundingClientRect();
+    var lx = (e.clientX - rect.left) / rect.width * LOGICAL_W;
+    var ly = (e.clientY - rect.top) / rect.height * LOGICAL_H;
+    var h = nameHit(lx, ly);
+    if (h && !h.ok && h.d === 0){ ptr.col = h.i; G.spin = null; }
+  }
+}, { passive:false });
+
+cv.addEventListener("pointermove", function(e){
+  if (!ptr || ptr.col < 0 || G.state !== ST_NAME) return;
+  e.preventDefault();
+  var now = performance.now(), dt = Math.max(8, now - ptr.lt);
+  var dy = e.clientY - ptr.ly;
+  /* Velocity in letters a second, smoothed - one raw sample at the moment
+     of release is mostly noise. */
+  ptr.vy = ptr.vy * 0.6 + (dy / INI_DRAG) / (dt / 1000) * 0.4;
+  ptr.lx = e.clientX; ptr.ly = e.clientY; ptr.lt = now;
+
+  ptr.acc += dy / INI_DRAG;
+  var guard = 0;
+  while (Math.abs(ptr.acc) >= 1 && guard++ < 40){
+    var d = ptr.acc > 0 ? 1 : -1;
+    ptr.acc -= d;
+    ptr.drag = true;
+    G.iniAt = ptr.col;
+    iniStep(-d);                 // dragging DOWN runs the letters backwards
+  }
 }, { passive:false });
 cv.addEventListener("pointerup", function(e){
   e.preventDefault();
@@ -4884,6 +4973,21 @@ cv.addEventListener("pointerup", function(e){
      and the name entry are all hit before act() is ever reached. */
   if (wake()){ ptr = null; return; }
   var dx = e.clientX - ptr.sx, dy = e.clientY - ptr.sy;
+
+  /* Let go of a column and it keeps going. Anything slower than a flick is
+     treated as a drag that has already happened and simply stops. */
+  if (G.state === ST_NAME && ptr.col >= 0){
+    if (Math.abs(ptr.vy) > INI_FLICK){
+      G.spin = { i:ptr.col, v:Math.max(-26, Math.min(26, ptr.vy)), acc:0 };
+    }
+    /* A finger that went down on a column and never moved is a tap on that
+       column: select it, and nothing else. */
+    if (!ptr.drag && Math.sqrt(dx*dx + dy*dy) <= 42){
+      G.iniAt = ptr.col; AUDIO.step();
+    }
+    ptr = null; return;
+  }
+
   if (Math.sqrt(dx*dx + dy*dy) > 42){
     if (Math.abs(dx) > Math.abs(dy)) act(dx > 0 ? "r" : "l");
     else                             act(dy < 0 ? "f" : "b");
@@ -4904,8 +5008,13 @@ cv.addEventListener("pointerup", function(e){
         if (h.ok) submitScore();
         else if (h.d) { G.iniAt = h.i; iniStep(h.d); }
         else { G.iniAt = h.i; AUDIO.step(); }
-        ptr = null; return;
       }
+      /* AND NOTHING ELSE. A tap on the background used to fall through to
+         act("f"), which on this screen is "next letter" - so a finger put
+         down anywhere at all changed somebody's initials. The arrows, the
+         columns and OK are the only things on this screen that do
+         anything. */
+      ptr = null; return;
     }
     /* A tap anywhere means forward. The old scheme split the screen into four
        invisible zones, so a tap meant for "cross" near the bottom corners moved
@@ -7816,19 +7925,30 @@ function sceneFrame(title, sub, body, sc){
        It fades in two seconds later and rises as it comes, because a line
        that simply appears reads as a frame drop. */
     txt(sub, LOGICAL_W/2, LOGICAL_H - 80, 40, C.brand, "center", LOGICAL_W - 160);
-    var k2 = Math.max(0, Math.min(1, (t - (sc.sub2At || 2.0)) / 0.8));
+    /* IT TYPES ITSELF OUT. A fade is a line appearing; a line that spells
+       itself out is somebody saying it, and this one is the last thing
+       anybody is told. Seventy-odd milliseconds a character over about two
+       and a half seconds, which is a shade slower than reading speed - the
+       words arrive a beat after you have worked out what they are going to
+       be, which is where the joke lives.
+
+       The caret blinks while it types and goes when the line is done. */
+    var spell = sc.sub2Spell || 2.5;
+    var k2 = Math.max(0, Math.min(1, (t - (sc.sub2At || 2.0)) / spell));
     if (k2 > 0){
-      var e2 = k2 * k2 * (3 - 2 * k2);
+      var nch = Math.max(1, Math.round(sub2.length * k2));
+      var shown = sub2.slice(0, nch);
+      var typing = k2 < 1;
+      if (typing && Math.floor(t * 3) % 2 === 0) shown += "█";
       /* A hard dark pass under it first. White type over a sunset is white
          type over an orange sky, and the letterbox behind it is only there
          for the bottom half of the line. */
-      ctx.globalAlpha = a * e2 * 0.7;
-      txt(sub2, LOGICAL_W/2 + 2, LOGICAL_H - 30 + (1 - e2) * 10 + 3, 30,
+      ctx.globalAlpha = a * 0.7;
+      txt(shown, LOGICAL_W/2 + 2, LOGICAL_H - 27, 30,
           "#140800", "center", LOGICAL_W - 160);
-      ctx.globalAlpha = a * e2;
-      txt(sub2, LOGICAL_W/2, LOGICAL_H - 30 + (1 - e2) * 10, 30,
-          "#ffffff", "center", LOGICAL_W - 160);
       ctx.globalAlpha = a;
+      txt(shown, LOGICAL_W/2, LOGICAL_H - 30, 30,
+          "#ffffff", "center", LOGICAL_W - 160);
     }
   }
   ctx.globalAlpha = 1;
@@ -9664,22 +9784,28 @@ function sceneCabana(t, a){
   towelBand(78, 14,  C.brand);
   ctx.globalAlpha = a * 0.10; towelBand(0, TWH, "#2b1d14");
   ctx.globalAlpha = a;
-  /* The mark, DRAWN rather than blitted. drawMark paints the real asset,
-     whose pupil is white - which on a white towel is a hole. Printed
-     merchandise reverses it: the lens in the brand colour and the iris
-     solid dark, which is what the towel in the gift bag actually looks
-     like. */
-  (function(tx, ty, r){
-    ctx.lineJoin = "round"; ctx.lineCap = "round";
-    ctx.strokeStyle = C.brand; ctx.lineWidth = r * 0.26;
+  /* THE REAL MARK, on a dark panel. A drawn approximation of it was close
+     but it was not the logo, and the logo is the one thing on this towel
+     that has to be right.
+
+     The panel is why: the real asset has a WHITE pupil, which on a white
+     towel is a hole where the eye should be. Printed merchandise solves
+     this the same way - the mark goes on a dark block rather than being
+     reversed out - so the towel gets a navy panel across its middle and
+     the actual eye sits on it. */
+  (function(tx, ty){
+    var pw3 = TWW * 0.54, ph3 = 62;
+    ctx.fillStyle = "#16314a";
     ctx.beginPath();
-    ctx.moveTo(tx - r, ty);
-    ctx.quadraticCurveTo(tx, ty - r * 0.80, tx + r, ty);
-    ctx.quadraticCurveTo(tx, ty + r * 0.80, tx - r, ty);
-    ctx.closePath(); ctx.stroke();
-    ctx.beginPath(); ctx.arc(tx, ty, r * 0.30, 0, Math.PI * 2);
-    ctx.fillStyle = "#15181d"; ctx.fill();
-  })(TWX + TWW * 0.46 + 12, TWY + 46, 40);
+    ctx.moveTo(tx - pw3/2 + 7, ty - ph3/2);
+    ctx.lineTo(tx + pw3/2 + 7, ty - ph3/2);
+    ctx.lineTo(tx + pw3/2 - 7, ty + ph3/2);
+    ctx.lineTo(tx - pw3/2 - 7, ty + ph3/2);
+    ctx.closePath(); ctx.fill();
+    ctx.fillStyle = "#0f2235";
+    ctx.fillRect(tx - pw3/2 - 7, ty + ph3/2 - 6, pw3, 6);
+    if (!drawMark(tx, ty, 84)) drawLogoEye(tx, ty, 36);
+  })(TWX + TWW * 0.46 + 12, TWY + 46);
   // and a rumpled fold along the near edge
   ctx.globalAlpha = a * 0.22; ctx.fillStyle = "#b9b0a0";
   towelBand(TWH - 10, 10, "#b9b0a0");
@@ -10651,6 +10777,25 @@ function update(dt){
     G.idleT += dt;
     if (G.idleT >= SAVER_AFTER) G.saver = true;
   } else { G.idleT = 0; G.saver = false; }
+
+  /* The initials wheel coasting after a flick. Exponential decay, so it is
+     the same throw at any frame rate, and it gives up below half a letter a
+     second rather than crawling to a stop over several seconds. */
+  if (G.spin){
+    if (G.state !== ST_NAME){ G.spin = null; }
+    else {
+      G.spin.acc += G.spin.v * dt;
+      G.spin.v *= Math.pow(INI_DECAY, dt);
+      var sg = 0;
+      while (Math.abs(G.spin.acc) >= 1 && sg++ < 40){
+        var sd = G.spin.acc > 0 ? 1 : -1;
+        G.spin.acc -= sd;
+        G.iniAt = G.spin.i;
+        iniStep(-sd);
+      }
+      if (Math.abs(G.spin.v) < 0.5) G.spin = null;
+    }
+  }
 
   if (G.state === ST_DEAD || G.state === ST_BOARD) G.deadFor += dt;
   /* The tally clock does not start until the screen is actually up, or the
@@ -14709,33 +14854,66 @@ function drawTally(top, accent){
      block is measured and scaled to the space between `top` and
      TALLY_BOTTOM, about its own top edge, so every coordinate inside it
      still holds. Clamped at 1: it shrinks to fit and never grows to fill. */
-  var natural = 78 + T.rows.length * 52 + 256;
+  var natural = 78 + (T.stackH || T.rows.length * TALLY_H) + 256;
   var fitK = Math.min(1, (TALLY_BOTTOM - top) / natural);
   ctx.save();
   ctx.translate(LOGICAL_W / 2, top);
   ctx.scale(fitK, fitK);
   ctx.translate(-LOGICAL_W / 2, -top);
 
-  plate(X, y, W, 58 + T.rows.length * 52 + 112, "rgba(10,6,4,0.84)", 16);
-  ctx.fillStyle = accent; ctx.fillRect(X, y, 7, 58 + T.rows.length * 52 + 112);
+  var stackH = T.stackH || T.rows.length * TALLY_H;
+  plate(X, y, W, 58 + stackH + 112, "rgba(10,6,4,0.84)", 16);
+  ctx.fillStyle = accent; ctx.fillRect(X, y, 7, 58 + stackH + 112);
   txt("THE TALLY", X + 34, y + 40, 22, C.textDim, "left");
 
   var ry = y + 74, i;
   for (i = 0; i < T.rows.length; i++){
     var R = T.rows[i], k = tallyAt(i);
     if (k <= 0) continue;
+    var rowY = ry + R.y + (R.h - TALLY_H) * 0.5;
     /* Slide in from the left as it appears - a number that simply materialises
        at full opacity reads as a glitch rather than an arrival. */
     var slide = (1 - Math.min(1, k * 4)) * 40;
     ctx.globalAlpha = Math.min(1, k * 4);
-    txt(R.label, X + 34 - slide, ry + i * 52, 29, C.textDim, "left");
-    txt(R.note,  X + 430 - slide, ry + i * 52, 25, "rgba(253,244,238,0.40)", "left");
+
+    if (R.big){
+      /* A plate in the row's own colour behind it, which is the single
+         cheapest way to say "this one is not like the others" - the same
+         trick the brand bursts use. It grows out of the left edge as the
+         row arrives rather than being there first. */
+      var pw2 = (W - 54) * Math.min(1, k * 3);
+      ctx.globalAlpha = Math.min(1, k * 4) * 0.13;
+      plate(X + 20, rowY - 30, pw2, 60, R.col, 10);
+      ctx.globalAlpha = Math.min(1, k * 4) * 0.55;
+      ctx.fillStyle = R.col; ctx.fillRect(X + 20, rowY - 30, 5, 60);
+      ctx.globalAlpha = Math.min(1, k * 4);
+    }
+
+    var lsz = R.big ? 36 : 29, nsz2 = R.big ? 26 : 25;
+    txt(R.label, X + 40 - slide, rowY, lsz,
+        R.big ? R.col : C.textDim, "left");
+    txt(R.note,  X + 446 - slide, rowY, nsz2, "rgba(253,244,238,0.40)", "left");
+
     var shown = Math.round(R.amt * ease(k));
-    txt(cash(shown), X + W - 34, ry + i * 52, 34, k >= 1 ? R.col : C.textDim, "right");
+    /* The number lands with an overshoot on the big rows, the way the total
+       does. It is the only animation on this page that is purely for
+       effect, and these are the two lines it is for. */
+    var vsz = R.big ? 50 : 34, vcol = k >= 1 ? R.col : C.textDim;
+    if (R.big){
+      var since = T.t - (R.at + R.run);
+      var pop2 = k >= 1 ? 1 + 0.16 * Math.max(0, Math.min(1, 1 - since * 4.5)) : 1;
+      ctx.save();
+      ctx.translate(X + W - 34, rowY); ctx.scale(pop2, pop2);
+      txt(cash(shown), 2, 3, vsz, "#140800", "right");
+      txt(cash(shown), 0, 0, vsz, vcol, "right");
+      ctx.restore();
+    } else {
+      txt(cash(shown), X + W - 34, rowY, vsz, vcol, "right");
+    }
     ctx.globalAlpha = 1;
   }
 
-  var ly = ry + T.rows.length * 52 + 4;
+  var ly = ry + stackH + 4;
   var tk = tallyTotalAt();
   if (tk > 0){
     ctx.globalAlpha = Math.min(1, tk * 5);
@@ -14750,7 +14928,7 @@ function drawTally(top, accent){
        tk to 1 while T.t is still near zero, and the unclamped term then went
        to about 25 - a 3.5x total printed straight across the rows underneath
        it. It only showed up on a skip, which is the path nobody watches. */
-    var landed = TALLY_T0 + T.rows.length*TALLY_GAP + 0.25 + TALLY_TOTAL;
+    var landed = (T.totalAt || 0) + TALLY_TOTAL;
     var pop = tk >= 1
       ? 1 + 0.10 * Math.max(0, Math.min(1, 1 - (T.t - landed) * 5))
       : 1;
