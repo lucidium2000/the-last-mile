@@ -2582,28 +2582,32 @@ function neoModel(dir){
        painter lays it down first and the legs stand in front of it: it shows
        at his outside edges and between his knees, which is exactly where a
        coat shows, and nothing hangs off his hands at all. */
-    P(0.268, 0.55, 0.464, 0.07, 0.085, 0.470, coat),
-    P(0.268, 0.55, 0.464, 0.07, 0.085, 0.050, shade(coat, 0.07)),  // the hem
+    P(0.288, 0.55, 0.424, 0.06, 0.085, 0.455, coat),
+    P(0.288, 0.55, 0.424, 0.06, 0.085, 0.046, shade(coat, 0.07)),  // the hem
     /* THE COLLAR. Behind the head - see above - and wider than the shoulders,
        with a wing coming forward past each ear. */
     /* Up to the JAW, not over the eyes. At 0.81 it came past his cheekbones
        and the face was a slot in a box; the reference stops it about level
        with the mouth and lets the head sit clear above it. */
-    /* DARK, and smaller. At shade +0.08 with a +0.22 rim on top it came out
-       a pale grey slab standing above his shoulders, which from the front is
-       a rucksack. It is the same black as the coat now, with only enough lift
-       on the rim to catch an edge, and it has come in and down so it frames
-       the head instead of towering over it. */
-    P(0.250, 0.50, 0.50, 0.12, 0.560, 0.140, shade(coat, -0.02)),
-    P(0.250, 0.50, 0.50, 0.12, 0.684, 0.022, shade(coat, 0.10)),  // its lit rim
-    P(0.268, 0.410, 0.066, 0.10, 0.575, 0.118, shade(coat, 0.04)),
-    P(0.666, 0.410, 0.066, 0.10, 0.575, 0.118, shade(coat, 0.04)),
+    /* COLLAR, AND NOT MUCH OF ONE. Every version of this has been too big:
+       a shell, then a smaller shell, then a dark smaller shell - and at every
+       size a slab standing behind his head reads as something he is wearing
+       ON his back. It is a band now, 0.40 wide and 0.085 tall, which is
+       fabric turned up at the neck rather than a structure.
+
+       And the shoulder line with it. At 0.52 wide and 0.07 deep in a lighter
+       shade it was a yoke across the top of him; flat with the coat and half
+       the height, the width of him is his arms again. */
+    P(0.300, 0.50, 0.40, 0.09, 0.572, 0.085, shade(coat, -0.02)),
+    P(0.300, 0.50, 0.40, 0.09, 0.645, 0.016, shade(coat, 0.08)),  // its lit rim
+    P(0.312, 0.410, 0.052, 0.09, 0.580, 0.078, shade(coat, 0.02)),
+    P(0.636, 0.410, 0.052, 0.09, 0.580, 0.078, shade(coat, 0.02)),
     /* NARROWER AT THE TOP TOO. Shoulders were 0.58 with sleeves hung off
        them at 0.155 and 0.845, which put the widest part of him out past the
        coat and read as bulk however slim the waist got. Everything comes in
        together: the shoulder line, the arms on it, and the hands, so the
        outline is the coat and not a set of blocks standing proud of it. */
-    P(0.240, 0.405, 0.520, 0.18, 0.530, 0.070, shade(coat, 0.04)),
+    P(0.258, 0.410, 0.484, 0.16, 0.534, 0.038, coat),
     P(0.196, 0.445, 0.076, 0.125, 0.33, 0.215, shade(coat,-0.18)),
     P(0.728, 0.445, 0.076, 0.125, 0.33, 0.215, shade(coat,-0.18)),
     P(0.198, 0.445, 0.080, 0.13, 0.295, 0.052, skin),         // hands
@@ -2627,13 +2631,14 @@ function neoModel(dir){
     { x:0.388, y:0.42, w:0.040, z:0.345, h:0.240, bg:strap },
     { x:0.572, y:0.42, w:0.040, z:0.345, h:0.240, bg:strap },
     { x:0.458, y:0.42, w:0.084, z:0.322, h:0.032, bg:"#39414d" },  // the buckle
-    /* The shades. Narrow ovals, and GREY - they are mirrors, and black ones
-       on a figure this dark are two holes in his face. */
-    { x:0.378, y:0.43, w:0.108, z:0.714, h:0.044, bg:"#595f66" },
-    { x:0.514, y:0.43, w:0.108, z:0.714, h:0.044, bg:"#595f66" },
-    { x:0.378, y:0.43, w:0.108, z:0.742, h:0.014, bg:"#8e969d" },  // the glare
-    { x:0.514, y:0.43, w:0.108, z:0.742, h:0.014, bg:"#8e969d" },
-    { x:0.486, y:0.43, w:0.028, z:0.728, h:0.012, bg:"#2a2f36" }   // the bridge
+    /* The shades, straight black. They were grey on the argument that a
+       mirror lens catches the light and black ones would be two holes - but
+       the holes ARE the look, and against skin rather than against the coat
+       they read perfectly well. The bridge stays a shade up so the two of
+       them are a pair of lenses and not one bar. */
+    { x:0.378, y:0.43, w:0.108, z:0.714, h:0.044, bg:"#07080a" },
+    { x:0.514, y:0.43, w:0.108, z:0.714, h:0.044, bg:"#07080a" },
+    { x:0.486, y:0.43, w:0.028, z:0.728, h:0.012, bg:"#20242a" }   // the bridge
   ];
   var m = { parts:parts, decals:dec, W:1 };
   return dir < 0 ? flip(m, 1) : m;
@@ -14033,48 +14038,6 @@ function drawNeedFood(cx, topY){
   ctx.globalAlpha = 1;
 }
 
-/* Orange shoes while a TAM is engaged. Drawn ON the figure rather than over
-   it: each shoe is the same box the model bakes, re-projected through the
-   player's actual draw rect, so it lands on his feet at any scale and under
-   any of the seven faces without baking a single extra sprite.
-
-   The alternative was a shod variant of every face in both directions with
-   and without the shield - twenty-eight more baked canvases on a device whose
-   sprite memory is already the thing to watch. */
-function drawTamShoes(){
-  var A = EAT_AT;
-  if (!A || A.px == null) return;
-  function at(x, y, z){
-    var q = proj(x, y, z);
-    return [A.px + q[0] * A.kx, A.py + q[1] * A.ky];
-  }
-  function box(x0, x1, y0, y1, z, top, side, front){
-    var a = at(x0, y0, z), b = at(x1, y0, z), c = at(x1, y1, z), d = at(x0, y1, z);
-    ctx.fillStyle = top;                       // the top of the shoe
-    ctx.beginPath();
-    ctx.moveTo(a[0], a[1]); ctx.lineTo(b[0], b[1]);
-    ctx.lineTo(c[0], c[1]); ctx.lineTo(d[0], d[1]);
-    ctx.closePath(); ctx.fill();
-    // and the sole below the near edge
-    var e = at(x0, y1, 0), f = at(x1, y1, 0);
-    ctx.fillStyle = front;
-    ctx.beginPath();
-    ctx.moveTo(d[0], d[1]); ctx.lineTo(c[0], c[1]);
-    ctx.lineTo(f[0], f[1]); ctx.lineTo(e[0], e[1]);
-    ctx.closePath(); ctx.fill();
-    // the outer cheek, which is what stops it reading as a flat tab
-    var g = at(x1, y0, 0);
-    ctx.fillStyle = side;
-    ctx.beginPath();
-    ctx.moveTo(b[0], b[1]); ctx.lineTo(c[0], c[1]);
-    ctx.lineTo(f[0], f[1]); ctx.lineTo(g[0], g[1]);
-    ctx.closePath(); ctx.fill();
-  }
-  var orange = "#ff7a1f";
-  box(0.28, 0.44, 0.46, 0.59, 0.065, orange, shade(orange, -0.22), "#f6efe2");
-  box(0.56, 0.72, 0.46, 0.59, 0.065, orange, shade(orange, -0.22), "#f6efe2");
-}
-
 /* ------------------------------------------------------- SPEED LINES ----
    Drawn BEHIND him, because a streak in front of a runner is a thing he is
    about to hit. Behind, in this projection, is down and slightly left: he
@@ -14258,13 +14221,14 @@ function drawEatOverlay(){
   if (G.state === ST_PLAY && EAT_AT && (G.hp < HP_WORN || G.hpShow > 0))
     drawHeadHp(EAT_AT.x, EAT_AT.y);
   if (G.needFood > 0 && G.state === ST_PLAY && EAT_AT) drawNeedFood(EAT_AT.x, EAT_AT.y);
-  /* The high-tops win over the TAM's plain orange shoes - they are the
-     same colour on the same feet and the ones with wings on are the ones
-     worth looking at. */
-  if (G.state === ST_PLAY && G.flyA < 0.15){
-    if (G.dashT > 0)   drawKicks();
-    else if (G.tam)    drawTamShoes();
-  }
+  /* THE TAM NO LONGER LEAVES SHOES BEHIND. The orange pair marked "the
+     subscription is still engaged" from the ground, back when that was the
+     only sign of it - but the TAM announces itself with the booth, the
+     flight, the cape and a banner, and by the time he is walking again the
+     badge on his feet is saying something the player worked out four seconds
+     ago. The high-tops stay: those are Cloud Insights, they are a different
+     power, and they are the only thing on his feet that is still news. */
+  if (G.state === ST_PLAY && G.flyA < 0.15 && G.dashT > 0) drawKicks();
   if (G.yumT > 0 && EAT_AT) drawEat(EAT_AT.x, EAT_AT.y);
   if (G.cheerT > 0 && EAT_AT) drawCheer(EAT_AT.x, EAT_AT.y);
   EAT_AT = null;

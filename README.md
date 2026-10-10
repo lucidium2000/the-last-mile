@@ -3551,6 +3551,21 @@ changes, and 1,199 frames held still across twenty seconds of hard banking.
 
 
 
+
+## The TAM stops leaving shoes behind
+
+An orange pair marked *the subscription is still engaged* from the ground,
+back when that was the only sign of it. The TAM announces itself with a booth,
+a flight, a cape and a banner now — by the time he is walking again, a badge on
+his feet is saying something the player worked out four seconds ago.
+
+`drawTamShoes` is gone with it, not just unhooked: a hundred lines of
+projection maths kept alive for a thing nothing calls is worse than the thing
+it drew.
+
+The high-tops stay. Those are Cloud Insights, they are a different power, and
+they are the only thing on his feet that is still news.
+
 ## Two more costumes
 
 `flashModel` set the rule a while back: a power-up big enough to change how
@@ -3587,10 +3602,14 @@ three things the first attempt got wrong:
   against the legs' 0.59, so the painter lays it down first and the legs stand
   in front of it. It shows at his outside edges and between his knees, which
   is exactly where a coat shows, and nothing hangs off his hands at all.
-- **And the collar had to go dark.** At `shade +0.08` with a `+0.22` rim on
-  top it came out a pale grey slab standing above his shoulders, which from
-  the front is a rucksack. Same black as the coat now, with only enough lift
-  on the rim to catch an edge.
+- **And the collar is barely a collar.** Every version of it was too big: a
+  shell, then a smaller shell, then a dark smaller shell — and at every size a
+  slab standing behind his head reads as something he is wearing *on his
+  back*. It is a band now, 0.40 wide and 0.085 tall, which is fabric turned up
+  at the neck rather than a structure. The shoulder line went with it: at 0.52
+  wide and 0.07 deep in a lighter shade it was a yoke across the top of him,
+  and flat with the coat at half the height the width of him is his arms
+  again. **104px against the base figure's 129.**
 - ~~The coat hangs at the sides~~ Two long panels down
   the outside with the torso visible between them. The first version banded
   three slabs straight across the body and made a wardrobe; you should be able
@@ -3611,8 +3630,10 @@ three things the first attempt got wrong:
   wrong shape. The harness straps moved in too: at 0.336 and 0.616 they sat on
   the outside of his chest and read as webbing on a vest, and together they
   frame the buckle instead of bracketing the whole torso.
-- **The lenses are grey**, not black. They are mirrors, and black ovals on a
-  figure this dark are two holes in his face.
+- **The lenses are straight black.** They went grey first, on the argument
+  that a mirror lens catches the light and black ones would be two holes — but
+  the holes *are* the look, and against skin rather than against the coat they
+  read perfectly well.
 
 One baked sprite pair each, with a fixed face. Threading them through the
 face × shield × direction set would have doubled most of the atlas twice over,
