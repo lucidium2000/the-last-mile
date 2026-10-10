@@ -4026,6 +4026,26 @@ Two rules, and neither needs a distance:
 Verified after the cut: column occupancy 61.8% → **4.3%**, and a pinned DSNY
 truck still kills without the SKU and cannot with it.
 
+**The corridor is drawn on the road.** Until now the only way to know the
+rule existed was to watch the cars obey it, which reads as the traffic
+behaving oddly rather than as him doing something to it. There is a lane
+painted up his column now, so the cause is on screen next to the effect.
+
+**Not a cone**, because the rule is not a cone. The corridor is one column
+wide at his feet and one column wide at the far end of the block, and a beam
+that splayed out would be promising protection the SKU does not give. The road
+plane carries no shear — the trace and the cars are both placed at `c*TILE`
+with no depth term — so one column is a straight vertical band, and that is
+what gets drawn. Two 2px edges on it, because a corridor has sides and the
+sides are the part the cars are refusing to cross.
+
+It costs **one cached gradient** built at the origin in `layout()` and
+translated per frame, one `fillRect` through it, and two hairlines. No filter,
+no `shadowBlur`, **zero allocations per frame**, and it is drawn before
+`drawHaze` so the distance fade comes free from haze that was already there.
+Measured against the same frame with the call stubbed out: +37 blue near him,
++22 and +13 further up, +4 at the top of the block.
+
 **And it runs for 12 seconds, down from 15.** Parting the whole street is a
 great deal more than making one lane flinch, and the old length was set
 against the old, smaller effect.

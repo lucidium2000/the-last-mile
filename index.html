@@ -1385,7 +1385,7 @@ var skyGrad = null, hazeGrad = null, tamBeamGrad = null, addonBeamGrad = null;
    file is a ReferenceError at run time, and a parse check will not find it -
    `new Function(src)` compiles the source without ever executing layout(). */
 var traceBeamGrad = null;
-var champBeamGrad = null;
+var champBeamGrad = null, laneGrad = null;
 
 function layout(){
   var vw = window.innerWidth || LOGICAL_W, vh = window.innerHeight || LOGICAL_H;
@@ -1414,7 +1414,7 @@ function layout(){
   /* Every cached gradient is rebuilt here because the transform just
      changed. glowGrad and the bokeh pair are built lazily on first use, so
      they are nulled rather than rebuilt - the next frame makes them. */
-  glowGrad = null; bkWarm = null; bkCool = null; bkVig = null;
+  glowGrad = null; bkWarm = null; bkCool = null; bkVig = null; laneGrad = null;
   skyGrad = ctx.createLinearGradient(0, 0, 0, LOGICAL_H);
   skyGrad.addColorStop(0, C.sky0);
   skyGrad.addColorStop(0.40, C.sky1);
@@ -1458,6 +1458,16 @@ function layout(){
   traceBeamGrad.addColorStop(0.42, "rgba(53,208,127,0.13)");
   traceBeamGrad.addColorStop(1,    "rgba(53,208,127,0)");
   // and a narrow one for a champion, in the Endpoint blue
+  /* The corridor on the road, built at the origin and translated into place
+     each frame - a gradient is transformed by the CTM, so one object serves
+     every position he can stand in and nothing is allocated per frame. It is
+     the whole cost of the effect: one cached gradient, one fillRect and two
+     hairlines. */
+  laneGrad = ctx.createLinearGradient(0, 0, 0, -620);
+  laneGrad.addColorStop(0,    "rgba(143,211,232,0.30)");
+  laneGrad.addColorStop(0.18, "rgba(143,211,232,0.19)");
+  laneGrad.addColorStop(1,    "rgba(143,211,232,0)");
+
   champBeamGrad = ctx.createLinearGradient(0, 0, 0, -250);
   champBeamGrad.addColorStop(0,    "rgba(160,196,255,0.26)");
   champBeamGrad.addColorStop(0.40, "rgba(47,98,196,0.13)");
@@ -2543,10 +2553,17 @@ function neoModel(dir){
   var parts = [
     P(0.29, 0.46, 0.15, 0.13, 0,     0.080, "#0a0b0e"),       // boots
     P(0.56, 0.46, 0.15, 0.13, 0,     0.080, "#0a0b0e"),
-    P(0.31, 0.45, 0.16, 0.14, 0.075, 0.26,  "#141619"),       // trousers
-    P(0.53, 0.45, 0.16, 0.14, 0.075, 0.26,  "#141619"),
-    P(0.24, 0.42, 0.52, 0.16, 0.33,  0.26,  shirt),           // the shirt
-    P(0.235, 0.41, 0.53, 0.15, 0.322, 0.034, "#1d222a"),      // the belt
+    /* A V, not a box. He was the ordinary figure's slab torso under a coat,
+       which is a man in a coat and not a man who could do any of this. The
+       waist comes in to 0.42 and the chest goes back out to 0.50 under
+       shoulders that stay at 0.58, so the taper is read off three widths
+       rather than drawn - and the legs come in with it, because a narrow
+       waist over the old trousers is a different wrong shape. */
+    P(0.325, 0.45, 0.145, 0.14, 0.075, 0.26, "#141619"),      // trousers
+    P(0.530, 0.45, 0.145, 0.14, 0.075, 0.26, "#141619"),
+    P(0.290, 0.425, 0.42, 0.15, 0.330, 0.115, shirt),         // the waist
+    P(0.250, 0.420, 0.50, 0.16, 0.445, 0.145, shirt),         // and the chest
+    P(0.282, 0.415, 0.44, 0.15, 0.322, 0.032, "#1d222a"),     // the belt
     /* THE COAT: two panels down the outside of him, longer than the legs and
        a shade wider at the hem, with a lit front edge on each so they read as
        hanging open rather than as two black bars. */
@@ -2588,9 +2605,9 @@ function neoModel(dir){
   var dec = [
     /* The harness: two straps over the shoulders to the belt, which is most
        of what that costume is under the coat. */
-    { x:0.330, y:0.42, w:0.052, z:0.345, h:0.235, bg:strap },
-    { x:0.618, y:0.42, w:0.052, z:0.345, h:0.235, bg:strap },
-    { x:0.455, y:0.42, w:0.090, z:0.322, h:0.034, bg:"#39414d" },  // the buckle
+    { x:0.336, y:0.42, w:0.048, z:0.345, h:0.240, bg:strap },
+    { x:0.616, y:0.42, w:0.048, z:0.345, h:0.240, bg:strap },
+    { x:0.458, y:0.42, w:0.084, z:0.322, h:0.032, bg:"#39414d" },  // the buckle
     /* The shades. Narrow ovals, and GREY - they are mirrors, and black ones
        on a figure this dark are two holes in his face. */
     { x:0.378, y:0.43, w:0.108, z:0.714, h:0.044, bg:"#595f66" },
@@ -17043,6 +17060,56 @@ function drawBoard(){
   }
 }
 
+/* ------------------------------------------------------- THE CORRIDOR ---
+   The rule made visible. Traffic Insights says nothing may stand on the
+   column he is in, and until now the only way to know that was to watch the
+   cars do it - which reads as the traffic behaving oddly rather than as him
+   doing something to it. This is the lane drawn on the road in front of him,
+   so the cause is on screen next to the effect.
+
+   NOT A CONE, because the rule is not a cone. The corridor is one column
+   wide at his feet and one column wide at the far end of the block, and a
+   beam that splayed out would be promising protection the SKU does not give.
+   The road plane carries no shear - the trace and the cars are both placed
+   at `c*TILE` with no depth term - so one column is a straight vertical
+   band, and a straight vertical band is what gets drawn.
+
+   IT COSTS ALMOST NOTHING, which was the ask. One cached gradient built at
+   the origin in layout() and translated per frame, one fillRect through it,
+   and two 2px edges. No filter, no shadowBlur, no per-frame allocation -
+   drawn before drawHaze, so the distance fade comes free from the haze that
+   is already there. */
+function drawTrafficLane(){
+  if (G.riskT <= 0 || G.state !== ST_PLAY || !laneGrad) return;
+  var pp = playerPos();
+  /* Up in half a second, and out over the last - the same shape the tint and
+     the chips use, so the whole SKU arrives and leaves together. */
+  var a = Math.min(1, G.riskT / 0.8, (POWERS.traffic.secs - G.riskT) * 2.2);
+  if (a <= 0) return;
+  var x = pp.col * TILE, y = rowScreenY(pp.row) - ROW_H * 0.46;
+  var top = Math.max(HORIZON, y - 620), h = y - top;
+  if (h <= 2) return;
+
+  /* A slow breath on it. It is a held state rather than an event, and a flat
+     band reads as part of the road markings. */
+  var pul = 0.82 + 0.18 * Math.sin(G.t * 2.2);
+
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.globalAlpha = a * pul;
+  ctx.fillStyle = laneGrad;
+  ctx.fillRect(0, -h, TILE, h);
+  /* The two edges, which are what make it a LANE rather than a glow: a
+     corridor has sides, and the sides are the part the cars are refusing to
+     cross. */
+  ctx.globalAlpha = a * pul * 0.55;
+  ctx.fillStyle = POWERS.traffic.col;
+  ctx.fillRect(0, -h, 2, h);
+  ctx.fillRect(TILE - 2, -h, 2, h);
+  ctx.restore();
+  ctx.globalAlpha = 1;
+}
+
 /* ------------------------------------------------------------ THE REPORT
    The board answers "who is top". This answers everything else, and it is
    built the way report.html is - the LIST first, at full width and full
@@ -17300,6 +17367,7 @@ function render(){
   ctx.setTransform(scale, 0, 0, scale, sx*scale, sy*scale);
   drawSky();
   drawWorld();
+  drawTrafficLane();              // his column, under the haze so it recedes
   drawHaze();
   drawSlowTint();
   if (G.ride) drawRide();
