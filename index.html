@@ -3371,6 +3371,7 @@ function bakeAll(){
   S.pw_chuck = bake(powerModel("chuck"));
   S.pw_traffic = bake(powerModel("traffic"));
   S.pw_pill = bake(powerModel("pill"));          // TEMPORARY, see POWERS.pill
+  S.beachGuy = bake(beachModel());
   S.pw_sponsor_lit = bake(powerModel("sponsor", true));
   /* Baked off PROP_MODELS rather than off a pool, so a weight of 0 still
      gets a sprite and nothing is baked twice. */
@@ -8725,6 +8726,83 @@ function drawCiscoLogo(cx, topY, w, col){
   return baseY + fs * 1.18;                      // where the logo ends
 }
 
+/* ===================== HIM, ON HOLIDAY ===================================
+   The man on the beach was hand-drawn out of flat bars for three passes and
+   it was wrong every time, for a reason no amount of redrawing was going to
+   fix: the game's character is a VOXEL MODEL in a cabinet projection, and a
+   figure made of 2D bars is a different species. It did not look like him
+   because it was not built like him.
+
+   So this is built like him. Same P() parts, same bake(), same projection,
+   and the head, neck, hair, sideburns and eye line are lifted from
+   playerModel at exactly the z values they have there - which is what makes
+   it the same face rather than a similar one. Everything below the collar is
+   holiday: an open shirt, swim shorts, bare shins and flip-flops.
+
+   He is SEATED, which a voxel model does cleanly: the thighs are blocks that
+   run FORWARD in y, from the hip at 0.47 to the knee at 0.17, and in this
+   projection forward is down and to the left - so they read as legs coming
+   out at you. The shins hang off the knee end and the feet sit on the sand
+   in front of him. Nothing is rotated, because nothing here can be. */
+function beachModel(){
+  var skin = HERO_SKIN, HAIR = "#2b1d14";
+  var shirt = "#f6f7f9", shorts = "#2f6b8a";
+  var parts = [
+    // feet, out in front, on the sand
+    P(0.290, 0.130, 0.175, 0.165, 0,     0.038, "#1b2027"),
+    P(0.540, 0.130, 0.175, 0.165, 0,     0.038, "#1b2027"),
+    // shins, hanging straight down off the knees
+    P(0.300, 0.165, 0.155, 0.130, 0.038, 0.212, skin),
+    P(0.550, 0.165, 0.155, 0.130, 0.038, 0.212, skin),
+    // thighs: forward from the hip to the knee, which is the whole pose
+    P(0.292, 0.165, 0.175, 0.305, 0.250, 0.130, shorts),
+    P(0.542, 0.165, 0.175, 0.305, 0.250, 0.130, shorts),
+    P(0.292, 0.165, 0.175, 0.305, 0.372, 0.016, shade(shorts, 0.14)),
+    // torso, and shoulders a little wider, the way the suit does it
+    P(0.255, 0.440, 0.495, 0.150, 0.380, 0.215, shirt),
+    P(0.225, 0.430, 0.555, 0.160, 0.575, 0.085, shade(shirt, -0.07)),
+    // bare arms
+    P(0.175, 0.455, 0.082, 0.120, 0.395, 0.195, shade(skin, -0.06)),
+    P(0.755, 0.455, 0.082, 0.120, 0.395, 0.195, shade(skin, -0.06)),
+    // and from the collar up it is exactly the man in the game
+    P(0.420, 0.440, 0.160, 0.140, 0.660, 0.040, shade(skin, -0.30)),
+    P(0.370, 0.430, 0.260, 0.150, 0.700, 0.200, skin),
+    P(0.362, 0.424, 0.276, 0.156, 0.893, 0.048, HAIR),
+    P(0.362, 0.424, 0.024, 0.156, 0.775, 0.118, HAIR),
+    P(0.614, 0.424, 0.024, 0.156, 0.775, 0.118, HAIR)
+  ];
+  /* The drink, in the hand the projection shows. A part rather than a decal
+     so the painter sort puts it in front of his arm. */
+  parts.push(P(0.772, 0.400, 0.115, 0.115, 0.600, 0.135, "#cfe9f2"));
+  parts.push(P(0.772, 0.396, 0.115, 0.115, 0.600, 0.062, "#f2a13c"));
+  parts.push(P(0.800, 0.394, 0.045, 0.115, 0.735, 0.075, "#8a6a46"));
+  parts.push(P(0.756, 0.392, 0.148, 0.115, 0.806, 0.030, C.brand));
+
+  var dec = [
+    /* The shirt, open, with him showing between the fronts. */
+    { x:0.272, y:0.435, w:0.150, z:0.380, h:0.215, bg:"#eef1f4" },
+    { x:0.582, y:0.435, w:0.150, z:0.380, h:0.215, bg:"#eef1f4" },
+    { x:0.455, y:0.436, w:0.090, z:0.380, h:0.190, bg:shade(skin, -0.03) },
+    /* SUNGLASSES, on the eye line playerModel uses - 0.742 there on a head
+       at 0.655, so 0.787 here on a head at 0.700. One bar with two lighter
+       lenses on it reads as a pair; two separate dark rects read as the
+       ordinary eyes, which is what the hand-drawn one kept doing. */
+    { x:0.398, y:0.428, w:0.204, z:0.787, h:0.030, bg:"#15181d" },
+    { x:0.410, y:0.427, w:0.056, z:0.793, h:0.016, bg:"#44515e" },
+    { x:0.534, y:0.427, w:0.056, z:0.793, h:0.016, bg:"#44515e" },
+    { x:0.452, y:0.428, w:0.096, z:0.746, h:0.016, bg:"#8a5a44" }
+  ];
+  /* A LEI. Seven blooms round the collar, the middle ones hanging lower,
+     which is the only way a flat row of discs reads as a loop. */
+  var LEIC = ["#f04a7a", "#ffd24a", "#f6f2ea"];
+  for (var li = 0; li < 7; li++){
+    dec.push({ x:0.278 + li * 0.064, y:0.428, w:0.058,
+               z:0.600 - (3 - Math.abs(li - 3)) * 0.016, h:0.050,
+               bg:LEIC[li % 3] });
+  }
+  return { parts:parts, decals:dec, shadow:true, W:1 };
+}
+
 /* A person, blocky, at the scale the scenes use. One function, because the
    stage has four of them on it and they have to be the same man. */
 function sceneGuy(x, feet, k, coat, skin, hair, opt){
@@ -8755,6 +8833,35 @@ function sceneGuy(x, feet, k, coat, skin, hair, opt){
     ctx.fillRect(x - 28 * k, top - 72 * k, 56 * k, 12 * k);
   }
   return { top:top, shoulder: top + 18 * k, bw:bw };
+}
+
+/* PILOT WINGS, with the eye where the emblem goes. The real pin went out at
+   a ThousandEyes event, and a man collecting at Club has it on.
+
+   Wings at this size are not feathers, they are a TAPER: three bars each
+   side, each shorter and thinner than the one above it, swept down and out.
+   Drawn as separate bars rather than one shape because a solid triangle
+   reads as a bow tie, and the gaps between them are what say "wing".
+
+   It is black with an orange eye in it, which is the pin, and at 60px the
+   eye is 16 - small enough to be a pin and large enough that the white
+   pupil survives, which is the whole of the mark at this size. */
+function drawWingsPin(px, py, w){
+  var dark = "#121418", edge = "#3a4049";
+  var sd, f;
+  for (sd = -1; sd <= 1; sd += 2){
+    for (f = 0; f < 3; f++){
+      var fw = w * (0.42 - f * 0.085), fh = Math.max(2.5, w * (0.085 - f * 0.016));
+      var fx = px + sd * w * 0.13;
+      ctx.fillStyle = f === 0 ? edge : dark;
+      ctx.fillRect(sd < 0 ? fx - fw : fx, py - w * 0.085 + f * (fh + 2.2), fw, fh);
+    }
+  }
+  ctx.fillStyle = dark;
+  ctx.beginPath(); ctx.arc(px, py, w * 0.225, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.arc(px, py, w * 0.245, 0, Math.PI * 2);
+  ctx.lineWidth = 2.5; ctx.strokeStyle = edge; ctx.stroke();
+  if (!drawMark(px, py, w * 0.34)) drawLogoEye(px, py, w * 0.16);
 }
 
 /* An arm, as a bar from the shoulder to a point. Two of these meeting in the
@@ -8959,6 +9066,17 @@ function sceneStage(t, a){
   pool(hx2, Math.min(1, ease * 1.6));
   var hero = sceneGuy(hx2, hFeet, K, BLAZER, HERO_SKIN, "#2b1d14",
                       { cap:"#2b1d14", tie:C.brand });
+  /* The pin, on his lapel. It fades up with him rather than being on from
+     the first frame, because he is still coming up the steps. */
+  if (ease > 0.25){
+    ctx.globalAlpha = a * Math.min(1, (ease - 0.25) / 0.3);
+    /* Higher on the chest and bigger. At 62 the eye inside it came out 17px
+       across and the white pupil - which is most of what makes the mark
+       readable - was down to two pixels. 84 puts the eye at 28 and the
+       pupil at 6, which is the smallest it can be and still be an eye. */
+    drawWingsPin(hx2 - hero.bw * 0.26, hero.shoulder + 16 * K, 84 * K);
+    ctx.globalAlpha = a;
+  }
 
   /* CHUCK, in from the right, a beat later. He stops a stride short, because
      the man who has walked ninety-four blocks gets the middle of the stage. */
@@ -9177,35 +9295,40 @@ function sceneCabana(t, a){
      the sand rather than standing on the water line, and wide enough that
      the lounger sits under it with room either side - a cabana the same
      width as the chair reads as a market stall. */
-  var CX = LOGICAL_W * 0.40, CB = 790, CW = 600;
+  /* Taller than it was. A seated man at the size he needs to be read is
+     340px of figure, and a 296-high cabana put his head through the roof -
+     which is how the banner ended up behind him. 400 clears him with room
+     and looks more like the real thing anyway: these are high square tents,
+     not parasols. */
+  var CX = LOGICAL_W * 0.40, CB = 790, CW = 620, CH = 400;
   ctx.fillStyle = "#6b4a30";
-  ctx.fillRect(CX - CW/2, CB - 262, 18, 264);
-  ctx.fillRect(CX + CW/2 - 18, CB - 262, 18, 264);
+  ctx.fillRect(CX - CW/2, CB - CH + 34, 18, CH - 32);
+  ctx.fillRect(CX + CW/2 - 18, CB - CH + 34, 18, CH - 32);
   ctx.fillStyle = "#5a3d27";
-  ctx.fillRect(CX - CW/2, CB - 262, 6, 264);
-  ctx.fillRect(CX + CW/2 - 18, CB - 262, 6, 264);
+  ctx.fillRect(CX - CW/2, CB - CH + 34, 6, CH - 32);
+  ctx.fillRect(CX + CW/2 - 18, CB - CH + 34, 6, CH - 32);
   // canopy, striped
   var cx0 = CX - CW/2 - 28, cwid = CW + 56;
-  for (var ci = 0; ci * 56 < cwid; ci++){
+  for (var ci = 0; ci * 58 < cwid; ci++){
     ctx.fillStyle = ci % 2 ? "#f6f2ea" : C.brand;
-    ctx.fillRect(cx0 + ci * 56, CB - 296, Math.min(56, cwid - ci * 56), 38);
+    ctx.fillRect(cx0 + ci * 58, CB - CH, Math.min(58, cwid - ci * 58), 40);
   }
   ctx.globalAlpha = a * 0.22; ctx.fillStyle = "#000";
-  ctx.fillRect(cx0, CB - 266, cwid, 8);
+  ctx.fillRect(cx0, CB - CH + 32, cwid, 8);
   ctx.globalAlpha = a;
   // scalloped hem
   for (ci = 0; ci * 34 < cwid; ci++){
     ctx.fillStyle = ci % 2 ? "#f6f2ea" : shade(C.brand, 0.18);
     ctx.beginPath();
-    ctx.arc(cx0 + 17 + ci * 34, CB - 258, 17, 0, Math.PI);
+    ctx.arc(cx0 + 17 + ci * 34, CB - CH + 40, 17, 0, Math.PI);
     ctx.fill();
   }
   // drapes down the inside of each post, blowing
   for (var sd = 0; sd < 2; sd++){
     var sgn = sd ? 1 : -1;
     var dx0 = CX + sgn * (CW/2 - 18);
-    for (i = 0; i < 8; i++){
-      var dy0 = CB - 252 + i * 30;
+    for (i = 0; i < 11; i++){
+      var dy0 = CB - CH + 52 + i * 30;
       var blow = Math.sin(t * 1.4 + i * 0.55 + sd * 2) * (2 + i * 1.5) * -sgn;
       ctx.globalAlpha = a * (0.92 - i * 0.02);
       ctx.fillStyle = i % 2 ? "#f6f2ea" : "#eae5db";
@@ -9221,22 +9344,22 @@ function sceneCabana(t, a){
      It is the one thing that turns the scene from "a man on a beach" into
      "a man at the thing he won", which is the whole point of it being here
      at the end of a sales game. */
-  var BN_Y = CB - 236, BN_W = CW - 70;
+  /* ON the canopy rather than hung under it. Hung under it, it was exactly
+     where a seated man's head goes - and a banner behind a head is a banner
+     nobody reads. Up here it is also what a real one looks like: the name
+     is printed on the valance. */
+  var BN_Y = CB - CH - 4, BN_W = CW - 40;
   ctx.fillStyle = "#123a52";
-  ctx.fillRect(CX - BN_W/2, BN_Y, BN_W, 54);
+  ctx.fillRect(CX - BN_W/2, BN_Y, BN_W, 48);
   ctx.fillStyle = "#0d2b3d";
-  ctx.fillRect(CX - BN_W/2, BN_Y + 46, BN_W, 8);
+  ctx.fillRect(CX - BN_W/2, BN_Y + 40, BN_W, 8);
   ctx.fillStyle = C.brand;
   ctx.fillRect(CX - BN_W/2, BN_Y, BN_W, 4);
   /* Mark hard left, words centred in what is left of the strip. They were
      both pulled toward the middle and the C of CLUB was sitting in the
      wordmark's air. */
-  drawCiscoLogo(CX - BN_W/2 + 66, BN_Y + 9, 88, "#eaf2ff");
-  txt("CLUB CISCO", CX + 70, BN_Y + 29, 34, "#eaf2ff");
-  // two short ties where it hangs off the canopy
-  ctx.fillStyle = "#c9a06a";
-  ctx.fillRect(CX - BN_W/2 + 28, BN_Y - 12, 5, 14);
-  ctx.fillRect(CX + BN_W/2 - 33, BN_Y - 12, 5, 14);
+  drawCiscoLogo(CX - BN_W/2 + 64, BN_Y + 7, 84, "#eaf2ff");
+  txt("CLUB CISCO", CX + 66, BN_Y + 26, 32, "#eaf2ff");
 
   /* TIKI TORCHES, one outside each post. Bamboo, a bowl, and a flame that
      is three stacked shapes on their own flicker - a single triangle reads
@@ -9274,164 +9397,61 @@ function sceneCabana(t, a){
   torch(CX + CW/2 + 86, CB + 24, 1.06, 2.2);
 
   /* ------------------------------------------------- HIM, ON THE LOUNGER
-     Third go at this figure, and the first two are worth recording because
-     they were the same mistake twice: a reclining man drawn as ONE long
-     shape reads as a surfboard with a head on it.
+     The figure is the BAKED MODEL now (see beachModel) rather than anything
+     drawn here, so he is built out of the same voxels, lit by the same
+     projection and wearing the same face as the man in the game. Three
+     hand-drawn passes failed at this for a reason that was never about the
+     drawing: a figure made of flat bars is a different species from a voxel
+     sprite, and no amount of re-jointing it was going to close that gap.
 
-     He is a jointed figure now. Six points - head, shoulder, hip, knee,
-     ankle, and the hand with the drink - and every limb is a bar between
-     two of them at a width taken from how thick that limb actually is. The
-     proportions are a person's: head one unit, torso three, thigh two and a
-     half, shin two and a half, on a unit of about 38px.
+     Everything in here is the furniture he sits on. It is drawn around him
+     from his own footprint: SC is where he sits and BW is how wide he is,
+     so the chair can never end up a size that does not fit him. */
+  var SC_X = CX - 128, SC_Y = 858, SC_K = 2.20;
+  var BW = S.beachGuy ? S.beachGuy.w * SC_K : 240;
+  var SEAT = SC_Y - 92 * SC_K / 2.35;          // where the seat rail sits
 
-     The pose is the pose. Torso raked back at 38 degrees, thigh up a little
-     from the hip, shin down a little from the knee, which is what a man in
-     a deckchair does - a straight line from shoulder to heel is a plank,
-     and the two small angles at hip and knee are the whole difference. */
-  var HX = CX - 44, HY = 772;                     // the hip, and the datum
-  var SEATY = HY + 28;
-
-  // --- the chair, first, so he sits on it rather than near it
-  var BKX = HX - 108, BKY = HY - 84;              // top of the raked back
-  sceneArm(HX - 2, SEATY - 2, BKX, BKY, 22, "#8a6a46");
-  ctx.fillStyle = "#8a6a46"; ctx.fillRect(HX - 10, SEATY - 10, 268, 20);
-  ctx.fillStyle = "#7a5c3c"; ctx.fillRect(HX - 10, SEATY + 6, 268, 6);
-  ctx.fillStyle = "#6f5436";
-  ctx.fillRect(HX + 14, SEATY + 10, 16, 40);
-  ctx.fillRect(HX + 222, SEATY + 10, 16, 40);
-  // a towel over the back, hanging a little past it
-  sceneArm(HX, SEATY - 14, BKX - 6, BKY - 6, 30, "#efe9dc");
-
-
-
-  /* --- the body. Points first, limbs second. */
-  var SHX = HX - 92, SHY = HY - 72;               // shoulder
-  var KNX = HX + 104, KNY = HY - 14;              // knee
-  var ANX = KNX + 96,  ANY = KNY + 16;            // ankle
-  var ELX = HX - 44,  ELY = HY - 34;              // elbow, tucked in
-  var HNX = HX - 2,   HNY = HY - 96;              // the hand, drink held up
-
-  // legs: thigh in shorts, shin bare, a foot at the end of it
-  sceneArm(HX, HY, KNX, KNY, 52, "#2f6b8a");
-  ctx.fillStyle = shade("#2f6b8a", -0.14);
-  ctx.fillRect(KNX - 16, KNY - 25, 16, 50);       // the hem of the shorts
-  sceneArm(KNX, KNY, ANX, ANY, 40, HERO_SKIN);
-  ctx.fillStyle = shade(HERO_SKIN, -0.12);
-  ctx.fillRect(ANX - 4, ANY - 20, 10, 40);        // the ankle bone
-  ctx.fillStyle = "#1b2027";
-  ctx.fillRect(ANX + 4, ANY - 22, 34, 30);        // flip-flop
-  ctx.fillStyle = "#2c333c";
-  ctx.fillRect(ANX + 4, ANY - 22, 34, 7);
-
-  // torso, raked, with the shirt open over it
-  sceneArm(HX, HY, SHX, SHY, 68, "#f6f7f9");
-  ctx.fillStyle = "#e4e8ec";
-  sceneArm(HX - 6, HY - 4, SHX - 4, SHY - 2, 12, "#e4e8ec");   // the placket
-  // a collar at the top of it, which is what tells you it is a shirt
-  var tdx = SHX - HX, tdy = SHY - HY, tL = Math.sqrt(tdx*tdx + tdy*tdy) || 1;
-  var ux = tdx / tL, uy = tdy / tL;
-  ctx.fillStyle = "#e9edf1";
-  ctx.fillRect(SHX - 20 + ux * 8, SHY - 18 + uy * 8, 40, 26);
-
-  /* NECK AND HEAD. The head used to be drawn axis-aligned on the end of a
-     neck that was rotated along the torso, and the kink where the two met
-     read as a broken neck. Both are on the same rake now, tilted back a
-     little less than the torso is - which is what a man propped against a
-     deckchair actually does with his head - and the neck is short and wide
-     enough that the joint is inside the head and the collar. */
-  var tAng = Math.atan2(uy, ux) + Math.PI;        // the torso, pointing up-left
-  var hAng = tAng * 0.42;                         // the head, propped nearer upright
-  sceneArm(SHX, SHY, SHX + ux * 22, SHY + uy * 22, 34, shade(HERO_SKIN, -0.08));
-  var HCX = SHX + ux * 46, HCY = SHY + uy * 46;
+  // the chair: a raked back behind him, a seat under him, four stubby legs
   ctx.save();
-  ctx.translate(HCX, HCY); ctx.rotate(hAng);
-  ctx.fillStyle = HERO_SKIN; ctx.fillRect(-29, -33, 58, 64);
-  ctx.fillStyle = "#2b1d14";
-  ctx.fillRect(-32, -43, 64, 17);                              // hair
-  ctx.fillRect(-32, -30, 8, 26);
-  ctx.fillRect(24, -30, 8, 26);
-  ctx.fillStyle = "#15181d"; ctx.fillRect(-23, -15, 48, 16);
-  ctx.globalAlpha = a * 0.55; ctx.fillStyle = "#ffd9a0";
-  ctx.fillRect(-20, -12, 16, 6);
-  ctx.fillRect(4,  -12, 16, 6);
-  ctx.globalAlpha = a;
-  ctx.fillStyle = "#8a5a44"; ctx.fillRect(-8, 14, 19, 5);
+  ctx.translate(SC_X + BW * 0.46, SEAT - 6); ctx.rotate(-1.12);
+  ctx.fillStyle = "#8a6a46"; ctx.fillRect(0, -17, 196, 17);
+  ctx.fillStyle = "#7a5c3c"; ctx.fillRect(0, -17, 196, 5);
+  ctx.restore();
+  ctx.fillStyle = "#8a6a46";
+  ctx.fillRect(SC_X + BW * 0.02, SEAT, BW * 0.92, 19);
+  ctx.fillStyle = "#9a7a52";
+  ctx.fillRect(SC_X + BW * 0.02, SEAT, BW * 0.92, 6);
+  ctx.fillStyle = "#6f5436";
+  ctx.fillRect(SC_X + BW * 0.10, SEAT + 19, 15, 34);
+  ctx.fillRect(SC_X + BW * 0.78, SEAT + 19, 15, 34);
+  // a towel over the back of it
+  ctx.save();
+  ctx.translate(SC_X + BW * 0.50, SEAT - 14); ctx.rotate(-1.12);
+  ctx.fillStyle = "#efe9dc"; ctx.fillRect(0, -22, 150, 22);
   ctx.restore();
 
-  /* THE BLAZER, over the FOOT of the lounger. Third place it has been: by
-     his feet as a flat box, where it read as a cool box; over the chair
-     back, where it turned out the chair back, his torso and his head all
-     lie along the same diagonal and there is no room on it for anything -
-     it came out as a blue slab on his chest, which is the surfboard problem
-     again in a different coat.
-
-     Hanging off the end of the rail it overlaps nothing, it is obviously a
-     jacket because it is obviously hanging, and it is the only thing in the
-     picture from the other ninety-four blocks. */
+  /* THE BLAZER, over the arm of the chair. Fourth place it has been and the
+     first one that works: beside him, hanging, overlapping nothing. */
   ctx.save();
-  ctx.translate(HX + 252, SEATY - 6); ctx.rotate(0.08);
-  ctx.fillStyle = shade(BLAZER, -0.12); ctx.fillRect(-30, 0, 60, 84);
-  ctx.fillStyle = BLAZER;               ctx.fillRect(-34, -9, 68, 16);
-  ctx.fillStyle = shade(BLAZER, 0.12);  ctx.fillRect(-5, 8, 9, 68);
-  ctx.fillStyle = shade(BLAZER, -0.32); ctx.fillRect(-30, 70, 60, 14);
-  // a lapel, so it is a jacket and not a towel
+  ctx.translate(SC_X + BW * 1.02, SEAT - 2); ctx.rotate(0.06);
+  ctx.fillStyle = shade(BLAZER, -0.12); ctx.fillRect(-30, 0, 60, 86);
+  ctx.fillStyle = BLAZER;               ctx.fillRect(-34, -10, 68, 16);
+  ctx.fillStyle = shade(BLAZER, 0.12);  ctx.fillRect(-5, 8, 9, 70);
+  ctx.fillStyle = shade(BLAZER, -0.32); ctx.fillRect(-30, 72, 60, 14);
   ctx.fillStyle = shade(BLAZER, 0.20);
   ctx.beginPath();
   ctx.moveTo(-18, 2); ctx.lineTo(-4, 2); ctx.lineTo(-14, 34);
   ctx.closePath(); ctx.fill();
   ctx.restore();
 
-  /* A LEI. Everybody who has ever been to one of these has a photograph of
-     themselves wearing one, and it is four lines of code: a dozen small
-     discs round the neck point in three alternating colours, the near ones
-     a touch larger so the thing has a front and a back. */
-  var NKX = SHX + ux * 24, NKY = SHY + uy * 24;
-  var LEI = ["#f04a7a", "#ffd24a", "#f6f2ea"];
-  for (var li = 0; li < 13; li++){
-    var la = -0.5 + (li / 12) * (Math.PI + 1.0);
-    var lrx = 30, lry = 19;
-    var lx2 = NKX + Math.cos(la) * lrx - ux * 4;
-    var ly2 = NKY + Math.sin(la) * lry + 10;
-    var lnear = Math.sin(la) > 0 ? 1.25 : 0.95;
-    ctx.fillStyle = LEI[li % 3];
-    ctx.beginPath();
-    ctx.arc(lx2, ly2, 6.5 * lnear, 0, Math.PI*2); ctx.fill();
-  }
-
-  /* --- the near arm, bent at the elbow, holding the drink up over his
-     chest. It lifts once early and then stays: a man who keeps raising his
-     glass is a loop, same as the handshake on the stage. */
-  var lift = Math.max(0, Math.min(1, (t - 2.4) / 0.9));
-  var le = 1 - Math.pow(1 - lift, 2);
-  var hy2 = HNY + 30 - le * 30 + Math.sin(t * 1.3) * 2;
-  sceneArm(SHX + ux * -6, SHY + 16, ELX, ELY, 28, "#f6f7f9");  // upper arm
-  sceneArm(ELX, ELY, HNX, hy2, 24, HERO_SKIN);                 // forearm
-  ctx.fillStyle = HERO_SKIN;
-  ctx.fillRect(HNX - 13, hy2 - 13, 26, 26);                    // the hand
-
-  // the glass in it
-  ctx.fillStyle = "#cfe9f2"; ctx.fillRect(HNX - 17, hy2 - 58, 36, 50);
-  ctx.fillStyle = "#f2a13c"; ctx.fillRect(HNX - 17, hy2 - 36, 36, 28);
-  ctx.globalAlpha = a * 0.55; ctx.fillStyle = "#ffffff";
-  ctx.fillRect(HNX - 13, hy2 - 56, 8, 46);
+  /* And the man himself, over his furniture. A shadow pool under him first,
+     because a blitted sprite on flat sand floats. */
+  ctx.globalAlpha = a * 0.20; ctx.fillStyle = "#8a6336";
+  ctx.beginPath();
+  ctx.ellipse(SC_X + BW * 0.48, SC_Y + 6, BW * 0.46, 15, 0, 0, Math.PI*2);
+  ctx.fill();
   ctx.globalAlpha = a;
-  ctx.fillStyle = "#e8e2d6"; ctx.fillRect(HNX - 21, hy2 - 61, 44, 6);
-  ctx.fillStyle = "#f6d64a";
-  ctx.beginPath(); ctx.arc(HNX + 21, hy2 - 60, 13, Math.PI, 0); ctx.fill();
-  // the little umbrella
-  ctx.save();
-  ctx.translate(HNX, hy2 - 62); ctx.rotate(0.40);
-  ctx.fillStyle = "#8a6a46"; ctx.fillRect(-2, -40, 4, 46);
-  for (var up2 = 0; up2 < 4; up2++){
-    ctx.fillStyle = up2 % 2 ? "#f6f2ea" : C.brand;
-    ctx.beginPath();
-    ctx.moveTo(0, -56);
-    ctx.lineTo(-28 + up2 * 14, -38);
-    ctx.lineTo(-28 + (up2 + 1) * 14, -38);
-    ctx.closePath(); ctx.fill();
-  }
-  ctx.restore();
-
+  if (S.beachGuy) blitScaled(S.beachGuy, SC_X, SC_Y, SC_K, SC_K);
 
   /* FOOTPRINTS, coming in from the left and stopping at the chair. Nobody
      arrives at a beach by teleport, and two rows of dents in the sand are
@@ -9447,7 +9467,9 @@ function sceneCabana(t, a){
 
   /* A SIDE TABLE, and the joke on it: his phone, face down. He is not
      checking it. That is the entire reward. */
-  var TBX = HX + 300, TBY = SEATY + 6;
+  /* Off his own footprint, like the chair - HX and SEATY belonged to the
+     hand-drawn figure and went with it. */
+  var TBX = SC_X + BW * 1.32, TBY = SEAT + 10;
   ctx.fillStyle = "#7a5c3c"; ctx.fillRect(TBX - 7, TBY, 14, 52);
   ctx.fillStyle = "#8a6a46";
   ctx.beginPath(); ctx.ellipse(TBX, TBY, 54, 15, 0, 0, Math.PI*2); ctx.fill();

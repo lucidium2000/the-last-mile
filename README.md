@@ -201,7 +201,39 @@ the torso is — which is what a man propped against a deckchair does with his
 head — and the neck is short and wide enough that the joint is hidden inside
 the head and the collar.
 
-The blazer took three attempts to place. By his feet it read as a cool box; on
+**He is the game character now, not a drawing of him.** The man on the beach
+was hand-drawn out of flat bars for three passes and was wrong every time, for
+a reason no amount of redrawing was going to fix: the game's hero is a **voxel
+model in a cabinet projection**, and a figure made of 2D bars is a different
+species. It did not look like him because it was not built like him.
+
+`beachModel()` is built like him — same `P()` parts, same `bake()`, same
+projection, and the head, neck, hair, sideburns and eye line lifted from
+`playerModel` at exactly the z values they have there, which is what makes it
+the same face rather than a similar one. Everything below the collar is
+holiday: open shirt, swim shorts, bare shins, flip-flops, a lei and a drink.
+
+He is **seated**, which a voxel model does cleanly without rotating anything:
+the thighs are blocks that run *forward* in y, from the hip at 0.47 to the
+knee at 0.17, and in this projection forward is down and to the left — so they
+read as legs coming out at you. The shins hang off the knee end and the feet
+sit on the sand in front of him.
+
+The cabana went from 296 to **400 high** and the banner moved onto the canopy
+valance because of him: a seated man at a readable size is 340px of figure,
+which put his head through the roof and the banner behind his head. Printed on
+the valance it is also what a real one looks like.
+
+**The pilot wings.** On the stage he wears the pin — black wings with the eye
+where the emblem goes. Wings at this size are not feathers, they are a taper:
+three bars each side, each shorter and thinner than the one above, drawn
+separately because a solid triangle reads as a bow tie and the gaps are what
+say "wing". It started at 62px, where the eye came out 17 across and the white
+pupil — most of what makes the mark readable — was down to two pixels. At 84
+the eye is 28 and the pupil 6, which is the smallest it can be and still be an
+eye.
+
+The blazer took four attempts to place. By his feet it read as a cool box; on
 the chair back it turned out the back rail, his torso and his head all lie
 along the same diagonal, so it came out as a blue slab on his chest — the
 surfboard problem again in a different coat. Hanging off the **end of the
