@@ -1196,6 +1196,12 @@ health bar** rather than in the power-up chip row. What it does is take one hit
 *instead of the bar taking it*, and sitting it with the other power-ups said
 nothing about which number it was protecting.
 
+Each blazer carries an **outcome line** in the money green with the arrows:
+*▲ SHIELDS UP! ▲* on the blue one and *▲ DOUBLE SHIELD! ▲* on the purple.
+The blazer is the joke; the kicker is what it bought him, and that is the half
+a seller repeats. The third pickup already states what it is worth on its own
+line and does not need telling twice.
+
 The two **blazer** pickups hold half a second longer than every other burst
 (`BRAND_HIT + 0.8` against `+ 0.3`, so 2.4s against 1.9s). "DOUBLE PURPLE PIMP
 BLAZER OF ASSURANCE" is thirty-eight characters on one line and it is the joke
@@ -2083,6 +2089,34 @@ happened. The amount now rises over his head in the same green as every other
 winning number, off the same `chuckRoll()` the card would have shown, with the
 SKU under it — a figure with no name on it is a number, and the whole exercise
 is that it should be a product.
+
+### And he does it on the street too
+
+Four seconds of following you and he looks up. The man in the carriage goes
+for the roll on the seat; this is the same man on the pavement, and he wants
+the same things — a **metrocard** or a **roll of Chuck Bucks** lying on the
+ground is worth more to him than another block of walking behind you. He says
+the same thing about it, takes it, and gets the same green dollar signs.
+
+**The four seconds are the whole design.** Straight away he would be a
+pickup-stealing hazard, which is a different and much worse creature: the
+point of him has always been that he follows and nothing happens. He has to
+have *been* the question first and then break off — a man who turns away from
+you and walks toward the thing you were going to collect is the only version
+of this that is funny rather than cheap. The chase clock **decays** rather
+than resetting when you get clear, so breaking line of sight for half a second
+does not buy a fresh four.
+
+He goes for it half again as fast as he creeps after you (`HOOD_LOOT_K`),
+because he has decided something, and he closes all the way — `HOOD_KEEP` is
+the distance he holds from a *person*, and a metrocard is not going to be
+unnerved by him standing on it. Measured: noticed at **4.02s**, taken at
+**7.97s**.
+
+`hoodLoot()` only ever returns those two. A terminal is bolted down, a shield
+is nothing to him, and a TAM is not a thing a man picks up off the floor —
+verified across all eight pickup kinds: metrocard and Chuck Bucks noticed,
+the other six never looked at.
 
 ### The man in the hood wants it too
 

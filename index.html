@@ -3445,6 +3445,23 @@ function makeSweep(r, streetNo, dir){
 
    He is slower than anything on the road by a wide margin, so this is not a
    chase he can win. It is a thing happening behind you. */
+/* FOUR SECONDS OF FOLLOWING YOU AND HE LOOKS UP. The man in the carriage goes
+   for the roll on the seat; this is the same man on the street, and he wants
+   the same things - a metrocard or a roll of Chuck Bucks lying on the
+   pavement is worth more to him than another block of walking behind you.
+
+   The four seconds matter. Straight away he would be a pickup-stealing
+   hazard, which is a different and much worse creature: the point of him has
+   always been that he follows and nothing happens. He has to have BEEN the
+   question first, and then break off - and a man who turns away from you and
+   walks toward the thing you were going to collect is the only version of
+   this that is funny rather than cheap.
+
+   He goes for it half again as fast as he creeps after you, because he has
+   decided something. The chase clock decays rather than resetting when you
+   get clear, so a player who breaks line of sight for half a second has not
+   bought himself a fresh four. */
+var HOOD_GREED_AFTER = 4.0, HOOD_LOOT_K = 1.5;
 var HOOD_ODDS = 0.045, HOOD_CREEP = 0.42, HOOD_KEEP = 0.95;
 var HOOD_ROWV = 1.15, HOOD_REACH = 5, HOOD_KO = 3.2;
 /* He looks before he steps off. HOOD_LOOK seconds of the lane's own traffic
@@ -3462,6 +3479,23 @@ var HOOD_LOOK = 1.15, HOOD_RUSH = 1.9;
    apart cannot close to within 21 of each other. The draw enforces it
    anyway. */
 var HOOD_GAP = 34;
+/* The nearest thing worth having, inside the stretch of pavement he is
+   allowed to wander. Only the two he would actually pocket: a terminal is
+   bolted down, a shield is nothing to him, and a TAM is not a thing a man
+   picks up off the floor. */
+function hoodLoot(f, home){
+  var best = null, bd = 1e9;
+  for (var rr = home - HOOD_REACH; rr <= home + HOOD_REACH; rr++){
+    var w = rows[rr];
+    if (!w || !w.pickup) continue;
+    var lk = w.pickup.kind;
+    if (lk !== "metro" && lk !== "chuck") continue;
+    var d = Math.abs(rr - f.hr) + Math.abs(w.pickup.col - f.hx) * 0.55;
+    if (d < bd){ bd = d; best = { row:rr, col:w.pickup.col, w:w }; }
+  }
+  return best;
+}
+
 function hoodSafe(f, r){
   var row = rows[r];
   if (!row) return false;
@@ -4800,9 +4834,17 @@ function collect(atCol){
          duration it was gone before it had been read, which is the one
          failure a gag cannot survive. The third pickup's line is short and
          keeps the ordinary beat. */
+      /* And the outcome line under each blazer, in the money green with the
+         arrows. The blazer is the joke; this is what it bought him, and it
+         is the half of the message a seller would actually repeat. The third
+         pickup already says what it is worth on its own line and does not
+         need telling twice. */
+      var agentKick = lvl === 0 ? "SHIELDS UP!"
+                    : (lvl === 1 ? "DOUBLE SHIELD!" : null);
       brandHit("ENDPOINT AGENT", BRAND_HIT + (lvl < 2 ? 0.8 : 0.3), null,
                lvl < 2 ? AGENT_BLAZER[lvl]
-                       : "+" + cash(AGENT_BONUS) + "  \u00B7  NOTHING LEFT TO PUT ON HIM");
+                       : "+" + cash(AGENT_BONUS) + "  \u00B7  NOTHING LEFT TO PUT ON HIM",
+               false, agentKick);
     }
     else brandHit(BRAND_SKUS[kind]);
   }
@@ -6814,11 +6856,33 @@ function updateFolk(dt){
       if (f.coolT > 0) f.coolT -= dt;
       if (f.hood){
         if (f.ko > 0){ f.ko += dt; continue; }     // down, and staying down
+        if (f.loot > 0) f.loot = Math.max(0, f.loot - dt);
         var ppH = playerPos();
+
+        /* How long he has been on him. It decays rather than resetting, so
+           stepping out of range for a beat does not buy a fresh four
+           seconds - he has to actually lose him. */
+        if (Math.abs(ppH.row - f.hr) <= HOOD_REACH + 1)
+          f.chaseT = (f.chaseT || 0) + dt;
+        else
+          f.chaseT = Math.max(0, (f.chaseT || 0) - dt);
+
+        var loot = (f.chaseT >= HOOD_GREED_AFTER) ? hoodLoot(f, r) : null;
+        if (loot && !f.sawLoot){
+          f.sawLoot = true;
+          f.sayAt = G.t; f.line = "Hey, what's that?";
+          AUDIO.say(f.seed, SAY_ASK);
+        }
+        if (!loot) f.sawLoot = false;
+
         /* He will come off the kerb after you, up to HOOD_REACH rows from
            where he started. Past that he gives up and goes back to walking
-           his own pavement. */
-        var want = (Math.abs(ppH.row - r) <= HOOD_REACH) ? ppH.row : r;
+           his own pavement. Once he has seen something on the floor he is
+           going there instead, and the row target is the only thing that
+           has to change for the kerb-looking and the traffic to keep
+           working exactly as they did. */
+        var want = loot ? loot.row
+                 : ((Math.abs(ppH.row - r) <= HOOD_REACH) ? ppH.row : r);
         var dR = want - f.hr;
         if (Math.abs(dR) > 0.06){
           var step = (dR > 0 ? 1 : -1);
@@ -6833,9 +6897,25 @@ function updateFolk(dt){
           }
         }
 
+        /* Going for it, he closes all the way - HOOD_KEEP is the distance he
+           holds from a PERSON, and a metrocard on the pavement is not going
+           to be unnerved by him standing on it. */
+        if (loot){
+          var dL = loot.col - f.hx, stepL = HOOD_CREEP * HOOD_LOOT_K * dt;
+          if (Math.abs(dL) <= stepL) f.hx = loot.col;
+          else f.hx += (dL > 0 ? 1 : -1) * stepL;
+          if (loot.w.pickup &&
+              Math.abs(f.hr - loot.row) < 0.40 && Math.abs(f.hx - loot.col) < 0.45){
+            loot.w.pickup = null;              // and it is gone
+            f.loot = SHADY_CASH_SECS;
+            f.chaseT = 0; f.sawLoot = false;
+            f.sayAt = G.t; f.line = "Somebody's lucky day.";
+            AUDIO.say(f.seed, SAY_WARM); AUDIO.chaChing();
+          }
+        }
         /* Toward his column while he is anywhere near him, and never inside
            HOOD_KEEP - holding at arm's length is worse than arriving. */
-        if (Math.abs(ppH.row - f.hr) < HOOD_REACH + 1){
+        else if (Math.abs(ppH.row - f.hr) < HOOD_REACH + 1){
           var dH = ppH.col - f.hx;
           if (Math.abs(dH) > HOOD_KEEP)
             f.hx += (dH > 0 ? 1 : -1) * HOOD_CREEP * dt;
@@ -6864,7 +6944,10 @@ function updateFolk(dt){
           }
         }
 
-        if (f.eyes > 0) f.eyes = Math.max(0, f.eyes - dt);
+        /* No red while the dollar signs are up, for the same reason as in
+           the carriage: two colours of light in one hood is a fault. */
+        if (f.loot > 0) f.eyes = 0;
+        else if (f.eyes > 0) f.eyes = Math.max(0, f.eyes - dt);
         else if (Math.random() < EYES_RATE * dt) f.eyes = EYES_SECS;
       }
       if (f.eatT > 0){
@@ -7067,6 +7150,14 @@ function drawOneFolk(f, sy){
       red2 = ep2 < EYES_UP ? ep2 / EYES_UP
                            : Math.max(0, (1 - ep2) / (1 - EYES_UP));
     }
+    /* And the green ones, when he got to something first. Same ramp as the
+       carriage version, because he is the same man. */
+    var grn2 = 0;
+    if ((f.loot || 0) > 0){
+      var gp2 = 1 - f.loot / SHADY_CASH_SECS;
+      grn2 = gp2 < EYES_UP ? gp2 / EYES_UP
+                           : Math.max(0, (1 - gp2) / (1 - EYES_UP));
+    }
     var pp3 = playerPos();
     if (f.ko > 0){
       /* Taken off his feet the way the player is: a jolt, a topple, and a
@@ -7085,7 +7176,7 @@ function drawOneFolk(f, sy){
       return;
     }
     drawHoodie(x, y - 223 * hk2, hk2, f.sayAt && G.t - f.sayAt < 1.2 ? 2 : 0,
-               pp3.col > f.hx ? 1 : -1, red2);
+               pp3.col > f.hx ? 1 : -1, red2, grn2);
     if (f.champ && !f.spent) drawChampTag(x, y - 104);
     return;
   }
