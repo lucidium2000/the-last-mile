@@ -6971,15 +6971,32 @@ function updateFolk(dt){
   var lo = Math.floor(G.camRow) - ROWS_BEHIND, hi = Math.floor(G.camRow) + ROWS_AHEAD;
   for (var r = lo; r <= hi; r++){
     var row = rows[r];
-    if (!row || row.type !== "safe" || !row.folk || !row.folk.length) continue;
+    if (!row || row.type !== "safe") continue;
+
+    /* HOW LONG THE MONEY HAS BEEN LYING THERE, counted above the test for
+       whether anybody is standing on this pavement.
+
+       It used to be counted below it, which meant the clock only ran on rows
+       that already had somebody on them - a roll that landed on an empty
+       stretch sat there for the rest of the run, and the first person to
+       wander onto that row started counting from zero as if it had just been
+       dropped. The money has been on screen either way. Now the clock is the
+       money's and the walking is theirs, so somebody arriving late at a
+       square that has been sitting there for ten seconds goes straight for
+       it, which is what anybody would do.
+
+       The loop only covers rows in view, so "five seconds" still means five
+       seconds the player could see it. */
+    var pk2 = row.pickup;
+    if (pk2 && pk2.kind === "chuck") pk2.seenT = (pk2.seenT || 0) + dt;
+
+    if (!row.folk || !row.folk.length) continue;
     var i, j, f, g;
 
-    /* How long the money has been lying there, and who is going to go and
-       get it. One per pavement, chosen once - re-picking every frame would
-       hand it to whoever drifted nearest this tick. */
-    var pk2 = row.pickup;
+    /* And who is going to go and get it. One per pavement, chosen once -
+       re-picking every frame would hand it to whoever drifted nearest this
+       tick. */
     if (pk2 && pk2.kind === "chuck"){
-      pk2.seenT = (pk2.seenT || 0) + dt;
       if (pk2.seenT >= FOLK_GREED_AFTER && !row.grabber){
         var near = null, nd = 1e9;
         for (var gi = 0; gi < row.folk.length; gi++){

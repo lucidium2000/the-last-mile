@@ -2202,9 +2202,22 @@ done — or when somebody beats him to it — the walked position is folded back
 into `x0` so he carries on drifting from where he is standing rather than
 snapping back.
 
+**The clock is the money's, not theirs.** `seenT` is counted above the test
+for whether anybody is standing on that pavement. It used to be counted below
+it, which meant a roll landing on an empty stretch sat there for the rest of
+the run, and the first person to wander onto that row started counting from
+zero as if it had just been dropped — the money had been on screen the whole
+time either way. Now somebody arriving at a square that has been sitting there
+for ten seconds goes straight for it, which is what anybody would do. The loop
+only covers rows in view, so "five seconds" still means five seconds the
+player could see it.
+
 Measured end to end: noticed at **5.02s**, taken at **6.83s** from two columns
-away and **13.5s** from nine. A player walking straight at it wins
-comfortably; one who stops to count the lanes may not.
+away and **13.5s** from nine. On an empty pavement the clock now runs (8.00s
+after eight seconds) and the money stays put because there is nobody to take
+it; drop one pedestrian onto that row and he commits in **0.02s** and has it
+**1.83s** later. A player walking straight at it still wins comfortably; one
+who stops to count the lanes may not.
 
 ### And he does it on the street too
 
