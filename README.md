@@ -2522,14 +2522,16 @@ rare tier:
 > `?pw=sponsor` for Cloud Insights, and `tam`, `agent`, `insight`, `traffic`,
 > `path`, `metro`, `chuck` for the rest. `?pw=off` turns it off.
 >
-> `DROP_PW_DEFAULT` is `null`, so nothing is planted unless somebody types it.
-> It was `"sponsor"` for a while so Cloud Insights could be looked at without
-> playing for it; that is the one line to flip if it needs to be again.
+> ⚠️ **`DROP_PW_DEFAULT` is currently `"sponsor"`, which means every run
+> starts with a Cloud Insights cloud two squares ahead whether anybody asked
+> for one or not.** It is there so the four-second duration can be tested
+> without playing for the drop. Set that one line back to `null` before this
+> goes in front of anybody; `?pw=off` suppresses it for a single load.
 
 **Cloud Insights** was Executive Sponsor, which handed him a car service and
 jumped him three rows. A power-up whose entire expression is the player being
 somewhere else a frame later: nothing to look at, nothing to play, and the one
-SKU in the pool with no product behind it. It is ten seconds of **three blocks a
+SKU in the pool with no product behind it. It is four seconds of **three blocks a
 jump**: one forward tap clears two rows and lands on the third, at the
 ordinary step rate. Three rows in a third of the time would be nine times the
 ground, which is not a power-up, it is a cutscene — the leap is where the
@@ -2547,7 +2549,7 @@ row his own walk would have taken reads as a bug.
 **And he can still be hit from the side.** Neither the suit nor the leap
 touches the traffic. The lanes run across the street and he is hit from them
 exactly like anybody else, which is the only thing that can still end the run
-while the ten seconds are up — a power-up that made him untouchable would
+while the four seconds are up — a power-up that made him untouchable would
 make them a loading screen. The leap does not test for traffic either:
 sailing over two lanes is the point, and he is as vulnerable as anybody else
 on the row he lands in. Verified both halves: a step into a blocked square is
@@ -2560,15 +2562,32 @@ overriding it: a man on his last point of health in running shoes is quick
 *for a man who is about to fall over*. Tagline on the burst, in the same
 treatment as every other SKU: *Accelerating your journey in the Cloud.*
 
+**Four seconds, down from ten.** Ten was double the TAM's flight, which is the
+wrong way round for a common pickup against the headline SKU — and at three
+rows a step it was long enough to cross most of a leg, so the back half was
+spent running out of generated world rather than using it. Four sits under the
+flight's five, which is the order these two belong in. The HUD chip reads
+`POWERS.sponsor.secs` for its bar, so the countdown rescaled on its own.
+
+It refreshes rather than stacks (`Math.max`), so a second cloud picked up
+mid-run resets the clock to four and never goes above it — verified through
+the real `collect()` path from 3s and from a full 4s.
+
+The one thing to watch at this length: `DASH_WARN` is still 1.4s, which was
+14% of ten and is **35% of four**. The TAM's flight warns for 28% of its five.
+If the blink starts to feel like most of the power-up rather than the end of
+it, that constant is the one to drop — 1.0s would put it at 25%, in line with
+the flight.
+
 **And it tells him before it stops.** The last 1.4 seconds the figure blinks,
 quickening as it goes, the HUD chip goes red and a beep counts down — the same
 `FLY_WARN` treatment the TAM's flight gets, on `DASH_WARN`. Every power-up
 that changes how he *moves* has to warn him: a man who is suddenly covering
-one row a tap, having spent ten seconds judging gaps three rows at a time, is
+one row a tap, having spent four seconds judging gaps three rows at a time, is
 a man who has already stepped. The one that absorbs a hit or slows the world
 does not need this; the two that change his stride both do.
 
-**And he changes clothes for it.** Ten seconds in a full orange suit with a
+**And he changes clothes for it.** Four seconds in a full orange suit with a
 cowl, gold bolts at the ears, a gold belt and a lightning bolt on a pale disc
 across his chest — the only power-up in the game that changes what he *is*
 rather than what he is carrying, and at three squares a step it has earned it.

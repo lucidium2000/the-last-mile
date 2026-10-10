@@ -2249,9 +2249,16 @@ var POWERS = {
      three rows - a power-up whose entire expression was the player being
      somewhere else a frame later. Nothing to look at, nothing to play, and
      the one SKU in the pool with no product behind it. */
+  /* Four seconds, down from ten. Ten was longer than the TAM's flight by
+     double, which is the wrong way round for a common pickup against the
+     headline SKU - and at three rows a step it was enough to cross most of a
+     leg, so the back half was spent running out of world rather than using
+     it. Four is shorter than the flight's five, which is the order these two
+     should be in. The HUD chip reads this constant for its bar, so the
+     countdown rescales on its own. */
   sponsor:{ col:C.pw4, letter:"C", name:"CLOUD INSIGHTS",
             line:"Accelerating your journey in the Cloud. Orange high-tops, and he runs.",
-            secs:10 },
+            secs:4 },
   metro:  { col:"#ffd24a", letter:"M", name:"METROCARD",
             line:"Swipe in at any subway. Ride five to ten streets uptown.", secs:0 },
   /* The premium SKU, and the most powerful thing in the game: five seconds of
@@ -3128,10 +3135,16 @@ function bakeAll(){
 var rows = {};
 var SAFE_MIN = 2;          // the shallowest pavement the generator may lay
 /* A power-up to plant on the first pavement. ?pw=<kind> picks one, and
-   nothing happens unless somebody types it. DROP_PW_DEFAULT was "sponsor"
-   for a while so Cloud Insights could be looked at without playing for it;
-   it is back to null and the hook is quiet again. */
-var DROP_PW_DEFAULT = null;
+   nothing happens unless somebody types it.
+
+   ===================== TEMPORARY, REMOVE BEFORE SHIPPING =================
+   DROP_PW_DEFAULT is "sponsor" again, so EVERY run starts with a Cloud
+   Insights cloud two squares ahead with no query string, because the four
+   second duration is being tested. Set it back to null and the hook goes
+   quiet - that one line is the whole of it. ?pw=off turns it off for a
+   single load without editing anything.
+   ========================================================================= */
+var DROP_PW_DEFAULT = "sponsor";
 var DROP_PW = (function(){
   var m = /[?&]pw=([a-z]+)/i.exec(location.search);
   if (m) return m[1].toLowerCase();
