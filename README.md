@@ -3583,12 +3583,22 @@ three things the first attempt got wrong:
   the outside with the torso visible between them. The first version banded
   three slabs straight across the body and made a wardrobe; you should be able
   to see the shirt, and the harness over it.
-- **And it is narrower than the arms.** The panels were 0.115 wide at the same
-  x as the sleeves, with the hem flaring past them to 0.875, so the coat stuck
-  out either side and he read as a wardrobe with a head. A coat hangs *behind*
-  the arms and barely wider than them; the flare belongs below the elbow,
-  where there is no arm left to be wider than. The sprite went from wider than
-  the base figure to **117px against its 129**.
+- **And the whole outline came in.** The panels were 0.115 wide at the same x
+  as the sleeves, with the hem flaring past them to 0.875 — but narrowing the
+  coat alone only moved the problem, because the shoulders were 0.58 with arms
+  hung off them at 0.155 and 0.845, which put the widest part of him *outside*
+  the coat however slim the waist got. Shoulder line, sleeves, hands, collar
+  and coat all came in together, so the outline is the coat rather than a set
+  of blocks standing proud of it. **108px against the base figure's 129** —
+  he is now visibly the slimmest man in the game, which is the point.
+- **And he has a waist.** He was the ordinary figure's slab torso under a
+  coat, which is a man in a coat and not a man who could do any of this. The
+  waist comes in to 0.42 and the chest back out to 0.50 under shoulders at
+  0.52, so the taper is read off three widths rather than drawn — and the legs
+  came in with it, because a narrow waist over the old trousers is a different
+  wrong shape. The harness straps moved in too: at 0.336 and 0.616 they sat on
+  the outside of his chest and read as webbing on a vest, and together they
+  frame the buckle instead of bracketing the whole torso.
 - **The lenses are grey**, not black. They are mirrors, and black ovals on a
   figure this dark are two holes in his face.
 

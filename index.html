@@ -2572,26 +2572,31 @@ function neoModel(dir){
        out either side of him and he read as a wardrobe with a head. A coat
        hangs BEHIND the arms and barely wider than them; the flare belongs
        below the elbow, where there is no arm left to be wider than. */
-    P(0.172, 0.400, 0.078, 0.19, 0.105, 0.470, coat),
-    P(0.750, 0.400, 0.078, 0.19, 0.105, 0.470, coat),
-    P(0.156, 0.395, 0.094, 0.20, 0.105, 0.140, shade(coat, 0.05)),
-    P(0.750, 0.395, 0.094, 0.20, 0.105, 0.140, shade(coat, 0.05)),
-    P(0.240, 0.380, 0.034, 0.05, 0.115, 0.450, lin),          // front edges
-    P(0.726, 0.380, 0.034, 0.05, 0.115, 0.450, lin),
+    P(0.205, 0.400, 0.064, 0.19, 0.105, 0.470, coat),
+    P(0.731, 0.400, 0.064, 0.19, 0.105, 0.470, coat),
+    P(0.193, 0.395, 0.076, 0.20, 0.105, 0.135, shade(coat, 0.05)),
+    P(0.731, 0.395, 0.076, 0.20, 0.105, 0.135, shade(coat, 0.05)),
+    P(0.262, 0.380, 0.030, 0.05, 0.115, 0.450, lin),          // front edges
+    P(0.708, 0.380, 0.030, 0.05, 0.115, 0.450, lin),
     /* THE COLLAR. Behind the head - see above - and wider than the shoulders,
        with a wing coming forward past each ear. */
     /* Up to the JAW, not over the eyes. At 0.81 it came past his cheekbones
        and the face was a slot in a box; the reference stops it about level
        with the mouth and lets the head sit clear above it. */
-    P(0.190, 0.50, 0.62, 0.12, 0.560, 0.175, shade(coat, 0.08)),
-    P(0.190, 0.50, 0.62, 0.12, 0.718, 0.028, shade(coat, 0.22)),  // its lit rim
-    P(0.215, 0.410, 0.080, 0.10, 0.575, 0.150, shade(coat, 0.13)),
-    P(0.705, 0.410, 0.080, 0.10, 0.575, 0.150, shade(coat, 0.13)),
-    P(0.21, 0.405, 0.58, 0.18, 0.530, 0.070, shade(coat, 0.04)),  // shoulders
-    P(0.155, 0.445, 0.085, 0.125, 0.33, 0.215, shade(coat,-0.18)),// sleeves
-    P(0.760, 0.445, 0.085, 0.125, 0.33, 0.215, shade(coat,-0.18)),
-    P(0.155, 0.445, 0.09, 0.13, 0.295, 0.055, skin),          // hands
-    P(0.755, 0.445, 0.09, 0.13, 0.295, 0.055, skin),
+    P(0.215, 0.50, 0.57, 0.12, 0.560, 0.175, shade(coat, 0.08)),
+    P(0.215, 0.50, 0.57, 0.12, 0.718, 0.028, shade(coat, 0.22)),  // its lit rim
+    P(0.238, 0.410, 0.074, 0.10, 0.575, 0.150, shade(coat, 0.13)),
+    P(0.688, 0.410, 0.074, 0.10, 0.575, 0.150, shade(coat, 0.13)),
+    /* NARROWER AT THE TOP TOO. Shoulders were 0.58 with sleeves hung off
+       them at 0.155 and 0.845, which put the widest part of him out past the
+       coat and read as bulk however slim the waist got. Everything comes in
+       together: the shoulder line, the arms on it, and the hands, so the
+       outline is the coat and not a set of blocks standing proud of it. */
+    P(0.240, 0.405, 0.520, 0.18, 0.530, 0.070, shade(coat, 0.04)),
+    P(0.196, 0.445, 0.076, 0.125, 0.33, 0.215, shade(coat,-0.18)),
+    P(0.728, 0.445, 0.076, 0.125, 0.33, 0.215, shade(coat,-0.18)),
+    P(0.198, 0.445, 0.080, 0.13, 0.295, 0.052, skin),         // hands
+    P(0.722, 0.445, 0.080, 0.13, 0.295, 0.052, skin),
     P(0.42, 0.44, 0.16, 0.14, 0.615, 0.040, skin),            // the neck
     P(0.37, 0.43, 0.26, 0.15, 0.655, 0.200, skin),            // the face
     /* The hair, swept and a touch wider than the head - and on the FACE'S
@@ -2605,8 +2610,11 @@ function neoModel(dir){
   var dec = [
     /* The harness: two straps over the shoulders to the belt, which is most
        of what that costume is under the coat. */
-    { x:0.336, y:0.42, w:0.048, z:0.345, h:0.240, bg:strap },
-    { x:0.616, y:0.42, w:0.048, z:0.345, h:0.240, bg:strap },
+    /* Closer in. At 0.336 and 0.616 they sat on the outside of his chest and
+       read as webbing on a vest; brought together they are a harness on a
+       man, and they frame the buckle instead of bracketing the whole torso. */
+    { x:0.388, y:0.42, w:0.040, z:0.345, h:0.240, bg:strap },
+    { x:0.572, y:0.42, w:0.040, z:0.345, h:0.240, bg:strap },
     { x:0.458, y:0.42, w:0.084, z:0.322, h:0.032, bg:"#39414d" },  // the buckle
     /* The shades. Narrow ovals, and GREY - they are mirrors, and black ones
        on a figure this dark are two holes in his face. */
