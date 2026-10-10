@@ -461,11 +461,35 @@ block should not owe the company seven dollars.
 
 Walk into one and he reads it, and what is on it moves the number — because the
 thing that actually decides a quarter is almost never anything the seller did
-that week. Six stories that help and six that hurt, drawn flat, so a newsstand
-is a coin toss worth somewhere between a tenth and a third of a block of
-walking: *BGP LEAK SWALLOWS A REGION* (+$150,000), *ZERO-DAY LOOSE IN THE WILD*
-(−$50,000), *CFO ORDERS A SPEND REVIEW* (−$75,000), *RIVAL MISSES ITS NUMBER*
-(+$110,000).
+that week. **Eight stories that help and six that hurt**, drawn flat within
+each pool after a straight coin toss: *BGP LEAK SWALLOWS A REGION*
+(+$150,000), *ZERO-DAY LOOSE IN THE WILD* (−$50,000), *CFO ORDERS A SPEND
+REVIEW* (−$75,000), *RIVAL MISSES ITS NUMBER* (+$110,000).
+
+**The coin is fair; the money is not.** Good and bad land 50/50 — the pools
+are chosen *after* the flip, so their sizes change what a win is worth and
+never how often it comes.
+
+| | good | bad |
+|---|---|---|
+| headlines | 8 | 6 |
+| chance | 50% | 50% |
+| range | +$45k … +$180k | −$40k … −$75k |
+| average | **+$102,500** | **−$57,500** |
+
+That is a money ratio of **1.78 : 1** and an expected **+$22,500** a stand.
+Newsstands are 7.69% of street props, about **0.218 a street**, so reading
+every one you pass is worth roughly **+$4,900 a street** — real, but an order
+of magnitude under a TE-ADDON terminal at $150,000 a pop. Each stand serves
+once (`newsPr.read`), so a good one cannot be farmed.
+
+The two cheapest headlines — *SAAS VENDOR EATS ITS OWN SLA* (+$55,000) and
+*CONFERENCE WIFI DIES ON STAGE* (+$45,000) — were added at the bottom of the
+range on purpose. The good pool ran 70k to 180k, a long way clear of the worst
+bad news at −$75k, which made a newsstand close to free money with some drama
+painted on it: ratio 2.09:1 and +$31,250 a stand. They are still the
+industry's weather rather than anything the seller did, which is the conceit
+of the whole good pool — just a slower news day.
 
 The card is 2.6s and it **freezes the world** while it is up, because at the
 size a front page has to be to be readable it covers the traffic he is standing

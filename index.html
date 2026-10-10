@@ -2642,9 +2642,12 @@ var TICKER_Y = 110, TICKER_K = 0.70;
 
    The masthead is invented. A real paper's name on a fabricated front page is
    a different kind of object entirely, and this is a joke about the industry,
-   not about anybody's newsroom. Six that help and six that hurt, drawn flat,
-   so a newsstand is a coin toss worth somewhere between a tenth and a third
-   of a block of walking. */
+   not about anybody's newsroom. Eight that help and six that hurt, drawn
+   flat within each pool after a straight coin toss - so the ODDS are still
+   1:1 and the two extra headlines change the size of the win, not how often
+   it comes. They were added at the bottom of the range on purpose: the good
+   news was 70k to 180k and a long way clear of the worst bad news, which
+   made a newsstand close to free money with some drama painted on it. */
 var NEWS_SECS = 2.6;
 var NEWS_GOOD = [
   ["CISCO BEATS ON THE QUARTER", "Networking demand up across every segment.", 120000],
@@ -2652,7 +2655,12 @@ var NEWS_GOOD = [
   ["BGP LEAK SWALLOWS A REGION", "The board asks who is watching the internet.", 150000],
   ["BUDGETS UNFREEZE FOR Q4", "Finance signs off on the observability line.", 90000],
   ["RIVAL MISSES ITS NUMBER", "Two of their accounts called you first.", 110000],
-  ["RETURN-TO-OFFICE MANDATE", "Branch performance is suddenly somebody's problem.", 70000]
+  ["RETURN-TO-OFFICE MANDATE", "Branch performance is suddenly somebody's problem.", 70000],
+  /* The low end. Both are still the industry's weather rather than anything
+     the seller did - which is the whole conceit of the good pool - they are
+     just a slower news day. */
+  ["SAAS VENDOR EATS ITS OWN SLA", "Credits issued. Somebody wants proof next time.", 55000],
+  ["CONFERENCE WIFI DIES ON STAGE", "Ten thousand people watched the keynote buffer.", 45000]
 ];
 var NEWS_BAD = [
   ["ZERO-DAY LOOSE IN THE WILD", "Security eats the budget. Everything else waits.", -50000],
