@@ -3576,9 +3576,12 @@ about a frame and a half each it says **a Lyft** instead, and then settles back
 on the first answer as though nothing happened — a sign with a loose
 connection, changing its mind in public.
 
-**It swaps "an Uber" for "a Lyft", not "Uber" for "Lyft".** The article has to
-come with it or the glitch prints "an Lyft", and a joke with a grammar mistake
-in it is a mistake with a joke in it.
+**It swaps the word and nothing else.** It took the article with it at first —
+"an Uber" for "a Lyft" — so the flash stayed grammatical, but that is the
+caption rewriting its sentence, and what this is meant to be is one word
+failing. Uber and Lyft are both four characters, so a centred line does not
+move at all: everything around the word holds still and the word alone changes,
+which is what a bad pixel on a sign actually looks like.
 
 The look is an RGB split and a pixel or two of jitter: the same two offset
 copies in red and cyan that every broken display in every film has used since

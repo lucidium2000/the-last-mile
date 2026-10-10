@@ -9556,9 +9556,13 @@ function sceneFrame(title, sub, body, sc){
        caption correcting itself the way a sign with a loose connection does,
        and then settling back on the first answer as though nothing happened.
 
-       IT SWAPS "an Uber" FOR "a Lyft", not "Uber" for "Lyft". The article
-       has to come with it or the glitch prints "an Lyft", and a joke with a
-       grammar mistake in it is a mistake with a joke in it.
+       IT SWAPS THE WORD AND NOTHING ELSE. It took the article with it at
+       first, "an Uber" for "a Lyft", so the flash stayed grammatical - but
+       that is the caption rewriting its sentence, and what this is meant to
+       be is one word failing. Uber and Lyft are both four characters, so a
+       centred line does not move at all: everything around the word holds
+       still and the word alone changes, which is what a bad pixel on a sign
+       actually looks like.
 
        The look is an RGB split and a pixel or two of jitter: the same two
        offset copies in red and cyan that every broken display in every film
@@ -11855,7 +11859,7 @@ var SCENES = {
         /* Three flashes of 85ms, 155ms apart, starting at 1.05s - late
            enough that the line has been read once as written, early enough
            to be over long before the card starts fading out at 2.55. */
-        glitch:{ from:"an Uber", to:"a Lyft", at:1.05, n:3, on:0.085, period:0.155 },
+        glitch:{ from:"Uber", to:"Lyft", at:1.05, n:3, on:0.085, period:0.155 },
         draw:sceneTimes, music:"city" },
   50: { title:"ROCKEFELLER CENTER",  sub:"Meeting a partner at The Top of the Rock",
         draw:sceneRock, music:"rock" },
