@@ -2572,21 +2572,32 @@ function neoModel(dir){
        out either side of him and he read as a wardrobe with a head. A coat
        hangs BEHIND the arms and barely wider than them; the flare belongs
        below the elbow, where there is no arm left to be wider than. */
-    P(0.205, 0.400, 0.064, 0.19, 0.105, 0.470, coat),
-    P(0.731, 0.400, 0.064, 0.19, 0.105, 0.470, coat),
-    P(0.193, 0.395, 0.076, 0.20, 0.105, 0.135, shade(coat, 0.05)),
-    P(0.731, 0.395, 0.076, 0.20, 0.105, 0.135, shade(coat, 0.05)),
-    P(0.262, 0.380, 0.030, 0.05, 0.115, 0.450, lin),          // front edges
-    P(0.708, 0.380, 0.030, 0.05, 0.115, 0.450, lin),
+    /* BEHIND HIM, not either side of him. Two panels outboard of the arms
+       ran from the belt to the ankle, which from the front is two dark
+       sticks hanging below his hands - and dark sticks below a man's hands
+       are read as what he is carrying, not as what he is wearing.
+
+       A long coat seen from the front is a mass BEHIND the legs. One panel
+       at y 0.55 puts its back edge at 0.62 against the legs' 0.59, so the
+       painter lays it down first and the legs stand in front of it: it shows
+       at his outside edges and between his knees, which is exactly where a
+       coat shows, and nothing hangs off his hands at all. */
+    P(0.268, 0.55, 0.464, 0.07, 0.085, 0.470, coat),
+    P(0.268, 0.55, 0.464, 0.07, 0.085, 0.050, shade(coat, 0.07)),  // the hem
     /* THE COLLAR. Behind the head - see above - and wider than the shoulders,
        with a wing coming forward past each ear. */
     /* Up to the JAW, not over the eyes. At 0.81 it came past his cheekbones
        and the face was a slot in a box; the reference stops it about level
        with the mouth and lets the head sit clear above it. */
-    P(0.215, 0.50, 0.57, 0.12, 0.560, 0.175, shade(coat, 0.08)),
-    P(0.215, 0.50, 0.57, 0.12, 0.718, 0.028, shade(coat, 0.22)),  // its lit rim
-    P(0.238, 0.410, 0.074, 0.10, 0.575, 0.150, shade(coat, 0.13)),
-    P(0.688, 0.410, 0.074, 0.10, 0.575, 0.150, shade(coat, 0.13)),
+    /* DARK, and smaller. At shade +0.08 with a +0.22 rim on top it came out
+       a pale grey slab standing above his shoulders, which from the front is
+       a rucksack. It is the same black as the coat now, with only enough lift
+       on the rim to catch an edge, and it has come in and down so it frames
+       the head instead of towering over it. */
+    P(0.250, 0.50, 0.50, 0.12, 0.560, 0.140, shade(coat, -0.02)),
+    P(0.250, 0.50, 0.50, 0.12, 0.684, 0.022, shade(coat, 0.10)),  // its lit rim
+    P(0.268, 0.410, 0.066, 0.10, 0.575, 0.118, shade(coat, 0.04)),
+    P(0.666, 0.410, 0.066, 0.10, 0.575, 0.118, shade(coat, 0.04)),
     /* NARROWER AT THE TOP TOO. Shoulders were 0.58 with sleeves hung off
        them at 0.155 and 0.845, which put the widest part of him out past the
        coat and read as bulk however slim the waist got. Everything comes in

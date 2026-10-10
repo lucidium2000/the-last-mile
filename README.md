@@ -3579,7 +3579,19 @@ three things the first attempt got wrong:
   *first*: the head is in front of it, which is what makes it read as being
   behind him rather than worn over his chin. It stops at the jaw — at 0.81 it
   came past his cheekbones and the face was a slot in a box.
-- **The coat hangs at the sides**, not across the front. Two long panels down
+- **The coat hangs BEHIND him**, which took three goes. Three slabs across
+  the front made a wardrobe. Two panels outboard of the arms made two dark
+  sticks below his hands — and dark sticks below a man's hands read as what he
+  is *carrying*, not what he is wearing. A long coat seen from the front is a
+  mass behind the legs: one panel at `y 0.55` puts its back edge at 0.62
+  against the legs' 0.59, so the painter lays it down first and the legs stand
+  in front of it. It shows at his outside edges and between his knees, which
+  is exactly where a coat shows, and nothing hangs off his hands at all.
+- **And the collar had to go dark.** At `shade +0.08` with a `+0.22` rim on
+  top it came out a pale grey slab standing above his shoulders, which from
+  the front is a rucksack. Same black as the coat now, with only enough lift
+  on the rim to catch an edge.
+- ~~The coat hangs at the sides~~ Two long panels down
   the outside with the torso visible between them. The first version banded
   three slabs straight across the body and made a wardrobe; you should be able
   to see the shirt, and the harness over it.
