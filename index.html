@@ -382,7 +382,8 @@ var AUDIO = (function(){
     };
   }
   var freeClip = sampler(FREE_B64), woahClip = sampler(WOAH_B64);
-  var WOAH_CUT = 1.15;            // just past the landing of a 1.08s flip
+  var WOAH_CUT = 1.45;            // past the landing, and past the word itself
+  var WOAH_FULL_FROM = 2;         // more lanes than this and it plays whole
 
   /* One player for both, and it REAPS. The sample players were the last two
      chains in the engine still wiring a gain to the master and walking away
@@ -616,13 +617,30 @@ var AUDIO = (function(){
        because they are both reading the run counter in act() rather than
        each counting for themselves. */
     traceTop: function(){
-      var f = 261.63 * Math.pow(2, 12 / 12);
-      tone({ f:f,         to:f * 1.01, dur:0.80, type:"sine", g:0.19 });
-      tone({ f:f * 1.498, dur:0.86, type:"sine", g:0.11, at:0.02 });
-      tone({ f:f * 2,     dur:0.94, type:"sine", g:0.08, at:0.04 });
-      tone({ f:f * 3,     dur:0.70, type:"sine", g:0.035, at:0.07 });
-      tone({ f:f * 4,     dur:0.52, type:"sine", g:0.020, at:0.10 });
-      hit({ f:6200, hp:true, dur:0.05, g:0.07 });
+      /* 1046.5Hz, AND THAT IS NOT AN ARBITRARY NUMBER. The rungs are
+         261.63 * 2^((PENT[n%5] + 12*floor(n/5)) / 12), so rung nine is
+         PENT[4]+12 = 21 semitones = 880Hz and rung ten is PENT[0]+24 = 24
+         semitones = 1046.5. The first version of this chord was written at
+         523Hz, half that - which put the payoff note BELOW the note before
+         it. The climb arrived at its destination by going down. It is the
+         rung the ladder was always walking towards now.
+
+         LOUD, and built like a bell rather than a beep: the root at twice a
+         rung's level, a fifth and an octave over it, two octaves UNDER it so
+         the chord has a floor, a hard strike on the front, and a sparkle
+         arriving a sixth of a second late so it rings rather than stops.
+         Nine notes for the one event in the game that is worth a hundred
+         thousand dollars. */
+      var f = 1046.50;
+      hit({ f:7200, hp:true, dur:0.07, g:0.15 });                     // the strike
+      tone({ f:f,         to:f * 1.004, dur:1.05, type:"sine", g:0.34 });
+      tone({ f:f * 1.498, dur:1.10, type:"sine",     g:0.20, at:0.02 });
+      tone({ f:f * 2,     dur:1.15, type:"sine",     g:0.13, at:0.04 });
+      tone({ f:f * 3,     dur:0.80, type:"sine",     g:0.055, at:0.07 });
+      tone({ f:f / 2,     dur:1.20, type:"triangle", g:0.17 });        // the floor
+      tone({ f:f / 4,     dur:1.35, type:"sine",     g:0.14, at:0.01, lp:600 });
+      tone({ f:f * 2.5,   dur:0.55, type:"sine",     g:0.055, at:0.16 });
+      tone({ f:f * 3,     dur:0.45, type:"sine",     g:0.035, at:0.26 });
     },
     /* Walking the traced route. The same climbing ladder as an ordinary
        step forward, but the note is a stack - root, fifth, octave, and a
@@ -837,11 +855,15 @@ var AUDIO = (function(){
 
        And a thump on the far kerb at 1.05s, because an arc that does not
        land has not finished. */
+    /* Every level here came down by about a third when the voice went on top
+       of it. Bandpassed noise is broadband where a voice is, so it masks one
+       far more effectively than its amplitude suggests - the woah was nominally
+       four times louder than this and still disappeared into it. */
     flip: function(){
-      whoosh({ f:170, to:2600, dur:0.44, g:0.13, q:0.9, peak:0.62 });
-      whoosh({ f:2600, to:170, dur:0.72, g:0.15, q:0.9, peak:0.26, at:0.40 });
-      tone({ f:180, to:42, dur:1.00, type:"sine", g:0.14, lp:420 });
-      hit({ f:700, to:120, dur:0.20, g:0.13, at:1.05 });
+      whoosh({ f:170, to:2600, dur:0.44, g:0.085, q:0.9, peak:0.62 });
+      whoosh({ f:2600, to:170, dur:0.72, g:0.095, q:0.9, peak:0.26, at:0.40 });
+      tone({ f:180, to:42, dur:1.00, type:"sine", g:0.10, lp:420 });
+      hit({ f:700, to:120, dur:0.20, g:0.10, at:1.05 });
     },
     missedClose: function(){
       tone({ f:392, to:196, dur:0.7, type:"sawtooth", g:0.22, lp:900 });
@@ -1365,23 +1387,25 @@ var AUDIO = (function(){
        statements, and the one that is the same every time is the one that can
        afford to be quiet. */
     freeYourMind: function(){ if (live()){ freeClip.prime(); freeClip.play(0.62); } },
-    /* And him, going over the street. Under the whoosh rather than over it,
-       because the whoosh is the air and he is only a man in it.
+    /* And him, going over the street. OVER the whoosh, not under it: the
+       whoosh is the air and it was written to sit where a voice sits, which
+       is how a cue at four times its amplitude still went missing underneath
+       it. The whoosh came down and this went up.
 
-       HALF OF THEM ARE CUT SHORT. The clip is 3.01s against a 1.08s flip, so
-       played whole it is still going two seconds after he has landed - fine
-       once, and by the fourth street in a row it is the only thing you can
-       hear. Cutting every one of them instead would have been worse: the
-       same truncated sound every time is a sound effect, and what this is
-       meant to be is him. Half and half means neither version is the one you
-       expect, which is the closest a two-outcome coin flip gets to variety.
+       THE LENGTH IS THE SIZE OF THE JUMP, which is better than the coin flip
+       it replaced. One or two lanes is a hop and gets the short one; three or
+       more is a genuine span and earns the whole three seconds, untouched -
+       no cut, no fade, nothing. The sound is then telling you something
+       rather than being decoration: a long woah means that was a wide street,
+       and you knew it was wide while you were still in the air over it.
 
-       1.15s lands it just past the landing, so the short one still finishes
-       after he is on his feet rather than in mid-air. */
-    woah: function(){
+       The short one keeps its 90ms fade, because it IS being cut and a
+       waveform truncated at an arbitrary sample is a click. The full one is
+       never touched, so there is nothing to fade. */
+    woah: function(lanes){
       if (!live()) return;
       woahClip.prime();
-      woahClip.play(0.58, Math.random() < 0.5 ? WOAH_CUT : 0);
+      woahClip.play(1.0, (lanes || 1) > WOAH_FULL_FROM ? 0 : WOAH_CUT);
     },
     /* Booked. */
     win: function(){
@@ -5454,6 +5478,11 @@ function unitsUpsell(){
   G.upsells++;
   flash("UNITS UPSELL  +$100K!", "Ten nodes clean. The order got bigger.",
         POWERS.path.col);
+  /* And the figure itself off his head, in the money green, the same way the
+     add-on, the agent and the champion all announce what they were worth. The
+     banner in the top strip says WHAT happened; this says how much, and it
+     says it where the player is already looking - at him. */
+  moneyRise(UPSELL_AMT);
   burst(G.col*TILE + TILE/2, rowScreenY(G.row) - 40, POWERS.path.col);
 }
 
@@ -6100,7 +6129,8 @@ function act(dir){
      - and cleared on every step that is not one, for the same reason. */
   G.flip = (G.slowT > 0 && !(G.dashT > 0) && nr > G.fromRow + 1 &&
             isRoadRow(rows[G.fromRow + 1]) && !isRoadRow(rows[nr])) ? 1 : 0;
-  if (G.flip){ AUDIO.flip(); AUDIO.woah(); }
+  /* The lanes between the two kerbs, which is what the woah is sized to. */
+  if (G.flip){ AUDIO.flip(); AUDIO.woah(nr - G.fromRow - 1); }
   G.row = nr; G.col = nc; G.hop = 0;
   if (nr > G.maxRow){ G.maxRow = nr; progress(); }
   ensureRows(G.maxRow + ROWS_AHEAD);

@@ -3600,17 +3600,28 @@ nothing.
 Measured on the way in: *Free your mind* is 2.25s, *woah* is 3.01s, both stereo
 at 44.1kHz, both decoding clean.
 
-**Half the woahs are cut short.** 3.01s against a 1.08s flip means the whole
-clip is still going two seconds after he has landed — fine once, and by the
-fourth street in a row it is the only thing you can hear. Cutting *every* one
-would have been worse: the same truncated sound every time is a sound effect,
-and what this is meant to be is him. Half and half means neither version is the
-one you expect, which is the closest a two-outcome coin flip gets to variety.
-Verified over 60 plays: 29 short, 31 full.
+**The length of the woah is the size of the jump.** One or two lanes is a hop
+and gets the short one; three or more is a genuine span and earns the whole
+three seconds, untouched — no cut, no fade, nothing. The sound is then telling
+you something rather than decorating: a long woah means that was a wide street,
+and you knew it was wide while you were still in the air over it. Verified at
+1, 2, 3 and 5 lanes — the first two stop at 1.47s, the rest run the full 3.03s
+— and end to end on a real three-lane avenue.
 
-The cut is 1.15s, just past the landing, and it fades over the last 90ms rather
-than stopping dead — cutting a waveform at an arbitrary sample is a click, and
-a click is louder than the thing it interrupted.
+That replaced a coin flip, which was the wrong instinct: a random length is
+variety for its own sake, and a length that means something is free.
+
+The short one keeps a 90ms fade because it *is* being cut, and a waveform
+truncated at an arbitrary sample is a click — a click being louder than the
+thing it interrupted. The full one is never touched, so there is nothing to
+fade.
+
+**And it went on top of the whoosh rather than under it.** It was written to
+sit underneath, which was a mistake twice over: bandpassed noise is broadband
+exactly where a voice is, so it masks one far more effectively than its
+amplitude suggests. The woah was nominally four times louder than the whoosh
+and still went missing inside it. Every level in the flip cue came down about a
+third and the voice came up.
 
 ## Ten nodes clean, and the order gets bigger
 
@@ -3631,9 +3642,26 @@ about whether you earned it.
 
 **The tenth rung rings out.** A payoff that arrives with no warning is a payoff
 nobody was playing for, so the ladder is the warning: nine notes climbing, each
-saying there is a tenth, and the tenth arrives as a chord rather than as the
-next step up — held four times as long, with a fifth and two octaves stacked on
-it.
+saying there is a tenth.
+
+**And the tenth has to be at the top of the climb**, which the first version
+was not. The rungs are `261.63 * 2^((PENT[n%5] + 12*floor(n/5)) / 12)`, so rung
+nine is 21 semitones — 880Hz — and rung ten is 24, which is 1046.5. The chord
+was written at 523, half that, which put the payoff note *below* the note
+before it: the climb arrived at its destination by going down. Measured after
+the fix: rung 8 is 784Hz, rung 9 is 880, and the tenth lands on 1047.
+
+It is built like a bell rather than a beep — the root at twice a rung's level, a
+fifth and an octave over it, two octaves *under* it so the chord has a floor, a
+hard strike on the front, and a sparkle arriving a sixth of a second late so it
+rings rather than stops. Nine notes for the one event in the game worth a
+hundred thousand dollars.
+
+**The figure goes up off his head in the money green**, through the same
+`moneyRise` the add-on, the agent and the champion all use: `+$100,000` over
+`ON THE PIPELINE`, with the HUD readout popping to match. The banner in the top
+strip says *what* happened; this says *how much*, and it says it where the
+player is already looking — at him.
 
 A step off the route, a step sideways along it, a step backwards, or the route
 expiring all put the run back to nought. Verified: 1–9 climbing, payout on 10,
