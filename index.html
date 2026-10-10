@@ -8999,6 +8999,82 @@ function drawWingsPin(px, py, w){
   if (!drawMark(px, py, w * 0.34)) drawLogoEye(px, py, w * 0.16);
 }
 
+/* RESORT WEAR, STANDING. sceneGuy's rules again - same 92x150 body box,
+   same 50x58 head, same front-on view - with the suit swapped for white
+   linen: long sleeves, an open collar with a V of chest in it, buttons down
+   the front and a hem that sits below the waist because the shirt is not
+   tucked in. That open-collar linen shirt is the uniform at one of these
+   and it is the single thing that says "the same man, off duty".
+
+   Parameterised rather than hard-coded to one person, because the moment
+   there are two figures on a beach there will be three. */
+function sceneGuyResort(x, feet, k, o){
+  o = o || {};
+  var skin  = o.skin  || "#d8ab86";
+  var hair  = o.hair  || "#b9bdc2";
+  var linen = o.linen || "#f4f2ec";
+  var trews = o.trews || "#e7e2d5";
+  var bw = 92 * k, bh = 150 * k, top = feet - bh;
+
+  // linen trousers, and a crease down each
+  ctx.fillStyle = trews;
+  ctx.fillRect(x - bw * 0.40, feet - bh * 0.46, bw * 0.35, bh * 0.46);
+  ctx.fillRect(x + bw * 0.05, feet - bh * 0.46, bw * 0.35, bh * 0.46);
+  ctx.fillStyle = shade(trews, -0.09);
+  ctx.fillRect(x - bw * 0.26, feet - bh * 0.46, 4 * k, bh * 0.46);
+  ctx.fillRect(x + bw * 0.19, feet - bh * 0.46, 4 * k, bh * 0.46);
+  ctx.fillStyle = shade(trews, -0.16);
+  ctx.fillRect(x - 3 * k, feet - bh * 0.46, 6 * k, bh * 0.46);
+  ctx.fillStyle = "#6b4a30";
+  ctx.fillRect(x - bw * 0.44, feet - 10 * k, bw * 0.39, 10 * k);
+  ctx.fillRect(x + bw * 0.05, feet - 10 * k, bw * 0.39, 10 * k);
+
+  // the shirt, untucked - the hem below the waist is most of the look
+  ctx.fillStyle = linen; ctx.fillRect(x - bw / 2, top, bw, bh * 0.64);
+  ctx.fillStyle = shade(linen, -0.07);
+  ctx.fillRect(x - bw / 2, top + bh * 0.58, bw, bh * 0.06);
+  // sleeves to the wrist, and a hand out of each
+  ctx.fillStyle = shade(linen, -0.04);
+  ctx.fillRect(x - bw / 2 - 10 * k, top + 5 * k, 13 * k, bh * 0.44);
+  ctx.fillRect(x + bw / 2 - 3 * k,  top + 5 * k, 13 * k, bh * 0.44);
+  ctx.fillStyle = skin;
+  ctx.fillRect(x - bw / 2 - 10 * k, top + bh * 0.44, 13 * k, 13 * k);
+  ctx.fillRect(x + bw / 2 - 3 * k,  top + bh * 0.44, 13 * k, 13 * k);
+
+  // the open collar: a V of chest, then a point either side of it
+  ctx.fillStyle = shade(skin, 0.04);
+  ctx.beginPath();
+  ctx.moveTo(x - 14 * k, top); ctx.lineTo(x + 14 * k, top);
+  ctx.lineTo(x, top + 28 * k);
+  ctx.closePath(); ctx.fill();
+  ctx.fillStyle = shade(linen, 0.04);
+  ctx.fillRect(x - 25 * k, top, 14 * k, 16 * k);
+  ctx.fillRect(x + 11 * k, top, 14 * k, 16 * k);
+  ctx.fillStyle = shade(linen, -0.26);
+  for (var bq = 0; bq < 4; bq++)
+    ctx.fillRect(x - 2 * k, top + (34 + bq * 21) * k, 4 * k, 6 * k);
+
+  // head
+  ctx.fillStyle = skin; ctx.fillRect(x - 25 * k, top - 58 * k, 50 * k, 58 * k);
+  /* Short and silver, and set back a little off the brow - a full cap of
+     hair down to the eyebrows is a young man, and this one is not. */
+  ctx.fillStyle = hair;
+  ctx.fillRect(x - 26 * k, top - 66 * k, 52 * k, 10 * k);
+  ctx.fillRect(x - 26 * k, top - 58 * k, 6 * k, 17 * k);
+  ctx.fillRect(x + 20 * k, top - 58 * k, 6 * k, 17 * k);
+  ctx.fillStyle = shade(hair, -0.14);
+  ctx.fillRect(x - 26 * k, top - 58 * k, 52 * k, 3 * k);
+  // eyes, and the big smile that is the whole of the photograph
+  ctx.fillStyle = "#241a12";
+  ctx.fillRect(x - 16 * k, top - 41 * k, 9 * k, 6 * k);
+  ctx.fillRect(x + 7 * k,  top - 41 * k, 9 * k, 6 * k);
+  ctx.fillStyle = "#7a4a36";
+  ctx.fillRect(x - 14 * k, top - 24 * k, 8 * k, 5 * k);
+  ctx.fillRect(x - 7 * k,  top - 20 * k, 15 * k, 6 * k);
+  ctx.fillRect(x + 6 * k,  top - 24 * k, 8 * k, 5 * k);
+  return { top:top, bw:bw, bh:bh };
+}
+
 /* THE SAME MAN, SITTING DOWN, IN HOLIDAY CLOTHES.
 
    This is sceneGuy's drawing rules applied to a seated figure: same 92x150
@@ -9740,14 +9816,15 @@ function sceneCabana(t, a){
     ctx.closePath(); ctx.fill();
   }
   torch(CX - CW/2 - 86, CB + 16, 1.00, 0);
-  torch(CX + CW/2 + 86, CB + 24, 1.06, 2.2);
+  torch(CX + CW/2 + 128, CB + 24, 1.06, 2.2);
 
   /* WHERE HE SITS, declared up here because the towel and the footprints
      are placed off it and they are drawn first. They were below it, and var
      hoisting meant the towel was positioned at NaN and simply never
      appeared - no error, no towel. */
-  var MIDX = CX - 14, SC_Y = 856, SC_K = 1.62;
+  var MIDX = CX - 182, SC_Y = 856, SC_K = 1.62;
   var BW = 92 * SC_K, BH = 150 * SC_K;
+  var CHX = MIDX + 352;                        // where Chuck stands
 
   /* A THOUSANDEYES TOWEL, spread on the sand - and the towel and the
      footprints are both drawn HERE, before the chair and the man, because
@@ -9901,11 +9978,31 @@ function sceneCabana(t, a){
   ctx.fillRect(MIDX - BKW/2 - 40, SC_Y, 42, 12);
   ctx.fillRect(MIDX + BKW/2 - 2,  SC_Y, 42, 12);
 
+  /* AND CHUCK, standing beside him. He handed the award over on the stage
+     two scenes ago; this is the part of the week where he is in a linen
+     shirt at the back of a resort like everybody else, and the whole joke
+     of the beach is that both of these men have finished working.
+
+     To his right, feet a touch nearer the camera than the chair so he
+     stands slightly in front of it, and drawn AFTER the chair and the man
+     so he overlaps the post rather than being cut in half by it. */
+  ctx.globalAlpha = a * 0.22; ctx.fillStyle = "#8a6336";
+  ctx.beginPath();
+  ctx.ellipse(CHX, SC_Y + 14, 86, 15, 0, 0, Math.PI*2); ctx.fill();
+  ctx.globalAlpha = a;
+  /* Stone trousers rather than white ones. In linen-on-linen the shirt and
+     the legs merged into one tall white shape and he read as a chef. */
+  sceneGuyResort(CHX, SC_Y + 10, 1.74,
+                 { skin:"#d2a07c", hair:"#c2c6cb",
+                   linen:"#f8f6f1", trews:"#cfc6b0" });
+
   /* THE BLAZER, over the near arm of the chair. Fifth place it has been and
      the first that is unarguable: a jacket over the arm of the chair you
      are sitting in is what a jacket does. */
   ctx.save();
-  ctx.translate(MIDX + BKW/2 + 34, ARMY + 6); ctx.rotate(0.05);
+  /* The FAR arm, so the near side of the chair is clear for Chuck and the
+     table. On the near arm it tangled with both of them. */
+  ctx.translate(MIDX - BKW/2 - 34, ARMY + 6); ctx.rotate(-0.05);
   ctx.fillStyle = shade(BLAZER, -0.12); ctx.fillRect(-30, 0, 60, 88);
   ctx.fillStyle = BLAZER;               ctx.fillRect(-34, -11, 68, 17);
   ctx.fillStyle = shade(BLAZER, 0.12);  ctx.fillRect(-5, 8, 9, 72);
@@ -9920,7 +10017,9 @@ function sceneCabana(t, a){
      checking it. That is the entire reward. */
   /* Off his own footprint, like the chair - HX and SEATY belonged to the
      hand-drawn figure and went with it. */
-  var TBX = MIDX + BW * 1.28, TBY = SEAT + 56;
+  /* Between the two of them rather than off to the right, where Chuck is
+     now standing. */
+  var TBX = MIDX + BW * 1.08, TBY = SEAT + 62;
   ctx.fillStyle = "#7a5c3c"; ctx.fillRect(TBX - 7, TBY, 14, 52);
   ctx.fillStyle = "#8a6a46";
   ctx.beginPath(); ctx.ellipse(TBX, TBY, 54, 15, 0, 0, Math.PI*2); ctx.fill();
