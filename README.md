@@ -3387,6 +3387,39 @@ the whole scene and handed it back the moment the card lifted. The guard is
 there too, as the backstop. Verified: 21.3px of shake in gameplay, exactly 0
 during a cutscene.
 
+
+## "Wanna split it?"
+
+He spends the whole block working out how to be near your things. The one
+time the money lands in *your* hand instead of his, he asks for half of it —
+cheerfully, as though that were a normal thing to ask a stranger on Eighth
+Avenue.
+
+It is the hurt lines running the other way round. There he offers help nobody
+wants; here he wants a cut nobody offered. And it is the same man in both
+places, so it fires on the pavement and in the carriage:
+
+- **On the pavement**, `hoodNear(G.row, HOOD_REACH)` — five rows either side,
+  and there is only ever one of him, so the first found is the one. The bubble
+  waits out the ticker card on its own: the world is frozen behind it and
+  `G.t` does not move while it is up, so the line is still fresh when the card
+  lifts.
+- **In the carriage**, within `HOOD_SPLIT_SLOTS` = 3 of the hero. That is most
+  of a five-slot car but not the far end — a man the whole length of the
+  carriage away shouting about splitting it is a different character.
+  Verified: same slot and two slots away both speak; four slots away stays
+  quiet.
+
+He does not have to have noticed the money first. Beating him to something he
+had not spotted yet is funnier than beating him to something he was already
+walking at, and either way he is standing right there watching it go into
+your pocket. Nothing in the game ever acts on it — he is still the
+nine-in-ten man doing nothing — which is exactly why it lands.
+
+Guarded against stomping a line he has just started: under 1.2s and he
+finishes what he was saying, because a bubble that replaces itself after a
+third of a second reads as a glitch rather than as a man talking.
+
 ## The stopped sanitation truck
 
 Reported: *"I had Traffic Insights and I was walking in traffic, all was good

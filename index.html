@@ -5402,6 +5402,16 @@ function collect(atCol){
        in on the same roll, so the chart and the money agree. */
     G.ticker = { t:0, pct: chuck.pct, amt: chuck.amt };
     AUDIO.dig();
+    /* And if he is watching, he asks for half. Not while he is already
+       mid-sentence - a line that replaces itself after a third of a second
+       reads as a glitch rather than as a man talking - and the bubble waits
+       out the ticker card on its own, because the world is frozen behind it
+       and G.t does not move while it is up. */
+    var hn = hoodNear(G.row, HOOD_REACH);
+    if (hn && G.t - (hn.sayAt || -99) > 1.2){
+      hn.sayAt = G.t; hn.line = HOOD_SPLIT;
+      AUDIO.say(hn.seed, sayFor(HOOD_SPLIT, SAY_ASK));
+    }
   }
   /* Cards accumulate. Three in the wallet is three rides, which is what makes
      stacking them worth doing instead of riding the first train you find. */
@@ -6107,6 +6117,10 @@ var SHADY_KEEP  = 1.35;    // and he never comes closer than this
    is ever changed to something that does not divide into 1, this is the line
    that has to change with it. */
 var RIDE_TAKE = 0.13;
+/* How much of a five-slot carriage counts as "near enough to ask". Three is
+   most of the car but not the far end: a man the whole length of the
+   carriage away shouting about splitting it is a different character. */
+var HOOD_SPLIT_SLOTS = 3;
 /* And how long the "+$X" hangs over him afterwards. */
 var TAKE_SECS = 1.9;
 var SHADY_NOTICE = 2.6;    // how long before he clocks it
@@ -6228,6 +6242,15 @@ function rideAct(dir){
        and shown nothing at all. The number goes up over his head instead,
        in the same green and off the same roll. */
     R.take = { t:0, amt: chuckPayout("Someone left it on the seat.") };
+    /* Same line in the carriage. He does not have to have noticed it first -
+       beating him to something he had not spotted yet is funnier than
+       beating him to something he was walking at, and either way he is
+       standing right there watching it go into your pocket. */
+    if (R.shady >= 0 && Math.abs(R.shadyX - ns) <= HOOD_SPLIT_SLOTS &&
+        !R.ko && R.t - (R.sayAt || -99) > 1.2){
+      R.sayAt = R.t; R.sayLine = HOOD_SPLIT;
+      AUDIO.say(11, SAY_ASK);
+    }
   }
   if (R.shady >= 0 && !R.met && Math.abs(ns - R.shady) <= RIDE_SUB){
     R.met = true;
@@ -7289,6 +7312,34 @@ var HOOD_HURT = [
   "I can hold your stuff while you catch your breath.",
   "I wonder if your jacket would fit me?"
 ];
+/* WHEN YOU GET TO IT FIRST. He has spent the whole block working out how to
+   be near your things, and the one time the money lands in your hand instead
+   of his he asks for half of it - cheerfully, as though that were a normal
+   thing to ask a stranger on Eighth Avenue. It is the same joke as the hurt
+   lines working the other way round: there, he offers help nobody wants;
+   here, he wants a cut nobody offered.
+
+   It fires on the pavement and on the train, because he is the same man in
+   both places and the money is the same money. */
+var HOOD_SPLIT = "Wanna split it?";
+
+/* The one hooded man, if he is inside `reach` rows of `home`. There is only
+   ever one of him (see HOOD_GAP), so the first one found is the one. */
+function hoodNear(home, reach){
+  /* `ri`, not `rr`: rr is the rounded-rect helper at the top of the file, and
+     although a `var` inside a function only shadows it locally, this loop sits
+     two lines from code that draws. Not worth the footgun. */
+  for (var ri = home - reach; ri <= home + reach; ri++){
+    var w = rows[ri];
+    if (!w || !w.folk) continue;
+    for (var i = 0; i < w.folk.length; i++){
+      var f = w.folk[i];
+      if (f.hood && !(f.ko > 0)) return f;
+    }
+  }
+  return null;
+}
+
 var SHADY_LINES = [
   "Hey. Can I use your phone?",
   "Who do you work for?",
