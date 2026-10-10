@@ -899,71 +899,94 @@ var AUDIO = (function(){
       hit({ f:6400, hp:true, dur:1.4,  g:0.034, at:8.2 });
     },
 
-    /* THE BEACH - a ukulele, and the last thing anybody hears.
+    /* THE BEACH - HAPA HAOLE, and the last thing anybody hears.
 
-       Four strings plucked a few milliseconds apart, which is the whole
-       difference between a strum and a chord; triangle rather than sine
-       because a uke has an edge on it. Over the top, a slack-key MELODY -
-       two notes a bar, slid into from below - because eight bars of
-       accompaniment with nothing on it is a backing track, and this is
-       supposed to be the thing that plays while somebody sits and looks at
-       the sea. Under it a soft root, a shaker, and the sea itself.
+       The first pass was a ukulele with a plucked tune over it, which is
+       "island" and is not Hawaiian. Three things make it Hawaiian, and none
+       of them were there:
 
-       Louder than the first pass by about half across the board. It came in
-       under a stage fanfare whose last chord is still ringing, on a panel
-       speaker, at the end of a four-minute run - and it was being missed
-       entirely. */
+       1. THE STEEL. The lap steel glissando is the sound - a note that
+          ARRIVES by sliding into place from a third or a fifth below and
+          then sits there wobbling. Plucked notes, however pretty, read as a
+          music box. Every lead note here glides in over a fifth of a bar
+          and holds, and the hold is two tones a few cents apart so they
+          beat against each other, which is vibrato for free: there is no
+          LFO in this synth and a detuned pair is indistinguishable at this
+          length.
+
+       2. THE VAMP. II7 - V7 - I, which in C is D7 - G7 - C. It is the
+          turnaround every hula uses to get back to the top, and it is the
+          single most recognisable progression in the idiom. The first pass
+          ran C-F-G-Am, which is every other song ever written.
+
+       3. SLACK KEY UNDER IT. Alternating thumb bass - root on one, fifth on
+          three - with the chord brushed on the off beats. That gait is what
+          makes it sway rather than march.
+
+       And the tempo is down from 1.3s a bar to 1.9. Chill is a tempo. Six
+       bars of it against a 10.6s scene. The gourd takes the shaker's place:
+       a soft low thump, because a shaker is a maraca and this is an ipu. */
     islandTheme: function(){
-      var prog = [
-        [392.00, 523.25, 659.26, 783.99],   // C  (G-C-E-A shape)
-        [349.23, 440.00, 523.25, 698.46],   // F
-        [392.00, 493.88, 587.33, 783.99],   // G
-        [329.63, 440.00, 523.25, 659.26]    // Am
-      ];
-      /* The tune, as [bar, note, when-in-the-bar, how-long]. It walks up to
-         the fifth and settles back, twice, which is about as much melody as
-         ten seconds will hold without becoming a jingle. */
-      var MEL = [
-        [0, 659.26, 0.10, 0.54], [0, 783.99, 0.62, 0.46],
-        [1, 698.46, 0.08, 0.60], [1, 659.26, 0.64, 0.44],
-        [2, 587.33, 0.10, 0.52], [2, 783.99, 0.60, 0.56],
-        [3, 659.26, 0.12, 0.74],
-        [4, 523.25, 0.10, 0.58], [4, 659.26, 0.64, 0.44],
-        [5, 698.46, 0.08, 0.62], [5, 880.00, 0.62, 0.50],
-        [6, 783.99, 0.10, 0.56], [6, 659.26, 0.62, 0.46],
-        [7, 523.25, 0.10, 1.00],
-        [8, 523.25, 0.06, 1.30]
-      ];
-      var bar = 1.3, bars = 9;
-      for (var b = 0; b < bars; b++){
-        var ch = prog[b % prog.length], at = b * bar;
-        for (var s2 = 0; s2 < 2; s2++){
-          var sat = at + s2 * (bar * 0.52), g0 = s2 ? 0.040 : 0.060;
+      var bar = 1.90;
+      /* [root, fifth, chord tones] - the vamp, twice through the turn. */
+      var C7  = [130.81, 196.00, [261.63, 329.63, 392.00, 523.25]];
+      var D7  = [146.83, 220.00, [293.66, 369.99, 440.00, 523.25]];
+      var G7  = [196.00, 293.66, [246.94, 293.66, 392.00, 587.33]];
+      var PROG = [C7, C7, D7, G7, C7, C7];
+
+      for (var b = 0; b < PROG.length; b++){
+        var at = b * bar, P = PROG[b], ch = P[2];
+        /* The thumb: root on one, fifth on three. Triangle through a low
+           filter is a wound string; a sine is a bass guitar. */
+        tone({ f:P[0], dur:bar * 0.46, type:"triangle", g:0.085, at:at,            lp:220 });
+        tone({ f:P[1], dur:bar * 0.42, type:"triangle", g:0.062, at:at + bar*0.5,  lp:220 });
+        /* The chord, brushed on the and-of-two and the and-of-four, quiet,
+           strings a few milliseconds apart so it is a strum not a stab. */
+        for (var sgo = 0; sgo < 2; sgo++){
+          var sat = at + bar * (0.28 + sgo * 0.5);
           for (var c = 0; c < ch.length; c++){
-            tone({ f:ch[c], dur:0.56, type:"triangle", g:g0,
-                   at:sat + c * 0.016, lp:2600 });
+            tone({ f:ch[c], dur:bar * 0.34, type:"triangle",
+                   g:sgo ? 0.026 : 0.034, at:sat + c * 0.018, lp:2400 });
           }
         }
-        tone({ f:ch[0] / 2, dur:bar * 0.92, type:"sine", g:0.080, at:at, lp:240 });
-        hit({ f:7600, hp:true, dur:0.05, g:0.020, at:at + bar * 0.26 });
-        hit({ f:7600, hp:true, dur:0.05, g:0.020, at:at + bar * 0.76 });
+        // the gourd, on one and three
+        hit({ f:96, dur:0.16, g:0.040, at:at });
+        hit({ f:84, dur:0.14, g:0.030, at:at + bar * 0.5 });
       }
-      /* The melody, slid into from a tone below - which is the one gesture
-         that makes a plucked string sound like a slack-key guitar rather
-         than a music box. */
-      for (var m = 0; m < MEL.length; m++){
-        var mb = MEL[m][0], mf = MEL[m][1], mw = MEL[m][2], md = MEL[m][3];
-        var mat = mb * bar + mw * bar;
-        tone({ f:mf * 0.944, to:mf, dur:0.11, type:"triangle",
-               g:0.052, at:mat, lp:3000 });
-        tone({ f:mf, dur:md, type:"triangle", g:0.062, at:mat + 0.07, lp:3000 });
-        tone({ f:mf * 2, dur:md * 0.7, type:"sine", g:0.016,
-               at:mat + 0.07, lp:4200 });
+
+      /* THE STEEL LINE. [bar, from, to, when, hold] - every note slides in.
+         It walks up to the fifth over the first two bars, leans on the
+         flattened seventh through the vamp, and comes home. */
+      var STEEL = [
+        [0, 392.00, 523.25, 0.12, 1.30],   // G -> C
+        [1, 523.25, 659.26, 0.10, 1.40],   // C -> E
+        [2, 587.33, 739.99, 0.10, 1.46],   // D -> F#   (the D7)
+        [3, 698.46, 587.33, 0.10, 0.74],   // F -> D    (the G7)
+        [3, 493.88, 587.33, 0.92, 0.70],   // B -> D
+        [4, 659.26, 523.25, 0.10, 1.52],   // E -> C
+        [5, 392.00, 523.25, 0.16, 1.60]    // and home, an octave of air
+      ];
+      for (var m = 0; m < STEEL.length; m++){
+        var sb = STEEL[m][0], f0 = STEEL[m][1], f1 = STEEL[m][2];
+        var sw = STEEL[m][3], hold = STEEL[m][4];
+        var mat = sb * bar + sw * bar, glide = 0.26;
+        // the slide in
+        tone({ f:f0, to:f1, dur:glide, type:"triangle", g:0.058, at:mat, lp:2800 });
+        /* and the hold, as a detuned pair - the beating between them is the
+           wobble a steel player puts on with his wrist. */
+        tone({ f:f1,         dur:hold, type:"triangle", g:0.054,
+               at:mat + glide * 0.9, lp:2800 });
+        tone({ f:f1 * 1.0055, dur:hold, type:"triangle", g:0.040,
+               at:mat + glide * 0.9, lp:2800 });
+        // a breath of the octave over it, which is the steel's own ring
+        tone({ f:f1 * 2, dur:hold * 0.6, type:"sine", g:0.013,
+               at:mat + glide, lp:4200 });
       }
-      /* The sea, under all of it: long noise washes that come and go. It is
-         the one sound that has to still be there between the chords. */
+
+      /* The sea, under all of it. It is the one sound that has to still be
+         there between the chords. */
       for (var w = 0; w < 7; w++){
-        hit({ f:420, dur:1.9, g:0.034, at:w * 1.7 });
+        hit({ f:420, dur:2.0, g:0.032, at:w * 1.7 });
       }
     },
 
@@ -9599,6 +9622,81 @@ function sceneCabana(t, a){
   torch(CX - CW/2 - 86, CB + 16, 1.00, 0);
   torch(CX + CW/2 + 86, CB + 24, 1.06, 2.2);
 
+  /* WHERE HE SITS, declared up here because the towel and the footprints
+     are placed off it and they are drawn first. They were below it, and var
+     hoisting meant the towel was positioned at NaN and simply never
+     appeared - no error, no towel. */
+  var MIDX = CX - 14, SC_Y = 856, SC_K = 1.62;
+  var BW = 92 * SC_K, BH = 150 * SC_K;
+
+  /* A THOUSANDEYES TOWEL, spread on the sand - and the towel and the
+     footprints are both drawn HERE, before the chair and the man, because
+     they are on the GROUND. Drawn after him the towel printed straight over
+     his shin, which is the oldest mistake in a painter's-order renderer:
+     everything on the floor goes down first. Everybody at one of these
+     goes home with the merchandise, and a branded towel is the single most
+     believable object on a corporate beach.
+
+     Drawn as a PARALLELOGRAM rather than a rectangle - it is lying flat on
+     the ground and the whole scene is shot from slightly above, so a square
+     towel reads as a poster someone dropped. The near edge is wider than
+     the far edge for the same reason. Three bands and the mark, with a
+     fold-shadow down one side so it has thickness. */
+  /* Up the beach and to the left of him - at SC_Y + 4 it ran off the
+     bottom of the frame into the letterbox, which is the one place on this
+     canvas nothing is ever seen. */
+  var TWX = MIDX - BW * 1.96, TWY = SC_Y - 78, TWW = 236, TWH = 92, TWS = 34;
+  function towelBand(y0, h0, col){
+    ctx.fillStyle = col;
+    ctx.beginPath();
+    ctx.moveTo(TWX + TWS * (1 - y0 / TWH), TWY + y0);
+    ctx.lineTo(TWX + TWW + TWS * (1 - y0 / TWH) * 0.4, TWY + y0);
+    ctx.lineTo(TWX + TWW + TWS * (1 - (y0 + h0) / TWH) * 0.4, TWY + y0 + h0);
+    ctx.lineTo(TWX + TWS * (1 - (y0 + h0) / TWH), TWY + y0 + h0);
+    ctx.closePath(); ctx.fill();
+  }
+  // a shadow under it so it sits ON the sand
+  ctx.globalAlpha = a * 0.16; ctx.fillStyle = "#7a5a30";
+  towelBand(6, TWH, "#7a5a30");
+  ctx.globalAlpha = a;
+  towelBand(0,  TWH, "#f4f1ea");
+  towelBand(0,  14,  C.brand);
+  towelBand(78, 14,  C.brand);
+  ctx.globalAlpha = a * 0.10; towelBand(0, TWH, "#2b1d14");
+  ctx.globalAlpha = a;
+  /* The mark, DRAWN rather than blitted. drawMark paints the real asset,
+     whose pupil is white - which on a white towel is a hole. Printed
+     merchandise reverses it: the lens in the brand colour and the iris
+     solid dark, which is what the towel in the gift bag actually looks
+     like. */
+  (function(tx, ty, r){
+    ctx.lineJoin = "round"; ctx.lineCap = "round";
+    ctx.strokeStyle = C.brand; ctx.lineWidth = r * 0.26;
+    ctx.beginPath();
+    ctx.moveTo(tx - r, ty);
+    ctx.quadraticCurveTo(tx, ty - r * 0.80, tx + r, ty);
+    ctx.quadraticCurveTo(tx, ty + r * 0.80, tx - r, ty);
+    ctx.closePath(); ctx.stroke();
+    ctx.beginPath(); ctx.arc(tx, ty, r * 0.30, 0, Math.PI * 2);
+    ctx.fillStyle = "#15181d"; ctx.fill();
+  })(TWX + TWW * 0.46 + 12, TWY + 46, 40);
+  // and a rumpled fold along the near edge
+  ctx.globalAlpha = a * 0.22; ctx.fillStyle = "#b9b0a0";
+  towelBand(TWH - 10, 10, "#b9b0a0");
+  ctx.globalAlpha = a;
+
+  /* FOOTPRINTS, coming in from the left and stopping at the chair. Nobody
+     arrives at a beach by teleport, and two rows of dents in the sand are
+     the cheapest story in the picture. */
+  ctx.globalAlpha = a * 0.30; ctx.fillStyle = "#b08d61";
+  for (i = 0; i < 11; i++){
+    var fpx = 120 + i * 52, fpy = 854 - i * 7;
+    ctx.beginPath();
+    ctx.ellipse(fpx, fpy + (i % 2 ? 11 : 0), 11, 6, -0.2, 0, Math.PI*2);
+    ctx.fill();
+  }
+  ctx.globalAlpha = a;
+
   /* ------------------------------------------------- HIM, IN THE CHAIR
      The figure is sceneGuySeated - the same drawing rules as the stage and
      the lobby, because all three of these are drawn and one of them being
@@ -9614,8 +9712,6 @@ function sceneCabana(t, a){
      Everything is measured off his own footprint. SC is where he sits and
      BW is how wide he is, so the chair can never come out a size that does
      not fit him. */
-  var MIDX = CX - 14, SC_Y = 856, SC_K = 1.62;
-  var BW = 92 * SC_K, BH = 150 * SC_K;
   var SEAT = SC_Y - BH * 0.52;                 // his hips, where the seat is
   var BKT  = SC_Y - BH * 1.12;                 // the top of the back
 
@@ -9693,57 +9789,6 @@ function sceneCabana(t, a){
   ctx.moveTo(-18, 2); ctx.lineTo(-4, 2); ctx.lineTo(-14, 34);
   ctx.closePath(); ctx.fill();
   ctx.restore();
-
-  /* A THOUSANDEYES TOWEL, spread on the sand. Everybody at one of these
-     goes home with the merchandise, and a branded towel is the single most
-     believable object on a corporate beach.
-
-     Drawn as a PARALLELOGRAM rather than a rectangle - it is lying flat on
-     the ground and the whole scene is shot from slightly above, so a square
-     towel reads as a poster someone dropped. The near edge is wider than
-     the far edge for the same reason. Three bands and the mark, with a
-     fold-shadow down one side so it has thickness. */
-  /* Up the beach and to the left of him - at SC_Y + 4 it ran off the
-     bottom of the frame into the letterbox, which is the one place on this
-     canvas nothing is ever seen. */
-  var TWX = MIDX - BW * 1.96, TWY = SC_Y - 78, TWW = 236, TWH = 92, TWS = 34;
-  function towelBand(y0, h0, col){
-    ctx.fillStyle = col;
-    ctx.beginPath();
-    ctx.moveTo(TWX + TWS * (1 - y0 / TWH), TWY + y0);
-    ctx.lineTo(TWX + TWW + TWS * (1 - y0 / TWH) * 0.4, TWY + y0);
-    ctx.lineTo(TWX + TWW + TWS * (1 - (y0 + h0) / TWH) * 0.4, TWY + y0 + h0);
-    ctx.lineTo(TWX + TWS * (1 - (y0 + h0) / TWH), TWY + y0 + h0);
-    ctx.closePath(); ctx.fill();
-  }
-  // a shadow under it so it sits ON the sand
-  ctx.globalAlpha = a * 0.16; ctx.fillStyle = "#7a5a30";
-  towelBand(6, TWH, "#7a5a30");
-  ctx.globalAlpha = a;
-  towelBand(0,  TWH, "#f4f1ea");
-  towelBand(0,  14,  C.brand);
-  towelBand(78, 14,  C.brand);
-  ctx.globalAlpha = a * 0.10; towelBand(0, TWH, "#2b1d14");
-  ctx.globalAlpha = a;
-  // the mark, in the middle of it
-  if (!drawMark(TWX + TWW * 0.46 + 12, TWY + 46, 96))
-    drawLogoEye(TWX + TWW * 0.46 + 12, TWY + 46, 42);
-  // and a rumpled fold along the near edge
-  ctx.globalAlpha = a * 0.22; ctx.fillStyle = "#b9b0a0";
-  towelBand(TWH - 10, 10, "#b9b0a0");
-  ctx.globalAlpha = a;
-
-  /* FOOTPRINTS, coming in from the left and stopping at the chair. Nobody
-     arrives at a beach by teleport, and two rows of dents in the sand are
-     the cheapest story in the picture. */
-  ctx.globalAlpha = a * 0.30; ctx.fillStyle = "#b08d61";
-  for (i = 0; i < 11; i++){
-    var fpx = 120 + i * 52, fpy = 854 - i * 7;
-    ctx.beginPath();
-    ctx.ellipse(fpx, fpy + (i % 2 ? 11 : 0), 11, 6, -0.2, 0, Math.PI*2);
-    ctx.fill();
-  }
-  ctx.globalAlpha = a;
 
   /* A SIDE TABLE, and the joke on it: his phone, face down. He is not
      checking it. That is the entire reward. */
