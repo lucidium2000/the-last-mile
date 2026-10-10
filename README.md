@@ -2562,13 +2562,37 @@ overriding it: a man on his last point of health in running shoes is quick
 *for a man who is about to fall over*. Tagline on the burst, in the same
 treatment as every other SKU: *Accelerating your journey in the Cloud.*
 
-**Three seconds, down from ten by way of four.** Ten was double the TAM's
+**Three seconds on the clock, 3.5 in the hand.** Ten was double the TAM's
 flight, which is the wrong way round for a common pickup against the headline
 SKU — and at three rows a step it was long enough to cross most of a leg, so
 the back half was spent running out of generated world rather than using it.
 Three sits under the flight's five, which is the order these two belong in.
 It refreshes rather than stacks (`Math.max`), so a second cloud resets the
-clock to three and never goes above it.
+clock and never goes above it.
+
+The power actually runs **3.5 seconds** (`POWERS.sponsor.secs`) against a
+**three second dial** (`DASH_SHOW`). The extra half second is spent at the top
+with the ring full and the number reading 3.0: the strobe, the lightning and
+the first stride all land inside it, and the counting does not start until he
+is moving. Starting the clock on the pickup frame meant the first thing the
+countdown did was run while the screen was still white and nobody was looking
+at it. The player gets a free half second and the dial never lies, because it
+is not counting yet. Measured: grace exactly **0.500s**, beats at 0.5s, 1.5s
+and 2.5s, warn window exactly **1.00s**, zero at **3.5s**.
+
+**Both axes leap.** The stride is the stride whichever way he is pointing, and
+having the suit only work up the screen made a sideways tap feel like the
+power had switched itself off. Left and right go three columns exactly as
+forward goes three rows — and sideways is the move that gets him out from
+under a bus, which is where three squares of reach is worth most. It stops at
+the edge of the *street* rather than the edge of the generated world, since
+there is no column 16 to land in: measured, a leap from column 14 clamps to 15
+and one from column 1 clamps to 0.
+
+The air under him and the mid-air grace are owed to the longer axis now
+(`leapSpan()`), not to the row span. A three column dive with no arc is a man
+skidding sideways along the pavement, which looked precisely as odd as it
+sounds.
 
 `DASH_WARN` came down to **1.0s** with it. 1.4 was 14% of ten and would have
 been 47% of three — half the power-up spent blinking, which turns the warning
@@ -2582,10 +2606,23 @@ began. The HUD chip that carries every other SKU is 40px across in the bottom
 corner and was never going to hold this one, so the duration is staged
 (`drawDashHud`). Three pieces:
 
-**A strobe on pickup.** 0.42s, two hits rather than one fade — a single ramp
-down reads as a transition between screens, two read as something striking
-him. A rising sweep with a crack on the front of it goes with it, because a
-silent flash reads as a rendering fault.
+**A strobe on pickup, and a fork of lightning through it.** 0.42s, two hits
+rather than one fade — a single ramp down reads as a transition between
+screens, two read as something striking him. A rising sweep with a crack and a
+low roll under it, because lightning you can see and cannot hear is weather
+happening to somebody else.
+
+Three bolts fork down the full height of the screen, each a polyline with the
+x jittered at every node and one branch hanging off a node in the middle.
+Nodes are 70–160px apart, coarse enough that the segments read as straight
+runs: a smooth curve is not lightning, and neither is a zigzag with even
+teeth. They are built **once per pickup** rather than per frame — lightning
+that redraws its own shape every frame is a hedge, not a bolt — and they do
+not fade out, they **flicker**, three lit windows down the length of the
+strobe, because a bolt on a dimmer is a torch being switched off. Near-white
+core over two wider, fainter passes of the brand orange: the same
+stacked-stroke glow as everything else here, since `shadowBlur` is not
+available.
 
 **A ring that drains, with the number inside it.** At y 268: below the
 pipeline and departure readouts, above `HORIZON`, so it covers sky and the
@@ -2593,7 +2630,11 @@ tops of distant buildings and **nothing he can walk into**. It pops on each
 whole second so the count is felt as well as read, and the number carries a
 decimal because three integers in a row is not a countdown, it is a list. The
 SKU name sits under it — three seconds of somebody looking straight at the
-words is the entire exercise.
+words is the entire exercise. It is held back while the pickup's own brand
+banner is up, though: both say CLOUD INSIGHTS and for the first second and a
+half they were both on screen saying it a hundred pixels apart, which does not
+burn the name in twice as hard, it reads as a layout fault. They take turns —
+the banner has the opening, the ring label has the rest of the countdown.
 
 **Edges that beat.** They thicken and quicken as the clock runs down and turn
 red for the last second, so the pressure is readable without looking away from

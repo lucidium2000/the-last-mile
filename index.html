@@ -126,6 +126,13 @@ var DASH_K = 1, DASH_JUMP = 3, DASH_AIR = 15;
    window leaves about an eighth of a second on the ground. */
 var LEAP_GRACE = 0.26;
 function dashK(){ return G.dashT > 0 ? DASH_K : 1; }
+/* How far the step in progress actually reaches, along whichever axis moved.
+   Both axes leap in the suit, and the air under him and the mid-air grace
+   are owed to the longer one - a three column dive is as much of a jump as a
+   three row one and looked absurd skidding along the pavement flat. */
+function leapSpan(){
+  return Math.max(Math.abs(G.row - G.fromRow), Math.abs(G.col - G.fromCol));
+}
 
 var SHOW_FPS  = /[?&]fps=1/.test(location.search);
 var SAFE_MODE = /[?&]safe=1/.test(location.search);
@@ -636,6 +643,10 @@ var AUDIO = (function(){
       tone({ f:420, to:1180, dur:0.26, type:"sawtooth", g:0.16, lp:4200 });
       tone({ f:840, to:2360, dur:0.20, type:"square",   g:0.07, at:0.01 });
       hit({ f:5200, hp:true, dur:0.13, g:0.11 });
+      /* The crack, and the roll under it. Lightning you can see and not hear
+         is weather happening to somebody else. */
+      hit({ f:1500, hp:true, dur:0.30, g:0.13 });
+      tone({ f:70, to:44, dur:0.52, type:"sine", g:0.17 });
     },
     /* And a beat on each whole second. The last one is a fifth higher so the
        final second is audibly the final second without having to count. */
@@ -2273,12 +2284,20 @@ var POWERS = {
      Three is short enough that the whole thing is one held breath, which is
      why it is staged rather than merely timed: see drawDashHud. A power-up
      this brief has to announce itself, count itself down and get out, or it
-     is over before the player has registered that it started. Everything
-     that reads the length reads it from here - the HUD chip bar, the ring,
-     the urgency ramp - so this is still the one number to move. */
+     is over before the player has registered that it started.
+
+     3.5 REAL SECONDS AGAINST A THREE SECOND CLOCK. The extra half second is
+     spent at the top with the ring sitting full and the number reading 3.0:
+     the strobe, the lightning and the first stride all land inside it, and
+     the counting does not start until he has got going. Starting the clock
+     on the pickup frame meant the first thing the countdown did was run
+     while nobody was looking at it - the screen was still white. The player
+     gets a free half second and the timer never tells a lie, because it is
+     not counting yet. DASH_SHOW is the face of the clock; this is its
+     length. */
   sponsor:{ col:C.pw4, letter:"C", name:"CLOUD INSIGHTS",
             line:"Accelerating your journey in the Cloud. Orange high-tops, and he runs.",
-            secs:3 },
+            secs:3.5 },
   metro:  { col:"#ffd24a", letter:"M", name:"METROCARD",
             line:"Swipe in at any subway. Ride five to ten streets uptown.", secs:0 },
   /* The premium SKU, and the most powerful thing in the game: five seconds of
@@ -2636,6 +2655,11 @@ var DASH_WARN = 1.0;
 
    All of it is flat fills, arcs and stacked strokes - no filter, no
    shadowBlur, nothing this panel cannot do (see RoomOS notes). */
+/* What the ring counts. The power runs for POWERS.sponsor.secs; the clock
+   shows this, clamped, so the difference between them is a grace period at
+   the top where it sits full. Keep DASH_SHOW a whole number - it is read to
+   one decimal and "3.5" on the face of a countdown reads as a bug. */
+var DASH_SHOW   = 3;
 var DASH_FLASH  = 0.42;        // the pickup strobe
 var DASH_RING_Y = 268;         // clear of the HUD, above HORIZON, off the lanes
 var DASH_RING_R = 92;
@@ -3687,7 +3711,7 @@ function reset(){
     yumT:0, yumKind:null, yumDir:0, yumBite:0, wowT:0, cheerT:0,
     metro:0, ride:null, trace:null, rides:0, bonus:0, tamLeft:0, riskT:0, dashT:0,
     leapT:0, dashBeep:0, idleT:0, saver:false, hushed:false,
-    dashFlash:0, dashPulse:0, dashWhole:0,
+    dashFlash:0, dashPulse:0, dashWhole:0, dashBolt:null,
     scene:null, scenesSeen:{}, ticker:null, notice:null, southT:0,
     leg:1, po:false, won:false,
     trainT:TRAIN_MAX, trainLine:tr[0], trainDest:tr[1],
@@ -4280,6 +4304,27 @@ function act(dir){
        still standing there. */
     if (nr > G.row + 1) G.leapT = LEAP_GRACE;
   }
+  /* AND THE SAME SIDEWAYS. The stride is the stride whichever way he is
+     pointing - a man covering three rows a stride does not cover one column
+     a stride, and having the suit only work up the screen made the sideways
+     tap feel like the power had switched itself off. It is also the move
+     that gets him out from under a bus, which is the one place three
+     squares of reach is worth most.
+
+     It stops at the edge of the STREET rather than the edge of the
+     generated world: there is no column 15 to land in, and a leap that runs
+     off the kerb would have to be clamped anyway. Same grace, same air, and
+     it goes through props and people exactly as the forward leap does. */
+  if ((dir === "l" || dir === "r") && G.dashT > 0 && Math.abs(nc - G.col) === 1){
+    var stepc = nc - G.col, reachc = nc;
+    for (var jc = 2; jc <= DASH_JUMP; jc++){
+      var cand = G.col + stepc * jc;
+      if (cand < 0 || cand > COLS - 1) break;
+      reachc = cand;
+    }
+    nc = reachc;
+    if (Math.abs(nc - G.col) > 1) G.leapT = LEAP_GRACE;
+  }
 
   G.steps++;
   /* Half a point a box, counting every square the step covers - a three-row
@@ -4679,6 +4724,7 @@ function collect(){
        a refresh you cannot see is a refresh you do not trust. */
     G.dashFlash = DASH_FLASH;
     G.dashWhole = Math.ceil(G.dashT);
+    G.dashBolt = makeBolts();
     AUDIO.dashGo();
   }
 }
@@ -4930,7 +4976,7 @@ function playerPos(){
      he is highest in the middle of it. A three-row jump that stays at walk
      height is a man sliding, which is the one thing it must not look
      like. */
-  var span = Math.abs(G.row - G.fromRow);
+  var span = leapSpan();
   if (span > 1 && G.hop < 1) lift += DASH_AIR * (span - 1) * Math.sin(G.hop * Math.PI);
   return { col:G.fromCol + (G.col-G.fromCol)*e, row:G.fromRow + (G.row-G.fromRow)*e,
            lift:lift, sq:s };
@@ -8063,7 +8109,7 @@ function update(dt){
     if (G.hop >= 1){
       /* Touched down from a leap: top the grace back up so the landing
          itself gets the full window, not whatever is left of the flight. */
-      if (G.dashT > 0 && Math.abs(G.row - G.fromRow) > 1) G.leapT = LEAP_GRACE;
+      if (G.dashT > 0 && leapSpan() > 1) G.leapT = LEAP_GRACE;
       G.hop = 1; collect();
     }
   }
@@ -11121,6 +11167,47 @@ function drawHurt(){
 }
 function drawHaze(){ ctx.fillStyle = hazeGrad; ctx.fillRect(0, HORIZON - 16, LOGICAL_W, 246); }
 
+/* A FORK OF LIGHTNING, struck once, on the pickup.
+
+   Built once per pickup rather than per frame: lightning that redraws itself
+   every frame is a hedge, not a bolt, and the flicker below wants the SAME
+   shape coming back rather than a new one each time.
+
+   A bolt is a polyline down the screen with the x jittered at every node and
+   one branch hanging off a node in the middle. Nodes are 70-160px apart,
+   which is coarse enough that the segments read as straight runs - a smooth
+   curve is not lightning, and neither is a zigzag with even teeth. */
+function makeBolts(){
+  var out = [];
+  for (var b = 0; b < 3; b++){
+    var x = LOGICAL_W * (0.20 + 0.30 * b) + (Math.random() - 0.5) * 170;
+    var pts = [], y = -30;
+    while (y < LOGICAL_H + 30){
+      pts.push([x, y]);
+      y += 70 + Math.random() * 90;
+      x += (Math.random() - 0.5) * 150;
+    }
+    pts.push([x, LOGICAL_H + 30]);
+    var bi = 2 + ((Math.random() * Math.max(1, pts.length - 4)) | 0);
+    bi = Math.min(bi, pts.length - 1);
+    var br = [], bx = pts[bi][0], by = pts[bi][1], away = Math.random() < 0.5 ? -1 : 1;
+    for (var k = 0; k < 3; k++){
+      br.push([bx, by]);
+      bx += away * (60 + Math.random() * 90);
+      by += 55 + Math.random() * 70;
+    }
+    out.push({ main:pts, branch:br });
+  }
+  return out;
+}
+function boltPath(pts){
+  if (!pts || pts.length < 2) return;
+  ctx.beginPath();
+  ctx.moveTo(pts[0][0], pts[0][1]);
+  for (var i = 1; i < pts.length; i++) ctx.lineTo(pts[i][0], pts[i][1]);
+  ctx.stroke();
+}
+
 /* ===================== CLOUD INSIGHTS, STAGED ============================
    Three seconds is not long enough to be felt as a duration unless the
    duration is shown, so this draws the clock rather than leaving it to the
@@ -11152,6 +11239,29 @@ function drawDashHud(){
     ctx.fillStyle = "#fff0d6"; ctx.fillRect(0, 0, LOGICAL_W, LOGICAL_H);
     ctx.globalAlpha = 0.30 * st;
     ctx.fillStyle = col;       ctx.fillRect(0, 0, LOGICAL_W, LOGICAL_H);
+
+    /* THE BOLT, over the wash so it stays crisp. It does not fade out, it
+       FLICKERS - three lit windows down the length of the strobe, because a
+       bolt on a dimmer is a torch being switched off. The core is near
+       white with two wider, fainter passes of the brand orange under it:
+       the same stacked-stroke glow as everywhere else, since shadowBlur is
+       not available here. */
+    var bf = G.dashFlash / DASH_FLASH;
+    var lit = bf > 0.80 || (bf > 0.54 && bf < 0.66) || (bf > 0.30 && bf < 0.38);
+    if (lit && G.dashBolt){
+      var cap = ctx.lineCap, join = ctx.lineJoin;
+      ctx.lineCap = "round"; ctx.lineJoin = "round";
+      for (var bo = 0; bo < G.dashBolt.length; bo++){
+        var B = G.dashBolt[bo];
+        for (var pz = 0; pz < 3; pz++){
+          ctx.globalAlpha   = pz === 2 ? 0.95 : 0.15;
+          ctx.lineWidth     = pz === 2 ? 5    : 5 + (2 - pz) * 15;
+          ctx.strokeStyle   = pz === 2 ? "#fffdf6" : col;
+          boltPath(B.main); boltPath(B.branch);
+        }
+      }
+      ctx.lineCap = cap; ctx.lineJoin = join;
+    }
   }
   if (G.dashT <= 0){ ctx.globalAlpha = 1; return; }
 
@@ -11166,7 +11276,12 @@ function drawDashHud(){
      so there are no hard transitions, and 4Hz stays well under the 15-20Hz
      worst band. Do not raise either number to make it angrier - make the
      bars brighter or thicker instead, and keep an eye on that 25%. */
-  var urg  = 1 - G.dashT / POWERS.sponsor.secs;
+  /* Everything below reads the CLOCK FACE, not the real remainder, so the
+     grace half second at the top sits still: full ring, 3.0 on the dial,
+     edges at their calmest. Clamped, so the first half second is urg 0
+     rather than a negative. */
+  var face = Math.min(DASH_SHOW, G.dashT);
+  var urg  = 1 - face / DASH_SHOW;
   var beat = 0.5 + 0.5 * Math.sin(G.t * (11 + urg * 14));
   var ea   = Math.min(0.80, (0.13 + 0.24 * urg) * (0.42 + 0.58 * beat) + G.dashPulse * 0.42);
   var th   = 12 + 18 * urg + G.dashPulse * 20;
@@ -11182,7 +11297,7 @@ function drawDashHud(){
   var cx = LOGICAL_W / 2, cy = DASH_RING_Y;
   var pop = 1 + G.dashPulse * 0.20;
   var r = DASH_RING_R * pop;
-  var frac = G.dashT / POWERS.sponsor.secs;
+  var frac = face / DASH_SHOW;
 
   ctx.globalAlpha = 0.55; ctx.fillStyle = "#0a0c11";
   ctx.beginPath(); ctx.arc(cx, cy, r + 12, 0, Math.PI*2); ctx.fill();
@@ -11197,13 +11312,20 @@ function drawDashHud(){
     ctx.beginPath(); ctx.arc(cx, cy, r, a0, a1); ctx.stroke();
   }
   ctx.globalAlpha = 1;
-  txt(Math.max(0, G.dashT).toFixed(1), cx, cy + 3, Math.round(70 * pop), ec, "center");
+  txt(Math.max(0, face).toFixed(1), cx, cy + 3, Math.round(70 * pop), ec, "center");
   /* The SKU name under it. The whole exercise is that these words should be
      the thing people remember, and a three second timer is three seconds of
      somebody looking straight at it. */
   /* Anchored to the UNPOPPED radius, or it hops down the screen twice a
-     second along with the ring. */
-  txt("CLOUD INSIGHTS", cx, cy + DASH_RING_R + 38, 24, col, "center");
+     second along with the ring.
+
+     Held back while the pickup's own brand banner is up. Both say CLOUD
+     INSIGHTS and for the first second and a half they were both on screen
+     saying it, a hundred pixels apart - which does not burn the name in
+     twice as hard, it just reads as a layout fault. They take turns: the
+     banner has the opening, the ring label has the rest of the countdown. */
+  if (!(G.brand && G.brand.what === "CLOUD INSIGHTS"))
+    txt("CLOUD INSIGHTS", cx, cy + DASH_RING_R + 38, 24, col, "center");
   ctx.globalAlpha = 1;
 }
 /* ===================== INTERNET INSIGHTS ==================================
