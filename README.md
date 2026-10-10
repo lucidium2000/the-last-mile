@@ -3481,6 +3481,71 @@ which is the half that actually mattered, because that map is what stops a
 step and nothing had ever taken anything back out of it since generation.
 Verified: gone at 2.00s, blocked false, blocked while visible, walkable after.
 
+
+## An hourglass, not a crate
+
+Internet Insights fell through to the generic power-up model: a box with an
+`I` printed on it. The one power-up that is **about time** looked like
+packaging, next to a Cloud Insights that is a storm cloud with lightning
+coming out of it.
+
+It is an hourglass now, and **the silhouette is the whole job**. The first
+attempt framed it properly — four corner posts, wide plates top and bottom —
+and read as *a crate with something orange inside it*, because a box drawn
+around a shape is a box and the eye takes the outline every time. The frame
+came down to two thin uprights and two narrow caps, and the sand does the
+work: five steps down to a waist and five back out, tapering in **depth as
+well as width** so it is a pair of cones rather than a pair of wedges.
+
+It is caught **mid-flow** on purpose. A full top bulb is an hourglass nobody
+has started and an empty one is a deal already lost; sand in both halves with
+a lit thread between them is the only state that says the clock is running,
+which is what the power-up does. The thread is `E()` rather than `P()` —
+emissive, so it glows like the trace and the beams — and it is the brightest
+thing on the model, dead centre, where the eye goes first.
+
+## One row of controls, and a volume that is a volume
+
+**FULL SCREEN is smaller** (padding 11/16 to 8/13, font clamp 14–24 down to
+12–20) and the sound control now sits **beside it**.
+
+That meant moving it off the canvas. It was drawn in the top-right corner and
+hit-tested against canvas coordinates; the full-screen button is a DOM element
+in the bottom-right, and aligning one to the other across every viewport the
+panel can be is a losing game. They are **siblings in one flex row** now, so
+the row lays itself out — which matters because the volume label changes width
+as it cycles, and anything hand-placed would have to be re-placed every time
+it did.
+
+It is also **always on screen**. The canvas control only existed on the title,
+the readout and the board, which meant the one moment somebody actually wants
+to turn a hallway panel down — while it is making noise — was the one moment
+they could not.
+
+**And it is three states, not two.** A hallway panel is sometimes next to a
+meeting and sometimes next to nobody, and the honest answer to that is not a
+switch:
+
+| | gain | |
+|---|---|---|
+| **SOUND** | 0.32 | a demo you are standing at |
+| **LOW** | 0.128 | one running behind a conversation |
+| **MUTED** | 0 | a room that is working |
+
+The icon is three bars and the lit ones **are** the level, so the state reads
+without the word next to it — built from three elements rather than a glyph,
+because a speaker character resolves to whatever the panel happens to have.
+Stored as an index rather than a boolean, so the steps can move later without
+the saved value meaning something different afterwards, and it migrates the
+old `lastmile.mute` key: anybody who had it muted stays muted.
+
+Verified: SOUND and LOW both produce 49 nodes from the same cue, MUTED
+produces **none at all** — muting does not just turn the gain down, it stops
+the graph being built, which is a small win on the device as well.
+
+`M` cycles rather than toggling, so the key and the button agree about what
+the control is.
+
 ## The pavement teaches
 
 Overheard fragments that sound like two New Yorkers talking and are, every one
@@ -3502,13 +3567,18 @@ jacket. He is also telling you the Endpoint Agent eats a hit.
 The last three are the three biggest mechanics the first four left uncovered:
 the health drain, `FISC_PER_HOP`, and the fact that cards accumulate.
 
-**They live in their own pool**, not folded in with `FOLK_CHAT`, for two
-reasons. The ratio becomes one number (`FOLK_TIP_ODDS`) instead of an accident
-of list lengths — seven tips dropped into ten pleasantries would have made
-four lines in ten a lesson, which is a tutorial wearing a coat. And only the
-**first speaker of a pair** can draw one, so two tips can never land on top of
-each other: one person says the useful thing and the other replies with the
-weather, which is what being talked at actually sounds like.
+**They live in their own pool**, not folded in with `FOLK_CHAT`, so the ratio
+is one number (`FOLK_TIP_ODDS`) instead of an accident of list lengths — seven
+tips dropped into ten pleasantries would have made four lines in ten a lesson,
+which is a tutorial wearing a coat.
+
+**Either half of the exchange can be the useful one, but never both.** Tips
+started as openers only, which halved how often they were heard for no reason
+beyond the order the two lines happen to be written in — a thing said back to
+you across a pavement is as overheard as a thing said to you. So the opener
+rolls, and if it came up ordinary the reply gets the same roll. Exactly one
+tip per exchange at most: two people swapping advice is a pamphlet, not a
+conversation.
 
 `folkTip()` never returns the same line twice running — with seven of them a
 repeat is a one-in-seven coincidence that reads as the game being broken.

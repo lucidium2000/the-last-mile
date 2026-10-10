@@ -19,31 +19,57 @@
   }
   #wrap{position:fixed;inset:0;display:block;overflow:hidden;}
   canvas{position:absolute;left:0;top:0;display:block;}
-  /* The full-screen control. Bottom right, in the strip under the TAM badge,
-     which is the only part of that corner the HUD never draws into. Hidden
-     outright where the Fullscreen API is missing - some RoomOS builds run the
-     page full-screen already and expose no way to ask. */
-  #fs{
-    position:absolute;right:18px;bottom:16px;z-index:5;display:none;
-    align-items:center;gap:10px;margin:0;padding:11px 16px;
-    border:2px solid #ff6a13;border-radius:9px;
+  /* The two controls, bottom right, in the strip under the TAM badge - the
+     only part of that corner the HUD never draws into. They are SIBLINGS in
+     one flex row rather than two absolutely positioned boxes, because the
+     volume label changes width as it cycles and anything hand-placed would
+     have to be re-placed every time it did. Full screen is hidden outright
+     where the Fullscreen API is missing - some RoomOS builds run the page
+     full-screen already and expose no way to ask - and the row shrinks to
+     just the volume button when that happens. */
+  #ui{
+    position:absolute;right:18px;bottom:16px;z-index:5;
+    display:flex;align-items:center;gap:10px;
+  }
+  #fs,#vol{
+    display:none;align-items:center;gap:8px;margin:0;padding:8px 13px;
+    border:2px solid #ff6a13;border-radius:8px;
     background:rgba(10,8,13,0.68);color:#ffd9b8;
     font-family:"Helvetica Neue",Helvetica,Arial,sans-serif;
-    font-weight:700;font-size:16px;font-size:clamp(14px,1.05vw,24px);
-    letter-spacing:.13em;line-height:1;cursor:pointer;opacity:0.62;
+    font-weight:700;font-size:14px;font-size:clamp(12px,0.86vw,20px);
+    letter-spacing:.12em;line-height:1;cursor:pointer;opacity:0.62;
     -webkit-appearance:none;appearance:none;touch-action:manipulation;
   }
-  #fs.on{display:flex;}
-  #fs:hover,#fs:active{opacity:1;background:rgba(255,106,19,0.20);}
+  #fs.on,#vol.on{display:flex;}
+  #fs:hover,#fs:active,#vol:hover,#vol:active{
+    opacity:1;background:rgba(255,106,19,0.20);
+  }
   #fs i{
     display:inline-block;width:1em;height:0.75em;
     border:2px solid currentColor;border-radius:2px;
   }
+  /* Three bars rising, and the lit ones ARE the level - so the icon says
+     which of the three states you are in without reading the word next to
+     it. Built out of three elements rather than a glyph, because a speaker
+     character resolves to whatever the panel happens to have. */
+  #vol i{display:inline-flex;align-items:flex-end;gap:2px;height:0.9em;}
+  #vol s{
+    display:block;width:3px;background:currentColor;
+    text-decoration:none;opacity:0.22;
+  }
+  #vol s:nth-child(1){height:40%;}
+  #vol s:nth-child(2){height:70%;}
+  #vol s:nth-child(3){height:100%;}
+  #vol.v1 s:nth-child(1){opacity:1;}
+  #vol.v2 s:nth-child(1),#vol.v2 s:nth-child(2),#vol.v2 s:nth-child(3){opacity:1;}
 </style>
 </head>
 <body>
 <div id="wrap"><canvas id="c"></canvas>
+<div id="ui">
+<button id="vol" type="button" aria-label="Volume"><i><s></s><s></s><s></s></i><b>SOUND</b></button>
 <button id="fs" type="button" aria-label="Toggle full screen"><i></i><b>FULL SCREEN</b></button>
+</div>
 </div>
 <script>
 "use strict";
@@ -221,10 +247,29 @@ function sayFor(line, dflt){
 var AUDIO = (function(){
   var ac = null, master = null, noiseBuf = null;
   var avail = false, failed = false;
-  var muted = (function(){
-    if (/[?&](mute|silent)=1/.test(location.search)) return true;
-    try { return localStorage.getItem("lastmile.mute") === "1"; } catch (e){ return false; }
+  /* THREE LEVELS, NOT TWO. A hallway panel is sometimes next to a meeting
+     and sometimes next to nobody, and the honest answer to that is not a
+     switch - it is a volume. FULL for a demo you are standing at, LOW for
+     one running behind a conversation, MUTED for a room that is working.
+
+     Stored as an index so the steps can move without the saved value
+     meaning something different afterwards, and it migrates the old boolean
+     key: anybody who had muted it stays muted. */
+  var VOL_STEPS = [1, 0.4, 0];               // FULL, LOW, MUTED
+  var VOL_NAMES = ["SOUND", "LOW", "MUTED"];
+  var MASTER_G = 0.32;                       // the ceiling FULL maps to
+  var vol = (function(){
+    if (/[?&](mute|silent)=1/.test(location.search)) return 2;
+    try {
+      var v = localStorage.getItem("lastmile.vol");
+      if (v !== null){ v = parseInt(v, 10); if (v >= 0 && v < VOL_STEPS.length) return v; }
+      if (localStorage.getItem("lastmile.mute") === "1") return 2;   // the old key
+    } catch (e){}
+    return 0;
   })();
+  function applyVol(){
+    if (master) master.gain.value = MASTER_G * VOL_STEPS[vol];
+  }
   var ladder = 0;
   var PENT = [0, 2, 4, 7, 9];
 
@@ -235,7 +280,7 @@ var AUDIO = (function(){
       if (!AC){ failed = true; return; }
       ac = new AC();
       master = ac.createGain();
-      master.gain.value = 0.32;
+      master.gain.value = MASTER_G * VOL_STEPS[vol];
       master.connect(ac.destination);
       var n = Math.floor(ac.sampleRate * 0.35);
       noiseBuf = ac.createBuffer(1, n, ac.sampleRate);
@@ -337,7 +382,7 @@ var AUDIO = (function(){
   }
 
   function live(){
-    if (!avail || muted || !ac) return false;
+    if (!avail || VOL_STEPS[vol] <= 0 || !ac) return false;
     if (ac.state === "closed") return false;
     if (ac.state === "suspended"){ try { ac.resume(); } catch (e){} }
     return true;
@@ -416,12 +461,30 @@ var AUDIO = (function(){
     liveNodes: function(){ return LIVE_CHAINS.length; },
     suspend: function(){ if (ac && ac.state === "running"){ try { ac.suspend(); } catch (e){} } },
     available: function(){ return avail; },
-    isMuted: function(){ return muted; },
+    isMuted: function(){ return VOL_STEPS[vol] <= 0; },
+    /* 0 FULL, 1 LOW, 2 MUTED - the index, for the button to label itself. */
+    volIndex: function(){ return vol; },
+    volName: function(){ return VOL_NAMES[vol]; },
+    volSteps: function(){ return VOL_STEPS.length; },
+    /* Round the houses: FULL -> LOW -> MUTED -> FULL. One control, three
+       states, and the only one that needs a sound to confirm it is the one
+       you can hear. */
+    cycleVolume: function(){
+      vol = (vol + 1) % VOL_STEPS.length;
+      try { localStorage.setItem("lastmile.vol", String(vol)); } catch (e){}
+      applyVol();
+      if (VOL_STEPS[vol] > 0){ ensure(); applyVol(); this.ui(); }
+      return vol;
+    },
+    /* Kept so nothing that used to flip it has to care how many steps there
+       are now: from anything audible it goes silent, from silent it goes
+       back to FULL. */
     toggle: function(){
-      muted = !muted;
-      try { localStorage.setItem("lastmile.mute", muted ? "1" : "0"); } catch (e){}
-      if (!muted){ ensure(); this.ui(); }
-      return muted;
+      vol = (VOL_STEPS[vol] > 0) ? VOL_STEPS.length - 1 : 0;
+      try { localStorage.setItem("lastmile.vol", String(vol)); } catch (e){}
+      applyVol();
+      if (VOL_STEPS[vol] > 0){ ensure(); applyVol(); this.ui(); }
+      return VOL_STEPS[vol] <= 0;
     },
     resetLadder: function(){ ladder = 0; },
     hop: function(){
@@ -1388,6 +1451,25 @@ function fsSync(){
   fsBtn.lastChild.textContent = fsNow() ? "EXIT FULL SCREEN" : "FULL SCREEN";
   layout();                      // the viewport just changed size
 }
+/* ------------------------------------------------------------ the volume
+   A DOM button rather than the canvas one it replaces, so that it and FULL
+   SCREEN are laid out by the same flex row and cannot drift apart as the
+   label changes width. It is also always on screen now: the canvas control
+   only existed on the title, the readout and the board, which meant the one
+   moment somebody actually wants to turn a hallway panel down - while it is
+   making noise - was the one moment they could not. */
+var volBtn = document.getElementById("vol");
+function volSync(){
+  volBtn.className = "on v" + (AUDIO.volSteps() - 1 - AUDIO.volIndex());
+  volBtn.lastChild.textContent = AUDIO.volName();
+}
+volBtn.addEventListener("click", function(e){
+  e.preventDefault(); e.stopPropagation();
+  AUDIO.unlock(); AUDIO.cycleVolume(); volSync();
+});
+volBtn.addEventListener("pointerdown", function(e){ e.stopPropagation(); });
+volSync();
+
 if (fsCan()){
   fsBtn.className = "on";
   /* The canvas owns "tap anywhere to step forward", so the button has to stop
@@ -3202,6 +3284,72 @@ function powerModel(kind, lit){
         text:"CHUCK", size:13 },
       { x:0.40, y:0.345, w:0.22, z:0.17, h:0.085, bg:"#e8c97a", fg:"#4a3310",
         text:"$", size:15 }
+    ], shadow:false, W:1 };
+  }
+  if (kind === "insight"){
+    /* AN HOURGLASS, because the SKU drops the whole world into slow motion
+       and an hourglass is the only object that means time without a label on
+       it. It was the generic crate - a box with an I printed on it - which
+       told the player nothing and made the one power-up about TIME look like
+       packaging.
+
+       THE SILHOUETTE IS THE WHOLE JOB. The first attempt framed it properly,
+       with four corner posts and wide plates top and bottom, and the result
+       read as a crate with something orange inside it - because a box drawn
+       around a shape is a box, and the eye takes the outline every time. So
+       the frame is down to two thin uprights and two narrow caps, and the
+       sand does the work: five steps down to a waist and five back out,
+       tapering in DEPTH as well as width so it is a pair of cones rather
+       than a pair of wedges. The bowtie has to be the first thing you see.
+
+       It is caught MID-FLOW on purpose. A full top bulb is an hourglass
+       nobody has started and an empty one is a deal already lost; sand in
+       both halves with a lit thread between them is the only state that says
+       the clock is running, which is what the power-up is about.
+
+       The thread is E() rather than P() - emissive, so it glows the way the
+       trace and the beams do. It is the brightest thing on the model and it
+       sits dead centre, which is where the eye goes first. */
+    var brass = "#b9893a", brassLit = shade(brass, 0.30), brassDim = shade(brass, -0.34);
+    var sand = k.col, sandLit = shade(k.col, 0.34), sandDim = shade(k.col, -0.16);
+    /* w, x, d, y, z - five steps a cone, mirrored about the waist. */
+    var CONE = [[0.46, 0.27, 0.28, 0.36],
+                [0.38, 0.31, 0.24, 0.38],
+                [0.30, 0.35, 0.20, 0.40],
+                [0.22, 0.39, 0.16, 0.42],
+                [0.14, 0.43, 0.12, 0.44]];
+    var parts = [
+      P(0.40, 0.40, 0.20, 0.20, 0,     0.035, brassDim),        // the stand
+      P(0.22, 0.33, 0.56, 0.34, 0.030, 0.055, brass),           // bottom cap
+      P(0.24, 0.35, 0.52, 0.30, 0.085, 0.020, brassLit),
+      /* Two uprights, not four. They sit at mid-depth so they read as the
+         near edges of the glass rather than as the corners of a crate. */
+      P(0.205, 0.475, 0.032, 0.050, 0.100, 0.600, brassDim),
+      P(0.763, 0.475, 0.032, 0.050, 0.100, 0.600, brass)
+    ];
+    var zz = 0.105, ci, c;
+    for (ci = 0; ci < CONE.length; ci++){                        // sand, through
+      c = CONE[ci];
+      parts.push(P(c[1], c[3], c[0], c[2], zz, 0.046,
+                   ci % 2 ? sandLit : sand));
+      zz += 0.046;
+    }
+    parts.push(P(0.455, 0.455, 0.09, 0.09, zz, 0.040, brass));   // the waist
+    parts.push(E(0.474, 0.470, 0.052, 0.060, zz + 0.040, 0.082, sandLit));
+    zz += 0.122;
+    for (ci = CONE.length - 1; ci >= 0; ci--){                   // sand, to come
+      c = CONE[ci];
+      parts.push(P(c[1], c[3], c[0], c[2], zz, 0.046,
+                   ci % 2 ? sandLit : sandDim));
+      zz += 0.046;
+    }
+    parts.push(P(0.24, 0.35, 0.52, 0.30, zz, 0.020, brassLit));  // top cap
+    parts.push(P(0.22, 0.33, 0.56, 0.34, zz + 0.020, 0.055, brass));
+    return { parts:parts, decals:[
+      /* One glint down the upper bulb. Glass is a highlight and nothing else
+         at this size - draw the pane and it is a grey box. */
+      { x:0.300, y:0.360, w:0.040, z:zz - 0.055, h:0.050, bg:"#f6f9fb" },
+      { x:0.330, y:0.380, w:0.030, z:zz - 0.145, h:0.042, bg:"#e2edf2" }
     ], shadow:false, W:1 };
   }
   if (kind === "sponsor"){
@@ -5055,12 +5203,7 @@ function act(dir){
    Board and ~16mm on a Desk Mini, both comfortably above the ~9mm minimum.
    Swipes and the invisible tap zones still work; the pad simply takes
    priority wherever it is hit. */
-/* Top right, not bottom right: the full-screen control is a DOM button in
-   the bottom-right corner and the two were drawn on top of each other. */
-var MUTE_BTN = { x:LOGICAL_W - 146, y:38, w:114, h:114 };
-function muteBtnActive(){
-  return G.state === ST_TITLE || G.state === ST_DEAD || G.state === ST_BOARD;
-}
+
 
 /* The run is over: count it once, then go and get three letters for it. A run
    worth nothing still counts as a play - the counter is of games started and
@@ -5237,11 +5380,6 @@ function submitScore(){
   G.state = ST_BOARD; G.deadFor = 0;
   AUDIO.stage();
 }
-function inMuteBtn(lx, ly){
-  return muteBtnActive() &&
-         lx > MUTE_BTN.x - 14 && lx < MUTE_BTN.x + MUTE_BTN.w + 14 &&
-         ly > MUTE_BTN.y - 14 && ly < MUTE_BTN.y + MUTE_BTN.h + 14;
-}
 
 /* ===================== THE INITIALS WHEEL ================================
    Three columns of letters with an arrow at each end is a wheel drawn on a
@@ -5335,7 +5473,6 @@ cv.addEventListener("pointerup", function(e){
     var rect = cv.getBoundingClientRect();
     var px = (e.clientX-rect.left)/rect.width, py = (e.clientY-rect.top)/rect.height;
     var lx = px*LOGICAL_W, ly = py*LOGICAL_H;
-    if (inMuteBtn(lx, ly)){ AUDIO.toggle(); ptr = null; return; }
     if (G.state === ST_TITLE &&
         lx >= BOARD_BTN.x && lx <= BOARD_BTN.x + BOARD_BTN.w &&
         ly >= BOARD_BTN.y && ly <= BOARD_BTN.y + BOARD_BTN.h){
@@ -5406,7 +5543,11 @@ cv.addEventListener("contextmenu", function(e){ e.preventDefault(); });
 window.addEventListener("keydown", function(e){
   if (wake()){ e.preventDefault(); return; }
   var k = e.key;
-  if (k==="m" || k==="M"){ AUDIO.unlock(); AUDIO.toggle(); e.preventDefault(); return; }
+  /* M cycles rather than toggling, so the key and the button agree about
+     what the control is. */
+  if (k==="m" || k==="M"){
+    AUDIO.unlock(); AUDIO.cycleVolume(); volSync(); e.preventDefault(); return;
+  }
   AUDIO.unlock();
   /* Typing your initials beats nudging a letter wheel, so on that one screen
      the keyboard is a keyboard. */
@@ -7834,13 +7975,21 @@ function updateFolk(dt){
         if ((f.v - g.v) * d > 0) continue;      // drifting apart, leave them
         f.holdT = g.holdT = FOLK_CHAT_FOR + Math.random() * 0.8;
         f.chatAt = g.chatAt = G.t;
+        /* EITHER HALF OF THE EXCHANGE CAN BE THE USEFUL ONE, but never both.
+           Tips started life as openers only, which halved how often they were
+           heard for no reason beyond the order the two lines are written in -
+           a thing said back to you across a pavement is as overheard as a
+           thing said to you. So the opener rolls, and if it came up ordinary
+           the reply gets the same roll. Exactly one tip per exchange at most:
+           two people swapping advice is a pamphlet, not a conversation. */
+        var tipped = Math.random() < FOLK_TIP_ODDS;
         f.sayAt = G.t;
-        /* The opener may be a tip; the reply never is - see FOLK_TIPS. */
-        f.line = Math.random() < FOLK_TIP_ODDS
+        f.line = tipped ? folkTip()
+                        : FOLK_CHAT[(Math.random()*FOLK_CHAT.length)|0];
+        g.sayAt = G.t + 0.75;                   // the reply, half a beat later
+        g.line = (!tipped && Math.random() < FOLK_TIP_ODDS)
                ? folkTip()
                : FOLK_CHAT[(Math.random()*FOLK_CHAT.length)|0];
-        g.sayAt = G.t + 0.75;                   // the reply, half a beat later
-        g.line = FOLK_CHAT[(Math.random()*FOLK_CHAT.length)|0];
         /* Two people talking to each other are pleased to see each other,
            and you can only hear the ones near you - the whole pavement
            muttering at once is a crowd scene, not a street. */
@@ -15521,31 +15670,6 @@ function drawLockup(){
   ctx.globalAlpha = 1;
 }
 
-function drawMuteBtn(){
-  if (!muteBtnActive()) return;
-  var b = MUTE_BTN, cx = b.x + b.w*0.44, cy = b.y + b.h*0.5;
-  var on = !AUDIO.isMuted(), col = on ? C.brand : C.textDim;
-  plate(b.x, b.y, b.w, b.h, C.ink, 18);
-  ctx.fillStyle = col;
-  ctx.fillRect(cx - 22, cy - 9, 11, 18);
-  ctx.beginPath();
-  ctx.moveTo(cx - 11, cy - 9); ctx.lineTo(cx + 4, cy - 23);
-  ctx.lineTo(cx + 4,  cy + 23); ctx.lineTo(cx - 11, cy + 9);
-  ctx.closePath(); ctx.fill();
-  ctx.strokeStyle = col; ctx.lineWidth = 3.5; ctx.lineCap = "round";
-  if (on){
-    for (var i=1;i<=2;i++){
-      ctx.beginPath(); ctx.arc(cx + 6, cy, 10 + i*9, -Math.PI/3, Math.PI/3); ctx.stroke();
-    }
-  } else {
-    ctx.beginPath();
-    ctx.moveTo(cx + 12, cy - 13); ctx.lineTo(cx + 32, cy + 13);
-    ctx.moveTo(cx + 32, cy - 13); ctx.lineTo(cx + 12, cy + 13);
-    ctx.stroke();
-  }
-  txt(on ? "SOUND" : "MUTED", b.x + b.w*0.5, b.y + b.h - 13, 15, C.textDim);
-}
-
 /* Deliberately spare: logo, name, one line, and an invitation. The power-up
    legend used to live here (five cards plus a three-line control plate), but
    every power-up already announces itself when collected, so the title does
@@ -16072,7 +16196,6 @@ function render(){
   if (G.notice && !G.ride) drawNotice();
   if (G.rise && !G.ride) drawMoneyRise();
   drawBrandHit();
-  drawMuteBtn();
   if (SHOW_FPS){
     ctx.setTransform(scale, 0, 0, scale, 0, 0);
     ctx.font = "bold 24px monospace"; ctx.textAlign = "left";
