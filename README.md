@@ -2618,31 +2618,45 @@ crack was put there for them and has been left — without the bolts it simply
 reads as a deeper pickup. Worth knowing if anyone wonders why the sound has a
 roll in it.
 
-**A ring that drains, pinned to his shoulder.** It started as a 92px ring
-parked at y 268, up in the sky band — safely clear of the lanes, and
-completely detached from the man it was counting for. Something at the top of
-the screen is *the game's* clock; something on his shoulder is **his**, and
-what is running out is his.
+**A ring of thrust under his feet, draining as it burns.** Three goes at this.
+First a 92px ring parked at y 268 up in the sky band: safely clear of the
+lanes, and completely detached from the man it was counting for. Then a badge
+on his shoulder — his, certainly, but it overlapped him at any offset small
+enough to still read as his. Measured against the sprite's opaque pixels
+rather than its bounding box, clearing him needed the badge 100px off centre,
+by which point it was a thing floating near him rather than a thing he had.
 
-So it is sized off him rather than off the screen: 38px radius against a
-figure about 70 wide and 110 tall, beside the head rather than over it, since
-the sprite is the thing you are actually watching. It tracks the interpolated
-position *including the lift*, so it stays on his shoulder through the arc of
-a three-square leap instead of waiting at the kerb for him to land. It swaps
-to his other side within two columns of either kerb — a badge hanging off his
-right shoulder in column 15 is a badge half off the screen. Verified on
-screen at every column, both facings.
+So: the fuel gauge and the reason he is moving are now **the same object**. He
+stands on it. Nothing has to be explained and nothing is laid over anything.
 
-The plate is near-opaque at this size, unlike the big version: 76px across on
-a street full of yellow cabs, and a translucent disc with a number in it over
-a taxi roof is not a number. It pops on each whole second so the count is felt
-as well as read, and the number carries a decimal because three integers in a
-row is not a countdown, it is a list.
+It is an **ellipse**, not a circle — everything else on the ground plane here
+(the shadow, the shield ring, the flight ring) is drawn at roughly 0.42
+vertical squash to sit in the cabinet projection, and a true circle under his
+feet stands up like a hoop he is holding. It is glued to his feet with the
+lift included, so it goes up with him through a three-square leap: a pad he
+took off *from* would be a launch, a pad he carries is propulsion.
 
-**No name under it.** At 76px across, in the middle of the street, a 24px
-"CLOUD INSIGHTS" was wider than the badge and sat across whatever he was about
-to walk into. The name is still on screen for all three seconds — the HUD chip
-bottom-left carries it — and the pickup banner still gives it the big moment.
+**Jets round the rim**, drawn before the ring so the ring caps them. They are
+tall at the back of the ellipse and short at the front, which is what stops it
+reading as a flat sticker on the road — the far side of a dish is further away
+and what comes off it is seen more side-on. They flutter on their own index so
+the rim does not breathe in unison, and they **shorten as the fuel goes**, so
+the last second barely has a flame on it.
+
+The readout sits **below** the pad, on the pavement he has already crossed.
+Above it is where the lanes he has to read are; inside it is where his feet
+are. A hard dark pass under the digits, because there is no `shadowBlur` here
+and a number landing on a taxi roof is invisible in a room. It pops on each
+whole second so the count is felt as well as read, and it carries a decimal
+because three integers in a row is not a countdown, it is a list.
+
+The pad stays drawn while the figure blinks out over the last second, the same
+way the flight ring does — you can still see where you are standing while the
+sprite cuts in and out.
+
+**No name on it.** The HUD chip bottom-left carries CLOUD INSIGHTS for all
+three seconds and the pickup banner gives it the big moment; a label on the
+pad was wider than the pad.
 
 **Edges that beat.** They thicken and quicken as the clock runs down and turn
 red for the last second, so the pressure is readable without looking away from
