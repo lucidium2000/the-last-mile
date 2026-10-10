@@ -3979,6 +3979,38 @@ Guarded against stomping a line he has just started: under 1.2s and he
 finishes what he was saying, because a bubble that replaces itself after a
 third of a second reads as a glitch rather than as a man talking.
 
+
+## The street parts
+
+Traffic Insights used to act on **the row he was standing in**: drivers in
+that lane swerve, or brake and stay braked. True to the SKU and completely
+invisible from four rows away.
+
+Now his **column** is a line nothing crosses. Every lane on screen turns
+around when a vehicle reaches it, so the view up the street is a clear
+channel with the traffic backing away from it on both sides, and he walks up
+the middle. That is the difference between a power-up you read in a banner
+and one you can see from the other end of the block.
+
+Measured across every visible road row, sampled over twelve seconds:
+
+| | rows with a car on his column |
+|---|---|
+| without the SKU | **50.7%** |
+| with it | **2.2%** |
+
+The 2.2% is the lanes caught mid-turn — which is the part worth seeing.
+
+It turns the **lane**, not the car, for the same reason the trace does:
+reversing a single vehicle inside a stream moving the other way guarantees a
+head-on, and the old code simply drove it through its neighbours. Flipping
+the whole lane preserves every gap exactly. `colBlocks` asks the same
+question of a column that `traceBlocks` asks of a route node, with the same
+reach, so the two effects agree about what counts as touching.
+
+The row-level swerve still does its work when he actually steps into a lane.
+This is what the SKU looks like from outside.
+
 ## The stopped sanitation truck
 
 Reported: *"I had Traffic Insights and I was walking in traffic, all was good

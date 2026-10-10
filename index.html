@@ -6534,6 +6534,14 @@ function traceBlocks(r, x, w){
   return false;
 }
 
+/* THE CORRIDOR. Does this vehicle's span cross the column the player is
+   standing in? Same reach as traceBlocks uses against a route node, because
+   it is the same question asked of a single column instead of a path - and
+   the two effects should agree about what counts as touching. */
+function colBlocks(col, x, w){
+  return x < col + 0.95 && x + w > col + 0.05;
+}
+
 /* every hazard interval in a row over the next `secs`, used by the tests */
 function colSafeFor(r, col, secs){
   var row = rows[r];
@@ -12277,6 +12285,30 @@ function update(dt){
            the whole lane preserves every gap exactly. */
         if (G.revealT > 0 && G.trace && !(row.bounce > 0) &&
             traceBlocks(r, carX(row, car), row.eff || 1)){
+          row.rv = -(row.rv || 1);
+          row.bounce = 1.4;
+        }
+        /* AND TRAFFIC INSIGHTS PARTS THE WHOLE STREET, not just his row.
+
+           His column is a line nothing crosses. Every lane on screen, not
+           only the one he is standing in, turns around when a vehicle
+           reaches it - so the view up the street is a clear channel with the
+           traffic backing away from it on both sides, and he walks up the
+           middle of it.
+
+           That is the difference between a power-up you read in a banner and
+           one you can see from the other end of the block. The row-level
+           swerve below still does its work when he actually steps into a
+           lane; this is what the SKU looks like from outside.
+
+           It turns the LANE, for the same reason the trace does: reversing a
+           single vehicle inside a stream moving the other way guarantees a
+           head-on, and flipping the whole lane preserves every gap exactly.
+           Guarded on `!(bounce > 0)` rather than `bounce <= 0` because bounce
+           starts undefined, and `undefined <= 0` is false - the mistake that
+           silently disabled the trace's version of this the first time. */
+        if (deter && !(row.bounce > 0) &&
+            colBlocks(G.col, carX(row, car), row.eff || 1)){
           row.rv = -(row.rv || 1);
           row.bounce = 1.4;
         }
