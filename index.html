@@ -1761,66 +1761,95 @@ var FISC_SEG = "THE LAST MILE";
    way round: the countdown says how long is left, the wall clock says what
    time it is, and midnight is the deadline both of them are about.
 
-       60s left -> 11:00 PM        10s left -> 11:50 PM
-       30s left -> 11:30 PM         0s left -> 12:00 AM
+       60s left -> 5:00 PM         15s left -> 10:15 PM
+       45s left -> 6:45 PM          5s left -> 11:25 PM
+       30s left -> 8:30 PM          0s left -> 12:00 AM
 
-   A minute of real time is a minute on the wall, which is the one mapping a
-   player never has to be told. And it means the top line answers the
-   question the countdown cannot: 0:30 is a quantity, 11:30 PM is a place -
-   you can see how close to the edge of the year you are standing.
+   It buys the top line the thing the countdown cannot say: 0:30 is a
+   quantity, 8:30 PM is a place - you can see where in the evening you are
+   standing. See fiscTargetMin and FISC_CATCH below for why it counts rather
+   than jumping, and for where the buffer against banked time comes from. */
+/* ORDER MATTERS HERE, and it is the one thing in this file that `var` will
+   not save you from: hoisting lifts the DECLARATION, never the value, so a
+   constant computed from one written further down reads `undefined` and
+   quietly becomes NaN. All four of these are derived, so they live together,
+   above everything that reads them. */
+var FISC_MAX = 60, FISC_PER_HOP = 1.25;        // the timer, and what a block banks
+var FISC_START_MIN = 17 * 60;                  // 5:00 PM, in minutes past midnight
+var FISC_END_MIN   = 24 * 60;                  // and the deadline it runs at
+var FISC_MIN_PER_SEC = (FISC_END_MIN - FISC_START_MIN) / FISC_MAX;   // exactly 7
 
-   Banking time by walking a block turns the clock BACK, which is exactly
-   what it should look like: you have bought yourself minutes. The cap at
-   FISC_MAX keeps it from ever going earlier than 11:00. */
-/* AND IT DRIFTS, because a wall clock that is yanked backwards every time
-   you walk a block is a wall clock nobody believes.
+/* THE FACE COUNTS; IT DOES NOT JUMP.
 
-   Each block banks 1.25s. Read literally that is the hour hand jumping back
-   a minute or two, over and over, while the player is moving well - the one
-   time they are least likely to want the furniture twitching at them. So the
-   displayed time CHASES the timer instead of equalling it: it eases toward
-   it, and it is allowed to be up to FISC_DRIFT seconds out while it catches
-   up. Bank three blocks in a second and the clock does not lurch; it holds,
-   and then creeps.
+   Seven minutes a timer-second is the arithmetic, and taken literally it
+   means the clock lurches 5:00 -> 5:07 -> 5:14, which is a departure board
+   flipping, not a clock running.
 
-   THE TIMER ITSELF IS UNTOUCHED. G.fiscT is still what drains, still what
-   fires missClose, still what the big countdown under this prints. The drift
-   is a property of the CLOCK FACE and nothing reads it but the clock face.
+   So the displayed time is its own value, in minutes, and it CHASES the
+   timer one minute at a time. Every minute between here and there is
+   actually shown - 5:01, 5:02, 5:03 - just quickly, the way an odometer
+   rolls. The arithmetic is unchanged and midnight still lands on zero; only
+   the granularity of what you see has gone from seven minutes to one.
 
-   RATE-LIMITED, NOT EASED. The first version eased toward the timer, which
-   is the wrong shape for this: an exponential ease moves FASTEST at the
-   moment of the jump, which is precisely the lurch it was meant to hide. So
-   the face keeps ticking with real time on its own, and the gap is closed at
-   a capped rate on top of that.
+   Seven a second is the floor, not a choice: 420 minutes have to fit in 60
+   seconds however they are sliced, so the counter steps about every 140ms in
+   the steady state. What changed is that it steps, rather than leaping.
 
-   The cap is 1.0 - exactly the rate the clock runs forwards - and that one
-   number is the whole rule:
+   AND THE LAG IS THE BUFFER. The chase only ever moves FORWARD - a clock
+   that runs backwards is the thing this was fighting in the first place - so
+   when a block banks time and the target slides back toward the afternoon,
+   the counter simply stops and waits for the evening to catch up with it.
+   That pause is the whole of the drift mechanism now, and it costs nothing:
+   no budget, no backstop, no snap when the budget runs out. The old
+   FISC_DRIFT existed to buy exactly this behaviour artificially, and a
+   forward-only counter gets it for free and never has to lie by more than it
+   is actually behind.
 
-       THE CLOCK TICKS FORWARD, OR IT HOLDS STILL. It never runs backwards
-       faster than it runs forwards, and with the cap at 1.0 the correction
-       can at most cancel the tick. Bank a block and the hour hand stops for
-       a moment; it does not spin anti-clockwise.
+   FISC_CATCH is the surplus. At 1.0 the counter exactly tracks and never
+   recovers the ground a bank cost it; at 1.6 it runs up to 11 minutes a
+   second when it is behind, which closes an 8.75-minute bank in about two
+   seconds and then pins itself to the truth again. It can never overshoot:
+   the step is clamped to the distance remaining. */
+var FISC_CATCH = 1.6;
 
-   The only thing that can still rewind it is the backstop below, and that
-   only fires when the five seconds are genuinely spent - which takes
-   sustained banking, a player having a very good run, at which point a
-   clock creeping back IS the honest reading.
+/* AN EVENING, NOT AN HOUR.
 
-   Measured against a flat-out walk, a block every 0.55s for thirty seconds:
-   backward steps 20 -> 10, and the worst of them 2 minutes -> 1.
+   The clock used to run 11:00 PM to midnight: one timer-second to one
+   minute, which was tidy arithmetic and a bad story. Everything in this run
+   happens inside it - ninety-four blocks, a subway, a steak dinner and a
+   signed order - and sixty minutes to do all of that in is not a tight
+   deadline, it is an impossible one. The player is not racing an hour. They
+   are racing the END of a working day.
 
-   The allowance closes as the hour does: `min(FISC_DRIFT, G.fiscT)` means
-   five seconds of slack at the top of the run, one second with one second
-   left, and none at all at midnight - so the two of them always land on
-   12:00 AM together, which is the only moment the player is really reading
-   both. */
-var FISC_DRIFT = 5, FISC_REWIND = 1.0;
+   So the same sixty seconds now cover 5:00 PM to midnight:
 
-function fiscClock(secs){
-  var m = 60 - Math.ceil(secs);
-  if (m >= 60) return "12:00 AM";      // the close itself, and you are past it
-  if (m < 0) m = 0;
-  return "11:" + pad2(m) + " PM";
+       7 hours = 420 minutes, over a 60 second timer
+       = exactly 7 minutes of wall clock per timer-second
+
+   which divides without a remainder, so the last second of the game lands on
+   midnight on the nose rather than somewhere near it.
+
+       60s left -> 5:00 PM        15s left -> 10:15 PM
+       45s left -> 6:45 PM         5s left -> 11:25 PM
+       30s left -> 8:30 PM         0s left -> 12:00 AM
+
+   The hour hand now moves seven minutes a tick instead of one. That is not a
+   regression, it is the scale: an evening read off a one-minute timer has to
+   move in sevens. What it buys is a clock that says something true about the
+   shape of the day - leaving the office at five, dinner somewhere around
+   half eight, and the paperwork landing just before the year does. */
+/* Where the evening HAS got to, off the timer, continuous. */
+function fiscTargetMin(){
+  var t = Math.max(0, Math.min(FISC_MAX, G.fiscT));
+  return FISC_START_MIN + (FISC_MAX - t) * FISC_MIN_PER_SEC;
+}
+/* And what the face says, given a value in minutes past midnight. */
+function fiscClock(mins){
+  if (mins >= FISC_END_MIN) return "12:00 AM";   // the close, and you are past it
+  var m = Math.floor(Math.max(FISC_START_MIN, mins));
+  var hh = Math.floor(m / 60), mm = m % 60;
+  var h12 = hh % 12; if (h12 === 0) h12 = 12;
+  return h12 + ":" + pad2(mm) + " " + (hh >= 12 ? "PM" : "AM");
 }
 
 /* THE FISCAL YEAR WORKS ITSELF OUT, because a hard-coded one is wrong from
@@ -4033,6 +4062,33 @@ function makeWalk(r, park, crowd, hood){
            pickup:pickup, folk:folk };
 }
 
+/* How long a spent terminal takes to go, and the blink on the way out. */
+var KIOSK_GONE = 2.0;
+
+/* Clears the ones whose two seconds are up: the prop goes, and so does the
+   block it put in `row.blocked` at generation - which is the half that
+   matters, because that map is what actually stops a step and nothing had
+   ever taken anything back out of it.
+
+   Only over the rows that can be on screen. One left standing twenty rows
+   behind him is about to be regenerated anyway, and a sweep of the whole
+   world every frame to tidy something nobody can see is work for its own
+   sake. */
+function sweepKiosks(){
+  var r0 = G.camRow - ROWS_BEHIND - 2, r1 = G.camRow + ROWS_AHEAD + 2;
+  for (var r = Math.floor(r0); r <= r1; r++){
+    var w = rows[r];
+    if (!w || !w.props) continue;
+    for (var i = w.props.length - 1; i >= 0; i--){
+      var pr = w.props[i];
+      if (pr.kind !== "kiosk" || pr.usedAt == null) continue;
+      if (G.t - pr.usedAt < KIOSK_GONE) continue;
+      if (w.blocked) delete w.blocked[pr.col];
+      w.props.splice(i, 1);
+    }
+  }
+}
+
 /* whatever is standing in a cell, or null */
 function propAt(row, col){
   if (!row || !row.props) return null;
@@ -4233,7 +4289,6 @@ var ST_TITLE = 0, ST_PLAY = 1, ST_DEAD = 2, ST_NAME = 3, ST_BOARD = 4;
 var INI_CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 ";
 var RANKS = [[0,"SDR INTERN"],[18,"AE IN RAMP"],[40,"QUOTA CARRIER"],
              [70,"PRESIDENT'S CLUB"],[110,"MIDTOWN LEGEND"]];
-var FISC_MAX = 60, FISC_PER_HOP = 1.25;
 
 var G = null;
 
@@ -4261,9 +4316,9 @@ function reset(){
     metro:0, ride:null, trace:null, rides:0, bonus:0, tamLeft:0, riskT:0, dashT:0,
     leapT:0, leapDir:1, dashBeep:0, idleT:0, saver:false, hushed:false, spin:null,
     dashFlash:0, dashPulse:0, dashWhole:0,
-    scene:null, scenesSeen:{}, ticker:null, notice:null, southT:0,
+    scene:null, scenePend:null, scenesSeen:{}, ticker:null, notice:null, southT:0,
     leg:1, po:false, won:false,
-    fiscT:FISC_MAX, fiscShow:FISC_MAX,
+    fiscT:FISC_MAX, fiscMin:FISC_START_MIN,
     missedClose:false,
     shake:0, parts:[], deathName:"", deathObj:"", deathFix:"", deadFor:0,
     steps:0, got:blankPowers(), startedAt:Date.now(), logged:false,
@@ -4499,7 +4554,7 @@ function streetAt(r){
    with the kerb under his feet. The sweep in progress() stays as the backstop
    for arrivals that skip the pavement entirely - a subway ride. */
 function sceneLookahead(){
-  if (G.state !== ST_PLAY || G.scene || G.ride) return;
+  if (G.state !== ST_PLAY || G.scene || G.ride || G.scenePend) return;
   var here = rows[G.maxRow];
   if (!here || here.type !== "safe") return;
 
@@ -4512,8 +4567,57 @@ function sceneLookahead(){
   }
   if (next === null) return;
 
+  queueScene(next, streetAt(G.maxRow));
+}
+
+/* HE LANDS FIRST, THEN THE CARD. Both triggers used to call startScene the
+   instant the street changed, which is the same frame he steps onto the
+   pavement - so the card came up over a man still mid-stride, and on the
+   crossings where he arrived with traffic behind him it looked like he had
+   been caught by it. Half a second is enough to see both feet land.
+
+   AND A SCENE HAS A SELL-BY. Scenes fire for every street PASSED, not just
+   the one landed on, because a subway ride covers seven to fifteen crossings
+   at once and testing only the arrival street silently skipped whatever was
+   in between. Correct, but it means riding from 38th to 60th surfaced you at
+   Columbus Circle and then played TIMES SQUARE at you, eighteen blocks after
+   you went past it. More than SCENE_LATE blocks and the moment has gone: it
+   is marked seen and skipped.
+
+   Except the two that are not scenery. The steak dinner is where the order
+   gets signed and Penn 1 is the whole ending - miss either and the run has
+   no middle or no end - so they carry `must` and play however late you are
+   to them. */
+var SCENE_LAND_WAIT = 0.5, SCENE_LATE = 10;
+
+function queueScene(n, st){
   var table = G.leg > 0 ? SCENES : SCENES_BACK;
-  if (table[next] && !G.scenesSeen["L" + G.leg + "_" + next]) startScene(next);
+  var sc = table[n], key = "L" + G.leg + "_" + n;
+  if (!sc || G.scenesSeen[key]) return;
+  if (G.state !== ST_PLAY) return;
+  if (G.scene || G.scenePend) return;
+  if (!sc.must && Math.abs(st - n) > SCENE_LATE){
+    /* Marked seen on the way past, so the lookahead cannot pick it up again
+       a few rows later and play it even later than this. */
+    G.scenesSeen[key] = true;
+    return;
+  }
+  G.scenePend = { st:n, t:SCENE_LAND_WAIT };
+}
+
+/* Held, not cancelled, if he is mid-ride or already behind a card when the
+   half second runs out - a mandatory scene that got eaten by a train the
+   player boarded on the same frame would cost him the order. Only death
+   clears it, and by then the run is over anyway. */
+function tickScenePend(dt){
+  var P = G.scenePend;
+  if (!P) return;
+  if (G.state !== ST_PLAY){ G.scenePend = null; return; }
+  if (P.t > 0) P.t -= dt;
+  if (P.t <= 0 && !G.scene && !G.ride){
+    G.scenePend = null;
+    startScene(P.st);
+  }
 }
 
 function progress(){
@@ -4537,9 +4641,7 @@ function progress(){
          idea measured in the two things he actually spends: ground and
          time. A street was a lumpy proxy for both, and it meant a
          four-lane canyon and a one-lane side street cost him the same. */
-      var table = G.leg > 0 ? SCENES : SCENES_BACK;
-      if (table[n] && !G.scenesSeen["L" + G.leg + "_" + n] &&
-          G.state === ST_PLAY && !G.scene) startScene(n);
+      queueScene(n, st);
       var ms = (G.leg > 0 ? MILESTONES : MILESTONES_BACK)[n];
       if (ms){
         AUDIO.stage();
@@ -4669,6 +4771,13 @@ function act(dir){
       var kp = target.props[ki];
       if (kp.kind === "kiosk" && kp.col === nc && !kp.used){
         kp.used = true;
+        /* And it starts leaving. A spent terminal used to stand there for the
+           rest of the run at 40% alpha - visibly finished, still solid, and
+           still taking up one of the few columns on that pavement. A faded
+           box you cannot walk through is the worst of both: it reads as
+           scenery and behaves as a wall. It blinks out instead, and the
+           column comes back with it. */
+        kp.usedAt = G.t;
         G.revealT = Math.max(G.revealT, POWERS.path.secs);
         G.trace = buildTrace();
         /* The attach. Same money shape as a TAM payout - straight onto the
@@ -10542,7 +10651,9 @@ var SCENES = {
         draw:scenePark, music:"park" },
   81: { title:"STEAK DINNER",        sub:"Taking the customer to a steak dinner to finalize the deal",
         draw:sceneBar,
-        secs:11.4, music:"dinner", turn:true,
+        /* `must`: this is where the order gets signed. However many blocks
+           past 81st a subway ride dropped him, this one plays. */
+        secs:11.4, music:"dinner", turn:true, must:true,
         beats:[[2.0,"paper"], [4.4,"pen"], [7.6,"deal"], [9.9,"stamp"], [10.1,"cheer"]],
         after:["SIGNED \u2014 PURCHASE ORDER", "TAKE IT BACK TO PENN 1",
                "Nothing is booked until the paper is on the desk. Forty-seven blocks downtown."] }
@@ -10552,7 +10663,8 @@ var SCENES = {
    opposite order, because both are keyed on the street number. */
 var SCENES_BACK = {
   34: { title:"PENN 1",             sub:"Thirty-fourth and Seventh",  draw:scenePenn,
-        secs:8.3, music:"city", then:"flyVegas", solid:true, holdOut:true,
+        /* `must`: the whole ending hangs off this one. */
+        secs:8.3, music:"city", then:"flyVegas", solid:true, holdOut:true, must:true,
         /* BOOKED lands at 3.2 into the desk shot, which is PENN_CUT + 3.2
            absolute. It used to land in silence, which is the one moment in
            the whole run the player has been walking towards. */
@@ -11159,16 +11271,17 @@ function update(dt){
        in the road, on the train, behind a cutscene. Time is the other thing
        he is spending and it does not stop because he is sitting down. */
     spendHp(HP_PER_SEC * dt);
+    tickScenePend(dt);
+    sweepKiosks();
     G.fiscT -= dt;
-    /* The clock face follows the timer rather than being it - see FISC_DRIFT.
-       It ticks on its own, then closes the gap at a capped rate, and the
-       clamp is only a backstop on a value that is already moving smoothly. */
-    var allow = Math.min(FISC_DRIFT, Math.max(0, G.fiscT));
-    var step = FISC_REWIND * dt, d = G.fiscT - (G.fiscShow -= dt);
-    G.fiscShow += Math.max(-step, Math.min(step, d));
-    if (G.fiscShow > G.fiscT + allow) G.fiscShow = G.fiscT + allow;
-    if (G.fiscShow < G.fiscT - allow) G.fiscShow = G.fiscT - allow;
-    if (G.fiscT <= 0){ G.fiscT = 0; G.fiscShow = 0; missClose(); }
+    /* The face counts toward the evening, forward only, one minute at a
+       time - see FISC_CATCH. Clamped to the distance left, so it tracks the
+       truth exactly once it has caught up and can never run ahead of it. */
+    var want = fiscTargetMin();
+    if (want > G.fiscMin)
+      G.fiscMin += Math.min(want - G.fiscMin,
+                            FISC_MIN_PER_SEC * FISC_CATCH * dt);
+    if (G.fiscT <= 0){ G.fiscT = 0; G.fiscMin = FISC_END_MIN; missClose(); }
   }
 
   /* The bar's hold and fill run ABOVE the hit-stop, because the whole point
@@ -12286,7 +12399,7 @@ function drawWorld(){
       }
       for (i=0;i<row.props.length;i++){
         var pr2 = row.props[i];
-        if (pr2.kind === "kiosk"){ drawKiosk(pr2.col, sy, pr2.used); continue; }
+        if (pr2.kind === "kiosk"){ drawKiosk(pr2.col, sy, pr2.used, pr2.usedAt); continue; }
         blit(S["pr_"+pr2.kind], pr2.col*TILE, sy);
       }
       if (row.pickup){
@@ -12432,9 +12545,25 @@ function drawBill(p){
    The sparks climbing out of it are the TRACE green, not the amber. They are
    a preview of the thing it hands you, and they are the only green on the
    street until you take it. */
-function drawKiosk(col, sy, used){
+function drawKiosk(col, sy, used, usedAt){
   var cx = col*TILE + TILE*0.5, ground = sy - ROW_H*0.46;
-  if (used){                                   // spent: a box on the pavement
+  if (used){
+    /* SPENT, AND GOING - and it leaves exactly the way the TAM flight does.
+
+       The game already has a word for "this is about to be over": the hard
+       on/off blink on the hero when the flight is lapsing, quickening as it
+       runs down. Not a fade. A fade is a thing settling; a blink is a thing
+       switching off, and both of these are powers running out. Same two
+       constants as the flight and the suit - 9 rising to 26 - so a player who
+       has seen either one already knows what this means.
+
+       Drawn at the spent alpha on the frames it is drawn at all, so it cuts
+       between a faded box and nothing, the way the figure cuts in and out
+       while its shadow stays put. */
+    var age = G.t - (usedAt == null ? G.t : usedAt);
+    var k = Math.max(0, Math.min(1, age / KIOSK_GONE));
+    var blink = 9 + k * 17;
+    if (Math.floor(G.t * blink) % 2 === 0) return;
     ctx.globalAlpha = 0.4;
     blit(S.pr_kiosk, col*TILE, sy);
     ctx.globalAlpha = 1;
@@ -14629,10 +14758,10 @@ function drawHud(){
   var secs = Math.max(0, Math.ceil(G.fiscT));
   var urgent = G.fiscT < 12;
   plate(LOGICAL_W/2 - 250, 26, 500, 78, C.ink);
-  /* The clock face reads fiscShow; the countdown below reads fiscT. That is
-     the whole of the difference between them, and it is at most five
-     seconds. */
-  txt(FISC_Q + "  ·  " + fiscClock(G.fiscShow) + "  ·  " + FISC_SEG,
+  /* The clock face reads fiscMin, which counts; the countdown below reads
+     fiscT, which drains. The face is never ahead of the timer and never
+     behind by more than the walking has banked. */
+  txt(FISC_Q + "  ·  " + fiscClock(G.fiscMin) + "  ·  " + FISC_SEG,
       LOGICAL_W/2, 50, 20, C.textDim, "center", 460);
   var tcol = urgent ? C.danger : C.amber;
   if (urgent && Math.sin(G.t*9) < 0) tcol = C.text;
@@ -15532,7 +15661,7 @@ function drawDead(){
     /* Both are 0 by the time this is up - the drift allowance closes to
        nothing at the hour - so the clock reads 12:00 AM, the minute it went
        rather than the minute before it. */
-    txt(FISC_Q + " · " + FISC_SEG + " · " + fiscClock(G.fiscShow), LOGICAL_W/2, 250, 30, C.text);
+    txt(FISC_Q + " · " + FISC_SEG + " · " + fiscClock(G.fiscMin), LOGICAL_W/2, 250, 30, C.text);
   } else {
     txt(G.po ? "SO CLOSE" : "DIDN’T MAKE IT", LOGICAL_W/2, 182, 86, C.danger);
     txt((G.po ? "SIGNED ORDER, STOPPED ON W " : "STOPPED ON W ") + G.street + " ST BY " + G.deathName, LOGICAL_W/2, 250, 30, C.text);

@@ -3389,6 +3389,98 @@ during a cutscene.
 
 
 
+
+## An evening, not an hour
+
+The clock ran 11:00 PM to midnight: one timer-second to one minute, tidy
+arithmetic and a bad story. Everything in a run happens inside it —
+ninety-four blocks, a subway, a steak dinner and a signed order — and sixty
+minutes to do all of that is not a tight deadline, it is an impossible one.
+The player is not racing an hour. They are racing the end of a working day.
+
+The same sixty seconds now cover **5:00 PM to midnight**: 420 minutes over 60
+seconds, which is **exactly 7 minutes per timer-second** and divides without a
+remainder, so the last second lands on midnight on the nose.
+
+| left | clock | | left | clock |
+|---|---|---|---|---|
+| 60s | 5:00 PM | | 15s | 10:15 PM |
+| 45s | 6:45 PM | | 5s | 11:25 PM |
+| 30s | 8:30 PM | | 0s | 12:00 AM |
+
+**But it counts; it does not jump.** Seven minutes a second taken literally is
+5:00 to 5:07 to 5:14, which is a departure board flipping, not a clock
+running. So the displayed time is its own value in minutes and chases the
+timer **one minute at a time** — every minute between here and there actually
+shown, just quickly, the way an odometer rolls. Verified: every step is
+exactly 1 minute, no step is ever 7, and across six seconds of play there were
+41 of them.
+
+**And the lag is the buffer.** The chase only ever moves forward, so when a
+block banks time and the target slides back toward the afternoon, the counter
+simply stops and waits for the evening to catch up. Measured over 25 seconds
+of hard walking: **zero backward steps**, and the clock held still at 6:45 PM
+for 1,456 frames while the timer was banked to its cap and drained back, then
+resumed 7:00, 7:21.
+
+That pause replaced the whole `FISC_DRIFT` mechanism, which is a better
+outcome than the alternative. Carried across literally, five minutes of slack
+became **worse than no slack at all** — measured, 6 backward steps with a worst
+case of 14 minutes, against 7 steps of 7 minutes with no drift at all. Every
+budget that is not a whole multiple of the tick doubles the worst lurch,
+because the backstop lets go halfway through a tick and the rounding turns one
+step into two. A forward-only counter has no budget to run out of, never
+snaps, and never lies by more than it is actually behind.
+
+**One trap worth recording.** Three of these constants are derived from
+`FISC_MAX`, which was declared 2,400 lines further down. `var` hoists the
+declaration and never the value, so they computed off `undefined` and became
+`NaN` — and the syntax check passed, because `NaN` is perfectly legal. They all
+live together now, above everything that reads them.
+
+## The card waits for him to land
+
+Both cutscene triggers called `startScene` on the frame the street changed —
+the same frame he steps onto the pavement — so the card came up over a man
+still mid-stride, and on crossings where he arrived with traffic behind him it
+looked like he had been caught by it. There is now half a second between the
+two. Verified: 30 frames exactly, and he is standing on `safe` for all of them.
+
+**And a scene has a sell-by.** Scenes fire for every street *passed*, not just
+the one landed on, because a subway ride covers seven to fifteen crossings at
+once. Correct, but it meant riding 38th to 55th surfaced you at Columbus
+Circle and then played TIMES SQUARE at you, thirteen blocks after you went
+past it. More than `SCENE_LATE` = 10 blocks and the moment has gone: marked
+seen, skipped. The nice part is what happens next — that same ride now plays
+**Rockefeller** instead, which is only five blocks back and still true.
+
+Except the two that are not scenery. The steak dinner is where the order gets
+signed and Penn 1 is the whole ending; both carry `must` and play however late
+you are to them. Verified at 14, 18 and 24 blocks past.
+
+The pending scene is **held, not cancelled**, if he is mid-ride or behind
+another card when the half second runs out — a mandatory scene eaten by a train
+he boarded on the same frame would cost him the order. Only death clears it.
+
+## The terminal blinks out
+
+A spent TE-ADDON used to stand there for the rest of the run at 40% alpha:
+visibly finished, still solid, still taking one of the few columns on that
+pavement. A faded box you cannot walk through is the worst of both — it reads
+as scenery and behaves as a wall.
+
+It now leaves **exactly the way the TAM flight does**. The game already has a
+word for *this is about to be over*: the hard on/off blink on the hero when
+the flight is lapsing, quickening as it runs down. Same two constants, 9
+rising to 26, so anyone who has seen the flight or the suit expire already
+knows what it means. Not a fade — a fade is a thing settling, a blink is a
+thing switching off, and all three of these are powers running out.
+
+Two seconds, then the prop goes **and so does its entry in `row.blocked`** —
+which is the half that actually mattered, because that map is what stops a
+step and nothing had ever taken anything back out of it since generation.
+Verified: gone at 2.00s, blocked false, blocked while visible, walkable after.
+
 ## The pavement teaches
 
 Overheard fragments that sound like two New Yorkers talking and are, every one
