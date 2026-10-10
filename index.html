@@ -1458,14 +1458,17 @@ function layout(){
   traceBeamGrad.addColorStop(0.42, "rgba(53,208,127,0.13)");
   traceBeamGrad.addColorStop(1,    "rgba(53,208,127,0)");
   // and a narrow one for a champion, in the Endpoint blue
-  /* The corridor on the road, built at the origin and translated into place
-     each frame - a gradient is transformed by the CTM, so one object serves
-     every position he can stand in and nothing is allocated per frame. It is
-     the whole cost of the effect: one cached gradient, one fillRect and two
-     hairlines. */
-  laneGrad = ctx.createLinearGradient(0, 0, 0, -620);
-  laneGrad.addColorStop(0,    "rgba(143,211,232,0.30)");
-  laneGrad.addColorStop(0.18, "rgba(143,211,232,0.19)");
+  /* The headlight throw, built at the origin and translated into place each
+     frame - a gradient is transformed by the CTM, so one object serves every
+     position he can stand in and nothing is allocated per frame.
+
+     Brightest a little way OUT rather than at the source: the hot spot of a
+     headlight is on the road ahead of the lamp, not under it, and a gradient
+     that peaks at zero looks like something glowing at his feet. */
+  laneGrad = ctx.createLinearGradient(0, 0, 0, -BEAM_LEN);
+  laneGrad.addColorStop(0,    "rgba(143,211,232,0.10)");
+  laneGrad.addColorStop(0.14, "rgba(143,211,232,0.27)");
+  laneGrad.addColorStop(0.45, "rgba(143,211,232,0.13)");
   laneGrad.addColorStop(1,    "rgba(143,211,232,0)");
 
   champBeamGrad = ctx.createLinearGradient(0, 0, 0, -250);
@@ -2561,9 +2564,19 @@ function neoModel(dir){
        waist over the old trousers is a different wrong shape. */
     P(0.325, 0.45, 0.145, 0.14, 0.075, 0.26, "#141619"),      // trousers
     P(0.530, 0.45, 0.145, 0.14, 0.075, 0.26, "#141619"),
-    P(0.290, 0.425, 0.42, 0.15, 0.330, 0.115, shirt),         // the waist
-    P(0.250, 0.420, 0.50, 0.16, 0.445, 0.145, shirt),         // and the chest
-    P(0.282, 0.415, 0.44, 0.15, 0.322, 0.032, "#1d222a"),     // the belt
+    /* ONE BOX. It was three - waist, chest, belt - stacked up his front, and
+       THAT is where the cage came from. Every cuboid here gets a top face at
+       shade +0.18 and a rim line at +0.58, which on a near-black shirt means
+       a bright horizontal band: #141619 in front, #3f4044 along the top. Three
+       boxes in a 0.26 span is three bright rungs, and two straps down the
+       middle turns the rungs into a ladder. It was never the width - it was
+       the lighting, and no amount of narrowing was going to fix it.
+
+       So the taper goes and the rungs go with it. One torso 0.37 wide from
+       the hip to the collarbone, and the belt demoted to a DECAL - flat, no
+       top face, no rim, just a dark band painted across him. One highlight on
+       the whole torso instead of three. */
+    P(0.315, 0.425, 0.37, 0.12, 0.330, 0.260, shirt),
     /* THE COAT: two panels down the outside of him, longer than the legs and
        a shade wider at the hem, with a lit front edge on each so they read as
        hanging open rather than as two black bars. */
@@ -2607,30 +2620,50 @@ function neoModel(dir){
        coat and read as bulk however slim the waist got. Everything comes in
        together: the shoulder line, the arms on it, and the hands, so the
        outline is the coat and not a set of blocks standing proud of it. */
-    P(0.258, 0.410, 0.484, 0.16, 0.534, 0.038, coat),
-    P(0.196, 0.445, 0.076, 0.125, 0.33, 0.215, shade(coat,-0.18)),
-    P(0.728, 0.445, 0.076, 0.125, 0.33, 0.215, shade(coat,-0.18)),
-    P(0.198, 0.445, 0.080, 0.13, 0.295, 0.052, skin),         // hands
-    P(0.722, 0.445, 0.080, 0.13, 0.295, 0.052, skin),
+    /* AND THE ARMS CAME IN. The shoulder line ran 0.258 to 0.742 with the
+       sleeves hung outboard of it at 0.196 and 0.804, so the figure was 0.608
+       across at the widest - against a torso of 0.37 that is a step of 0.12
+       per side, and a step that size reads as padding however dark it is.
+       0.222 to 0.778 now: 0.536 overall, twelve per cent off the silhouette,
+       and the shoulders at 0.44 sit between the torso and the arms instead
+       of spanning past both. */
+    P(0.280, 0.410, 0.440, 0.14, 0.534, 0.038, coat),
+    P(0.222, 0.445, 0.076, 0.125, 0.33, 0.215, shade(coat,-0.18)),
+    P(0.702, 0.445, 0.076, 0.125, 0.33, 0.215, shade(coat,-0.18)),
+    P(0.224, 0.445, 0.080, 0.13, 0.295, 0.052, skin),         // hands
+    P(0.696, 0.445, 0.080, 0.13, 0.295, 0.052, skin),
     P(0.42, 0.44, 0.16, 0.14, 0.615, 0.040, skin),            // the neck
     P(0.37, 0.43, 0.26, 0.15, 0.655, 0.200, skin),            // the face
-    /* The hair, swept and a touch wider than the head - and on the FACE'S
-       OWN plane, so the z tiebreak puts it in front of the skin instead of
-       the painter burying it. */
-    P(0.345, 0.43, 0.31, 0.15, 0.828, 0.050, "#15110f"),
-    P(0.345, 0.43, 0.040, 0.15, 0.752, 0.080, "#15110f"),
-    P(0.615, 0.43, 0.040, 0.15, 0.752, 0.080, "#15110f"),
-    P(0.325, 0.43, 0.030, 0.15, 0.800, 0.056, "#15110f")      // a sweep of it
+    /* The hair, and a great deal less of it. It was 0.31 wide against a head
+       of 0.26 - an overhang of 0.025 a side - 0.050 thick, 0.15 deep, with
+       0.040 sideburns under it and a sweep sticking out past all of that on
+       the left. Five voxels of hair on a head 31px wide is a helmet: the lit
+       top face alone was a board balanced on him.
+
+       0.284 wide now, so it clears the skull by a hair rather than by a brim.
+       Thinner (0.036), shallower (0.13, which also shrinks that lit top), the
+       sideburns down to 0.022, and the sweep gone entirely - it was the piece
+       jutting out at the side, and at this size a flick of hair is just a
+       lump. The 0.13 depth also moves the back edge in front of the face's
+       0.58, so it sorts on top outright instead of relying on the z tiebreak
+       the way it used to. */
+    P(0.358, 0.43, 0.284, 0.13, 0.830, 0.036, "#15110f"),     // the crown
+    P(0.360, 0.43, 0.022, 0.13, 0.778, 0.054, "#15110f"),     // sideburns
+    P(0.618, 0.43, 0.022, 0.13, 0.778, 0.054, "#15110f")
   ];
   var dec = [
-    /* The harness: two straps over the shoulders to the belt, which is most
-       of what that costume is under the coat. */
-    /* Closer in. At 0.336 and 0.616 they sat on the outside of his chest and
-       read as webbing on a vest; brought together they are a harness on a
-       man, and they frame the buckle instead of bracketing the whole torso. */
-    { x:0.388, y:0.42, w:0.040, z:0.345, h:0.240, bg:strap },
-    { x:0.572, y:0.42, w:0.040, z:0.345, h:0.240, bg:strap },
-    { x:0.458, y:0.42, w:0.084, z:0.322, h:0.032, bg:"#39414d" },  // the buckle
+    /* NOT A HARNESS ANY MORE. It started as two straps and a buckle - the
+       vest under the coat - and however far in they came, two verticals with
+       a bar across the bottom is a cage drawn on his chest. What is left is
+       the coat's own front: two thin lines close to the centre, which is the
+       edge of a garment hanging open. The buckle went entirely, because the
+       crossbar was the part doing the caging. */
+    { x:0.436, y:0.42, w:0.026, z:0.352, h:0.232, bg:strap },
+    { x:0.538, y:0.42, w:0.026, z:0.352, h:0.232, bg:strap },
+    /* The belt, painted on rather than built. As a cuboid it was a lit band
+       across his middle - see the torso above - and as a decal it is a dark
+       line, which is all a belt on a black coat ever is. */
+    { x:0.315, y:0.42, w:0.370, z:0.330, h:0.028, bg:"#1d222a" },
     /* The shades, straight black. They were grey on the argument that a
        mirror lens catches the light and black ones would be two holes - but
        the holes ARE the look, and against skin rather than against the coat
@@ -2638,7 +2671,26 @@ function neoModel(dir){
        them are a pair of lenses and not one bar. */
     { x:0.378, y:0.43, w:0.108, z:0.714, h:0.044, bg:"#07080a" },
     { x:0.514, y:0.43, w:0.108, z:0.714, h:0.044, bg:"#07080a" },
-    { x:0.486, y:0.43, w:0.028, z:0.728, h:0.012, bg:"#20242a" }   // the bridge
+    { x:0.486, y:0.43, w:0.028, z:0.728, h:0.012, bg:"#20242a" },  // the bridge
+    /* AND A FACE UNDER THEM. He had none: the shades covered the eyes and
+       there was nothing below them, so the bottom half of his head was a
+       blank tan box - which at this size reads as calm, not as serious.
+       Three rects, the same trick the base figure's smile uses in reverse:
+       a flat bar with its two corners a step DOWN. The corners are the whole
+       expression. A straight line is neutral and a curve is a frown; one
+       step is a man with his mouth set - and that turned out to be a man who
+       is ANGRY, which is not the same thing. Two corners dropped below a bar
+       is a scowl, and a scowl on a face that already has black lenses on it
+       is one expression too many. He is not cross; he is unbothered.
+
+       So: one line, dead straight. Nothing about it is doing a face, which
+       at this size is exactly the point - a straight mouth under shades is
+       the most serious a 31px head can be.
+
+       And SHORT AND THIN with it. The first pass was 0.084 wide, 0.013 thick
+       and sat 0.013 under the shades with a lip shadow below it, and all that
+       ink between the glasses and the chin is a moustache. */
+    { x:0.465, y:0.43, w:0.070, z:0.682, h:0.011, bg:"#241a12" }
   ];
   var m = { parts:parts, decals:dec, W:1 };
   return dir < 0 ? flip(m, 1) : m;
@@ -17043,25 +17095,55 @@ function drawBoard(){
   }
 }
 
-/* ------------------------------------------------------- THE CORRIDOR ---
+/* ------------------------------------------------------- THE HEADLIGHTS --
    The rule made visible. Traffic Insights says nothing may stand on the
    column he is in, and until now the only way to know that was to watch the
    cars do it - which reads as the traffic behaving oddly rather than as him
-   doing something to it. This is the lane drawn on the road in front of him,
-   so the cause is on screen next to the effect.
+   doing something to it.
 
-   NOT A CONE, because the rule is not a cone. The corridor is one column
-   wide at his feet and one column wide at the far end of the block, and a
-   beam that splayed out would be promising protection the SKU does not give.
-   The road plane carries no shear - the trace and the cars are both placed
-   at `c*TILE` with no depth term - so one column is a straight vertical
-   band, and a straight vertical band is what gets drawn.
+   IT WAS A BAND AND NOW IT IS A BEAM. The first pass drew his column as a
+   glowing vertical strip, on the argument that the rule is one column wide
+   and a splayed cone would promise protection the SKU does not give. Correct
+   and inert: a lit rectangle on the road is a floor marking, and nothing
+   about it says the light is coming from HIM. A headlight says it, because
+   everyone knows where the lamp on a headlight is - at the narrow end.
 
-   IT COSTS ALMOST NOTHING, which was the ask. One cached gradient built at
-   the origin in layout() and translated per frame, one fillRect through it,
-   and two 2px edges. No filter, no shadowBlur, no per-frame allocation -
-   drawn before drawHaze, so the distance fade comes free from the haze that
-   is already there. */
+   So the V stays honest about the source and lies a little about the width,
+   and that is the right trade: the cars still only refuse his own column, and
+   a player who notices the difference has been watching the lane edges rather
+   than the street, which is where this is trying to put their eyes.
+
+   EVERYTHING ELSE GOES DARK, which is the half that makes it read as light at
+   all. A bright shape on an evenly lit street is paint; the same shape with
+   the street pulled down around it is illumination. The dark is drawn as the
+   REST of the screen - one path holding the full-frame rect wound one way and
+   the V wound the other, so the nonzero fill rule leaves the beam as a hole
+   and the whole wash is a single fill.
+
+   Three of them, nested and widening, because a one-pass hole has a hard edge
+   and a headlight does not. Outside the widest V all three passes land; in
+   each step inward one drops off; inside the innermost none do. That is a
+   soft edge for three fills and no filter, no shadowBlur, no per-frame
+   allocation and no second canvas - which was the whole constraint. */
+var BEAM_LEN = 640;             // how far up the street it throws
+var BEAM_NEAR = TILE * 0.40;    // half-width at his feet: the lamp
+var BEAM_FAR  = TILE * 1.85;    // and at the far end, about four columns
+var BEAM_DARK = 0.17;           // per pass, so 0.51 outside the throw
+var BEAM_STEPS = 3;
+var BEAM_SPREAD = 0.16;         // how much wider each softening pass gets
+
+/* The V as a path, at a given outward scale. Wound apex-left, apex-right,
+   far-right, far-left: the OPPOSITE sense to ctx.rect, which is what makes
+   it a hole rather than a second filled shape. */
+function beamPath(ax, ay, fy, k){
+  var n = BEAM_NEAR * k, f = BEAM_FAR * k;
+  ctx.moveTo(ax - n, ay);
+  ctx.lineTo(ax + n, ay);
+  ctx.lineTo(ax + f, fy);
+  ctx.lineTo(ax - f, fy);
+  ctx.closePath();
+}
+
 function drawTrafficLane(){
   if (G.riskT <= 0 || G.state !== ST_PLAY || !laneGrad) return;
   var pp = playerPos();
@@ -17069,27 +17151,46 @@ function drawTrafficLane(){
      the chips use, so the whole SKU arrives and leaves together. */
   var a = Math.min(1, G.riskT / 0.8, (POWERS.traffic.secs - G.riskT) * 2.2);
   if (a <= 0) return;
-  var x = pp.col * TILE, y = rowScreenY(pp.row) - ROW_H * 0.46;
-  var top = Math.max(HORIZON, y - 620), h = y - top;
-  if (h <= 2) return;
+
+  var ax = pp.col * TILE + TILE * 0.5;            // the lamp, on his column
+  var ay = rowScreenY(pp.row) - ROW_H * 0.30;
+  var fy = Math.max(HORIZON - 40, ay - BEAM_LEN);
+  if (ay - fy <= 4) return;
 
   /* A slow breath on it. It is a held state rather than an event, and a flat
-     band reads as part of the road markings. */
-  var pul = 0.82 + 0.18 * Math.sin(G.t * 2.2);
+     wash reads as a lighting change in the level. */
+  var pul = 0.86 + 0.14 * Math.sin(G.t * 2.2);
+  var i, k;
 
+  // the street goes down, everywhere the throw is not
+  ctx.fillStyle = "#04060b";
+  for (i = 0; i < BEAM_STEPS; i++){
+    k = 1 + (BEAM_STEPS - 1 - i) * BEAM_SPREAD;
+    ctx.globalAlpha = BEAM_DARK * a;
+    ctx.beginPath();
+    ctx.rect(0, 0, LOGICAL_W, LOGICAL_H);
+    beamPath(ax, ay, fy, k);
+    ctx.fill();
+  }
+
+  /* And the throw itself, clipped to the V so the gradient's horizontal edge
+     never shows. The two sides get a hairline on top: a beam has edges, and
+     the edges are the part the cars are refusing to cross. */
   ctx.save();
-  ctx.translate(x, y);
+  ctx.beginPath(); beamPath(ax, ay, fy, 1); ctx.clip();
+  ctx.translate(ax, ay);
   ctx.globalAlpha = a * pul;
   ctx.fillStyle = laneGrad;
-  ctx.fillRect(0, -h, TILE, h);
-  /* The two edges, which are what make it a LANE rather than a glow: a
-     corridor has sides, and the sides are the part the cars are refusing to
-     cross. */
-  ctx.globalAlpha = a * pul * 0.55;
-  ctx.fillStyle = POWERS.traffic.col;
-  ctx.fillRect(0, -h, 2, h);
-  ctx.fillRect(TILE - 2, -h, 2, h);
+  ctx.fillRect(-BEAM_FAR - 4, -BEAM_LEN, (BEAM_FAR + 4) * 2, BEAM_LEN);
   ctx.restore();
+
+  ctx.globalAlpha = a * pul * 0.40;
+  ctx.strokeStyle = POWERS.traffic.col;
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(ax - BEAM_NEAR, ay); ctx.lineTo(ax - BEAM_FAR, fy);
+  ctx.moveTo(ax + BEAM_NEAR, ay); ctx.lineTo(ax + BEAM_FAR, fy);
+  ctx.stroke();
   ctx.globalAlpha = 1;
 }
 
@@ -17350,8 +17451,11 @@ function render(){
   ctx.setTransform(scale, 0, 0, scale, sx*scale, sy*scale);
   drawSky();
   drawWorld();
-  drawTrafficLane();              // his column, under the haze so it recedes
   drawHaze();
+  /* AFTER the haze, not before it. It used to run underneath so the distance
+     fade came free - but this one darkens the street, and a haze painted over
+     the top puts the light back into everything the beam was meant to dim. */
+  drawTrafficLane();
   drawSlowTint();
   if (G.ride) drawRide();
   drawCandyFly();                 // over the world, under the HUD

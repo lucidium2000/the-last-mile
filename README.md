@@ -3566,6 +3566,81 @@ it drew.
 The high-tops stay. Those are Cloud Insights, they are a different power, and
 they are the only thing on his feet that is still news.
 
+
+## Traffic Insights gets headlights
+
+The corridor was correct and inert. The rule is that nothing may stand on the
+column he is in, so the first drawing of it was that column: a lit vertical
+band on the road, one tile wide at his feet and one tile wide at the far end,
+deliberately not splayed because a cone would promise protection the SKU does
+not give.
+
+A lit rectangle on a road is a floor marking. Nothing about it said the light
+was coming from **him**.
+
+A headlight says it, because everyone knows where the lamp on a headlight is —
+at the narrow end. So the band became a V with its apex at his feet, and the V
+lies a little about the width in exchange for telling the truth about the
+source. That is the right trade: the cars still refuse only his own column,
+and a player who notices the difference has been watching the lane edges
+rather than the street, which is where this is trying to put their eyes.
+
+**The half that makes it read as light at all is the dark.** A bright shape on
+an evenly lit street is paint; the same shape with the street pulled down
+around it is illumination. The darkness is drawn as the *rest* of the screen —
+one path holding the full-frame rect wound one way and the V wound the other,
+so the nonzero fill rule leaves the beam as a hole and the whole wash is a
+single fill.
+
+Three of them, nested and widening, because a one-pass hole has a hard edge
+and a headlight does not. Outside the widest V all three passes land; each step
+inward drops one; inside the innermost, none. **A soft edge for three fills** —
+no filter, no `shadowBlur`, no second canvas, no per-frame allocation. 60fps on
+the desk, which was the whole constraint.
+
+It also had to move **after** `drawHaze`. The band ran before it so the
+distance fade came free; this one darkens the street, and a haze painted over
+the top puts the light back into everything the beam was meant to dim.
+
+## Neo, the fourth and fifth passes
+
+**The cage on his chest was never the width.** Three passes went into narrowing
+it — 0.50 to 0.44 to 0.40 — and every one of them came back as *still too wide,
+still a cage*. It was the lighting. Every cuboid here gets a top face at
+`shade +0.18` and a rim line at `+0.58`, which on a near-black shirt means
+`#141619` in front and `#3f4044` along the top. Waist, chest and belt were
+three boxes stacked in a 0.26 span: three bright horizontal rungs, and two
+straps down the middle turned the rungs into a ladder.
+
+So the taper went and the rungs went with it. **One torso box**, 0.37 wide from
+hip to collarbone, and the belt demoted to a decal — flat, no top face, no rim.
+One highlight on the whole torso instead of three.
+
+The arms came in with it. The shoulder line ran 0.258–0.742 with the sleeves
+hung *outboard* at 0.196 and 0.804, so the figure was 0.608 across at the
+widest — against a 0.37 torso that is a step of 0.12 a side, and a step that
+size reads as padding however dark it is. **0.536 now, twelve per cent off the
+silhouette.**
+
+**He had no face.** The shades covered the eyes and there was nothing below
+them, so the bottom half of his head was a blank tan box — which at this size
+reads as calm, not as serious. First attempt: a flat bar with its corners a
+step down, the base figure's smile trick in reverse. Two problems, both
+reported immediately. It was 0.084 wide and 0.013 thick sitting 0.013 under the
+lenses, and that much ink between the glasses and the chin is a **moustache**.
+And two dropped corners is not *set*, it is *angry* — a scowl on a face that
+already has black lenses on it is one expression too many.
+
+He is not cross; he is unbothered. **One line, dead straight**, a third
+narrower, and dropped so there is twice the skin above it.
+
+The hair was a helmet: 0.31 wide against a 0.26 head, 0.050 thick, 0.15 deep,
+with 0.040 sideburns and a sweep sticking out past all of it. The lit top face
+alone was a board balanced on him. **0.284 wide, 0.036 thick, 0.13 deep**,
+sideburns halved, sweep gone. The shallower depth also moves its back edge in
+front of the face's 0.58, so it sorts on top outright instead of relying on the
+z tiebreak.
+
 ## Two more costumes
 
 `flashModel` set the rule a while back: a power-up big enough to change how
