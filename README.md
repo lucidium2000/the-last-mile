@@ -1225,9 +1225,9 @@ impact to play, so `AUDIO.collapse()` is a long breath falling away with the
 two thuds that are the whole of it, soft and low, at 0.62 and 1.66 — the knees,
 then the rest of him. The screen does not shake at all.
 
-**The drain is per box and per second now, not per street.** A point of health
-for every square he covers on foot, and half a point for every second the run
-is live. A street was a lumpy proxy for both: a four-lane canyon and a one-lane
+**The drain is per box and per second now, not per street.** Half a point of
+health for every square he covers on foot, and a quarter point for every
+second the run is live. A street was a lumpy proxy for both: a four-lane canyon and a one-lane
 side street took the same 3% off him, a sideways dodge to get out from under a
 bus was free, and standing on a corner reading the traffic cost nothing at all
 — which is the one behaviour the old model actively rewarded.
@@ -1242,11 +1242,20 @@ stays free of the per-box charge — he is sitting down, and charging forty boxe
 for a ride would make the metrocard a trap — but the clock keeps running,
 because time passes on a train like anywhere else.
 
-**It is close to twice the old drain, and that is worth knowing before you
-play it.** The walk to the restaurant is 211 boxes, so the round trip is 422%
-from ground alone against the old 282%, and a four-minute run adds another
-120% from the clock. Measured: one forward step costs exactly 1, a three-row
-leap costs exactly 3, and standing still costs 0.500/second.
+**Both rates are half what they first shipped at.** The shape was right and
+the rate was not. At a point a box and half a point a second the two charges
+together came to roughly 1.9x the old per-street drain — the walk to the
+restaurant is 211 boxes, so the round trip alone was 422% against the old
+282%, with a four-minute run adding another 120% from the clock. That turned
+the food cart from a thing you took when it was on your way into a thing you
+had to go and find, and a man detouring for a hot dog is not a man walking
+uptown. Halved, the round trip costs about what the streets used to and the
+clock is the part that bites.
+
+Measured at the current rates: one forward step costs exactly 0.500, a
+three-row Cloud Insights leap exactly 1.500, standing still 0.250/second —
+200 boxes of ground or 6.7 minutes of clock to burn a full tank, and the
+`HP_CRAWL` third still rides on top of both (0.170 a step down there).
 
 The drain is deliberately more than you start with. You cannot finish on the
 tank you begin with. A flat rate for all three made the choice of cart meaningless. Now a pizza
