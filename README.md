@@ -3482,6 +3482,71 @@ step and nothing had ever taken anything back out of it since generation.
 Verified: gone at 2.00s, blocked false, blocked while visible, walkable after.
 
 
+
+## The board, and the report behind it
+
+**The board answers one question** — who is top and what it cost them — so it
+is down to six columns: `#`, `WHO`, `PIPELINE`, `POWER-UPS`, `TIME`, `WHEN`,
+`RESULT`. Blocks and steps came off it. They are the detail of *how* a number
+was got, which is a reading question rather than a glancing one, and both are
+still on every row of the report.
+
+`TIME` is how long the walk took and `WHEN` is when it was set. Two different
+questions that both get called "time", so they get two words and sit next to
+each other where the difference is obvious. `WHEN` renders in the reader's own
+local clock, because a board shared between panels carries rows from other
+machines and that is the only honest way to show somebody else's timestamp.
+
+**The report is the list.** Built the way `report.html` is — the table first,
+at full width and full detail, and the breakdowns underneath — because the
+thing people actually want off a leaderboard is to find their own row and read
+across it. Twelve columns, fifty rows: blocks, steps, rides, TAM wins,
+add-ons, champions, time, when, outcome. Then **totals**, **per run on
+average**, **what stops people** and **power-ups collected**, the last two as
+bar charts in the colours the things themselves use.
+
+`BOARD_MAX` went 25 → 50, so fifty is what is kept and what is asked for.
+
+**It is one tall page that scrolls**, not a set of panels. Fifty rows and four
+summaries do not fit on a screen, and paging through them means remembering
+what was on the last page. A finger drags it one-to-one, a flick carries on
+and slows down with the same rule as the initials wheel, and the wheel works
+for anyone on a desk. The header and the CLOSE button do not scroll, so the
+way out is never somewhere off the top.
+
+Every gesture that starts on the report is **consumed** by it. A drag scrolls;
+a flick spins; a tap either closes, if it landed on CLOSE, or does nothing at
+all. Nothing falls through to `act()`, because on this screen `act()` starts a
+new run — and losing your own numbers by touching the screen while reading
+them is the one thing this page must not do.
+
+**The page measures itself.** Hand-summing the section heights got it wrong by
+five hundred pixels, which showed up as a screenful of nothing under the last
+chart. `drawReport` now records where its own content ended and the scroll
+limit uses that, so the two cannot drift apart when a section changes.
+
+One number on it is deliberately **not** an average: the device never stored a
+running total of score, only the best, and averaging the top fifty on the
+board would be the average of the *winners* dressed up as the average of
+everyone. It says "best pipeline" and means it.
+
+## Five-minute steps
+
+Seven hours in sixty seconds is seven minutes of wall clock a second however
+it is sliced, and a digit turning over seven times a second is not a clock,
+it is a counter having a fit. The face shows **every fifth minute**, which
+drops it to one change every 0.70s — slow enough to read a time off, fast
+enough that the evening is visibly going.
+
+The quantising is in the *display* and nowhere else. `fiscMin` is still
+continuous and still chases the timer one minute at a time, so the hold when a
+block banks time is exactly as smooth as it was; the face just does not show
+every step of it. 1020 and 1440 are both multiples of five, so the first time
+shown is 5:00 PM on the nose and the last before midnight is 11:55 PM.
+
+Measured: every step 5 minutes, one change every 0.70–0.72s, **zero** backward
+changes, and 1,199 frames held still across twenty seconds of hard banking.
+
 ## An hourglass, not a crate
 
 Internet Insights fell through to the generic power-up model: a box with an
@@ -3532,9 +3597,17 @@ switch:
 | **LOW** | 0.128 | one running behind a conversation |
 | **MUTED** | 0 | a room that is working |
 
-The icon is three bars and the lit ones **are** the level, so the state reads
-without the word next to it — built from three elements rather than a glyph,
-because a speaker character resolves to whatever the panel happens to have.
+The icon is a **speaker with three bars** coming out of it, and the lit ones
+**are** the level — so it says both what the control is and which state it is
+in. All of it is drawn from elements and CSS borders rather than a glyph,
+because a speaker character resolves to whatever the panel happens to have;
+the cone is a border triangle with its tall edge at the right and its point at
+the left, flaring away from the box.
+
+**There is no word on it.** The label was the widest part of the button, and
+dropping it lets the icon be big enough to read at arm's length, which is the
+distance a hallway panel is used from. The accessible name is kept current in
+`volSync` for anything that cannot see the bars.
 Stored as an index rather than a boolean, so the steps can move later without
 the saved value meaning something different afterwards, and it migrates the
 old `lastmile.mute` key: anybody who had it muted stays muted.

@@ -48,26 +48,48 @@
     display:inline-block;width:1em;height:0.75em;
     border:2px solid currentColor;border-radius:2px;
   }
-  /* Three bars rising, and the lit ones ARE the level - so the icon says
-     which of the three states you are in without reading the word next to
-     it. Built out of three elements rather than a glyph, because a speaker
-     character resolves to whatever the panel happens to have. */
-  #vol i{display:inline-flex;align-items:flex-end;gap:2px;height:0.9em;}
+  /* A SPEAKER, then three bars rising out of it, and the lit ones ARE the
+     level - so the icon says both what the control is and which of the three
+     states you are in, without reading the word beside it. All of it is
+     drawn out of elements and borders rather than a glyph, because a speaker
+     character resolves to whatever the panel happens to have.
+
+     The cone is a CSS border triangle: transparent on three sides with the
+     RIGHT border coloured gives a wedge with its tall edge at the right and
+     its point at the left, which is a cone flaring away from the box. */
+  /* No word on it. A speaker with bars coming out of it is understood
+     everywhere, the label was the widest part of the button, and dropping it
+     lets the icon be big enough to actually read at arm's length - which is
+     the distance a hallway panel is used from. The state still lives in the
+     bars, and the accessible name is kept current in volSync for anything
+     that cannot see them. */
+  #vol{padding:9px 15px;}
+  #vol i{display:inline-flex;align-items:center;gap:4px;height:1.5em;}
+  #vol u{
+    position:relative;display:block;text-decoration:none;
+    width:0.34em;height:0.52em;background:currentColor;margin-right:0.50em;
+  }
+  #vol u::after{
+    content:"";position:absolute;left:0.34em;top:50%;margin-top:-0.62em;
+    width:0;height:0;border-style:solid;
+    border-width:0.62em 0.46em 0.62em 0;
+    border-color:transparent currentColor transparent transparent;
+  }
   #vol s{
-    display:block;width:3px;background:currentColor;
+    display:block;width:4px;background:currentColor;align-self:flex-end;
     text-decoration:none;opacity:0.22;
   }
-  #vol s:nth-child(1){height:40%;}
-  #vol s:nth-child(2){height:70%;}
-  #vol s:nth-child(3){height:100%;}
-  #vol.v1 s:nth-child(1){opacity:1;}
-  #vol.v2 s:nth-child(1),#vol.v2 s:nth-child(2),#vol.v2 s:nth-child(3){opacity:1;}
+  #vol s:nth-child(2){height:40%;}
+  #vol s:nth-child(3){height:68%;}
+  #vol s:nth-child(4){height:96%;}
+  #vol.v1 s:nth-child(2){opacity:1;}
+  #vol.v2 s:nth-child(2),#vol.v2 s:nth-child(3),#vol.v2 s:nth-child(4){opacity:1;}
 </style>
 </head>
 <body>
 <div id="wrap"><canvas id="c"></canvas>
 <div id="ui">
-<button id="vol" type="button" aria-label="Volume"><i><s></s><s></s><s></s></i><b>SOUND</b></button>
+<button id="vol" type="button" aria-label="Volume"><i><u></u><s></s><s></s><s></s></i></button>
 <button id="fs" type="button" aria-label="Toggle full screen"><i></i><b>FULL SCREEN</b></button>
 </div>
 </div>
@@ -1461,7 +1483,9 @@ function fsSync(){
 var volBtn = document.getElementById("vol");
 function volSync(){
   volBtn.className = "on v" + (AUDIO.volSteps() - 1 - AUDIO.volIndex());
-  volBtn.lastChild.textContent = AUDIO.volName();
+  /* The button carries no text, so the state has to reach a screen reader
+     some other way. */
+  volBtn.setAttribute("aria-label", "Volume: " + AUDIO.volName());
 }
 volBtn.addEventListener("click", function(e){
   e.preventDefault(); e.stopPropagation();
@@ -1925,10 +1949,26 @@ function fiscTargetMin(){
   var t = Math.max(0, Math.min(FISC_MAX, G.fiscT));
   return FISC_START_MIN + (FISC_MAX - t) * FISC_MIN_PER_SEC;
 }
-/* And what the face says, given a value in minutes past midnight. */
+/* And what the face says, given a value in minutes past midnight.
+
+   IT READS IN FIVES. Seven hours in sixty seconds is seven minutes of wall
+   clock a second however it is sliced, and a digit that turns over seven
+   times a second is not a clock, it is a counter having a fit. Showing only
+   every fifth minute drops that to a change every 0.7 seconds, which is
+   slow enough to read a time off and fast enough that the evening is
+   visibly going.
+
+   The quantising is in the DISPLAY and nowhere else. `fiscMin` is still
+   continuous and still chases the timer one minute at a time, so the hold
+   when a block banks time is exactly as smooth as it was; the face just
+   does not show every step of it. 1020 and 1440 are both multiples of five,
+   so the first time shown is 5:00 PM on the nose and the last before
+   midnight is 11:55 PM. */
+var FISC_SHOW_STEP = 5;
 function fiscClock(mins){
   if (mins >= FISC_END_MIN) return "12:00 AM";   // the close, and you are past it
-  var m = Math.floor(Math.max(FISC_START_MIN, mins));
+  var m = Math.max(FISC_START_MIN, mins);
+  m = Math.floor(m / FISC_SHOW_STEP) * FISC_SHOW_STEP;
   var hh = Math.floor(m / 60), mm = m % 60;
   var h12 = hh % 12; if (h12 === 0) h12 = 12;
   return h12 + ":" + pad2(mm) + " " + (hh >= 12 ? "PM" : "AM");
@@ -4465,6 +4505,7 @@ function reset(){
     leapT:0, leapDir:1, dashBeep:0, idleT:0, saver:false, hushed:false, spin:null,
     dashFlash:0, dashPulse:0, dashWhole:0,
     scene:null, scenePend:null, scenesSeen:{}, ticker:null, notice:null, southT:0,
+    report:false, reportY:0, spinR:0,
     leg:1, po:false, won:false,
     fiscT:FISC_MAX, fiscMin:FISC_START_MIN,
     missedClose:false,
@@ -4499,7 +4540,7 @@ function reset(){
 /* The shared board. An HTTP val (leaderboard/valtown.ts); empty this string
    and the game never opens a socket, which is the RoomOS-safe default. */
 var BOARD_API = "https://lucidium2000--be403ca8c25711f194891607ee4eb77e.web.val.run";
-var BOARD_MAX = 25;                 // rows kept locally
+var BOARD_MAX = 50;                 // rows kept locally, and asked for
 var BOARD_SHOW = 10;                // rows on screen
 var LS_BOARD = "lastmile.board.v1", LS_STATS = "lastmile.stats.v1",
     LS_WHO   = "lastmile.who.v1";
@@ -4856,6 +4897,13 @@ function act(dir){
     return;
   }
   if (G.state === ST_BOARD){
+    /* The report is a page over the board, so the first tap closes it rather
+       than starting a run. Anything else and somebody reading their own
+       numbers loses them by touching the screen. */
+    /* Keyboard and anything else that reaches act() on this screen: the
+       report closes rather than starting a run. Taps are handled before
+       act() ever sees them, in the pointerup above. */
+    if (G.report){ G.report = false; G.spinR = 0; AUDIO.ui(); return; }
     if (G.deadFor > deathHold() + 0.25){ reset(); G.state = ST_PLAY; AUDIO.ui(); }
     return;
   }
@@ -5410,7 +5458,10 @@ cv.addEventListener("pointerdown", function(e){
   e.preventDefault(); AUDIO.unlock();
   ptr = { sx:e.clientX, sy:e.clientY, used:false,
           lx:e.clientX, ly:e.clientY, lt:performance.now(),
-          vy:0, acc:0, col:-1, drag:false };
+          vy:0, acc:0, col:-1, drag:false,
+          /* The report is a page you drag, so the finger that went down on
+             it owns every move until it comes up. */
+          rpt:(G.state === ST_BOARD && G.report) };
   /* Which column the finger went down on, if any. Grabbing a column stops
      whatever it was doing - a wheel you catch is a wheel that stops. */
   if (G.state === ST_NAME){
@@ -5423,6 +5474,21 @@ cv.addEventListener("pointerdown", function(e){
 }, { passive:false });
 
 cv.addEventListener("pointermove", function(e){
+  /* Dragging the report. One-to-one with the finger, in logical pixels, and
+     inverted the way every scrolling surface is: pull the page up and it
+     goes up. */
+  if (ptr && ptr.rpt){
+    e.preventDefault();
+    var rc = cv.getBoundingClientRect();
+    var k = LOGICAL_H / rc.height;
+    var d = (e.clientY - ptr.ly) * k;
+    if (Math.abs(e.clientY - ptr.sy) > 6) ptr.drag = true;
+    var nowR = performance.now(), dtR = Math.max(8, nowR - ptr.lt);
+    ptr.vy = ptr.vy * 0.6 + (d / (dtR / 1000)) * 0.4;   // px a second, smoothed
+    reportScroll(-d);
+    ptr.lx = e.clientX; ptr.ly = e.clientY; ptr.lt = nowR;
+    return;
+  }
   if (!ptr || ptr.col < 0 || G.state !== ST_NAME) return;
   e.preventDefault();
   var now = performance.now(), dt = Math.max(8, now - ptr.lt);
@@ -5452,6 +5518,25 @@ cv.addEventListener("pointerup", function(e){
   if (wake()){ ptr = null; return; }
   var dx = e.clientX - ptr.sx, dy = e.clientY - ptr.sy;
 
+  /* THE REPORT TAKES EVERY GESTURE THAT STARTED ON IT. A drag scrolled it
+     and is finished with; a flick keeps going; a tap either closes it, if it
+     landed on CLOSE, or does nothing at all. Nothing here is allowed to fall
+     through to act(), because on this screen act() starts a new run. */
+  if (ptr.rpt){
+    if (ptr.drag){
+      if (Math.abs(ptr.vy) > 220) G.spinR = -ptr.vy;   // let the flick run on
+      ptr = null; return;
+    }
+    var rc2 = cv.getBoundingClientRect();
+    var lxR = (e.clientX - rc2.left) / rc2.width * LOGICAL_W;
+    var lyR = (e.clientY - rc2.top) / rc2.height * LOGICAL_H;
+    if (lxR >= CLOSE_BTN.x && lxR <= CLOSE_BTN.x + CLOSE_BTN.w &&
+        lyR >= CLOSE_BTN.y && lyR <= CLOSE_BTN.y + CLOSE_BTN.h){
+      G.report = false; G.spinR = 0; AUDIO.ui();
+    }
+    ptr = null; return;
+  }
+
   /* Let go of a column and it keeps going. Anything slower than a flick is
      treated as a drag that has already happened and simply stops. */
   if (G.state === ST_NAME && ptr.col >= 0){
@@ -5477,6 +5562,12 @@ cv.addEventListener("pointerup", function(e){
         lx >= BOARD_BTN.x && lx <= BOARD_BTN.x + BOARD_BTN.w &&
         ly >= BOARD_BTN.y && ly <= BOARD_BTN.y + BOARD_BTN.h){
       G.state = ST_BOARD; G.deadFor = 0; G.rec = null; boardGET(); AUDIO.ui();
+      ptr = null; return;
+    }
+    if (G.state === ST_BOARD && !G.report &&
+        lx >= REPORT_BTN.x && lx <= REPORT_BTN.x + REPORT_BTN.w &&
+        ly >= REPORT_BTN.y && ly <= REPORT_BTN.y + REPORT_BTN.h){
+      G.report = true; G.reportY = 0; AUDIO.ui();
       ptr = null; return;
     }
     if (G.state === ST_NAME){
@@ -5516,6 +5607,13 @@ cv.addEventListener("pointerup", function(e){
    free on a trackpad and costs a mouse nothing, since it never sends one. */
 var WHEEL_STEP = 80, wheelAcc = 0, wheelAt = 0;
 cv.addEventListener("wheel", function(e){
+  if (G.state === ST_BOARD && G.report){
+    e.preventDefault(); AUDIO.unlock();
+    var kw = e.deltaMode === 1 ? 33 : (e.deltaMode === 2 ? 300 : 1);
+    reportScroll(e.deltaY * kw * (LOGICAL_H / cv.getBoundingClientRect().height));
+    G.spinR = 0;
+    return;
+  }
   if (G.state !== ST_NAME) return;
   e.preventDefault();
   AUDIO.unlock();
@@ -11753,6 +11851,17 @@ function update(dt){
   }
 
   if (G.state === ST_DEAD || G.state === ST_BOARD) G.deadFor += dt;
+  /* A flicked page carries on and slows down, the same rule as the initials
+     wheel. It stops dead if the page is closed so it cannot still be moving
+     when somebody opens it again. */
+  if (G.spinR){
+    if (!G.report) G.spinR = 0;
+    else {
+      reportScroll(G.spinR * dt);
+      G.spinR *= Math.pow(0.0016, dt);
+      if (Math.abs(G.spinR) < 24) G.spinR = 0;
+    }
+  }
   /* The tally clock does not start until the screen is actually up, or the
      first rows would be half counted by the time anybody saw them. */
   /* Silence, once, as the readout arrives. */
@@ -16073,6 +16182,40 @@ function drawName(){
       LOGICAL_W/2, 856, 22, C.textDim);
 }
 
+/* m:ss for a run, h:mm:ss once a total runs past the hour. One pair of
+   functions so the column on the board and the line in the report can never
+   disagree about how long something took. */
+function mmss(sec){
+  sec = Math.max(0, Math.round(sec || 0));
+  return Math.floor(sec / 60) + ":" + pad2(sec % 60);
+}
+function hms(sec){
+  sec = Math.max(0, Math.round(sec || 0));
+  var h = Math.floor(sec / 3600);
+  return h ? (h + "h " + pad2(Math.floor(sec / 60) % 60) + "m") : mmss(sec);
+}
+/* When a run was set, in the reader's own local time. Short, because it is
+   a column and not a sentence: "10 Oct 14:32". A board shared between
+   panels gets rows from other machines, and the only honest way to show
+   somebody else's timestamp is in the clock of whoever is looking at it. */
+function whenStamp(ms){
+  if (!ms) return "\u2014";
+  var d = new Date(ms);
+  return d.getDate() + " " + ["Jan","Feb","Mar","Apr","May","Jun",
+    "Jul","Aug","Sep","Oct","Nov","Dec"][d.getMonth()] +
+    " " + pad2(d.getHours()) + ":" + pad2(d.getMinutes());
+}
+function dayStamp(ms){
+  if (!ms) return "\u2014";
+  var d = new Date(ms);
+  return d.getDate() + " " + ["Jan","Feb","Mar","Apr","May","Jun",
+    "Jul","Aug","Sep","Oct","Nov","Dec"][d.getMonth()] + " " + d.getFullYear();
+}
+
+/* Clear of the restart prompt by eighty-odd pixels. At -128 the two were
+   fourteen apart and the button read as part of the sentence under it. */
+var REPORT_BTN = { x:LOGICAL_W/2 - 190, y:LOGICAL_H - 180, w:380, h:66 };
+
 function statLine(st){
   if (!st) return "";
   return st.plays + (st.plays === 1 ? " run" : " runs") +
@@ -16091,13 +16234,20 @@ function drawBoard(){
       badge === "LIVE" ? C.good : (badge === "OFFLINE" ? C.danger : C.textDim));
 
   var x0 = 250, x1 = 1670, y = 178, rowH = 46;
-  txt("#",        x0 + 36,  y, 20, C.textDim);
-  txt("WHO",      x0 + 130, y, 20, C.textDim);
-  txt("PIPELINE", x0 + 420, y, 20, C.textDim, "right");
-  txt("BLOCKS",   x0 + 560, y, 20, C.textDim, "right");
-  txt("STEPS",    x0 + 700, y, 20, C.textDim, "right");
-  txt("POWER-UPS",x0 + 880, y, 20, C.textDim, "right");
-  txt("RESULT",   x0 + 1180, y, 20, C.textDim, "right");
+  /* Six columns, not eight. BLOCKS and STEPS came off: they are the detail
+     of HOW a number was got, and this screen only has to answer who is top
+     and what it cost them. Both are still on every row of the full report,
+     which is the screen for reading rather than glancing. TIME is how long
+     the walk took and WHEN is when it was set - two different questions that
+     both get called "time", so they get two words and sit together where the
+     difference is obvious. */
+  txt("#",        x0 + 30,  y, 20, C.textDim);
+  txt("WHO",      x0 + 110, y, 20, C.textDim);
+  txt("PIPELINE", x0 + 460, y, 20, C.textDim, "right");
+  txt("POWER-UPS",x0 + 700, y, 20, C.textDim, "right");
+  txt("TIME",     x0 + 880, y, 20, C.textDim, "right");
+  txt("WHEN",     x0 + 1130, y, 20, C.textDim, "right");
+  txt("RESULT",   x0 + 1420, y, 20, C.textDim, "right");
   ctx.fillStyle = "rgba(255,255,255,0.12)"; ctx.fillRect(x0, y + 16, x1 - x0, 2);
 
   var list = BOARD.rows.slice(0, BOARD_SHOW), i;
@@ -16109,27 +16259,242 @@ function drawBoard(){
     var mine = G.rec && r.at === G.rec.at && r.ini === G.rec.ini;
     if (mine) plate(x0 - 10, ry - 30, x1 - x0 + 20, rowH - 4, "rgba(255,106,19,0.18)", 8);
     var col = mine ? C.brand : (i === 0 ? C.pw5 : C.text);
-    txt(String(i + 1), x0 + 36, ry, 26, i < 3 ? C.brand : C.textDim);
-    txt(r.ini,         x0 + 130, ry, 30, col);
-    txt(cash(r.score), x0 + 420, ry, 26, col, "right");
-    txt(String(r.rows),  x0 + 560, ry, 24, C.textDim, "right");
-    txt((r.steps || 0).toLocaleString("en-US"), x0 + 700, ry, 24, C.textDim, "right");
-    var pu = 0, k;
-    for (k in r.powers) pu += r.powers[k] || 0;
-    txt(String(pu), x0 + 880, ry, 24, C.textDim, "right");
-    txt(r.won ? "BOOKED" : (r.cause || "\u2014"), x0 + 1180, ry, 22,
+    txt(String(i + 1), x0 + 30, ry, 26, i < 3 ? C.brand : C.textDim);
+    txt(r.ini,         x0 + 110, ry, 30, col);
+    txt(cash(r.score), x0 + 460, ry, 28, col, "right");
+    txt(String(powCount(r)), x0 + 700, ry, 24, C.textDim, "right");
+    /* How long the walk took. Rows written before this column existed have
+       no `secs` on them, and an em dash is the honest answer for those
+       rather than 0:00, which would read as a record nobody can beat. */
+    txt(r.secs ? mmss(r.secs) : "\u2014", x0 + 880, ry, 24, C.textDim, "right");
+    txt(whenStamp(r.at), x0 + 1130, ry, 21, C.textDim, "right");
+    txt(r.won ? "BOOKED" : (r.cause || "\u2014"), x0 + 1420, ry, 21,
         r.won ? C.good : C.textDim, "right");
   }
 
   var st = statsRead();
-  txt(BOARD.global ? "EVERYONE" : "THIS DEVICE", LOGICAL_W/2, 790, 20, C.textDim);
-  txt(statLine(BOARD.global || st), LOGICAL_W/2, 828, 24, C.text);
+  txt(BOARD.global ? "EVERYONE" : "THIS DEVICE", LOGICAL_W/2, 760, 20, C.textDim);
+  txt(statLine(BOARD.global || st), LOGICAL_W/2, 796, 24, C.text);
+
+  /* The summary line under the board is four numbers out of twenty-odd that
+     the game has been keeping all along. The rest had nowhere to go, so this
+     is the door to them. Drawn as a real button rather than a prompt,
+     because everything else on this screen says "tap anywhere" and a tap
+     that does something different has to look different. */
+  var B = REPORT_BTN;
+  plate(B.x, B.y, B.w, B.h, "rgba(10,8,13,0.72)", 10);
+  ctx.strokeStyle = C.brand; ctx.lineWidth = 2;
+  rr(B.x, B.y, B.w, B.h, 10); ctx.stroke();
+  txt("FULL REPORT", B.x + B.w/2, B.y + 28, 26, C.brand);
+  txt("every run on this device", B.x + B.w/2, B.y + 52, 17, C.textDim);
+
   // same gate as the tap that acts on it, so the prompt is never a lie
   if (G.deadFor > deathHold() + 0.25){
     ctx.globalAlpha = 0.55 + 0.45*Math.sin(G.t*3);
-    txt("TAP ANYWHERE TO PURSUE A NEW PROSPECT", LOGICAL_W/2, 898, 36, C.brand);
+    txt("TAP ANYWHERE TO PURSUE A NEW PROSPECT", LOGICAL_W/2, LOGICAL_H - 32, 32, C.brand);
     ctx.globalAlpha = 1;
   }
+}
+
+/* ------------------------------------------------------------ THE REPORT
+   The board answers "who is top". This answers everything else, and it is
+   built the way report.html is - the LIST first, at full width and full
+   detail, and the breakdowns underneath it - because the thing people
+   actually want off a leaderboard is to find their own row and read across.
+
+   It is one tall page that SCROLLS rather than a set of panels, for the same
+   reason: fifty rows and four summaries do not fit on a screen, and paging
+   through them means remembering what was on the last page. A finger drags
+   it. The header and the close button do not move, so the way out is never
+   somewhere off the top. */
+function powCount(r){
+  var n = 0, k;
+  for (k in r.powers) n += r.powers[k] || 0;
+  return n;
+}
+var REPORT_TOP = 170, REPORT_BOT = 64;
+var CLOSE_BTN = { x:LOGICAL_W - 230, y:52, w:170, h:64 };
+function reportViewH(){ return LOGICAL_H - REPORT_TOP - REPORT_BOT; }
+
+/* How tall the page actually is. Hand-summing the sections got it wrong by
+   five hundred pixels, which showed up as a screenful of nothing under the
+   last chart - so drawReport MEASURES it instead, recording where its own
+   content ended, and the scroll limit uses that. The fallback only matters
+   for the single frame before the first draw. */
+var reportBottom = 0;
+function reportH(){ return reportBottom || 1200; }
+
+/* One place that knows how far the page may go, so the drag, the wheel and
+   the flick cannot disagree about where the bottom is. */
+function reportScroll(dy){
+  var max = Math.max(0, reportH() - reportViewH());
+  G.reportY = Math.max(0, Math.min(max, G.reportY + dy));
+}
+
+function drawReport(){
+  var st = statsRead(), i, k;
+  var list = BOARD.rows.slice(0, BOARD_MAX);
+
+  /* Opaque, unlike every other overlay in the game. The board behind this
+     one is itself an overlay on a frozen street, and two translucent layers
+     over a yellow cab is a page of numbers with traffic in it. */
+  ctx.fillStyle = "#050404"; ctx.fillRect(0, 0, LOGICAL_W, LOGICAL_H);
+
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(0, REPORT_TOP, LOGICAL_W, reportViewH());
+  ctx.clip();
+  var oy = REPORT_TOP - G.reportY;
+
+  /* ---- the list ------------------------------------------------------- */
+  var x0 = 100;
+  txt("THE BOARD  \u00B7  TOP " + Math.max(1, list.length), x0, oy + 14, 24, C.brand, "left");
+  var hy = oy + 56;
+  txt("#",        x0 + 36,   hy, 18, C.textDim, "right");
+  txt("WHO",      x0 + 60,   hy, 18, C.textDim, "left");
+  txt("PIPELINE", x0 + 380,  hy, 18, C.textDim, "right");
+  txt("BLOCKS",   x0 + 480,  hy, 18, C.textDim, "right");
+  txt("STEPS",    x0 + 600,  hy, 18, C.textDim, "right");
+  txt("RIDES",    x0 + 690,  hy, 18, C.textDim, "right");
+  txt("TAM",      x0 + 770,  hy, 18, C.textDim, "right");
+  txt("ADD-ONS",  x0 + 880,  hy, 18, C.textDim, "right");
+  txt("CHAMPS",   x0 + 990,  hy, 18, C.textDim, "right");
+  txt("TIME",     x0 + 1090, hy, 18, C.textDim, "right");
+  txt("WHEN",     x0 + 1290, hy, 18, C.textDim, "right");
+  txt("RESULT",   x0 + 1700, hy, 18, C.textDim, "right");
+  ctx.fillStyle = "rgba(255,255,255,0.12)"; ctx.fillRect(x0, hy + 16, 1700, 2);
+
+  if (!list.length) txt("NOBODY HAS WALKED IT YET", LOGICAL_W/2, hy + 90, 28, C.textDim);
+  for (i = 0; i < list.length; i++){
+    var r = list[i], ry = hy + 56 + i*42;
+    if (ry < REPORT_TOP - 50 || ry > LOGICAL_H + 20) continue;   // off-page
+    var mine = G.rec && r.at === G.rec.at && r.ini === G.rec.ini;
+    if (mine) plate(x0 - 12, ry - 27, 1724, 40, "rgba(255,106,19,0.18)", 7);
+    var col = mine ? C.brand : (i === 0 ? C.pw5 : C.text);
+    txt(String(i+1),   x0 + 36,  ry, 21, i < 3 ? C.brand : C.textDim, "right");
+    txt(r.ini,         x0 + 60,  ry, 25, col, "left");
+    txt(cash(r.score), x0 + 380, ry, 22, col, "right");
+    txt(String(r.rows || 0), x0 + 480, ry, 20, C.textDim, "right");
+    txt((r.steps || 0).toLocaleString("en-US"), x0 + 600, ry, 20, C.textDim, "right");
+    txt(String(r.rides || 0),   x0 + 690,  ry, 20, C.textDim, "right");
+    txt(String(r.tamWins || 0), x0 + 770,  ry, 20, C.textDim, "right");
+    txt(String(r.addons || 0),  x0 + 880,  ry, 20, C.textDim, "right");
+    txt(String(r.champs || 0),  x0 + 990,  ry, 20, C.textDim, "right");
+    txt(r.secs ? mmss(r.secs) : "\u2014", x0 + 1090, ry, 20, C.textDim, "right");
+    txt(whenStamp(r.at), x0 + 1290, ry, 19, C.textDim, "right");
+    txt(r.won ? "BOOKED" : (r.cause || "\u2014"), x0 + 1700, ry, 19,
+        r.won ? C.good : C.textDim, "right");
+  }
+  var by = hy + 56 + list.length*42 + 50;
+
+  /* ---- the breakdowns -------------------------------------------------- */
+  function head(y2, label){
+    txt(label, x0, y2, 24, C.brand, "left");
+    ctx.fillStyle = "rgba(255,255,255,0.12)"; ctx.fillRect(x0, y2 + 16, 1700, 2);
+  }
+  function cards(y2, items){
+    var cw = 1700 / items.length;
+    for (var j = 0; j < items.length; j++){
+      var cx = x0 + j*cw;
+      txt(items[j][1], cx + cw/2, y2 + 46, 34, items[j][2] || C.text);
+      txt(items[j][0], cx + cw/2, y2 + 80, 18, C.textDim);
+    }
+  }
+  function bars(y2, items, colFn){
+    var max = 1;
+    for (var j = 0; j < items.length; j++) max = Math.max(max, items[j][1]);
+    for (j = 0; j < items.length; j++){
+      var byy = y2 + 34 + j*34, w = (items[j][1] / max) * 1080;
+      txt(items[j][0], x0, byy, 20, C.textDim, "left", 380);
+      ctx.fillStyle = colFn ? colFn(items[j]) : C.brand;
+      ctx.globalAlpha = 0.75;
+      ctx.fillRect(x0 + 400, byy - 11, Math.max(2, w), 22);
+      ctx.globalAlpha = 1;
+      txt(String(items[j][1]), x0 + 1520, byy, 22, C.text, "right");
+    }
+  }
+
+  head(by, "TOTALS  \u00B7  EVERY RUN ON THIS DEVICE");
+  cards(by, [
+    ["runs",    String(st.plays)],
+    ["booked",  String(st.wins), C.good],
+    ["blocks",  (st.rows || 0).toLocaleString("en-US")],
+    ["steps",   (st.steps || 0).toLocaleString("en-US")],
+    ["rides",   String(st.rides || 0)],
+    ["on the street", hms(st.secs)]
+  ]);
+  by += 170;
+
+  head(by, "PER RUN, ON AVERAGE");
+  var pr = Math.max(1, st.plays);
+  cards(by, [
+    /* Not an average: the device never stored a running total of score, only
+       the best one, and averaging the top fifty on the board would be the
+       average of the WINNERS dressed up as the average of everyone. */
+    ["best pipeline", cash(st.bestScore), C.good],
+    ["blocks",   String(Math.round((st.rows || 0) / pr))],
+    ["steps",    String(Math.round((st.steps || 0) / pr))],
+    ["rides",    (Math.round((st.rides || 0) / pr * 10) / 10).toFixed(1)],
+    ["minutes",  (Math.round((st.secs || 0) / pr / 6) / 10).toFixed(1)],
+    ["booked",   (Math.round(st.wins / pr * 1000) / 10) + "%",
+      st.wins ? C.good : C.textDim]
+  ]);
+  by += 170;
+
+  head(by, "WHAT STOPS PEOPLE");
+  var tally = {}, order = [];
+  for (i = 0; i < list.length; i++){
+    var c = list[i].won ? "Booked" : (list[i].cause || "Unknown");
+    if (tally[c] == null){ tally[c] = 0; order.push(c); }
+    tally[c]++;
+  }
+  order.sort(function(a,b){ return tally[b] - tally[a]; });
+  var causeItems = [];
+  for (i = 0; i < Math.min(order.length, 6); i++) causeItems.push([order[i], tally[order[i]]]);
+  if (!causeItems.length) causeItems = [["Nothing yet", 0]];
+  bars(by, causeItems, function(it){ return it[0] === "Booked" ? C.good : C.danger; });
+  by += 50 + causeItems.length*34 + 40;
+
+  head(by, "POWER-UPS COLLECTED");
+  var powItems = [];
+  for (i = 0; i < POWER_ORDER.length; i++){
+    var kk = POWER_ORDER[i], pk = POWERS[kk];
+    powItems.push([pk ? pk.name : kk.toUpperCase(), (st.powers && st.powers[kk]) || 0, kk]);
+  }
+  bars(by, powItems, function(it){ return POWERS[it[2]] ? POWERS[it[2]].col : C.brand; });
+  /* Where the page ends, in page space - `oy` is the top of it. */
+  reportBottom = (by + 40 + powItems.length*34 + 30) - oy;
+
+  ctx.restore();
+
+  /* ---- the furniture, which does not scroll ---------------------------- */
+  ctx.fillStyle = "#050404";
+  ctx.fillRect(0, 0, LOGICAL_W, REPORT_TOP);
+  ctx.fillRect(0, LOGICAL_H - REPORT_BOT, LOGICAL_W, REPORT_BOT);
+  ctx.fillStyle = "rgba(255,255,255,0.10)";
+  ctx.fillRect(0, REPORT_TOP - 2, LOGICAL_W, 2);
+
+  txt("FULL REPORT", 100, 74, 46, C.brand, "left");
+  txt("every run on this device  \u00B7  " + dayStamp(st.first) + " to " + dayStamp(st.last),
+      100, 118, 21, C.textDim, "left");
+
+  var B = CLOSE_BTN;
+  plate(B.x, B.y, B.w, B.h, "rgba(10,8,13,0.72)", 10);
+  ctx.strokeStyle = C.brand; ctx.lineWidth = 2;
+  rr(B.x, B.y, B.w, B.h, 10); ctx.stroke();
+  txt("CLOSE", B.x + B.w/2, B.y + B.h/2, 26, C.brand);
+
+  /* The scrollbar, which is also the only hint that there is more below. */
+  var total = reportH(), view = reportViewH();
+  if (total > view){
+    var trackH = view - 20, thumbH = Math.max(60, trackH * view / total);
+    var tY = REPORT_TOP + 10 + (trackH - thumbH) * (G.reportY / (total - view));
+    ctx.fillStyle = "rgba(255,255,255,0.08)";
+    ctx.fillRect(LOGICAL_W - 26, REPORT_TOP + 10, 6, trackH);
+    ctx.fillStyle = C.brand;
+    ctx.fillRect(LOGICAL_W - 26, tY, 6, thumbH);
+  }
+  txt("DRAG TO SCROLL", LOGICAL_W/2, LOGICAL_H - 30, 22, C.textDim);
 }
 
 /* ------------------------------------------------------- THE SCREENSAVER --
@@ -16187,7 +16552,7 @@ function render(){
   if (G.state === ST_TITLE) drawTitle();
   if (G.state === ST_DEAD)  drawDead();
   if (G.state === ST_NAME)  drawName();
-  if (G.state === ST_BOARD) drawBoard();
+  if (G.state === ST_BOARD){ if (G.report) drawReport(); else drawBoard(); }
   // the arrival scenes sit over everything, HUD included - they are a
   // cutscene, not an overlay
   if (G.scene) drawScene();
