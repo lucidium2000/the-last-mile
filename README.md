@@ -3629,10 +3629,42 @@ So when he steps off the kerb into traffic he goes over backwards: one full
 turn, pivoted on the hips, with real air under it and three afterimages
 trailing the spin.
 
-**Once per street**, on the step from pavement into the first lane. Flipping
-into every lane of a three-lane avenue is a man who cannot stop doing it, and
-the move stops being a flourish the second time you see it in a row. The entry
-is the beat that matters anyway — it is the moment he commits to the crossing.
+**Kerb to kerb.** The first cut turned him over on an ordinary one-row step,
+so he flipped *into* lane one and then walked the rest of the street like
+anybody else — which is the wrong shape for the move. Nobody goes over
+backwards in order to land in traffic. It is a leap now: from the pavement,
+over however many lanes the street has, onto the first safe row beyond it.
+Measured across three consecutive streets, every landing row came back `safe`.
+
+**It needs no grace period, and that is not luck.** The collision test runs
+`cr = (G.hop < 0.5) ? G.fromRow : G.row` and then does nothing at all unless
+that row is tarmac — so a jump that starts on a sidewalk and ends on a sidewalk
+is never tested against a vehicle, for the same reason a man standing on a kerb
+is not. The lanes in between are never his row at any point in the hop.
+`G.leapT` is set anyway, because the landing rules should not depend on that
+staying true.
+
+**It bails rather than forces.** If the far kerb is past the end of the
+generated world, or the square he would land on is occupied, the whole thing is
+dropped and he takes the ordinary step into lane one — with no flip, because a
+flip that ends in traffic is the bug this fixes.
+
+**And it takes twice as long as the step it replaces.** 357ms measured against
+a 180ms slow-motion step. It is the one move in the game that exists to be
+*looked* at, and a full rotation at the ordinary hop rate is over before the eye
+has found it. It still covers three or four times the ground in that doubled
+window, so he is crossing faster than he could walk it.
+
+Whether he is flipping is **derived, not flagged**: more than one row, in slow
+motion, off a sidewalk, over tarmac, onto something that is not tarmac. There
+is no state to leak into the next step if `act()` returns early between the
+decision and the commit.
+
+One trade it inherits rather than invents: the crossing banks a single
+`FISC_PER_HOP` of clock however many rows it covers, exactly as the Cloud
+Insights three-row leap already does, while `spendHp` still charges a box a
+row. Crossing a street in one tap is fast and safe, and it costs the health
+of walking it.
 
 The spin runs at a **constant rate** across the hop while the height is a half
 sine. That is how a flip works: you leave the ground, you turn at whatever rate

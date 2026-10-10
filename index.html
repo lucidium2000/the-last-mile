@@ -181,6 +181,11 @@ function dashK(){ return G.dashT > 0 ? DASH_K : 1; }
 function leapSpan(){
   return Math.max(Math.abs(G.row - G.fromRow), Math.abs(G.col - G.fromCol));
 }
+/* Is this row tarmac? Both the traffic rows and the sweep rows count: the
+   test was written out longhand in five places and the backflip needs it in
+   three more, and five copies of a two-clause test is four chances to add a
+   row type to one of them and not the others. */
+function isRoadRow(r){ return !!r && (r.type === "road" || r.type === "sweep"); }
 
 var SHOW_FPS  = /[?&]fps=1/.test(location.search);
 var SAFE_MODE = /[?&]safe=1/.test(location.search);
@@ -5836,6 +5841,42 @@ function act(dir){
     if (nr < G.row - 1){ G.leapT = LEAP_GRACE; G.leapDir = -1; }
   }
 
+  /* ------------------------------------------- THE BACKFLIP CLEARS THE ROAD
+     It used to be a flourish on an ordinary one-row step: he turned over,
+     landed in lane one, and then walked the rest of the street like anybody
+     else. Which is the wrong shape for the move. Nobody backflips INTO
+     traffic - the whole point of going over is that you come down on the
+     far side.
+
+     So it is a leap now, kerb to kerb: from the pavement, over however many
+     lanes the street has, onto the first safe row beyond it.
+
+     IT NEEDS NO GRACE PERIOD, and that is not luck. The collision test runs
+     `cr = (G.hop < 0.5) ? G.fromRow : G.row` and then does nothing at all
+     unless that row is tarmac - so a jump that starts on a sidewalk and ends
+     on a sidewalk is never tested against a vehicle, for the same reason a
+     man standing on a kerb is not. The lanes in between are never his row at
+     any point in the hop. G.leapT is set anyway, because the landing rules
+     should not depend on that remaining true.
+
+     IT BAILS RATHER THAN FORCES. If the far kerb is past the end of the
+     generated world, or the square he would land on is occupied, the whole
+     thing is dropped and he takes the ordinary step into lane one - with no
+     flip, because a flip that ends in traffic is the bug this fixes. */
+  if (dir === "f" && G.slowT > 0 && !(G.dashT > 0) && nr === G.row + 1 &&
+      isRoadRow(rows[nr]) && !isRoadRow(rows[G.row])){
+    var fland = -1;
+    for (var fq = 2; fq <= FLIP_REACH; fq++){
+      var fcand = rows[G.row + fq];
+      if (!fcand) break;
+      if (!isRoadRow(fcand)){ fland = G.row + fq; break; }
+    }
+    if (fland > 0 && !(rows[fland].blocked && rows[fland].blocked[nc])){
+      nr = fland;
+      G.leapT = LEAP_GRACE; G.leapDir = 1;
+    }
+  }
+
   G.steps++;
   /* Half a point a box, counting every square the step covers - a three-row
      leap costs three boxes, a sideways dodge costs one. */
@@ -5844,14 +5885,13 @@ function act(dir){
      away and coming back a minute later should take two pushes again. */
   G.vault = null;
   G.fromRow = G.row; G.fromCol = G.col;
-  /* Off the kerb and into the street, in slow motion: he goes over backwards.
-     Cleared on every other step, so it can never carry into the next one. */
-  G.flip = 0;
-  if (G.slowT > 0 && nr > G.fromRow){
-    var was = rows[G.fromRow], into = rows[nr];
-    var onRoad = function(r){ return !!r && (r.type === "road" || r.type === "sweep"); };
-    if (onRoad(into) && !onRoad(was)) G.flip = 1;
-  }
+  /* He is flipping if, and only if, this step is the kerb-to-kerb leap above:
+     more than one row, in slow motion, off a sidewalk, over tarmac, onto
+     something that is not tarmac. Derived rather than flagged, so there is no
+     state to leak into the next step if act() returns early between the two
+     - and cleared on every step that is not one, for the same reason. */
+  G.flip = (G.slowT > 0 && !(G.dashT > 0) && nr > G.fromRow + 1 &&
+            isRoadRow(rows[G.fromRow + 1]) && !isRoadRow(rows[nr])) ? 1 : 0;
   G.row = nr; G.col = nc; G.hop = 0;
   if (nr > G.maxRow){ G.maxRow = nr; progress(); }
   ensureRows(G.maxRow + ROWS_AHEAD);
@@ -6691,11 +6731,13 @@ function colSafeFor(r, col, secs){
    backwards. One full turn, pivoted on the hips, with real air under it and
    three afterimages trailing the spin.
 
-   ONCE PER STREET, on the step from pavement into the first lane. Flipping
-   into every lane of a three-lane avenue is a man who cannot stop doing it,
-   and the move stops being a flourish the second time you see it in a row.
-   The entry is the beat that matters anyway: it is the moment he commits to
-   the crossing, which is the thing the power-up is for.
+   KERB TO KERB. The first cut turned him over on an ordinary one-row step,
+   so he flipped INTO lane one and then walked the rest of the street, which
+   is the wrong shape for the move - nobody goes over backwards in order to
+   land in traffic. The leap that carries it is in act(); this is the part
+   that draws it.
+
+   Once per street either way, because the whole street is one hop.
 
    The spin runs at a CONSTANT rate across the hop while the height is a half
    sine. That is how a flip actually works - you leave the ground, you turn at
@@ -6704,6 +6746,8 @@ function colSafeFor(r, col, secs){
    reads as a glitch in the sprite rather than as a man in the air. */
 var FLIP_LIFT = 94;        // px at the top of the arc
 var FLIP_GHOSTS = 3;       // afterimages behind the spin
+var FLIP_SLOW = 2;         // and the hop takes this much longer than a step
+var FLIP_REACH = 7;        // the widest street it will try to clear
 
 function flipK(){
   if (!G.flip || G.slowT <= 0) return 0;
@@ -12168,8 +12212,15 @@ function update(dt){
        twice as much coming at him. It multiplies with the worn drag rather
        than overriding it - a man on his last point of health in running
        shoes is quick for a man who is about to fall over. */
+    /* And the backflip takes twice as long as the step it replaces. It is
+       the one move in the game that is there to be LOOKED at - a full
+       rotation at the ordinary hop rate is over before the eye has found it,
+       and this is already a power-up whose entire premise is that there is
+       time. It covers three or four times the ground in that doubled window,
+       so he is still crossing faster than he would walk it. */
     G.hop += dt*1000 * (G.slowT > 0 ? SLOW_MAN : 1)
-             / (HOP_MS * (1 - 0.32*G.flyA) * drag * dashK());
+             / (HOP_MS * (1 - 0.32*G.flyA) * drag * dashK()
+                * (G.flip ? FLIP_SLOW : 1));
     if (G.hop >= 1){
       /* Touched down from a leap: top the grace back up so the landing
          itself gets the full window, not whatever is left of the flight. */
