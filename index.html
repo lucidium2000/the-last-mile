@@ -378,23 +378,35 @@ var AUDIO = (function(){
           ac.decodeAudioData(arr.buffer, function(b){ buf = b; }, function(){});
         } catch (e){}
       },
-      play: function(g){ playSample(buf, g); }
+      play: function(g, cut){ playSample(buf, g, cut); }
     };
   }
   var freeClip = sampler(FREE_B64), woahClip = sampler(WOAH_B64);
+  var WOAH_CUT = 1.15;            // just past the landing of a 1.08s flip
 
   /* One player for both, and it REAPS. The sample players were the last two
      chains in the engine still wiring a gain to the master and walking away
      - the same leak the oscillators were fixed for, just rarer, because a
      cue you hear a handful of times a run does not look like a leak until
      the fifth round. */
-  function playSample(buf, gain){
+  function playSample(buf, gain, cut){
     if (!buf || !live()) return;
     try {
       var src = ac.createBufferSource(), g = ac.createGain();
       src.buffer = buf; g.gain.value = gain;
+      var t = ac.currentTime, end = buf.duration;
+      /* AN OPTIONAL EARLY STOP, with a fade on it. Cutting a waveform at an
+         arbitrary sample is a click, and a click is louder than the thing it
+         interrupted - so the last 90ms ramp down to nothing and the source
+         stops into silence. */
+      if (cut && cut < end){
+        end = cut;
+        g.gain.setValueAtTime(gain, t + Math.max(0, cut - 0.09));
+        g.gain.exponentialRampToValueAtTime(0.0001, t + cut);
+      }
       src.connect(g); g.connect(master); src.start();
-      reap(src, [g], ac.currentTime + buf.duration + 0.05);
+      src.stop(t + end + 0.02);
+      reap(src, [g], t + end + 0.05);
     } catch (e){}
   }
 
@@ -593,6 +605,25 @@ var AUDIO = (function(){
       hit({ f:2600, hp:true, dur:0.035, g:0.07 });
     },
     step: function(){ ladder = 0; tone({ f:196, to:208, dur:0.08, type:"triangle", g:0.14 }); },
+    /* THE TENTH RUNG RINGS OUT. The route is worth a hundred thousand if he
+       walks ten of its nodes without stepping off, and a payoff that arrives
+       with no warning is a payoff nobody was playing for. So the ladder is
+       the warning: nine notes climbing, each one of them saying there is a
+       tenth, and the tenth arrives as a chord rather than as the next step up
+       - held four times as long, with a fifth and two octaves stacked on it.
+
+       It is the same event the bonus fires on. They cannot drift apart,
+       because they are both reading the run counter in act() rather than
+       each counting for themselves. */
+    traceTop: function(){
+      var f = 261.63 * Math.pow(2, 12 / 12);
+      tone({ f:f,         to:f * 1.01, dur:0.80, type:"sine", g:0.19 });
+      tone({ f:f * 1.498, dur:0.86, type:"sine", g:0.11, at:0.02 });
+      tone({ f:f * 2,     dur:0.94, type:"sine", g:0.08, at:0.04 });
+      tone({ f:f * 3,     dur:0.70, type:"sine", g:0.035, at:0.07 });
+      tone({ f:f * 4,     dur:0.52, type:"sine", g:0.020, at:0.10 });
+      hit({ f:6200, hp:true, dur:0.05, g:0.07 });
+    },
     /* Walking the traced route. The same climbing ladder as an ordinary
        step forward, but the note is a stack - root, fifth, octave, and a
        twelfth right at the top - on sines instead of a triangle, with a
@@ -718,8 +749,15 @@ var AUDIO = (function(){
     /* The old name, kept pointing at the cross one: that is what every
        caller of it meant. */
     mutter: function(seed){ this.say(seed, SAY_CROSS); },
-    traceHop: function(){
-      if (ladder < 12) ladder++;
+    /* THE RUNG IS THE GAME'S COUNT, not a number this file keeps for itself.
+       It used to climb its own `ladder`, which also climbs on ORDINARY hops -
+       so the pitch you heard on the route was the length of your walk, not
+       the length of your run on the route, and the bonus could not have been
+       hung off it without paying out for ten steps down a pavement. The
+       caller passes the run; `ladder` is still assigned so that whatever
+       resets it elsewhere keeps working. */
+    traceHop: function(n){
+      ladder = Math.min(n || 1, 12);
       var i = ladder % PENT.length, oct = Math.floor(ladder / PENT.length);
       var f = 261.63 * Math.pow(2, (PENT[i] + oct * 12) / 12);
       tone({ f:f,        to:f * 1.02, dur:0.17, type:"sine", g:0.17 });
@@ -1328,8 +1366,23 @@ var AUDIO = (function(){
        afford to be quiet. */
     freeYourMind: function(){ if (live()){ freeClip.prime(); freeClip.play(0.62); } },
     /* And him, going over the street. Under the whoosh rather than over it,
-       because the whoosh is the air and he is only a man in it. */
-    woah: function(){ if (live()){ woahClip.prime(); woahClip.play(0.58); } },
+       because the whoosh is the air and he is only a man in it.
+
+       HALF OF THEM ARE CUT SHORT. The clip is 3.01s against a 1.08s flip, so
+       played whole it is still going two seconds after he has landed - fine
+       once, and by the fourth street in a row it is the only thing you can
+       hear. Cutting every one of them instead would have been worse: the
+       same truncated sound every time is a sound effect, and what this is
+       meant to be is him. Half and half means neither version is the one you
+       expect, which is the closest a two-outcome coin flip gets to variety.
+
+       1.15s lands it just past the landing, so the short one still finishes
+       after he is on his feet rather than in mid-air. */
+    woah: function(){
+      if (!live()) return;
+      woahClip.prime();
+      woahClip.play(0.58, Math.random() < 0.5 ? WOAH_CUT : 0);
+    },
     /* Booked. */
     win: function(){
       var n = [523.25, 659.25, 783.99, 1046.50, 1318.51], i;
@@ -5153,6 +5206,7 @@ function reset(){
     hp:HP_MAX, hpGain:null, hpShow:0, hpFrom:HP_MAX, hpHold:0, hpFill:0,
     meals:0, sadT:0, needFood:0, saidFood:false,
     bonusChuck:0, bonusTam:0, bonusAddon:0, bonusFood:0, bonusChamp:0,
+    bonusUpsell:0, upsells:0, traceRun:0,
     bonusAgent:0, agentPays:0,
     bonusNews:0, news:0, paper:null,
     addons:0, champs:0, addonWin:null, champWin:null,
@@ -5379,6 +5433,30 @@ function cash(v){
 /* Floored at nothing. Lunch comes off the number now, and a man who buys a
    bagel on the first block should not owe the company seven dollars. */
 function pipeline(){ return Math.max(0, G.maxRow*DOLLARS_PER_ROW + G.bonus); }
+/* ------------------------------------------------------- UNITS UPSELL ---
+   Ten nodes of a traced route walked clean, and the deal gets bigger. It is
+   the one bonus in the game you have to play FOR rather than run into: the
+   TE-ADDON draws the path, the path is already safe passage, and this is what
+   is on the other side of staying on it when the easy thing is to wander.
+
+   A hundred thousand, paid into G.bonus like every other bonus, with its own
+   bucket so the full report can say where it came from. It is not a row on
+   the end-of-run tally for the same reason the champion's three hundred is
+   not: the tally is four lines and the total underneath counts everything.
+
+   The run resets on the payout, so a long route can pay twice. Ten more is
+   ten more. */
+var TRACE_RUN = 10, UPSELL_AMT = 100000;
+function unitsUpsell(){
+  G.traceRun = 0;
+  G.bonus += UPSELL_AMT;
+  G.bonusUpsell += UPSELL_AMT;
+  G.upsells++;
+  flash("UNITS UPSELL  +$100K!", "Ten nodes clean. The order got bigger.",
+        POWERS.path.col);
+  burst(G.col*TILE + TILE/2, rowScreenY(G.row) - 40, POWERS.path.col);
+}
+
 function flash(name, line, col){ G.flash = { life:2.2, name:name, line:line, col:col }; }
 /* A flash lives in the top strip and lasts two seconds. Some things need the
    middle of the screen and a few more. */
@@ -5782,9 +5860,23 @@ function act(dir){
      arriving at, not the one he is leaving, so the note lands with him. */
   var onPath = G.revealT > 0 && G.trace && onTrace(nr, nc);
   if (dir === "f"){
-    if (onPath) AUDIO.traceHop(); else AUDIO.hop();
+    if (onPath){
+      /* TEN NODES IN A ROW. Forward steps that land ON the route, and only
+         those: a step off it, a step sideways along it, or a step backwards
+         all put it back to nought. The counter is what the ladder is pitched
+         off and what the bonus is paid off, so the note you hear IS the
+         number you are on - the alternative was two counts of the same thing
+         kept in two places, which is how the sound and the money end up
+         disagreeing about whether you earned it. */
+      G.traceRun = (G.traceRun || 0) + 1;
+      if (G.traceRun >= TRACE_RUN){ unitsUpsell(); AUDIO.traceTop(); }
+      else AUDIO.traceHop(G.traceRun);
+    } else { G.traceRun = 0; AUDIO.hop(); }
     G.fiscT = Math.min(FISC_MAX, G.fiscT + FISC_PER_HOP);
-  } else if (onPath) AUDIO.traceStep(); else AUDIO.step();
+  } else {
+    G.traceRun = 0;
+    if (onPath) AUDIO.traceStep(); else AUDIO.step();
+  }
 
   /* Somebody is already standing there. The first attempt gets a mouthful
      and no step; the second one goes through and they move. Only while he
@@ -12454,7 +12546,7 @@ function update(dt){
   if (G.cheerT > 0) G.cheerT = Math.max(0, G.cheerT - dt);
   if (G.revealT > 0){
     G.revealT = Math.max(0, G.revealT - dt);
-    if (G.revealT === 0) G.trace = null;
+    if (G.revealT === 0){ G.trace = null; G.traceRun = 0; }
   }
   if (G.invulnT > 0) G.invulnT = Math.max(0, G.invulnT - dt);
 

@@ -3598,10 +3598,54 @@ land before it finishes, which would make the first press of a cue silently do
 nothing.
 
 Measured on the way in: *Free your mind* is 2.25s, *woah* is 3.01s, both stereo
-at 44.1kHz, both decoding clean. The woah outlasts the 1.08s flip by about two
-seconds, which is a tail rather than a problem — but it is longer than the move
-it belongs to, and that was a deliberate decision not to trim somebody else's
-audio without being asked.
+at 44.1kHz, both decoding clean.
+
+**Half the woahs are cut short.** 3.01s against a 1.08s flip means the whole
+clip is still going two seconds after he has landed — fine once, and by the
+fourth street in a row it is the only thing you can hear. Cutting *every* one
+would have been worse: the same truncated sound every time is a sound effect,
+and what this is meant to be is him. Half and half means neither version is the
+one you expect, which is the closest a two-outcome coin flip gets to variety.
+Verified over 60 plays: 29 short, 31 full.
+
+The cut is 1.15s, just past the landing, and it fades over the last 90ms rather
+than stopping dead — cutting a waveform at an arbitrary sample is a click, and
+a click is louder than the thing it interrupted.
+
+## Ten nodes clean, and the order gets bigger
+
+Walk ten nodes of a traced route without stepping off and the deal grows by
+**$100,000** — *UNITS UPSELL +$100K!* It is the one bonus in the game you have
+to play *for* rather than run into: the TE-ADDON draws the path, the path is
+already safe passage, and this is what is on the other side of staying on it
+when the easy thing is to wander.
+
+**The ladder had to stop counting for itself first.** The rising tones on a
+traced route climbed an internal `ladder` in the audio engine — which also
+climbs on *ordinary* hops. So the pitch you heard on the route was the length
+of your walk, not the length of your run on the route, and hanging a bonus off
+it would have paid out for ten steps down a pavement. The caller passes the run
+now, so the note you hear **is** the number you are on. Two counts of the same
+thing kept in two places is how the sound and the money end up disagreeing
+about whether you earned it.
+
+**The tenth rung rings out.** A payoff that arrives with no warning is a payoff
+nobody was playing for, so the ladder is the warning: nine notes climbing, each
+saying there is a tenth, and the tenth arrives as a chord rather than as the
+next step up — held four times as long, with a fifth and two octaves stacked on
+it.
+
+A step off the route, a step sideways along it, a step backwards, or the route
+expiring all put the run back to nought. Verified: 1–9 climbing, payout on 10,
+reset to 0, climbing again — so a long route can pay twice. Ten more is ten
+more.
+
+It is not a row on the end-of-run tally, for the same reason the champion's
+three hundred thousand is not: the tally is four lines and the total underneath
+counts everything. `G.bonusUpsell` and `G.upsells` are tracked, so the
+leaderboard can carry a column for it whenever the val gets redeployed.
+
+
 
 ## Times Square corrects itself
 
