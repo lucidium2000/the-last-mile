@@ -10222,7 +10222,12 @@ var SCENES_END = {
      this is the one that lands on the way out of the room. */
   cabana:{ title:"HANALEI BAY",
            sub:"Soak it in and ENJOY!",
-           sub2:"Your number goes back to 0 tomorrow", sub2At:2.0,
+           /* Three seconds, not two. The first line has to be read, landed
+              and sat with before the second one starts - a beat that is
+              only just long enough is a beat nobody feels. It still
+              finishes typing at 5.5s of a 10.6s scene, leaving five
+              seconds to look at it. */
+           sub2:"Your number goes back to 0 tomorrow", sub2At:3.0,
            draw:sceneCabana, secs:10.6, music:"island", win:true }
 };
 
