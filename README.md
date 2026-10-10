@@ -3566,10 +3566,25 @@ white silk scarf, and `01` on the chest. He is dressed for a car he does not
 need, because the cars are getting out of his way.
 
 **Neo**, for Internet Insights, because the SKU drops the world into slow
-motion and there is exactly one thing that means. Long black coat past the
-knee, hanging open on two raised front edges, collar standing at the back of
-the neck, small oval shades. No colour anywhere on him — the green belongs to
-the room, not to the man standing in it.
+motion and there is exactly one thing that means. No colour anywhere on him —
+the green belongs to the room, not to the man standing in it.
+
+Built off the minifig rather than off memory, and the minifig was right about
+three things the first attempt got wrong:
+
+- **The collar is the silhouette.** Not a collar — a wide standing shell
+  behind the head, broader than his shoulders. It is the first thing anybody
+  draws and the first thing I left out. It sits at `y 0.50, d 0.12`, so its
+  back edge is 0.62 against the face's 0.58 and the painter puts it down
+  *first*: the head is in front of it, which is what makes it read as being
+  behind him rather than worn over his chin. It stops at the jaw — at 0.81 it
+  came past his cheekbones and the face was a slot in a box.
+- **The coat hangs at the sides**, not across the front. Two long panels down
+  the outside with the torso visible between them, flaring at the hem. The
+  first version banded three slabs straight across the body and made a
+  wardrobe; you should be able to see the shirt, and the harness over it.
+- **The lenses are grey**, not black. They are mirrors, and black ovals on a
+  figure this dark are two holes in his face.
 
 One baked sprite pair each, with a fixed face. Threading them through the
 face × shield × direction set would have doubled most of the atlas twice over,

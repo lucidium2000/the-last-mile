@@ -2515,51 +2515,84 @@ function racerModel(dir){
 }
 
 /* NEO, for Internet Insights, because the SKU drops the world into slow
-   motion and there is exactly one thing that means. A long black coat down
-   past the knee, a black shirt buttoned to the collar, and the small oval
-   shades. No colour anywhere on him: the green belongs to the room, not to
-   the man standing in it. */
+   motion and there is exactly one thing that means.
+
+   Built off the minifig rather than off memory, and the minifig is right
+   about three things the first attempt got wrong:
+
+   THE COLLAR IS THE SILHOUETTE. Not a collar - a wide standing shell behind
+   the head, broader than his shoulders and up past his ears. It is the first
+   thing anybody draws and the first thing I left out. It sits at y 0.50,
+   d 0.12, so its back edge is 0.62 against the face's 0.58 and the painter
+   puts it down FIRST: the head is in front of it, which is what makes it
+   read as being behind him rather than worn over his chin.
+
+   THE COAT HANGS AT THE SIDES, not across the front. Two long panels down
+   the outside with the torso visible between them, flaring at the hem - the
+   first version banded three slabs straight across the body and made a
+   wardrobe. You should be able to see the shirt.
+
+   AND THE LENSES ARE GREY, not black. They are mirrors; black ovals on a
+   dark figure are two holes.
+
+   No colour anywhere on him. The green belongs to the room, not to the man
+   standing in it. */
 function neoModel(dir){
   var skin = HERO_SKIN;
-  var coat = "#101216", lin = "#1b1f26", shirt = "#15171c";
+  var coat = "#101216", lin = "#242933", shirt = "#15171c", strap = "#2b313b";
   var parts = [
     P(0.29, 0.46, 0.15, 0.13, 0,     0.080, "#0a0b0e"),       // boots
     P(0.56, 0.46, 0.15, 0.13, 0,     0.080, "#0a0b0e"),
     P(0.31, 0.45, 0.16, 0.14, 0.075, 0.26,  "#141619"),       // trousers
     P(0.53, 0.45, 0.16, 0.14, 0.075, 0.26,  "#141619"),
-    /* THE COAT, which is the whole costume. Three panels falling past the
-       knee and a shade wider at the hem than at the belt, so it reads as
-       hanging open and moving rather than as a long box. */
-    P(0.212, 0.400, 0.576, 0.19, 0.115, 0.125, coat),
-    P(0.226, 0.405, 0.548, 0.18, 0.240, 0.120, shade(coat, 0.06)),
-    P(0.240, 0.410, 0.520, 0.17, 0.360, 0.120, coat),
-    /* and the two front edges of it, a step NEARER the camera so they stand
-       off the rest and the coat reads as hanging open. */
-    P(0.238, 0.385, 0.062, 0.05, 0.118, 0.370, lin),
-    P(0.700, 0.385, 0.062, 0.05, 0.118, 0.370, lin),
     P(0.24, 0.42, 0.52, 0.16, 0.33,  0.26,  shirt),           // the shirt
-    P(0.21, 0.405, 0.58, 0.18, 0.530, 0.095, shade(coat, 0.10)), // the collar
-    /* It stands up at the back of the neck, which is the detail everybody
-       draws from memory. */
-    P(0.345, 0.385, 0.31, 0.05, 0.600, 0.090, shade(coat, 0.14)),
-    P(0.155, 0.445, 0.085, 0.125, 0.33, 0.215, shade(coat,-0.20)), // sleeves
-    P(0.760, 0.445, 0.085, 0.125, 0.33, 0.215, shade(coat,-0.20)),
+    P(0.235, 0.41, 0.53, 0.15, 0.322, 0.034, "#1d222a"),      // the belt
+    /* THE COAT: two panels down the outside of him, longer than the legs and
+       a shade wider at the hem, with a lit front edge on each so they read as
+       hanging open rather than as two black bars. */
+    P(0.145, 0.400, 0.115, 0.19, 0.105, 0.470, coat),
+    P(0.740, 0.400, 0.115, 0.19, 0.105, 0.470, coat),
+    P(0.125, 0.395, 0.135, 0.20, 0.105, 0.150, shade(coat, 0.05)),
+    P(0.740, 0.395, 0.135, 0.20, 0.105, 0.150, shade(coat, 0.05)),
+    P(0.248, 0.380, 0.040, 0.05, 0.115, 0.450, lin),          // front edges
+    P(0.712, 0.380, 0.040, 0.05, 0.115, 0.450, lin),
+    /* THE COLLAR. Behind the head - see above - and wider than the shoulders,
+       with a wing coming forward past each ear. */
+    /* Up to the JAW, not over the eyes. At 0.81 it came past his cheekbones
+       and the face was a slot in a box; the reference stops it about level
+       with the mouth and lets the head sit clear above it. */
+    P(0.190, 0.50, 0.62, 0.12, 0.560, 0.175, shade(coat, 0.08)),
+    P(0.190, 0.50, 0.62, 0.12, 0.718, 0.028, shade(coat, 0.22)),  // its lit rim
+    P(0.215, 0.410, 0.080, 0.10, 0.575, 0.150, shade(coat, 0.13)),
+    P(0.705, 0.410, 0.080, 0.10, 0.575, 0.150, shade(coat, 0.13)),
+    P(0.21, 0.405, 0.58, 0.18, 0.530, 0.070, shade(coat, 0.04)),  // shoulders
+    P(0.155, 0.445, 0.085, 0.125, 0.33, 0.215, shade(coat,-0.18)),// sleeves
+    P(0.760, 0.445, 0.085, 0.125, 0.33, 0.215, shade(coat,-0.18)),
     P(0.155, 0.445, 0.09, 0.13, 0.295, 0.055, skin),          // hands
     P(0.755, 0.445, 0.09, 0.13, 0.295, 0.055, skin),
     P(0.42, 0.44, 0.16, 0.14, 0.615, 0.040, skin),            // the neck
     P(0.37, 0.43, 0.26, 0.15, 0.655, 0.200, skin),            // the face
-    P(0.355, 0.43, 0.29, 0.15, 0.826, 0.044, "#15110f"),      // black hair
-    P(0.355, 0.43, 0.035, 0.15, 0.760, 0.070, "#15110f"),     // and it is long
-    P(0.610, 0.43, 0.035, 0.15, 0.760, 0.070, "#15110f")
+    /* The hair, swept and a touch wider than the head - and on the FACE'S
+       OWN plane, so the z tiebreak puts it in front of the skin instead of
+       the painter burying it. */
+    P(0.345, 0.43, 0.31, 0.15, 0.828, 0.050, "#15110f"),
+    P(0.345, 0.43, 0.040, 0.15, 0.752, 0.080, "#15110f"),
+    P(0.615, 0.43, 0.040, 0.15, 0.752, 0.080, "#15110f"),
+    P(0.325, 0.43, 0.030, 0.15, 0.800, 0.056, "#15110f")      // a sweep of it
   ];
   var dec = [
-    /* The shades. Small, oval, and nearly joined - two narrow lenses with a
-       hairline bridge, which is the whole of that face. */
-    { x:0.378, y:0.43, w:0.108, z:0.710, h:0.050, bg:"#07080a" },
-    { x:0.514, y:0.43, w:0.108, z:0.710, h:0.050, bg:"#07080a" },
-    { x:0.486, y:0.43, w:0.028, z:0.726, h:0.012, bg:"#2a2f36" },
-    { x:0.388, y:0.43, w:0.034, z:0.740, h:0.012, bg:"#6b7a84" },
-    { x:0.524, y:0.43, w:0.034, z:0.740, h:0.012, bg:"#6b7a84" }
+    /* The harness: two straps over the shoulders to the belt, which is most
+       of what that costume is under the coat. */
+    { x:0.330, y:0.42, w:0.052, z:0.345, h:0.235, bg:strap },
+    { x:0.618, y:0.42, w:0.052, z:0.345, h:0.235, bg:strap },
+    { x:0.455, y:0.42, w:0.090, z:0.322, h:0.034, bg:"#39414d" },  // the buckle
+    /* The shades. Narrow ovals, and GREY - they are mirrors, and black ones
+       on a figure this dark are two holes in his face. */
+    { x:0.378, y:0.43, w:0.108, z:0.714, h:0.044, bg:"#595f66" },
+    { x:0.514, y:0.43, w:0.108, z:0.714, h:0.044, bg:"#595f66" },
+    { x:0.378, y:0.43, w:0.108, z:0.742, h:0.014, bg:"#8e969d" },  // the glare
+    { x:0.514, y:0.43, w:0.108, z:0.742, h:0.014, bg:"#8e969d" },
+    { x:0.486, y:0.43, w:0.028, z:0.728, h:0.012, bg:"#2a2f36" }   // the bridge
   ];
   var m = { parts:parts, decals:dec, W:1 };
   return dir < 0 ? flip(m, 1) : m;
