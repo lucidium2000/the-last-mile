@@ -2515,18 +2515,6 @@ var POWERS = {
   sponsor:{ col:C.pw4, letter:"C", name:"CLOUD INSIGHTS",
             line:"Accelerating your journey in the Cloud. Orange high-tops, and he runs.",
             secs:3.5 },
-  /* ===================== TEMPORARY, REMOVE BEFORE SHIPPING ================
-     A test pill. Walk into it and the game jumps straight to the Penn 1
-     scene, which chains on to CISCO CLUB and HANALEI BAY and then the
-     tally - the whole ending, without the ninety-four blocks.
-
-     It is NOT in POWER_WEIGHTS, so it can never be rolled: the only way it
-     ever appears is DROP_PW_DEFAULT or ?pw=pill. Delete this entry, its
-     branch in collect(), its model, its bake line and set DROP_PW_DEFAULT
-     back to null, and the game is exactly as it was.
-     ===================================================================== */
-  pill:   { col:"#e0564a", letter:"P", name:"TEST PILL",
-            line:"Straight to Penn 1 and the ending.", secs:0 },
   metro:  { col:"#ffd24a", letter:"M", name:"METROCARD",
             line:"Swipe in at any subway. Ride five to ten streets uptown.", secs:0 },
   /* The premium SKU, and the most powerful thing in the game: five seconds of
@@ -3099,23 +3087,6 @@ function powerModel(kind, lit){
       { x:0.20, y:0.355, w:0.60, z:0.282, h:0.035, bg:"#b9c6d6" }
     ], shadow:false, W:1 };
   }
-  if (kind === "pill"){
-    /* A capsule, lying across the square: red half, white half, a highlight
-       along the top of it. Same envelope as the rest of the pool so it does
-       not read as a different class of object - it is only here so that it
-       is obvious and easy to walk into. */
-    var pa = "#e0564a", pb = "#f4f1ea";
-    return { parts:[
-      P(0.40, 0.40, 0.20, 0.20, 0,    0.05, shade(k.col,-0.55)),  // the stand
-      P(0.17, 0.355, 0.05, 0.29, 0.22, 0.20, shade(pa,-0.10)),    // rounded end
-      P(0.21, 0.335, 0.30, 0.33, 0.18, 0.28, pa),                 // red half
-      P(0.49, 0.335, 0.30, 0.33, 0.18, 0.28, pb),                 // white half
-      P(0.78, 0.355, 0.05, 0.29, 0.22, 0.20, shade(pb,-0.08))     // rounded end
-    ], decals:[
-      { x:0.24, y:0.330, w:0.52, z:0.385, h:0.055, bg:"#ffffff" },
-      { x:0.24, y:0.330, w:0.25, z:0.230, h:0.040, bg:shade(pa,-0.28) }
-    ], shadow:false, W:1 };
-  }
   if (kind === "metro"){
     return { parts:[
       P(0.40, 0.40, 0.20, 0.20, 0.03, 0.10, "#5a4a12"),
@@ -3513,7 +3484,6 @@ function bakeAll(){
   S.pw_tam = bake(powerModel("tam"));
   S.pw_chuck = bake(powerModel("chuck"));
   S.pw_traffic = bake(powerModel("traffic"));
-  S.pw_pill = bake(powerModel("pill"));          // TEMPORARY, see POWERS.pill
   S.pw_sponsor_lit = bake(powerModel("sponsor", true));
   /* Baked off PROP_MODELS rather than off a pool, so a weight of 0 still
      gets a sprite and nothing is baked twice. */
@@ -3530,22 +3500,20 @@ var rows = {};
 var SAFE_MIN = 2;          // the shallowest pavement the generator may lay
 /* A power-up to plant on the first pavement. ?pw=<kind> picks one, and
    nothing happens unless somebody types it. DROP_PW_DEFAULT has been
-   "sponsor" twice now, so Cloud Insights could be looked at without playing
-   for it; it is back to null both times. That one line is the whole of the
-   hook, and ?pw=sponsor does the same thing for a single load without
-   editing anything at all. */
-/* ===================== TEMPORARY, REMOVE BEFORE SHIPPING =================
-   Every run starts with a TEST PILL two squares ahead. Walk into it and the
-   game goes straight to Penn 1 and plays the whole ending. Set this back to
-   null when the scenes have been looked at; ?pw=off suppresses it for one
-   load without editing anything.
-   ========================================================================= */
-var DROP_PW_DEFAULT = "pill";
+   "sponsor" twice, so Cloud Insights could be looked at without playing for
+   it, and "pill" once - a capsule that jumped straight to Penn 1 and ran the
+   whole ending - while the three ending scenes were being built. It goes
+   back to null every time, which is the state it SHIPS in: that one line is
+   the whole of the hook, and ?pw=sponsor does the same thing for a single
+   load without editing anything at all.
+
+   An unknown name is not an error here. The drop is guarded by
+   POWERS[DROP_PW], so ?pw=off, ?pw=none or ?pw=anythingelse all simply plant
+   nothing - which is why there is no list of valid kinds to keep in step. */
+var DROP_PW_DEFAULT = null;
 var DROP_PW = (function(){
   var m = /[?&]pw=([a-z]+)/i.exec(location.search);
-  if (m) return m[1].toLowerCase();
-  if (/[?&]pw=off/i.test(location.search)) return null;
-  return DROP_PW_DEFAULT;
+  return m ? m[1].toLowerCase() : DROP_PW_DEFAULT;
 })();
 var dropDone = false;
 var genCursor = 0, roadRun = 0, safeRun = 0, lastPower = 0, lastTam = -99, nextStreet = START_ST + 1;
@@ -5263,15 +5231,6 @@ function collect(atCol){
        in on the same roll, so the chart and the money agree. */
     G.ticker = { t:0, pct: chuck.pct, amt: chuck.amt };
     AUDIO.dig();
-  }
-  /* TEMPORARY. Straight to the end: the paper is signed, he is on the way
-     home, and Penn 1 fires now. That scene chains to the stage and the stage
-     to the beach, so one tap on this is the whole ending. */
-  else if (kind === "pill"){
-    G.leg = -1; G.po = true;
-    G.street = Math.max(G.street, TURN_ST);
-    G.tam = false; G.tamLeft = 0; G.tamT = 0; G.tamWin = null;
-    startScene(34);
   }
   /* Cards accumulate. Three in the wallet is three rides, which is what makes
      stacking them worth doing instead of riding the first train you find. */

@@ -3126,12 +3126,25 @@ rare tier:
 > **Testing a power-up:** `?pw=<kind>` plants that one on the first pavement
 > of the run, two rows straight ahead of where he starts, every time —
 > `?pw=sponsor` for Cloud Insights, and `tam`, `agent`, `insight`, `traffic`,
-> `path`, `metro`, `chuck` for the rest. `?pw=off` turns it off.
+> `path`, `metro`, `chuck` for the rest.
 >
-> `DROP_PW_DEFAULT` is `null`, so nothing is planted unless somebody types it.
-> It has been `"sponsor"` twice while Cloud Insights was being tuned and is
-> back to `null` both times; `?pw=sponsor` does the same job for a single load
-> without editing anything.
+> The drop is guarded by `POWERS[DROP_PW]`, so an unknown name is not an
+> error — `?pw=off`, `?pw=none` and `?pw=anythingelse` all just plant
+> nothing. That is deliberate: there is no list of valid kinds to keep in
+> step with the pool.
+>
+> `DROP_PW_DEFAULT` is `null`, so nothing is planted unless somebody types
+> it. It has been `"sponsor"` twice while Cloud Insights was being tuned,
+> and `"pill"` once — a red-and-white capsule that jumped straight to Penn 1
+> and played the whole ending, built so the three closing scenes could be
+> looked at without walking ninety-four blocks for them each time. It is
+> back to `null` every time, which is the state it ships in.
+>
+> **The pill is gone now**, all five pieces of it: the `POWERS` entry, the
+> model, the bake line, the branch in `collect()` and the default. It was
+> never in `POWER_WEIGHTS`, so it could never be rolled — but a scaffold
+> left standing is a scaffold that ships, and a test build that walks into
+> the credits is a bad one to hand somebody.
 
 **The cloud is struck.** The pickup's bolt flashes: twice about every 1.7
 seconds, 50ms each, and nothing in between — a 6% duty cycle, measured. A bolt
