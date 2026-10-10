@@ -1314,7 +1314,7 @@ than a broken promise.
 And the run was a flat 5.4s whatever it carried, so a seven-stop hop and a
 fifteen-stop haul cost the same. It is now `RIDE_PER_ST` × streets — 4.2s for
 seven, 9s for fifteen — so the ride costs exactly what it covers. The
-departs clock ticks through the whole thing (it runs above the ride's own
+fiscal clock ticks through the whole thing (it runs above the ride's own
 return in `update`), which is what makes that time real. The floor of 1.0s is
 for the truncated ones: a ride stopped short by the turn at 81 or by Penn can
 be a single street, and the camera racing fifty rows in a blink is a smear with
@@ -2695,8 +2695,8 @@ records the direction the thing that got him was travelling — which a path
 trace can have reversed, so it reads `dir * rv` rather than `dir`. Two
 exceptions: the parked box truck throws him *backwards*, because nothing hit
 him, he walked into it; and the wrong-way bike throws him against its lane, by
-definition. A death with no hazard behind it — exhaustion, or missing the train
-— clears the push and falls back on the facing, and clears it explicitly so it
+definition. A death with no hazard behind it — exhaustion, or the quarter
+closing — clears the push and falls back on the facing, and clears it explicitly so it
 cannot inherit the last collision's. Checked both lane directions, both
 facings, and that running out of road comes out with no push at all.
 
@@ -3172,6 +3172,57 @@ rest, and nulled in `layout()` with them, because a gradient belongs to the
 transform it was built under. 300 frames went from 300 allocations to 0.
 
 
+
+## The clock at the top
+
+It used to be a departure off the board at Penn — `LIRR · 5:01 · HUNTINGTON`,
+`DEPARTS 0:58` — and the mechanic was right while the fiction was not. Nobody
+walks ninety-four blocks uptown to close a deal and then has to be back for the
+5:01 to Ronkonkoma. The commute is the wrong deadline for the thing the player
+is actually doing, and a joke that needs explaining is not doing any work.
+
+Same clock. Sixty seconds, 1.25 banked back per block, the amber-to-red flash
+under twelve, the whole of `FISC_PER_HOP`. What changed is what it counts down
+*to*:
+
+```
+        Q4 FY26  ·  11:59 PM  ·  EAST PUBLIC SECTOR
+              END OF FISCAL   0:58
+```
+
+**End of fiscal is the only deadline in this job that behaves exactly like a
+train.** It is published a year in advance, it does not care that you are
+nearly there, and it leaves at 11:59 whether or not you made it. That is the
+same three properties the departure board had, which is why the mechanic
+transferred without a line of logic changing.
+
+The board keeps its three fields and its cadence, because a departure board is
+still the right *shape* for a deadline you are running at: QUARTER — TIME —
+who it is for. Only the territory is rolled, from ten of them; the quarter and
+the hour are the two things about a fiscal close that never vary. The timer
+line is capped at 460 like the line above it, which `DEPARTS 0:58` never needed
+and `END OF FISCAL 0:58` does — it is half again as long and ran off both ends
+of the 500px plate.
+
+Running out of it used to be **MISSED YOUR TRAIN** over `LIRR · HUNTINGTON ·
+THE 5:01`. It is now:
+
+> **THE QUARTER CLOSED**
+> Q4 FY26 · GREATER NY COMMERCIAL · 11:59 PM
+> *You stood on the corner too long.*
+> **REMEMBER** — The quarter closes whether or not you are ready.
+
+It keeps its amber, which is what separates running out of time from being hit
+by something. The leaderboard cause goes `MISSED TRAIN` → `MISSED CLOSE`.
+
+The names went with it rather than being left as a layer of archaeology:
+`TRAINS` → `SEGMENTS`, `trainT` → `fiscT`, `TRAIN_MAX`/`TRAIN_PER_HOP` →
+`FISC_MAX`/`FISC_PER_HOP`, `missTrain` → `missClose`, `missedTrain` →
+`missedClose`, including the one in the Cloud Insights comment that explains
+where the banked time comes from. **The subway keeps every one of its train
+names** — `TRAIN_ROB`, `TRAIN_CHAT`, `TRAIN APPROACHING` — because that one is
+a real train you really ride.
+
 ## The stopped sanitation truck
 
 Reported: *"I had Traffic Insights and I was walking in traffic, all was good
@@ -3288,7 +3339,7 @@ jump**: one forward tap clears two rows and lands on the third, at the
 ordinary step rate. Three rows in a third of the time would be nine times the
 ground, which is not a power-up, it is a cutscene — the leap is where the
 speed comes from and the clock stays where it is, which is a true 3× and
-three times the clock banked off `TRAIN_PER_HOP`.
+three times the clock banked off `FISC_PER_HOP`.
 
 **He goes through things.** Flying carries him *over* scaffolding, parked
 trucks and the people on the pavement; the suit takes him *through* them — he

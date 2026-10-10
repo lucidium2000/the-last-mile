@@ -622,7 +622,7 @@ var AUDIO = (function(){
     },
     /* air-brake hiss when a bus pulls up */
     hiss: function(){ hit({ f:5200, to:2200, hp:true, dur:0.26, g:0.07 }); },
-    missedTrain: function(){
+    missedClose: function(){
       tone({ f:392, to:196, dur:0.7, type:"sawtooth", g:0.22, lp:900 });
       tone({ f:261, to:130, dur:0.8, type:"triangle", g:0.16, at:0.1 });
     },
@@ -1728,12 +1728,30 @@ var MILESTONES_BACK = {
   38:["GARMENT DISTRICT",   "PENN IN SIGHT",  "Thirty-fourth. You can see it."]
 };
 
-/* Commute flavour: a real departure off the board at Penn. */
-var TRAINS = [
-  ["LIRR","HUNTINGTON"], ["LIRR","RONKONKOMA"], ["LIRR","BABYLON"],
-  ["LIRR","PORT WASHINGTON"], ["LIRR","HICKSVILLE"], ["LIRR","FAR ROCKAWAY"],
-  ["NJ TRANSIT","TRENTON"], ["NJ TRANSIT","DOVER"], ["NJ TRANSIT","LONG BRANCH"],
-  ["NJ TRANSIT","HAMILTON"], ["NJ TRANSIT","RARITAN"]
+/* THE CLOCK AT THE TOP.
+
+   It used to be a departure off the board at Penn - LIRR to Huntington, NJ
+   TRANSIT to Trenton - and the mechanic was right while the fiction was not.
+   Nobody walks ninety-four blocks uptown to close a deal and then has to be
+   back for the 5:01 to Ronkonkoma; the commute is the wrong deadline for the
+   thing the player is actually doing.
+
+   Same clock, same 60 seconds, same 1.25 back per block. What changed is
+   what it is counting down TO. It is the end of fiscal now, which is the
+   only deadline in this job that behaves exactly like a train: it is
+   published a year in advance, it does not care that you are nearly there,
+   and it leaves at 11:59 whether or not you made it.
+
+   The board keeps its three fields and its cadence, because a departure
+   board is still the right SHAPE for a deadline you are running at:
+   QUARTER - TIME - who it is for. Only the territory is rolled; the quarter
+   and the hour are the two things about a fiscal close that never vary. */
+var FISC_Q = "Q4 FY26", FISC_CLOSE = "11:59 PM";
+var SEGMENTS = [
+  "NY METRO ENTERPRISE", "NORTHEAST ENTERPRISE", "TRI-STATE ENTERPRISE",
+  "MANHATTAN COMMERCIAL", "NY FINANCIAL SERVICES", "EAST PUBLIC SECTOR",
+  "NORTHEAST SERVICE PROVIDER", "GREATER NY COMMERCIAL",
+  "HUDSON VALLEY ENTERPRISE", "NY METRO COMMERCIAL"
 ];
 
 /* ----------------------------------------------------------- hazard models */
@@ -4110,7 +4128,7 @@ var ST_TITLE = 0, ST_PLAY = 1, ST_DEAD = 2, ST_NAME = 3, ST_BOARD = 4;
 var INI_CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 ";
 var RANKS = [[0,"SDR INTERN"],[18,"AE IN RAMP"],[40,"QUOTA CARRIER"],
              [70,"PRESIDENT'S CLUB"],[110,"MIDTOWN LEGEND"]];
-var TRAIN_MAX = 60, TRAIN_PER_HOP = 1.25;
+var FISC_MAX = 60, FISC_PER_HOP = 1.25;
 
 var G = null;
 
@@ -4120,7 +4138,7 @@ function reset(){
   lastHood = -999;
   curStreet = START_ST; curLane = 0; legDir = 1;
   ensureRows(ROWS_AHEAD);
-  var tr = TRAINS[(Math.random()*TRAINS.length)|0];
+  var seg = SEGMENTS[(Math.random()*SEGMENTS.length)|0];
   G = {
     state:ST_TITLE, row:0, col:COLS>>1, fromRow:0, fromCol:COLS>>1,
     hop:1, facing:1, maxRow:0, camRow:0, street:START_ST,
@@ -4141,9 +4159,8 @@ function reset(){
     dashFlash:0, dashPulse:0, dashWhole:0,
     scene:null, scenesSeen:{}, ticker:null, notice:null, southT:0,
     leg:1, po:false, won:false,
-    trainT:TRAIN_MAX, trainLine:tr[0], trainDest:tr[1],
-    trainHH:16 + ((Math.random()*3)|0), trainMM:(Math.random()*60)|0,
-    missedTrain:false,
+    fiscT:FISC_MAX, fiscSeg:seg,
+    missedClose:false,
     shake:0, parts:[], deathName:"", deathObj:"", deathFix:"", deadFor:0,
     steps:0, got:blankPowers(), startedAt:Date.now(), logged:false,
     ini:[0,0,0], iniAt:0,
@@ -4247,7 +4264,7 @@ function runRecord(ini){
     champs: G.champs,
     powers: G.got,
     won:   !!G.won,
-    cause: G.won ? "" : (G.missedTrain ? "MISSED TRAIN" : G.deathName),
+    cause: G.won ? "" : (G.missedClose ? "MISSED CLOSE" : G.deathName),
     secs:  Math.round((Date.now() - G.startedAt) / 1000),
     at:    Date.now()
   };
@@ -4653,7 +4670,7 @@ function act(dir){
   var onPath = G.revealT > 0 && G.trace && onTrace(nr, nc);
   if (dir === "f"){
     if (onPath) AUDIO.traceHop(); else AUDIO.hop();
-    G.trainT = Math.min(TRAIN_MAX, G.trainT + TRAIN_PER_HOP);
+    G.fiscT = Math.min(FISC_MAX, G.fiscT + FISC_PER_HOP);
   } else if (onPath) AUDIO.traceStep(); else AUDIO.step();
 
   /* Somebody is already standing there. The first attempt gets a mouthful
@@ -5744,13 +5761,13 @@ function dieTired(){
   burstMoney(pp.col*TILE + TILE/2, rowScreenY(pp.row) - 36, true);
   saveBest(pipeline()); endRun();
 }
-function missTrain(){
+function missClose(){
   G.deathPush = 0;
-  AUDIO.missedTrain();
-  G.state = ST_DEAD; G.deadFor = 0; G.shake = 10; G.missedTrain = true;
-  G.deathName = "THE " + pad2(G.trainHH % 12 || 12) + ":" + pad2(G.trainMM);
+  AUDIO.missedClose();
+  G.state = ST_DEAD; G.deadFor = 0; G.shake = 10; G.missedClose = true;
+  G.deathName = "THE FISCAL CLOSE";
   G.deathObj = "You stood on the corner too long.";
-  G.deathFix = "Deals and trains both leave without you.";
+  G.deathFix = "The quarter closes whether or not you are ready.";
   saveBest(pipeline()); endRun();
 }
 function pad2(n){ return (n < 10 ? "0" : "") + n; }
@@ -6460,7 +6477,7 @@ function updateRide(dt){
       G.row = R.toRow; G.fromRow = R.toRow;
       G.col = R.toCol; G.fromCol = R.toCol; G.hop = 1;
       if (G.row > G.maxRow){
-        G.trainT = Math.min(TRAIN_MAX, G.trainT + TRAIN_PER_HOP * (G.row - G.maxRow));
+        G.fiscT = Math.min(FISC_MAX, G.fiscT + FISC_PER_HOP * (G.row - G.maxRow));
         G.maxRow = G.row; progress();
       }
       ensureRows(G.maxRow + ROWS_AHEAD);
@@ -10479,7 +10496,7 @@ function updateScene(dt){
    it. The island theme is 10.4s of scheduled notes against a 10.6s scene, so
    by here there is nothing left to cut anyway. */
 function winGame(){
-  G.won = true; G.missedTrain = false; G.tiredDeath = false;
+  G.won = true; G.missedClose = false; G.tiredDeath = false;
   G.state = ST_DEAD;
   G.deadFor = deathHold();
   G.hushed = true;
@@ -10691,7 +10708,7 @@ function update(dt){
     var wk2 = wornK();
     var drag = (G.flyT > 0) ? 1 : (wk2 > 0 ? 1 + 0.15 + wk2 * 0.70 : 1);
     /* Cloud Insights halves the time a square takes, which is the whole of
-       it: twice the ground, twice the clock banked off TRAIN_PER_HOP, and
+       it: twice the ground, twice the clock banked off FISC_PER_HOP, and
        twice as much coming at him. It multiplies with the worn drag rather
        than overriding it - a man on his last point of health in running
        shoes is quick for a man who is about to fall over. */
@@ -10856,8 +10873,8 @@ function update(dt){
        in the road, on the train, behind a cutscene. Time is the other thing
        he is spending and it does not stop because he is sitting down. */
     spendHp(HP_PER_SEC * dt);
-    G.trainT -= dt;
-    if (G.trainT <= 0){ G.trainT = 0; missTrain(); }
+    G.fiscT -= dt;
+    if (G.fiscT <= 0){ G.fiscT = 0; missClose(); }
   }
 
   /* The bar's hold and fill run ABOVE the hit-stop, because the whole point
@@ -13004,7 +13021,7 @@ function flyPitch(){
 var TIRED_KNEE = 20, TIRED_FLAT = 16, TIRED_LEAN = 0.30;
 var TIRED_T1 = 0.62, TIRED_T2 = 1.24, TIRED_T3 = 1.86, TIRED_HOLD = 2.05;
 function deathHold(){
-  return (G.tiredDeath && !G.missedTrain) ? TIRED_HOLD : DEATH_HOLD;
+  return (G.tiredDeath && !G.missedClose) ? TIRED_HOLD : DEATH_HOLD;
 }
 function tiredPhase(){
   var t = G.deadFor;
@@ -14314,15 +14331,19 @@ function drawHud(){
     txt("the numbers count down", 1740, 176, 18, C.textDim, "right");
   }
 
-  // the departure board - the real reason you are hurrying
-  var secs = Math.max(0, Math.ceil(G.trainT));
-  var urgent = G.trainT < 12;
+  // the board - the real reason you are hurrying
+  var secs = Math.max(0, Math.ceil(G.fiscT));
+  var urgent = G.fiscT < 12;
   plate(LOGICAL_W/2 - 250, 26, 500, 78, C.ink);
-  txt(G.trainLine + "  ·  " + pad2(G.trainHH % 12 || 12) + ":" + pad2(G.trainMM) +
-      "  ·  " + G.trainDest, LOGICAL_W/2, 50, 20, C.textDim, "center", 460);
+  txt(FISC_Q + "  ·  " + FISC_CLOSE + "  ·  " + G.fiscSeg,
+      LOGICAL_W/2, 50, 20, C.textDim, "center", 460);
   var tcol = urgent ? C.danger : C.amber;
   if (urgent && Math.sin(G.t*9) < 0) tcol = C.text;
-  txt("DEPARTS  " + Math.floor(secs/60) + ":" + pad2(secs%60), LOGICAL_W/2, 82, 34, tcol);
+  /* Capped at 460 like the line above it. "DEPARTS 0:58" always fitted the
+     500 plate; "END OF FISCAL 0:58" is half again as long and would have
+     run off both ends of it. */
+  txt("END OF FISCAL  " + Math.floor(secs/60) + ":" + pad2(secs%60),
+      LOGICAL_W/2, 82, 34, tcol, "center", 460);
 
   var b = best();
   if (b > 0){
@@ -15209,19 +15230,19 @@ function drawDead(){
      0.71 and the numbers everybody reads came out smaller than the line
      telling them they missed a train. Tightened, the tally starts at 440 and
      scales to 0.81. */
-  if (G.missedTrain){
-    txt("MISSED YOUR TRAIN", LOGICAL_W/2, 182, 82, C.amber);
-    txt(G.trainLine + " · " + G.trainDest + " · " + G.deathName, LOGICAL_W/2, 250, 30, C.text);
+  if (G.missedClose){
+    txt("THE QUARTER CLOSED", LOGICAL_W/2, 182, 82, C.amber);
+    txt(FISC_Q + " · " + G.fiscSeg + " · " + FISC_CLOSE, LOGICAL_W/2, 250, 30, C.text);
   } else {
     txt(G.po ? "SO CLOSE" : "DIDN’T MAKE IT", LOGICAL_W/2, 182, 86, C.danger);
     txt((G.po ? "SIGNED ORDER, STOPPED ON W " : "STOPPED ON W ") + G.street + " ST BY " + G.deathName, LOGICAL_W/2, 250, 30, C.text);
   }
 
   plate(LOGICAL_W/2-580, 294, 1160, 124, C.ink);
-  ctx.fillStyle = G.missedTrain ? C.amber : C.danger;
+  ctx.fillStyle = G.missedClose ? C.amber : C.danger;
   ctx.fillRect(LOGICAL_W/2-580, 294, 8, 124);
   txt(G.deathObj, LOGICAL_W/2, 332, 28, C.textDim, "center", 1080);
-  txt(G.missedTrain ? "REMEMBER" : "TRY THIS", LOGICAL_W/2, 370, 19, C.good);
+  txt(G.missedClose ? "REMEMBER" : "TRY THIS", LOGICAL_W/2, 370, 19, C.good);
   txt(G.deathFix, LOGICAL_W/2, 400, 28, C.text, "center", 1080);
 
   drawTally(440, C.danger);
