@@ -3645,6 +3645,10 @@ function facadeModel(kind){
 
    It floats, the way the TAM cube floats. A pallet was tried under it and a
    pallet that bobs nine pixels off the pavement is worse than no pallet. */
+/* The top of the lid, in model z. Shared, because drawKiosk aims the beam
+   and the packets at it and a number copied into the draw would drift the
+   first time the box changed shape. */
+var KIOSK_LID = 0.73;
 function kioskModel(){
   var box = C.pw3, lid = shade(box, 0.22), rib = TRACE.line;
   var ribL = shade(rib, 0.26);
@@ -12830,8 +12834,24 @@ function drawKiosk(col, sy, used, usedAt){
   var phase = col * 1.7, pul = 0.5 + 0.5*Math.sin(G.t*2.6 + phase), i;
   var bob = Math.sin(G.t*2.1 + phase) * 9;
 
+  /* IT COMES OUT OF THE LID. The beam used to start at the GROUND and run
+     three hundred pixels up through the whole model, which read as a box
+     standing in a column of light rather than light coming out of a box.
+     The route it hands you was in there; it should leave the way anything
+     leaves a parcel.
+
+     KIOSK_LID is the top of the lid in model z, and a model's z maps to
+     screen pixels at ZH to the unit off the blit anchor - the same anchor
+     the sprite itself is drawn from, bob included, so the light stays
+     welded to the lid while the box floats.
+
+     Drawn BEFORE the sprite, which is what finishes it: the bow is painted
+     over the bottom of the beam, so the light appears from behind the
+     ribbon instead of starting in mid-air above it. */
+  var topY = (sy - bob) - KIOSK_LID * ZH;
+
   ctx.save();
-  ctx.translate(cx, ground);
+  ctx.translate(cx, topY);
   ctx.globalAlpha = 0.74 + 0.26*pul;
   ctx.fillStyle = addonBeamGrad;
   ctx.fillRect(-44, -300, 88, 300);
@@ -12856,14 +12876,19 @@ function drawKiosk(col, sy, used, usedAt){
   ctx.globalAlpha = 1;
   blit(S.pr_kiosk, col*TILE, sy - bob);
 
-  // packets leaving the pack, in the colour of the route it hands you
+  /* Packets leaving the pack, in the colour of the route it hands you, and
+     leaving from the same place the beam does. They used to start at a fixed
+     height off the ground, which put them in the air above the bow with a
+     gap underneath; off the lid they climb out of it. The spread opens as
+     they go - they are on top of each other at the lid and apart by the top,
+     which is what makes it a thing emptying rather than six dots rising. */
   ctx.fillStyle = TRACE.pale;
   for (i = 0; i < 6; i++){
     var t = ((G.t*0.5) + i/6) % 1;
     var sz = 8 - t*4;
     ctx.globalAlpha = (1 - t) * 0.85;
-    ctx.fillRect(cx + Math.sin(i*2.3 + G.t*0.7) * 26 - sz/2,
-                 ground - 70 - t*120 - sz/2, sz, sz);
+    ctx.fillRect(cx + Math.sin(i*2.3 + G.t*0.7) * (6 + t*26) - sz/2,
+                 topY - 4 - t*132 - sz/2, sz, sz);
   }
   ctx.globalAlpha = 1;
 

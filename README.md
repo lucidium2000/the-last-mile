@@ -3547,6 +3547,28 @@ shown is 5:00 PM on the nose and the last before midnight is 11:55 PM.
 Measured: every step 5 minutes, one change every 0.70–0.72s, **zero** backward
 changes, and 1,199 frames held still across twenty seconds of hard banking.
 
+
+## Out of the top of the box
+
+The TE-ADDON beam used to start at the **ground** and run three hundred pixels
+up through the whole model, which read as a box standing in a column of light
+rather than light coming out of a box. The route it hands you was in there; it
+should leave the way anything leaves a parcel.
+
+`KIOSK_LID` is the top of the lid in model z, shared with `kioskModel` so a
+number copied into the draw cannot drift the first time the box changes shape.
+A model's z maps to screen pixels at `ZH` to the unit off the blit anchor —
+the same anchor the sprite is drawn from, `bob` included — so the light stays
+welded to the lid while the box floats.
+
+The beam is still drawn **before** the sprite, and that is what finishes it:
+the bow is painted over the bottom of the beam, so the light appears from
+behind the ribbon instead of starting in mid-air above it.
+
+The packets leave from the same place, and their spread now opens as they go —
+on top of each other at the lid, apart by the top — which is what makes it read
+as a thing emptying rather than six dots rising.
+
 ## An hourglass, not a crate
 
 Internet Insights fell through to the generic power-up model: a box with an
