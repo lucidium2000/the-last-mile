@@ -3711,7 +3711,7 @@ function reset(){
     yumT:0, yumKind:null, yumDir:0, yumBite:0, wowT:0, cheerT:0,
     metro:0, ride:null, trace:null, rides:0, bonus:0, tamLeft:0, riskT:0, dashT:0,
     leapT:0, dashBeep:0, idleT:0, saver:false, hushed:false,
-    dashFlash:0, dashPulse:0, dashWhole:0, dashBolt:null,
+    dashFlash:0, dashPulse:0, dashWhole:0,
     scene:null, scenesSeen:{}, ticker:null, notice:null, southT:0,
     leg:1, po:false, won:false,
     trainT:TRAIN_MAX, trainLine:tr[0], trainDest:tr[1],
@@ -4724,7 +4724,6 @@ function collect(){
        a refresh you cannot see is a refresh you do not trust. */
     G.dashFlash = DASH_FLASH;
     G.dashWhole = Math.ceil(G.dashT);
-    G.dashBolt = makeBolts();
     AUDIO.dashGo();
   }
 }
@@ -11167,47 +11166,6 @@ function drawHurt(){
 }
 function drawHaze(){ ctx.fillStyle = hazeGrad; ctx.fillRect(0, HORIZON - 16, LOGICAL_W, 246); }
 
-/* A FORK OF LIGHTNING, struck once, on the pickup.
-
-   Built once per pickup rather than per frame: lightning that redraws itself
-   every frame is a hedge, not a bolt, and the flicker below wants the SAME
-   shape coming back rather than a new one each time.
-
-   A bolt is a polyline down the screen with the x jittered at every node and
-   one branch hanging off a node in the middle. Nodes are 70-160px apart,
-   which is coarse enough that the segments read as straight runs - a smooth
-   curve is not lightning, and neither is a zigzag with even teeth. */
-function makeBolts(){
-  var out = [];
-  for (var b = 0; b < 3; b++){
-    var x = LOGICAL_W * (0.20 + 0.30 * b) + (Math.random() - 0.5) * 170;
-    var pts = [], y = -30;
-    while (y < LOGICAL_H + 30){
-      pts.push([x, y]);
-      y += 70 + Math.random() * 90;
-      x += (Math.random() - 0.5) * 150;
-    }
-    pts.push([x, LOGICAL_H + 30]);
-    var bi = 2 + ((Math.random() * Math.max(1, pts.length - 4)) | 0);
-    bi = Math.min(bi, pts.length - 1);
-    var br = [], bx = pts[bi][0], by = pts[bi][1], away = Math.random() < 0.5 ? -1 : 1;
-    for (var k = 0; k < 3; k++){
-      br.push([bx, by]);
-      bx += away * (60 + Math.random() * 90);
-      by += 55 + Math.random() * 70;
-    }
-    out.push({ main:pts, branch:br });
-  }
-  return out;
-}
-function boltPath(pts){
-  if (!pts || pts.length < 2) return;
-  ctx.beginPath();
-  ctx.moveTo(pts[0][0], pts[0][1]);
-  for (var i = 1; i < pts.length; i++) ctx.lineTo(pts[i][0], pts[i][1]);
-  ctx.stroke();
-}
-
 /* ===================== CLOUD INSIGHTS, STAGED ============================
    Three seconds is not long enough to be felt as a duration unless the
    duration is shown, so this draws the clock rather than leaving it to the
@@ -11239,29 +11197,12 @@ function drawDashHud(){
     ctx.fillStyle = "#fff0d6"; ctx.fillRect(0, 0, LOGICAL_W, LOGICAL_H);
     ctx.globalAlpha = 0.30 * st;
     ctx.fillStyle = col;       ctx.fillRect(0, 0, LOGICAL_W, LOGICAL_H);
-
-    /* THE BOLT, over the wash so it stays crisp. It does not fade out, it
-       FLICKERS - three lit windows down the length of the strobe, because a
-       bolt on a dimmer is a torch being switched off. The core is near
-       white with two wider, fainter passes of the brand orange under it:
-       the same stacked-stroke glow as everywhere else, since shadowBlur is
-       not available here. */
-    var bf = G.dashFlash / DASH_FLASH;
-    var lit = bf > 0.80 || (bf > 0.54 && bf < 0.66) || (bf > 0.30 && bf < 0.38);
-    if (lit && G.dashBolt){
-      var cap = ctx.lineCap, join = ctx.lineJoin;
-      ctx.lineCap = "round"; ctx.lineJoin = "round";
-      for (var bo = 0; bo < G.dashBolt.length; bo++){
-        var B = G.dashBolt[bo];
-        for (var pz = 0; pz < 3; pz++){
-          ctx.globalAlpha   = pz === 2 ? 0.95 : 0.15;
-          ctx.lineWidth     = pz === 2 ? 5    : 5 + (2 - pz) * 15;
-          ctx.strokeStyle   = pz === 2 ? "#fffdf6" : col;
-          boltPath(B.main); boltPath(B.branch);
-        }
-      }
-      ctx.lineCap = cap; ctx.lineJoin = join;
-    }
+    /* There were three forks of lightning struck across the screen here on
+       every pickup. They were removed: at three strobes a run, over a street
+       he is about to step into, they were more screen than the moment
+       needed, and the wash already carries it. The thunder under the crack
+       in AUDIO.dashGo was put there for them and has been left, because
+       without the bolts it simply reads as a deeper pickup. */
   }
   if (G.dashT <= 0){ ctx.globalAlpha = 1; return; }
 

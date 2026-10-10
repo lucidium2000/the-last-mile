@@ -2606,23 +2606,17 @@ began. The HUD chip that carries every other SKU is 40px across in the bottom
 corner and was never going to hold this one, so the duration is staged
 (`drawDashHud`). Three pieces:
 
-**A strobe on pickup, and a fork of lightning through it.** 0.42s, two hits
-rather than one fade — a single ramp down reads as a transition between
-screens, two read as something striking him. A rising sweep with a crack and a
-low roll under it, because lightning you can see and cannot hear is weather
-happening to somebody else.
+**A strobe on pickup.** 0.42s, two hits rather than one fade — a single ramp
+down reads as a transition between screens, two read as something striking
+him. A rising sweep with a crack and a low roll under it.
 
-Three bolts fork down the full height of the screen, each a polyline with the
-x jittered at every node and one branch hanging off a node in the middle.
-Nodes are 70–160px apart, coarse enough that the segments read as straight
-runs: a smooth curve is not lightning, and neither is a zigzag with even
-teeth. They are built **once per pickup** rather than per frame — lightning
-that redraws its own shape every frame is a hedge, not a bolt — and they do
-not fade out, they **flicker**, three lit windows down the length of the
-strobe, because a bolt on a dimmer is a torch being switched off. Near-white
-core over two wider, fainter passes of the brand orange: the same
-stacked-stroke glow as everything else here, since `shadowBlur` is not
-available.
+There were three forks of lightning struck across the screen here as well,
+built once per pickup and flickered rather than faded. They came out: at three
+strobes a run, over a street he is about to step into, they were more screen
+than the moment needed, and the wash already carries it. The thunder under the
+crack was put there for them and has been left — without the bolts it simply
+reads as a deeper pickup. Worth knowing if anyone wonders why the sound has a
+roll in it.
 
 **A ring that drains, with the number inside it.** At y 268: below the
 pipeline and departure readouts, above `HORIZON`, so it covers sky and the
