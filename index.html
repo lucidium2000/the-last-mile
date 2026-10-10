@@ -899,38 +899,71 @@ var AUDIO = (function(){
       hit({ f:6400, hp:true, dur:1.4,  g:0.034, at:8.2 });
     },
 
-    /* THE BEACH - a ukulele. Four strings plucked one after another with a
-       few milliseconds between them, which is the whole difference between a
-       strum and a chord; triangle rather than sine because a uke has an edge
-       on it. A soft low root under each bar, a shaker on the offbeat, and
-       nothing else - the scene is about nothing happening. */
+    /* THE BEACH - a ukulele, and the last thing anybody hears.
+
+       Four strings plucked a few milliseconds apart, which is the whole
+       difference between a strum and a chord; triangle rather than sine
+       because a uke has an edge on it. Over the top, a slack-key MELODY -
+       two notes a bar, slid into from below - because eight bars of
+       accompaniment with nothing on it is a backing track, and this is
+       supposed to be the thing that plays while somebody sits and looks at
+       the sea. Under it a soft root, a shaker, and the sea itself.
+
+       Louder than the first pass by about half across the board. It came in
+       under a stage fanfare whose last chord is still ringing, on a panel
+       speaker, at the end of a four-minute run - and it was being missed
+       entirely. */
     islandTheme: function(){
       var prog = [
         [392.00, 523.25, 659.26, 783.99],   // C  (G-C-E-A shape)
         [349.23, 440.00, 523.25, 698.46],   // F
         [392.00, 493.88, 587.33, 783.99],   // G
-        [329.63, 440.00, 523.25, 659.26]    // Am-ish
+        [329.63, 440.00, 523.25, 659.26]    // Am
       ];
-      var bar = 1.3, bars = 8;
+      /* The tune, as [bar, note, when-in-the-bar, how-long]. It walks up to
+         the fifth and settles back, twice, which is about as much melody as
+         ten seconds will hold without becoming a jingle. */
+      var MEL = [
+        [0, 659.26, 0.10, 0.54], [0, 783.99, 0.62, 0.46],
+        [1, 698.46, 0.08, 0.60], [1, 659.26, 0.64, 0.44],
+        [2, 587.33, 0.10, 0.52], [2, 783.99, 0.60, 0.56],
+        [3, 659.26, 0.12, 0.74],
+        [4, 523.25, 0.10, 0.58], [4, 659.26, 0.64, 0.44],
+        [5, 698.46, 0.08, 0.62], [5, 880.00, 0.62, 0.50],
+        [6, 783.99, 0.10, 0.56], [6, 659.26, 0.62, 0.46],
+        [7, 523.25, 0.10, 1.00],
+        [8, 523.25, 0.06, 1.30]
+      ];
+      var bar = 1.3, bars = 9;
       for (var b = 0; b < bars; b++){
         var ch = prog[b % prog.length], at = b * bar;
-        // two strums a bar, the second lighter
         for (var s2 = 0; s2 < 2; s2++){
-          var sat = at + s2 * (bar * 0.52), g0 = s2 ? 0.026 : 0.040;
+          var sat = at + s2 * (bar * 0.52), g0 = s2 ? 0.040 : 0.060;
           for (var c = 0; c < ch.length; c++){
-            tone({ f:ch[c], dur:0.52, type:"triangle", g:g0,
+            tone({ f:ch[c], dur:0.56, type:"triangle", g:g0,
                    at:sat + c * 0.016, lp:2600 });
           }
         }
-        tone({ f:ch[0] / 2, dur:bar * 0.9, type:"sine", g:0.055, at:at, lp:240 });
-        // shaker, off the beat
-        hit({ f:7600, hp:true, dur:0.05, g:0.013, at:at + bar * 0.26 });
-        hit({ f:7600, hp:true, dur:0.05, g:0.013, at:at + bar * 0.76 });
+        tone({ f:ch[0] / 2, dur:bar * 0.92, type:"sine", g:0.080, at:at, lp:240 });
+        hit({ f:7600, hp:true, dur:0.05, g:0.020, at:at + bar * 0.26 });
+        hit({ f:7600, hp:true, dur:0.05, g:0.020, at:at + bar * 0.76 });
       }
-      /* The sea, under all of it: four long noise washes that come and go.
-         It is the one sound that has to still be there between the chords. */
-      for (var w = 0; w < 5; w++){
-        hit({ f:420, dur:1.7, g:0.022, at:w * 2.1 });
+      /* The melody, slid into from a tone below - which is the one gesture
+         that makes a plucked string sound like a slack-key guitar rather
+         than a music box. */
+      for (var m = 0; m < MEL.length; m++){
+        var mb = MEL[m][0], mf = MEL[m][1], mw = MEL[m][2], md = MEL[m][3];
+        var mat = mb * bar + mw * bar;
+        tone({ f:mf * 0.944, to:mf, dur:0.11, type:"triangle",
+               g:0.052, at:mat, lp:3000 });
+        tone({ f:mf, dur:md, type:"triangle", g:0.062, at:mat + 0.07, lp:3000 });
+        tone({ f:mf * 2, dur:md * 0.7, type:"sine", g:0.016,
+               at:mat + 0.07, lp:4200 });
+      }
+      /* The sea, under all of it: long noise washes that come and go. It is
+         the one sound that has to still be there between the chords. */
+      for (var w = 0; w < 7; w++){
+        hit({ f:420, dur:1.9, g:0.034, at:w * 1.7 });
       }
     },
 
@@ -3371,7 +3404,6 @@ function bakeAll(){
   S.pw_chuck = bake(powerModel("chuck"));
   S.pw_traffic = bake(powerModel("traffic"));
   S.pw_pill = bake(powerModel("pill"));          // TEMPORARY, see POWERS.pill
-  S.beachGuy = bake(beachModel());
   S.pw_sponsor_lit = bake(powerModel("sponsor", true));
   /* Baked off PROP_MODELS rather than off a pool, so a weight of 0 still
      gets a sprite and nothing is baked twice. */
@@ -7736,8 +7768,12 @@ function sceneFrame(title, sub, body, sc){
   // letterbox and titles
   ctx.globalAlpha = a; ctx.fillStyle = "#07080c";
   ctx.fillRect(0, 0, LOGICAL_W, 150); ctx.fillRect(0, LOGICAL_H-190, LOGICAL_W, 190);
-  ctx.fillStyle = C.brand; ctx.fillRect(LOGICAL_W/2 - 180, LOGICAL_H-150, 360, 4);
-  txt(title, LOGICAL_W/2, LOGICAL_H-108, 56, C.text);
+  ctx.fillStyle = C.brand;
+  ctx.fillRect(LOGICAL_W/2 - 180, LOGICAL_H - (sc && sc.sub2 ? 180 : 150), 360, 4);
+  /* The title moves up when there are two lines under it. At 56px its ink
+     reaches 1000 and the bigger first subtitle starts at 980, so they were
+     printing through each other. */
+  txt(title, LOGICAL_W/2, LOGICAL_H - (sc && sc.sub2 ? 140 : 108), 56, C.text);
   /* The second line is the JOKE - why he is standing in Times Square at six
      in the evening - and it was 26px of the same grey the HUD uses for
      things nobody has to read. Brand orange at 32 puts it on the same side
@@ -7746,16 +7782,29 @@ function sceneFrame(title, sub, body, sc){
   if (!sub2){
     txt(sub, LOGICAL_W/2, LOGICAL_H-54, 32, C.brand, "center", LOGICAL_W - 160);
   } else {
-    /* Two lines, so the first one moves up to make room. The second fades
-       in on its own clock and rises a few pixels as it comes, because a
-       line that simply appears reads as a frame drop. */
-    txt(sub, LOGICAL_W/2, LOGICAL_H-74, 32, C.brand, "center", LOGICAL_W - 160);
-    var k2 = Math.max(0, Math.min(1, (t - (sc.sub2At || 2.0)) / 0.7));
+    /* TWO LINES, AND THEY ARE NOT THE SAME KIND OF LINE.
+
+       The first is the invitation - bigger, warmer, in the brand colour,
+       with a little tracking on it so it reads as something said rather
+       than something printed. The second is the punchline and it is WHITE:
+       orange on orange made it a second helping of the first line, and the
+       joke only lands if it arrives as a different voice.
+
+       It fades in two seconds later and rises as it comes, because a line
+       that simply appears reads as a frame drop. */
+    txt(sub, LOGICAL_W/2, LOGICAL_H - 80, 40, C.brand, "center", LOGICAL_W - 160);
+    var k2 = Math.max(0, Math.min(1, (t - (sc.sub2At || 2.0)) / 0.8));
     if (k2 > 0){
       var e2 = k2 * k2 * (3 - 2 * k2);
+      /* A hard dark pass under it first. White type over a sunset is white
+         type over an orange sky, and the letterbox behind it is only there
+         for the bottom half of the line. */
+      ctx.globalAlpha = a * e2 * 0.7;
+      txt(sub2, LOGICAL_W/2 + 2, LOGICAL_H - 30 + (1 - e2) * 10 + 3, 30,
+          "#140800", "center", LOGICAL_W - 160);
       ctx.globalAlpha = a * e2;
-      txt(sub2, LOGICAL_W/2, LOGICAL_H - 30 + (1 - e2) * 8, 32,
-          C.brand, "center", LOGICAL_W - 160);
+      txt(sub2, LOGICAL_W/2, LOGICAL_H - 30 + (1 - e2) * 10, 30,
+          "#ffffff", "center", LOGICAL_W - 160);
       ctx.globalAlpha = a;
     }
   }
@@ -8746,99 +8795,6 @@ function drawCiscoLogo(cx, topY, w, col){
   return baseY + fs * 1.18;                      // where the logo ends
 }
 
-/* ===================== HIM, ON HOLIDAY ===================================
-   The man on the beach was hand-drawn out of flat bars for three passes and
-   it was wrong every time, for a reason no amount of redrawing was going to
-   fix: the game's character is a VOXEL MODEL in a cabinet projection, and a
-   figure made of 2D bars is a different species. It did not look like him
-   because it was not built like him.
-
-   So this is built like him. Same P() parts, same bake(), same projection,
-   and the head, neck, hair, sideburns and eye line are lifted from
-   playerModel at exactly the z values they have there - which is what makes
-   it the same face rather than a similar one. Everything below the collar is
-   holiday: an open shirt, swim shorts, bare shins and flip-flops.
-
-   He is SEATED, which a voxel model does cleanly: the thighs are blocks that
-   run FORWARD in y, from the hip at 0.47 to the knee at 0.17, and in this
-   projection forward is down and to the left - so they read as legs coming
-   out at you. The shins hang off the knee end and the feet sit on the sand
-   in front of him. Nothing is rotated, because nothing here can be. */
-function beachModel(){
-  var skin = HERO_SKIN, HAIR = "#2b1d14";
-  var shirt = "#f6f7f9", shorts = "#2f6b8a";
-  var parts = [
-    // feet, out in front, on the sand
-    P(0.290, 0.130, 0.175, 0.165, 0,     0.038, "#1b2027"),
-    P(0.540, 0.130, 0.175, 0.165, 0,     0.038, "#1b2027"),
-    // shins, hanging straight down off the knees
-    P(0.300, 0.165, 0.155, 0.130, 0.038, 0.212, skin),
-    P(0.550, 0.165, 0.155, 0.130, 0.038, 0.212, skin),
-    // thighs: forward from the hip to the knee, which is the whole pose
-    P(0.292, 0.165, 0.175, 0.305, 0.250, 0.130, shorts),
-    P(0.542, 0.165, 0.175, 0.305, 0.250, 0.130, shorts),
-    P(0.292, 0.165, 0.175, 0.305, 0.372, 0.016, shade(shorts, 0.14)),
-    // torso, and shoulders a little wider, the way the suit does it
-    P(0.255, 0.440, 0.495, 0.150, 0.380, 0.215, shirt),
-    P(0.225, 0.430, 0.555, 0.160, 0.575, 0.085, shade(shirt, -0.07)),
-    // bare arms
-    P(0.175, 0.455, 0.082, 0.120, 0.395, 0.195, shade(skin, -0.06)),
-    P(0.755, 0.455, 0.082, 0.120, 0.395, 0.195, shade(skin, -0.06)),
-    // and from the collar up it is exactly the man in the game
-    P(0.420, 0.440, 0.160, 0.140, 0.660, 0.040, shade(skin, -0.30)),
-    P(0.370, 0.430, 0.260, 0.150, 0.700, 0.200, skin),
-    P(0.362, 0.424, 0.276, 0.156, 0.893, 0.048, HAIR),
-    P(0.362, 0.424, 0.024, 0.156, 0.775, 0.118, HAIR),
-    P(0.614, 0.424, 0.024, 0.156, 0.775, 0.118, HAIR)
-  ];
-  /* The drink, in the hand the projection shows. A part rather than a decal
-     so the painter sort puts it in front of his arm. */
-  parts.push(P(0.772, 0.400, 0.115, 0.115, 0.600, 0.135, "#cfe9f2"));
-  parts.push(P(0.772, 0.396, 0.115, 0.115, 0.600, 0.062, "#f2a13c"));
-  parts.push(P(0.800, 0.394, 0.045, 0.115, 0.735, 0.075, "#8a6a46"));
-  parts.push(P(0.756, 0.392, 0.148, 0.115, 0.806, 0.030, C.brand));
-
-  var dec = [
-    /* The shirt, open, with him showing between the fronts. */
-    { x:0.272, y:0.435, w:0.150, z:0.380, h:0.215, bg:"#eef1f4" },
-    { x:0.582, y:0.435, w:0.150, z:0.380, h:0.215, bg:"#eef1f4" },
-    { x:0.455, y:0.436, w:0.090, z:0.380, h:0.190, bg:shade(skin, -0.03) },
-    /* SUNGLASSES, on the eye line playerModel uses - 0.742 there on a head
-       at 0.655, so 0.787 here on a head at 0.700.
-
-       Bigger than the first pass and built as a PAIR: two deep lenses, a
-       bridge between them and a brow bar over the top. One thin dark strip
-       across the face read as a visor, or worse, as his ordinary eyes
-       drawn wide - which is exactly what it was doing. */
-    { x:0.392, y:0.428, w:0.218, z:0.772, h:0.014, bg:"#0d0f12" },   // brow bar
-    { x:0.392, y:0.428, w:0.092, z:0.742, h:0.044, bg:"#15181d" },   // lenses
-    { x:0.518, y:0.428, w:0.092, z:0.742, h:0.044, bg:"#15181d" },
-    { x:0.484, y:0.428, w:0.034, z:0.766, h:0.014, bg:"#0d0f12" },   // bridge
-    /* A sunset in each lens: a warm band low down, which is the only thing
-       that stops two black rectangles reading as empty sockets. */
-    { x:0.400, y:0.427, w:0.070, z:0.750, h:0.013, bg:"#8a5a3a" },
-    { x:0.526, y:0.427, w:0.070, z:0.750, h:0.013, bg:"#8a5a3a" },
-    { x:0.400, y:0.426, w:0.028, z:0.766, h:0.011, bg:"#4a5560" },
-    { x:0.526, y:0.426, w:0.028, z:0.766, h:0.011, bg:"#4a5560" },
-    /* AND A SMILE. Three steps rather than one bar - the ends sit a step
-       lower than the middle, which is the whole difference between a mouth
-       that is happy and a mouth that is a dash. The step has to be worth
-       about 3px on a head this size or the three rects line up. */
-    { x:0.438, y:0.428, w:0.030, z:0.712, h:0.018, bg:"#7a4a36" },
-    { x:0.466, y:0.428, w:0.064, z:0.700, h:0.018, bg:"#7a4a36" },
-    { x:0.528, y:0.428, w:0.030, z:0.712, h:0.018, bg:"#7a4a36" }
-  ];
-  /* A LEI. Seven blooms round the collar, the middle ones hanging lower,
-     which is the only way a flat row of discs reads as a loop. */
-  var LEIC = ["#f04a7a", "#ffd24a", "#f6f2ea"];
-  for (var li = 0; li < 7; li++){
-    dec.push({ x:0.278 + li * 0.064, y:0.428, w:0.058,
-               z:0.600 - (3 - Math.abs(li - 3)) * 0.016, h:0.050,
-               bg:LEIC[li % 3] });
-  }
-  return { parts:parts, decals:dec, shadow:true, W:1 };
-}
-
 /* A person, blocky, at the scale the scenes use. One function, because the
    stage has four of them on it and they have to be the same man. */
 function sceneGuy(x, feet, k, coat, skin, hair, opt){
@@ -8898,6 +8854,127 @@ function drawWingsPin(px, py, w){
   ctx.beginPath(); ctx.arc(px, py, w * 0.245, 0, Math.PI * 2);
   ctx.lineWidth = 2.5; ctx.strokeStyle = edge; ctx.stroke();
   if (!drawMark(px, py, w * 0.34)) drawLogoEye(px, py, w * 0.16);
+}
+
+/* THE SAME MAN, SITTING DOWN, IN HOLIDAY CLOTHES.
+
+   This is sceneGuy's drawing rules applied to a seated figure: same 92x150
+   body box, same 50x58 head, same 54x14 hair cap with a sideburn down each
+   side, same front-on view. Only the clothes and the pose change.
+
+   It replaces a baked voxel model, which was an attempt to make him look
+   like the man in the GAME - and it did, which was the problem. The three
+   ending scenes are drawn, not blitted: a voxel sprite sitting between two
+   flat-drawn scenes reads as a different character who has wandered in from
+   somewhere else. Consistency ACROSS the three beats the resemblance to a
+   fourth thing nobody is looking at while they watch them.
+
+   Seated front-on, the thighs are a foreshortened band at the hips and the
+   shins hang straight down off it - which is what sitting looks like from
+   in front, and which keeps every proportion sceneGuy already has. */
+function sceneGuySeated(x, sand, k){
+  var bw = 92 * k, bh = 150 * k;
+  var skin = HERO_SKIN, hair = "#2b1d14";
+  var shirt = "#f6f7f9", shorts = "#2f6b8a";
+  var seatY = sand - bh * 0.52;            // the top of the thighs
+  var torsoH = bh * 0.56;
+  var top = seatY - torsoH;                // the shoulders
+
+  // shins, straight down off the knees, and a flip-flop under each
+  ctx.fillStyle = skin;
+  ctx.fillRect(x - bw * 0.37, seatY + bh * 0.14, bw * 0.27, bh * 0.38);
+  ctx.fillRect(x + bw * 0.10, seatY + bh * 0.14, bw * 0.27, bh * 0.38);
+  ctx.fillStyle = shade(skin, -0.12);
+  ctx.fillRect(x - bw * 0.37, seatY + bh * 0.14, bw * 0.06, bh * 0.38);
+  ctx.fillRect(x + bw * 0.10, seatY + bh * 0.14, bw * 0.06, bh * 0.38);
+  ctx.fillStyle = "#1b2027";
+  ctx.fillRect(x - bw * 0.41, sand - 10 * k, bw * 0.35, 10 * k);
+  ctx.fillRect(x + bw * 0.06, sand - 10 * k, bw * 0.35, 10 * k);
+  ctx.fillStyle = "#2c333c";
+  ctx.fillRect(x - bw * 0.41, sand - 10 * k, bw * 0.35, 3 * k);
+  ctx.fillRect(x + bw * 0.06, sand - 10 * k, bw * 0.35, 3 * k);
+
+  // the thighs, foreshortened: one band of shorts with a gap at the knees
+  ctx.fillStyle = shorts;
+  ctx.fillRect(x - bw * 0.45, seatY, bw * 0.90, bh * 0.17);
+  ctx.fillStyle = shade(shorts, 0.14);
+  ctx.fillRect(x - bw * 0.45, seatY, bw * 0.90, 5 * k);
+  ctx.fillStyle = shade(shorts, -0.26);
+  ctx.fillRect(x - 4 * k, seatY, 8 * k, bh * 0.17);
+
+  // the torso: an open shirt with him showing between the fronts
+  ctx.fillStyle = shirt;        ctx.fillRect(x - bw / 2, top, bw, torsoH);
+  ctx.fillStyle = shade(skin, -0.02);
+  ctx.fillRect(x - 13 * k, top + 4 * k, 26 * k, torsoH - 4 * k);
+  ctx.fillStyle = "#e7ebef";
+  ctx.fillRect(x - 20 * k, top, 8 * k, torsoH);
+  ctx.fillRect(x + 12 * k, top, 8 * k, torsoH);
+  // a collar, open at the throat
+  ctx.fillStyle = "#eef1f4";
+  ctx.fillRect(x - 24 * k, top, 15 * k, 13 * k);
+  ctx.fillRect(x + 9 * k,  top, 15 * k, 13 * k);
+
+  // arms: the far one down, the near one up with the drink
+  ctx.fillStyle = shade(skin, -0.06);
+  ctx.fillRect(x - bw / 2 - 10 * k, top + 5 * k, 13 * k, torsoH * 0.78);
+  ctx.fillRect(x + bw / 2 - 3 * k,  top + 5 * k, 13 * k, torsoH * 0.44);
+  ctx.fillRect(x + bw / 2 - 3 * k,  top - 16 * k, 13 * k, 26 * k);
+  // the glass in it
+  var gx = x + bw / 2 + 3 * k, gy = top - 22 * k;
+  ctx.fillStyle = "#cfe9f2"; ctx.fillRect(gx - 11 * k, gy - 24 * k, 22 * k, 30 * k);
+  ctx.fillStyle = "#f2a13c"; ctx.fillRect(gx - 11 * k, gy - 10 * k, 22 * k, 16 * k);
+  ctx.fillStyle = "#e8e2d6"; ctx.fillRect(gx - 13 * k, gy - 27 * k, 26 * k, 4 * k);
+  ctx.fillStyle = C.brand;
+  ctx.beginPath();
+  ctx.moveTo(gx, gy - 46 * k);
+  ctx.lineTo(gx + 13 * k, gy - 31 * k);
+  ctx.lineTo(gx - 13 * k, gy - 31 * k);
+  ctx.closePath(); ctx.fill();
+  ctx.fillStyle = "#8a6a46"; ctx.fillRect(gx - 2 * k, gy - 32 * k, 3 * k, 12 * k);
+
+  // the head, exactly as sceneGuy builds it
+  ctx.fillStyle = skin; ctx.fillRect(x - 25 * k, top - 58 * k, 50 * k, 58 * k);
+  ctx.fillStyle = hair;
+  ctx.fillRect(x - 27 * k, top - 68 * k, 54 * k, 14 * k);
+  ctx.fillRect(x - 27 * k, top - 58 * k, 6 * k, 24 * k);
+  ctx.fillRect(x + 21 * k, top - 58 * k, 6 * k, 24 * k);
+
+  /* SUNGLASSES: two lenses, a bridge and a brow bar. One strip across the
+     face reads as a visor. A warm band low in each lens stops them reading
+     as holes. */
+  var ey = top - 40 * k;
+  ctx.fillStyle = "#0d0f12"; ctx.fillRect(x - 24 * k, ey - 5 * k, 48 * k, 4 * k);
+  ctx.fillStyle = "#15181d";
+  ctx.fillRect(x - 24 * k, ey, 20 * k, 13 * k);
+  ctx.fillRect(x + 4 * k,  ey, 20 * k, 13 * k);
+  ctx.fillRect(x - 5 * k,  ey + 2 * k, 10 * k, 4 * k);
+  ctx.fillStyle = "#8a5a3a";
+  ctx.fillRect(x - 22 * k, ey + 8 * k, 16 * k, 4 * k);
+  ctx.fillRect(x + 6 * k,  ey + 8 * k, 16 * k, 4 * k);
+  ctx.fillStyle = "#4a5560";
+  ctx.fillRect(x - 22 * k, ey + 2 * k, 6 * k, 3 * k);
+  ctx.fillRect(x + 6 * k,  ey + 2 * k, 6 * k, 3 * k);
+
+  /* A SMILE, in three steps - the ends a step below the middle, which is
+     the difference between a mouth that is happy and a mouth that is a
+     dash. */
+  ctx.fillStyle = "#7a4a36";
+  ctx.fillRect(x - 13 * k, ey + 19 * k, 7 * k, 5 * k);
+  ctx.fillRect(x - 7 * k,  ey + 23 * k, 14 * k, 5 * k);
+  ctx.fillRect(x + 6 * k,  ey + 19 * k, 7 * k, 5 * k);
+
+  /* AND A LEI. Seven blooms round the collar, the middle ones hanging
+     lower, which is the only way a flat row of discs reads as a loop. */
+  var LEIC = ["#f04a7a", "#ffd24a", "#f6f2ea"];
+  for (var li = 0; li < 7; li++){
+    ctx.fillStyle = LEIC[li % 3];
+    ctx.beginPath();
+    ctx.arc(x + (li - 3) * 9.5 * k,
+            top + 6 * k + (3 - Math.abs(li - 3)) * 4.5 * k,
+            6.2 * k, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  return { top:top, seatY:seatY, bw:bw, bh:bh };
 }
 
 /* An arm, as a bar from the shoulder to a point. Two of these meeting in the
@@ -9180,6 +9257,79 @@ function sceneStage(t, a){
   }
 }
 
+/* ===================== THE GRADE ========================================
+   The last frame of the game, shot on something expensive.
+
+   Four things, all of them flat fills and gradients, because there is no
+   `filter` and no `shadowBlur` on this hardware (see RoomOS notes):
+
+   BOKEH. Out-of-focus points of light are not blurred discs, they are discs
+   with a BRIGHT EDGE and a slightly dimmer middle - that is what a lens
+   iris does to a point source, and it is the one detail that separates
+   bokeh from "circles at low alpha". Each is three passes: a soft fill, a
+   softer inner fill, and a ring. They drift up and across slowly on their
+   own phases, because anything in front of the lens is nearer than the
+   scene and therefore moves differently.
+
+   THE GRADE ITSELF is teal and orange, which is what every holiday
+   photograph has been pushed toward since about 2009: warmth lifted into
+   the highlights at the top of the frame, blue pulled down into the shadows
+   at the bottom. It is two linear washes and it does more for the picture
+   than any amount of redrawing.
+
+   A VIGNETTE, radial, which is a lens falling off at the corners and also
+   the cheapest way to make the eye go to the middle.
+
+   And a BLOOM around the sun, since a bright source on a real sensor
+   bleeds into everything near it.
+
+   The gradients are built once and cached, like skyGrad - three objects
+   rebuilt every frame for ten seconds is three hundred objects. */
+var bkWarm = null, bkCool = null, bkVig = null;
+function beachGrade(t, a){
+  var i;
+  /* BOKEH, over everything. Warm, because the only light in the picture is
+     a sunset and two torches. */
+  var BK = [[0.10, 0.34, 58], [0.23, 0.58, 34], [0.37, 0.24, 44],
+            [0.55, 0.46, 64], [0.67, 0.30, 30], [0.79, 0.54, 48],
+            [0.90, 0.36, 40], [0.31, 0.66, 26], [0.61, 0.70, 24],
+            [0.46, 0.18, 70], [0.86, 0.68, 32], [0.17, 0.46, 22]];
+  var WARM = ["#ffd9a0", "#ffc078", "#ffe9bd", "#ff9e5e"];
+  for (i = 0; i < BK.length; i++){
+    var bx = BK[i][0] * LOGICAL_W + Math.sin(t * 0.20 + i * 1.3) * 30;
+    var by = 170 + BK[i][1] * 560 - ((t * (5 + (i % 5) * 3) + i * 97) % 300);
+    var br = BK[i][2], col = WARM[i % 4];
+    ctx.fillStyle = col; ctx.strokeStyle = col;
+    ctx.globalAlpha = a * 0.085;
+    ctx.beginPath(); ctx.arc(bx, by, br, 0, Math.PI*2); ctx.fill();
+    ctx.globalAlpha = a * 0.05;
+    ctx.beginPath(); ctx.arc(bx, by, br * 0.70, 0, Math.PI*2); ctx.fill();
+    ctx.globalAlpha = a * 0.14;                       // the iris edge
+    ctx.lineWidth = Math.max(2, br * 0.13);
+    ctx.beginPath(); ctx.arc(bx, by, br * 0.91, 0, Math.PI*2); ctx.stroke();
+  }
+  ctx.globalAlpha = a;
+
+  if (!bkWarm){
+    bkWarm = ctx.createLinearGradient(0, 150, 0, 560);
+    bkWarm.addColorStop(0,   "rgba(255,172,86,0.20)");
+    bkWarm.addColorStop(0.6, "rgba(255,150,70,0.07)");
+    bkWarm.addColorStop(1,   "rgba(255,140,60,0)");
+    bkCool = ctx.createLinearGradient(0, 600, 0, 890);
+    bkCool.addColorStop(0,   "rgba(26,74,104,0)");
+    bkCool.addColorStop(1,   "rgba(20,62,92,0.26)");
+    bkVig = ctx.createRadialGradient(LOGICAL_W/2, 520, 260,
+                                     LOGICAL_W/2, 520, 1180);
+    bkVig.addColorStop(0,    "rgba(12,7,16,0)");
+    bkVig.addColorStop(0.62, "rgba(12,7,16,0.10)");
+    bkVig.addColorStop(1,    "rgba(10,5,14,0.52)");
+  }
+  ctx.fillStyle = bkWarm; ctx.fillRect(0, 150, LOGICAL_W, 420);
+  ctx.fillStyle = bkCool; ctx.fillRect(0, 600, LOGICAL_W, 290);
+  ctx.fillStyle = bkVig;  ctx.fillRect(0, 150, LOGICAL_W, 740);
+  ctx.globalAlpha = a;
+}
+
 /* ------------------------------------------------------------- THE BEACH
    Sunset, water, a cabana and a man who is not walking anywhere. Everything
    is bands: the sky is six of them, the sea is lines, the sand is two. The
@@ -9204,7 +9354,10 @@ function sceneCabana(t, a){
     var cy3 = CL[cq][0], csp = CL[cq][1];
     for (i = 0; i < 7; i++){
       var cwd = 150 + ((i * 97 + cq * 53) % 220);
-      var cx3 = ((t * csp * 7 + i * 340 + cq * 170) % (LOGICAL_W + 600)) - 300;
+      /* Three times the drift. At 7px a second a cloud crossed a 1920
+         frame in four and a half minutes, against a scene that lasts ten
+         seconds - which is a still image with extra arithmetic. */
+      var cx3 = ((t * csp * 21 + i * 340 + cq * 170) % (LOGICAL_W + 600)) - 300;
       var ch3 = 17 + ((i + cq) % 3) * 7;
       ctx.globalAlpha = a * 0.66;
       ctx.fillStyle = CL[cq][2];
@@ -9257,11 +9410,15 @@ function sceneCabana(t, a){
   ctx.fillStyle = "#2b4f6b"; ctx.fillRect(0, 606, LOGICAL_W, 104);
   for (i = 0; i < 16; i++){
     var wy = 610 + i * 6.3;
-    var amp = 2 + i * 0.9, spd = 0.5 + i * 0.09;
+    /* More travel, and a slow swell under the whole sheet so the lines
+       lift and settle together rather than each sliding on its own. */
+    var amp = 3.4 + i * 1.6, spd = 0.55 + i * 0.11;
+    wy += Math.sin(t * 0.42 + i * 0.22) * 2.2;
     ctx.globalAlpha = a * (0.10 + i * 0.022);
     ctx.fillStyle = "#8fc6e2";
     for (var xq = -120; xq < LOGICAL_W + 120; xq += 150){
-      var off = Math.sin(t * spd + i * 0.8 + xq * 0.004) * amp * 4;
+      var off = Math.sin(t * spd + i * 0.8 + xq * 0.004) * amp * 4
+              + Math.sin(t * 0.3 + xq * 0.002) * 9;
       ctx.fillRect(xq + off, wy, 86 + i * 3, 3 + i * 0.12);
     }
   }
@@ -9271,7 +9428,8 @@ function sceneCabana(t, a){
   for (i = 0; i < 26; i++){
     var gy = 612 + i * 3.7;
     var gw = 10 + i * 5;
-    var gj = Math.sin(t * 3 + i * 1.7) * (6 + i);
+    var gj = Math.sin(t * 3 + i * 1.7) * (9 + i * 1.5)
+           + Math.sin(t * 0.9 + i * 0.4) * 5;
     ctx.globalAlpha = a * (0.42 - i * 0.012);
     ctx.fillStyle = "#ffe9bd";
     ctx.fillRect(sunX - gw / 2 + gj, gy, gw, 3);
@@ -9297,7 +9455,11 @@ function sceneCabana(t, a){
      own phase. The trunk is a stack of narrowing blocks; the fronds are
      eight tapered bars off one point. */
   function palm(px, base, k, phase){
-    var lean = Math.sin(t * 0.8 + phase) * 0.055;
+    /* A real sway, on two periods that do not divide into each other so it
+       never looks like a metronome. The trunk was moving 0.055 radians,
+       which is three degrees - technically animation, and invisible. */
+    var lean = Math.sin(t * 0.62 + phase) * 0.105 +
+               Math.sin(t * 1.47 + phase * 1.7) * 0.034;
     ctx.save();
     ctx.translate(px, base); ctx.rotate(lean);
     for (i = 0; i < 11; i++){
@@ -9307,7 +9469,12 @@ function sceneCabana(t, a){
     }
     var ty = -11 * 34 * k;
     for (i = 0; i < 9; i++){
-      var fa = -Math.PI + i * (Math.PI / 8) + Math.sin(t * 1.1 + i + phase) * 0.05;
+      /* And the fronds move a lot more than the trunk does, each on its
+         own phase - a palm is a stiff pole with something loose on top of
+         it, and the loose part is the whole of what reads as wind. */
+      var fa = -Math.PI + i * (Math.PI / 8)
+             + Math.sin(t * 1.35 + i * 0.8 + phase) * 0.16
+             + Math.sin(t * 2.6 + i * 1.9) * 0.055;
       ctx.save();
       ctx.translate(0, ty); ctx.rotate(fa);
       for (var fq = 0; fq < 7; fq++){
@@ -9433,8 +9600,9 @@ function sceneCabana(t, a){
   torch(CX + CW/2 + 86, CB + 24, 1.06, 2.2);
 
   /* ------------------------------------------------- HIM, IN THE CHAIR
-     The figure is the baked model (see beachModel) - same voxels, same
-     projection, same face as the man in the game.
+     The figure is sceneGuySeated - the same drawing rules as the stage and
+     the lobby, because all three of these are drawn and one of them being
+     a blitted voxel sprite read as a different character.
 
      THE CHAIR IS A FOLDING BEACH CHAIR, not a lounger. A lounger is for a
      man lying flat and the model sits UP, so the two never agreed: he read
@@ -9446,15 +9614,16 @@ function sceneCabana(t, a){
      Everything is measured off his own footprint. SC is where he sits and
      BW is how wide he is, so the chair can never come out a size that does
      not fit him. */
-  var SC_X = CX - 136, SC_Y = 856, SC_K = 2.20;
-  var BW = S.beachGuy ? S.beachGuy.w * SC_K : 258;
-  var BH = S.beachGuy ? S.beachGuy.h * SC_K : 340;
-  var MIDX = SC_X + BW * 0.50;
-  var SEAT = SC_Y - BH * 0.30;                 // the seat rail, at his hips
-  var BKT  = SC_Y - BH * 0.94;                 // the top of the back
+  var MIDX = CX - 14, SC_Y = 856, SC_K = 1.62;
+  var BW = 92 * SC_K, BH = 150 * SC_K;
+  var SEAT = SC_Y - BH * 0.52;                 // his hips, where the seat is
+  var BKT  = SC_Y - BH * 1.12;                 // the top of the back
 
   /* --- behind him: the back frame and its canvas, then the seat canvas. */
-  var BKW = BW * 0.86;
+  /* Half again as wide as he is. At 1.12 the chair was nine pixels either
+     side of him and simply could not be seen - a chair you cannot see is a
+     man standing up. */
+  var BKW = BW * 1.56;
   ctx.fillStyle = "#6b4a30";
   ctx.fillRect(MIDX - BKW/2 - 11, BKT, 15, SEAT - BKT + 18);
   ctx.fillRect(MIDX + BKW/2 - 4,  BKT, 15, SEAT - BKT + 18);
@@ -9479,14 +9648,13 @@ function sceneCabana(t, a){
   ctx.fillStyle = "#cfc5b2";
   ctx.fillRect(MIDX - BKW/2, SEAT + 12, BKW, 7);
 
-  /* --- him. A shadow pool first, because a blitted sprite on flat sand
-     floats off it. */
+  /* --- him. A shadow pool first, or a figure on flat sand floats off it. */
   ctx.globalAlpha = a * 0.22; ctx.fillStyle = "#8a6336";
   ctx.beginPath();
-  ctx.ellipse(MIDX, SC_Y + 8, BW * 0.52, 16, 0, 0, Math.PI*2);
+  ctx.ellipse(MIDX, SC_Y + 8, BW * 0.62, 16, 0, 0, Math.PI*2);
   ctx.fill();
   ctx.globalAlpha = a;
-  if (S.beachGuy) blitScaled(S.beachGuy, SC_X, SC_Y, SC_K, SC_K);
+  sceneGuySeated(MIDX, SC_Y, SC_K);
 
   /* --- in front of him: the arms he is resting on and the front legs. The
      near arm passes over his elbow, which is the single thing that says he
@@ -9526,6 +9694,45 @@ function sceneCabana(t, a){
   ctx.closePath(); ctx.fill();
   ctx.restore();
 
+  /* A THOUSANDEYES TOWEL, spread on the sand. Everybody at one of these
+     goes home with the merchandise, and a branded towel is the single most
+     believable object on a corporate beach.
+
+     Drawn as a PARALLELOGRAM rather than a rectangle - it is lying flat on
+     the ground and the whole scene is shot from slightly above, so a square
+     towel reads as a poster someone dropped. The near edge is wider than
+     the far edge for the same reason. Three bands and the mark, with a
+     fold-shadow down one side so it has thickness. */
+  /* Up the beach and to the left of him - at SC_Y + 4 it ran off the
+     bottom of the frame into the letterbox, which is the one place on this
+     canvas nothing is ever seen. */
+  var TWX = MIDX - BW * 1.96, TWY = SC_Y - 78, TWW = 236, TWH = 92, TWS = 34;
+  function towelBand(y0, h0, col){
+    ctx.fillStyle = col;
+    ctx.beginPath();
+    ctx.moveTo(TWX + TWS * (1 - y0 / TWH), TWY + y0);
+    ctx.lineTo(TWX + TWW + TWS * (1 - y0 / TWH) * 0.4, TWY + y0);
+    ctx.lineTo(TWX + TWW + TWS * (1 - (y0 + h0) / TWH) * 0.4, TWY + y0 + h0);
+    ctx.lineTo(TWX + TWS * (1 - (y0 + h0) / TWH), TWY + y0 + h0);
+    ctx.closePath(); ctx.fill();
+  }
+  // a shadow under it so it sits ON the sand
+  ctx.globalAlpha = a * 0.16; ctx.fillStyle = "#7a5a30";
+  towelBand(6, TWH, "#7a5a30");
+  ctx.globalAlpha = a;
+  towelBand(0,  TWH, "#f4f1ea");
+  towelBand(0,  14,  C.brand);
+  towelBand(78, 14,  C.brand);
+  ctx.globalAlpha = a * 0.10; towelBand(0, TWH, "#2b1d14");
+  ctx.globalAlpha = a;
+  // the mark, in the middle of it
+  if (!drawMark(TWX + TWW * 0.46 + 12, TWY + 46, 96))
+    drawLogoEye(TWX + TWW * 0.46 + 12, TWY + 46, 42);
+  // and a rumpled fold along the near edge
+  ctx.globalAlpha = a * 0.22; ctx.fillStyle = "#b9b0a0";
+  towelBand(TWH - 10, 10, "#b9b0a0");
+  ctx.globalAlpha = a;
+
   /* FOOTPRINTS, coming in from the left and stopping at the chair. Nobody
      arrives at a beach by teleport, and two rows of dents in the sand are
      the cheapest story in the picture. */
@@ -9542,7 +9749,7 @@ function sceneCabana(t, a){
      checking it. That is the entire reward. */
   /* Off his own footprint, like the chair - HX and SEATY belonged to the
      hand-drawn figure and went with it. */
-  var TBX = SC_X + BW * 1.32, TBY = SEAT + 10;
+  var TBX = MIDX + BW * 1.28, TBY = SEAT + 56;
   ctx.fillStyle = "#7a5c3c"; ctx.fillRect(TBX - 7, TBY, 14, 52);
   ctx.fillStyle = "#8a6a46";
   ctx.beginPath(); ctx.ellipse(TBX, TBY, 54, 15, 0, 0, Math.PI*2); ctx.fill();
@@ -9572,6 +9779,9 @@ function sceneCabana(t, a){
     ctx.fillRect(px2, py2 + fl, 16, 3);
     ctx.globalAlpha = a;
   }
+
+  /* And the whole thing gets graded, last, over everything in it. */
+  beachGrade(t, a);
 }
 
 var SCENES = {
