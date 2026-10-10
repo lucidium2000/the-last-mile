@@ -2372,6 +2372,18 @@ var POWERS = {
   sponsor:{ col:C.pw4, letter:"C", name:"CLOUD INSIGHTS",
             line:"Accelerating your journey in the Cloud. Orange high-tops, and he runs.",
             secs:3.5 },
+  /* ===================== TEMPORARY, REMOVE BEFORE SHIPPING ================
+     A test pill. Walk into it and the game jumps straight to the Penn 1
+     scene, which chains on to CISCO CLUB and HANALEI BAY and then the
+     tally - the whole ending, without the ninety-four blocks.
+
+     It is NOT in POWER_WEIGHTS, so it can never be rolled: the only way it
+     ever appears is DROP_PW_DEFAULT or ?pw=pill. Delete this entry, its
+     branch in collect(), its model, its bake line and set DROP_PW_DEFAULT
+     back to null, and the game is exactly as it was.
+     ===================================================================== */
+  pill:   { col:"#e0564a", letter:"P", name:"TEST PILL",
+            line:"Straight to Penn 1 and the ending.", secs:0 },
   metro:  { col:"#ffd24a", letter:"M", name:"METROCARD",
             line:"Swipe in at any subway. Ride five to ten streets uptown.", secs:0 },
   /* The premium SKU, and the most powerful thing in the game: five seconds of
@@ -2944,6 +2956,23 @@ function powerModel(kind, lit){
       { x:0.20, y:0.355, w:0.60, z:0.282, h:0.035, bg:"#b9c6d6" }
     ], shadow:false, W:1 };
   }
+  if (kind === "pill"){
+    /* A capsule, lying across the square: red half, white half, a highlight
+       along the top of it. Same envelope as the rest of the pool so it does
+       not read as a different class of object - it is only here so that it
+       is obvious and easy to walk into. */
+    var pa = "#e0564a", pb = "#f4f1ea";
+    return { parts:[
+      P(0.40, 0.40, 0.20, 0.20, 0,    0.05, shade(k.col,-0.55)),  // the stand
+      P(0.17, 0.355, 0.05, 0.29, 0.22, 0.20, shade(pa,-0.10)),    // rounded end
+      P(0.21, 0.335, 0.30, 0.33, 0.18, 0.28, pa),                 // red half
+      P(0.49, 0.335, 0.30, 0.33, 0.18, 0.28, pb),                 // white half
+      P(0.78, 0.355, 0.05, 0.29, 0.22, 0.20, shade(pb,-0.08))     // rounded end
+    ], decals:[
+      { x:0.24, y:0.330, w:0.52, z:0.385, h:0.055, bg:"#ffffff" },
+      { x:0.24, y:0.330, w:0.25, z:0.230, h:0.040, bg:shade(pa,-0.28) }
+    ], shadow:false, W:1 };
+  }
   if (kind === "metro"){
     return { parts:[
       P(0.40, 0.40, 0.20, 0.20, 0.03, 0.10, "#5a4a12"),
@@ -3341,6 +3370,7 @@ function bakeAll(){
   S.pw_tam = bake(powerModel("tam"));
   S.pw_chuck = bake(powerModel("chuck"));
   S.pw_traffic = bake(powerModel("traffic"));
+  S.pw_pill = bake(powerModel("pill"));          // TEMPORARY, see POWERS.pill
   S.pw_sponsor_lit = bake(powerModel("sponsor", true));
   /* Baked off PROP_MODELS rather than off a pool, so a weight of 0 still
      gets a sprite and nothing is baked twice. */
@@ -3361,7 +3391,13 @@ var SAFE_MIN = 2;          // the shallowest pavement the generator may lay
    for it; it is back to null both times. That one line is the whole of the
    hook, and ?pw=sponsor does the same thing for a single load without
    editing anything at all. */
-var DROP_PW_DEFAULT = null;
+/* ===================== TEMPORARY, REMOVE BEFORE SHIPPING =================
+   Every run starts with a TEST PILL two squares ahead. Walk into it and the
+   game goes straight to Penn 1 and plays the whole ending. Set this back to
+   null when the scenes have been looked at; ?pw=off suppresses it for one
+   load without editing anything.
+   ========================================================================= */
+var DROP_PW_DEFAULT = "pill";
 var DROP_PW = (function(){
   var m = /[?&]pw=([a-z]+)/i.exec(location.search);
   if (m) return m[1].toLowerCase();
@@ -4970,6 +5006,15 @@ function collect(atCol){
        in on the same roll, so the chart and the money agree. */
     G.ticker = { t:0, pct: chuck.pct, amt: chuck.amt };
     AUDIO.dig();
+  }
+  /* TEMPORARY. Straight to the end: the paper is signed, he is on the way
+     home, and Penn 1 fires now. That scene chains to the stage and the stage
+     to the beach, so one tap on this is the whole ending. */
+  else if (kind === "pill"){
+    G.leg = -1; G.po = true;
+    G.street = Math.max(G.street, TURN_ST);
+    G.tam = false; G.tamLeft = 0; G.tamT = 0; G.tamWin = null;
+    startScene(34);
   }
   /* Cards accumulate. Three in the wallet is three rides, which is what makes
      stacking them worth doing instead of riding the first train you find. */
@@ -8605,6 +8650,58 @@ function sceneStage(t, a){
     ctx.globalAlpha = a;
   }
 
+  /* THE OVERHEAD RIG, which is the thing that says GSX rather than
+     "a stage". The real ones hang geometry over the audience - LED cubes,
+     globes and pyramids on their own drops, at different heights, lit
+     separately from the main screen. A flat wall and a truss is a corporate
+     ballroom; a wall and six lit objects floating over the room is an
+     arena.
+
+     They sit in the outer thirds, clear of the wordmark on the wall and
+     clear of where two men are about to stand, each on a slow colour cycle
+     of its own so the rig never pulses as one piece. */
+  var RIG = [[250, 236, 0, 46], [392, 196, 1, 38], [534, 262, 2, 42],
+             [1386, 254, 1, 42], [1528, 198, 2, 38], [1670, 240, 0, 46]];
+  for (i = 0; i < RIG.length; i++){
+    var gx2 = RIG[i][0], gy2 = RIG[i][1], gk = RIG[i][2], gs = RIG[i][3];
+    var bob2 = Math.sin(t * 0.7 + i * 1.3) * 5;
+    var lit2 = 0.45 + 0.55 * (0.5 + 0.5 * Math.sin(t * 1.1 + i * 2.1));
+    var gcol = ["#4aa3e0", "#ffb04a", "#a06ce0"][i % 3];
+    // the drop it hangs on
+    ctx.globalAlpha = a * 0.5; ctx.fillStyle = "#2b323c";
+    ctx.fillRect(gx2 - 1, 168, 3, gy2 + bob2 - 168);
+    // and a wash around it, because an LED object lights its own air
+    ctx.globalAlpha = a * 0.10 * lit2; ctx.fillStyle = gcol;
+    ctx.beginPath();
+    ctx.arc(gx2, gy2 + bob2 + gs/2, gs * 1.5, 0, Math.PI*2); ctx.fill();
+    ctx.globalAlpha = a * (0.42 + 0.44 * lit2);
+    ctx.fillStyle = gcol;
+    if (gk === 0){                                   // a cube
+      ctx.fillRect(gx2 - gs/2, gy2 + bob2, gs, gs);
+      ctx.globalAlpha = a * 0.26; ctx.fillStyle = "#ffffff";
+      ctx.fillRect(gx2 - gs/2, gy2 + bob2, gs, gs * 0.22);
+    } else if (gk === 1){                            // a globe
+      ctx.beginPath();
+      ctx.arc(gx2, gy2 + bob2 + gs/2, gs/2, 0, Math.PI*2); ctx.fill();
+      ctx.globalAlpha = a * 0.24; ctx.fillStyle = "#ffffff";
+      ctx.beginPath();
+      ctx.arc(gx2 - gs*0.14, gy2 + bob2 + gs*0.34, gs*0.17, 0, Math.PI*2); ctx.fill();
+    } else {                                         // a pyramid
+      ctx.beginPath();
+      ctx.moveTo(gx2, gy2 + bob2);
+      ctx.lineTo(gx2 + gs/2, gy2 + bob2 + gs);
+      ctx.lineTo(gx2 - gs/2, gy2 + bob2 + gs);
+      ctx.closePath(); ctx.fill();
+      ctx.globalAlpha = a * 0.22; ctx.fillStyle = "#ffffff";
+      ctx.beginPath();
+      ctx.moveTo(gx2, gy2 + bob2);
+      ctx.lineTo(gx2 + gs/2, gy2 + bob2 + gs);
+      ctx.lineTo(gx2, gy2 + bob2 + gs);
+      ctx.closePath(); ctx.fill();
+    }
+    ctx.globalAlpha = a;
+  }
+
   /* THE DECK, at 660. Deeper than it was and with a proper nose on it: a
      stage you can see the edge of is a stage somebody is standing ON. */
   var DECK = 660;
@@ -8895,87 +8992,116 @@ function sceneCabana(t, a){
     ctx.globalAlpha = a;
   }
 
-  /* Everything from here to the blazer is one group, scaled about the seat.
-     Hand-retuning nine points to make a man an eighth bigger is nine chances
-     to pull a limb off; one transform about the point he is lying on is
-     none, and it keeps the proportions that already work. */
-  ctx.save();
-  ctx.translate(CX, 806); ctx.scale(1.18, 1.18); ctx.translate(-CX, -806);
+  /* ------------------------------------------------- HIM, ON THE LOUNGER
+     Third go at this figure, and the first two are worth recording because
+     they were the same mistake twice: a reclining man drawn as ONE long
+     shape reads as a surfboard with a head on it.
 
-  /* THE LOUNGER, and him on it. Head to the left, feet to the right, laid
-     along a raked back and a flat seat.
+     He is a jointed figure now. Six points - head, shoulder, hip, knee,
+     ankle, and the hand with the drink - and every limb is a bar between
+     two of them at a width taken from how thick that limb actually is. The
+     proportions are a person's: head one unit, torso three, thigh two and a
+     half, shin two and a half, on a unit of about 38px.
 
-     The figure is built from BARS between named points rather than from
-     rotated rectangles - the first pass rotated a shirt about its corner and
-     produced something that read as a sail. A torso is a thick bar from the
-     hip to the shoulder, a thigh is a bar from the hip to the knee, and once
-     the five points are placed the drawing cannot come apart. */
-  var SEAT = 806, HIPX = CX - 120, HIPY = SEAT - 26;
-  var SHOX = HIPX - 118, SHOY = HIPY - 100;          // shoulder, up the rake
-  var KNEX = HIPX + 132, KNEY = SEAT - 30;           // knee
-  var FOOX = KNEX + 118, FOOY = SEAT - 18;           // ankle
+     The pose is the pose. Torso raked back at 38 degrees, thigh up a little
+     from the hip, shin down a little from the knee, which is what a man in
+     a deckchair does - a straight line from shoulder to heel is a plank,
+     and the two small angles at hip and knee are the whole difference. */
+  var HX = CX - 44, HY = 772;                     // the hip, and the datum
+  var SEATY = HY + 28;
 
-  // the chair: raked back, flat seat, four short legs
-  sceneArm(HIPX + 8, SEAT - 2, SHOX - 26, SHOY - 20, 20, "#8a6a46");
-  ctx.fillStyle = "#8a6a46"; ctx.fillRect(HIPX - 10, SEAT - 4, 300, 18);
+  // --- the chair, first, so he sits on it rather than near it
+  var BKX = HX - 108, BKY = HY - 84;              // top of the raked back
+  sceneArm(HX - 2, SEATY - 2, BKX, BKY, 22, "#8a6a46");
+  ctx.fillStyle = "#8a6a46"; ctx.fillRect(HX - 10, SEATY - 10, 268, 20);
+  ctx.fillStyle = "#7a5c3c"; ctx.fillRect(HX - 10, SEATY + 6, 268, 6);
   ctx.fillStyle = "#6f5436";
-  ctx.fillRect(HIPX + 6, SEAT + 14, 15, 36);
-  ctx.fillRect(HIPX + 262, SEAT + 14, 15, 36);
-  // a towel over the back and the seat
-  sceneArm(HIPX + 8, SEAT - 10, SHOX - 18, SHOY - 14, 26, "#e8e2d6");
-  ctx.fillStyle = "#e8e2d6"; ctx.fillRect(HIPX - 4, SEAT - 14, 250, 12);
+  ctx.fillRect(HX + 14, SEATY + 10, 16, 40);
+  ctx.fillRect(HX + 222, SEATY + 10, 16, 40);
+  // a towel over the back, hanging a little past it
+  sceneArm(HX, SEATY - 14, BKX - 6, BKY - 6, 30, "#efe9dc");
 
-  // legs: thigh in shorts, shin bare, one flip-flop
-  sceneArm(HIPX, HIPY, KNEX, KNEY, 44, "#2f6b8a");
-  ctx.fillStyle = shade("#2f6b8a", 0.16);
-  ctx.fillRect(HIPX - 6, HIPY - 22, 26, 44);
-  sceneArm(KNEX, KNEY, FOOX, FOOY, 34, HERO_SKIN);
+  /* THE BLAZER, hung off the back of the chair - and drawn HERE, before the
+     body, so he sits in front of it. Drawn after him it was a blue slab
+     across his chest that read as a surfboard he was holding. It is the
+     only thing in the picture from the other ninety-four blocks, and the
+     joke only works if you can tell it is a jacket and that he is not in
+     it. */
+  ctx.save();
+  ctx.translate(BKX - 34, BKY + 30); ctx.rotate(-0.48);
+  ctx.fillStyle = shade(BLAZER, -0.16); ctx.fillRect(-32, -12, 64, 92);
+  ctx.fillStyle = BLAZER;               ctx.fillRect(-32, -12, 64, 14);
+  ctx.fillStyle = shade(BLAZER, 0.10);  ctx.fillRect(-7, 0, 9, 76);
+  ctx.fillStyle = shade(BLAZER, -0.34); ctx.fillRect(-32, 66, 64, 14);
+  ctx.restore();
+
+  /* --- the body. Points first, limbs second. */
+  var SHX = HX - 92, SHY = HY - 72;               // shoulder
+  var KNX = HX + 104, KNY = HY - 14;              // knee
+  var ANX = KNX + 96,  ANY = KNY + 16;            // ankle
+  var ELX = HX - 44,  ELY = HY - 34;              // elbow, tucked in
+  var HNX = HX - 2,   HNY = HY - 96;              // the hand, drink held up
+
+  // legs: thigh in shorts, shin bare, a foot at the end of it
+  sceneArm(HX, HY, KNX, KNY, 52, "#2f6b8a");
+  ctx.fillStyle = shade("#2f6b8a", -0.14);
+  ctx.fillRect(KNX - 16, KNY - 25, 16, 50);       // the hem of the shorts
+  sceneArm(KNX, KNY, ANX, ANY, 40, HERO_SKIN);
+  ctx.fillStyle = shade(HERO_SKIN, -0.12);
+  ctx.fillRect(ANX - 4, ANY - 20, 10, 40);        // the ankle bone
   ctx.fillStyle = "#1b2027";
-  ctx.fillRect(FOOX - 6, FOOY - 20, 34, 30);
+  ctx.fillRect(ANX + 4, ANY - 22, 34, 30);        // flip-flop
+  ctx.fillStyle = "#2c333c";
+  ctx.fillRect(ANX + 4, ANY - 22, 34, 7);
 
-  // torso, then the placket down the middle of it
-  sceneArm(HIPX, HIPY, SHOX, SHOY, 80, "#f6f7f9");
-  sceneArm(HIPX, HIPY, SHOX, SHOY, 13, "#e2e6ea");
-
-  /* The head, a little past the shoulder along the same line, so it sits ON
-     the body instead of near it. */
-  var tdx = SHOX - HIPX, tdy = SHOY - HIPY, tL = Math.sqrt(tdx*tdx + tdy*tdy) || 1;
+  // torso, raked, with the shirt open over it
+  sceneArm(HX, HY, SHX, SHY, 68, "#f6f7f9");
+  ctx.fillStyle = "#e4e8ec";
+  sceneArm(HX - 6, HY - 4, SHX - 4, SHY - 2, 12, "#e4e8ec");   // the placket
+  // a collar at the top of it, which is what tells you it is a shirt
+  var tdx = SHX - HX, tdy = SHY - HY, tL = Math.sqrt(tdx*tdx + tdy*tdy) || 1;
   var ux = tdx / tL, uy = tdy / tL;
-  var HCX = SHOX + ux * 40, HCY = SHOY + uy * 40;
-  ctx.fillStyle = HERO_SKIN; ctx.fillRect(HCX - 29, HCY - 32, 58, 64);
+  ctx.fillStyle = "#e9edf1";
+  ctx.fillRect(SHX - 20 + ux * 8, SHY - 18 + uy * 8, 40, 26);
+
+  // neck, then the head a little past the shoulder on the same line
+  sceneArm(SHX, SHY, SHX + ux * 26, SHY + uy * 26, 26, shade(HERO_SKIN, -0.10));
+  var HCX = SHX + ux * 48, HCY = SHY + uy * 48;
+  ctx.fillStyle = HERO_SKIN; ctx.fillRect(HCX - 29, HCY - 33, 58, 64);
   ctx.fillStyle = "#2b1d14";
-  ctx.fillRect(HCX - 32, HCY - 42, 64, 16);           // hair
+  ctx.fillRect(HCX - 32, HCY - 43, 64, 17);                    // hair
   ctx.fillRect(HCX - 32, HCY - 30, 8, 26);
   ctx.fillRect(HCX + 24, HCY - 30, 8, 26);
-  // sunglasses, with the sunset in them
-  ctx.fillStyle = "#15181d"; ctx.fillRect(HCX - 22, HCY - 14, 46, 15);
+  ctx.fillStyle = "#15181d"; ctx.fillRect(HCX - 23, HCY - 15, 48, 16);
   ctx.globalAlpha = a * 0.55; ctx.fillStyle = "#ffd9a0";
-  ctx.fillRect(HCX - 19, HCY - 11, 15, 6);
-  ctx.fillRect(HCX + 3,  HCY - 11, 15, 6);
+  ctx.fillRect(HCX - 20, HCY - 12, 16, 6);
+  ctx.fillRect(HCX + 4,  HCY - 12, 16, 6);
   ctx.globalAlpha = a;
-  // a content mouth, because the whole scene is about his face being this
-  ctx.fillStyle = "#8a5a44"; ctx.fillRect(HCX - 7, HCY + 12, 18, 4);
+  ctx.fillStyle = "#8a5a44"; ctx.fillRect(HCX - 8, HCY + 14, 19, 5);
 
-  /* The near arm, up with the drink. It lifts once early on and then stays
-     - a man who keeps raising his glass is a loop, same as the handshake. */
+  /* --- the near arm, bent at the elbow, holding the drink up over his
+     chest. It lifts once early and then stays: a man who keeps raising his
+     glass is a loop, same as the handshake on the stage. */
   var lift = Math.max(0, Math.min(1, (t - 2.4) / 0.9));
   var le = 1 - Math.pow(1 - lift, 2);
-  var ELX = HIPX - 48, ELY = HIPY - 66;
-  var HNX = ELX + 76, HNY = ELY - 26 - le * 26 + Math.sin(t * 1.3) * 2;
-  sceneArm(SHOX + 16, SHOY + 34, ELX, ELY, 24, "#f6f7f9");
-  sceneArm(ELX, ELY, HNX, HNY, 21, HERO_SKIN);
-  // the glass, sitting in the hand
-  ctx.fillStyle = "#cfe9f2"; ctx.fillRect(HNX - 4, HNY - 46, 38, 50);
-  ctx.fillStyle = "#f2a13c"; ctx.fillRect(HNX - 4, HNY - 24, 38, 28);
-  ctx.globalAlpha = a * 0.5; ctx.fillStyle = "#ffffff";
-  ctx.fillRect(HNX, HNY - 44, 8, 46);
+  var hy2 = HNY + 30 - le * 30 + Math.sin(t * 1.3) * 2;
+  sceneArm(SHX + ux * -6, SHY + 16, ELX, ELY, 28, "#f6f7f9");  // upper arm
+  sceneArm(ELX, ELY, HNX, hy2, 24, HERO_SKIN);                 // forearm
+  ctx.fillStyle = HERO_SKIN;
+  ctx.fillRect(HNX - 13, hy2 - 13, 26, 26);                    // the hand
+
+  // the glass in it
+  ctx.fillStyle = "#cfe9f2"; ctx.fillRect(HNX - 17, hy2 - 58, 36, 50);
+  ctx.fillStyle = "#f2a13c"; ctx.fillRect(HNX - 17, hy2 - 36, 36, 28);
+  ctx.globalAlpha = a * 0.55; ctx.fillStyle = "#ffffff";
+  ctx.fillRect(HNX - 13, hy2 - 56, 8, 46);
   ctx.globalAlpha = a;
-  ctx.fillStyle = "#e8e2d6"; ctx.fillRect(HNX - 8, HNY - 49, 46, 6);
-  // a slice on the rim and the little umbrella
+  ctx.fillStyle = "#e8e2d6"; ctx.fillRect(HNX - 21, hy2 - 61, 44, 6);
   ctx.fillStyle = "#f6d64a";
-  ctx.beginPath(); ctx.arc(HNX + 36, HNY - 48, 13, Math.PI, 0); ctx.fill();
+  ctx.beginPath(); ctx.arc(HNX + 21, hy2 - 60, 13, Math.PI, 0); ctx.fill();
+  // the little umbrella
   ctx.save();
-  ctx.translate(HNX + 14, HNY - 50); ctx.rotate(0.42);
+  ctx.translate(HNX, hy2 - 62); ctx.rotate(0.40);
   ctx.fillStyle = "#8a6a46"; ctx.fillRect(-2, -40, 4, 46);
   for (var up2 = 0; up2 < 4; up2++){
     ctx.fillStyle = up2 % 2 ? "#f6f2ea" : C.brand;
@@ -8987,15 +9113,6 @@ function sceneCabana(t, a){
   }
   ctx.restore();
 
-  /* And the blazer over the arm of the chair, done with. It is the only
-     thing in the picture from the other ninety-four blocks. */
-  ctx.fillStyle = BLAZER;
-  ctx.fillRect(HIPX + 256, SEAT - 46, 74, 62);
-  ctx.fillStyle = shade(BLAZER, -0.22);
-  ctx.fillRect(HIPX + 256, SEAT - 46, 74, 12);
-  ctx.fillStyle = shade(BLAZER, 0.14);
-  ctx.fillRect(HIPX + 286, SEAT - 34, 8, 50);
-  ctx.restore();
 
   /* Two birds, high and slow, on a long loop. */
   for (i = 0; i < 2; i++){
