@@ -3568,6 +3568,33 @@ they are the only thing on his feet that is still news.
 
 
 
+
+## Times Square corrects itself
+
+The card says *Probably should have gotten an Uber*. For three flashes of
+about a frame and a half each it says **a Lyft** instead, and then settles back
+on the first answer as though nothing happened — a sign with a loose
+connection, changing its mind in public.
+
+**It swaps "an Uber" for "a Lyft", not "Uber" for "Lyft".** The article has to
+come with it or the glitch prints "an Lyft", and a joke with a grammar mistake
+in it is a mistake with a joke in it.
+
+The look is an RGB split and a pixel or two of jitter: the same two offset
+copies in red and cyan that every broken display in every film has used since
+the eighties, and the shortest possible way to say *this text is not behaving*.
+The jitter is re-rolled every frame on purpose — a fixed offset is a shadow, a
+moving one is a fault.
+
+Timed off the **scene clock**, not `G.t`, so it lands at the same moment every
+time the card comes up: 85ms on, 155ms apart, starting at 1.05s. Late enough
+that the line has been read once as written, over by 1.52 and long gone before
+the card starts fading at 2.55. A glitch that fires at a random point in the
+scene is a bug; one that fires at 1.05s is a gag.
+
+It is a per-scene field rather than a special case in the draw, so any caption
+can take one.
+
 ## The path goes bad before it goes away
 
 The route used to be uniformly green right up to the moment it faded out,
