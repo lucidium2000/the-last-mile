@@ -2528,6 +2528,29 @@ rare tier:
 > without playing for the drop. Set that one line back to `null` before this
 > goes in front of anybody; `?pw=off` suppresses it for a single load.
 
+**The cloud is struck.** The pickup's bolt flashes: twice about every 1.7
+seconds, 50ms each, and nothing in between — a 6% duty cycle, measured. A bolt
+that strobes steadily is a warning light and a bolt lit half the time is just
+a yellow bolt; lightning is mostly not happening.
+
+The model is axis-aligned boxes baked to a canvas, so there is nothing to
+animate in place. It bakes **twice** instead — `powerModel(kind, lit)` — once
+with the bolt in its ordinary amber and once blown out to near-white, and the
+draw swaps sprites. A second one-tile bake is cheaper than any amount of
+per-frame geometry on a Board. Verified at the pixel level: 171 amber bolt
+pixels become white, 104 more pixels cross the bright threshold, and the
+width, height and both offsets are identical between the two, so the swap
+cannot jitter the sprite.
+
+Struck, the bolt also picks up the emissive top edge (the `p.emit` branch in
+`part()`). All three segments are under 0.12 wide, so they get no rim at all
+in the ordinary state — which is what makes the lit one read as a flash rather
+than as a recolour.
+
+The phase is offset by column, like the bob on the same sprite, so two clouds
+in view never flash together. Weather is not synchronised, and two objects
+blinking in lockstep read as one screen effect rather than as two things.
+
 **Cloud Insights** was Executive Sponsor, which handed him a car service and
 jumped him three rows. A power-up whose entire expression is the player being
 somewhere else a frame later: nothing to look at, nothing to play, and the one
