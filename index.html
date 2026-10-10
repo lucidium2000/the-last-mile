@@ -2301,14 +2301,35 @@ var POWER_KINDS = ["agent","insight","path","sponsor","metro","chuck","traffic"]
    fourteen seconds out of it, and POWER_ORDER keeps the key so the runs
    already on the board still read. The 15 slots go to the three next most
    useful things rather than back to metrocards. */
+/* ONE DRAW, FROM A MAP OF WEIGHTS.
+
+   All three pools - power-ups, street props, park props - used to be literal
+   arrays with the common entries written twice, picked with a uniform index.
+   That reads well until a rate has to move by a percentage: "15% more Cloud
+   Insights" against a weight of 5 out of 150 wants 5.78, and you cannot
+   write 5.78 copies of a string into an array. Rounding to 6 is +20%.
+
+   So the weights are a map of numbers, fractional where the arithmetic says
+   so, and this draws one. The totals are recomputed per call because they
+   are ten-key objects and this runs a handful of times a row; caching them
+   would be a stale-total bug waiting for the first person to tune a weight
+   at runtime. */
+function wpick(w){
+  var t = 0, k;
+  for (k in w) t += w[k];
+  var r = Math.random() * t;
+  for (k in w){ r -= w[k]; if (r <= 0) return k; }
+  return k;
+}
+/* Cloud Insights is 5.78 rather than 5. Raising a weight raises the
+   denominator too, so a share only goes up by less than the weight does:
+   5 -> 5.75 is +15% of the weight but +14.1% of the actual drop rate.
+   5.78 is the number that makes the SKU land 15.0% more often, which is
+   what was asked for - the others are untouched and each give up 0.5% of
+   their own share to pay for it. */
 var POWER_WEIGHTS = {
-  metro:77, chuck:26, agent:23, traffic:14, insight:5, sponsor:5
+  metro:77, chuck:26, agent:23, traffic:14, insight:5, sponsor:5.78
 };
-var POWER_POOL = (function(){
-  var out = [], k, i;
-  for (k in POWER_WEIGHTS) for (i = 0; i < POWER_WEIGHTS[k]; i++) out.push(k);
-  return out;
-})();
 /* How far the world is throttled while Internet Insights is up. One constant,
    because the mover and the crossing test both read it and they must agree -
    a predictor running at a different rate than the thing it predicts will tell
@@ -2926,10 +2947,28 @@ function kioskModel(){
 var FACADE_KINDS = ["facadeA","facadeB","facadeC"];
 /* What stands in the park: planters and bins and the carts that really are
    parked along the drives. No scaffolding, no newsstand, no station. */
-var PARK_PROPS = ["planter","planter","planter","trash","trash",
-                  "hotdog","pizza","bagel","citidock","kiosk"];
-var PROP_KINDS = ["shed","bagel","pizza","pizza","hotdog","hotdog","newsstand","subway","subway","trash",
-                  "planter","citidock","kiosk"];
+/* FOOD IS DOWN 15% AND THE TERMINAL IS DOWN 10%, in both pools.
+
+   The weight that comes off them has to go somewhere, or the denominator
+   shrinks with the numerator and the share barely moves: scaling the kiosk
+   to 0.9 and leaving everything else alone drops its rate by 3.7%, not 10%.
+   It goes to the bins and the planters, split evenly - the two things on the
+   pavement that do nothing at all, which is what should be standing where a
+   hot dog cart is not. Both maps still total what they did (13 and 10), so
+   every other prop keeps exactly the rate it had.
+
+   Street: hot dog and pizza 1.7 each and a bagel 0.85, against 2/2/1 before.
+   Terminal 0.9 against 1. Bins and planters pick up 0.425 each.
+   Park: the three carts 0.85 each against 1, terminal 0.9 against 1,
+   planters +0.275 and bins +0.275. */
+var PARK_WEIGHTS = {
+  planter:3.275, trash:2.275, hotdog:0.85, pizza:0.85, bagel:0.85,
+  citidock:1, kiosk:0.9
+};
+var PROP_WEIGHTS = {
+  shed:1, bagel:0.85, pizza:1.7, hotdog:1.7, newsstand:1, subway:2,
+  trash:1.425, planter:1.425, citidock:1, kiosk:0.9
+};
 var PROP_MODELS = {
   shed:shedModel, bagel:bagelModel, pizza:pizzaModel, hotdog:hotdogModel, newsstand:newsstandModel, subway:subwayModel,
   trash:trashModel, planter:planterModel, citidock:citiDockModel, kiosk:kioskModel
@@ -3060,7 +3099,9 @@ function bakeAll(){
   S.pw_tam = bake(powerModel("tam"));
   S.pw_chuck = bake(powerModel("chuck"));
   S.pw_traffic = bake(powerModel("traffic"));
-  for (i=0;i<PROP_KINDS.length;i++)  S["pr_"+PROP_KINDS[i]]  = bake(PROP_MODELS[PROP_KINDS[i]]());
+  /* Baked off PROP_MODELS rather than off a pool, so a weight of 0 still
+     gets a sprite and nothing is baked twice. */
+  for (var pmk in PROP_MODELS) S["pr_"+pmk] = bake(PROP_MODELS[pmk]());
   for (i=0;i<FACADE_KINDS.length;i++) S["pr_"+FACADE_KINDS[i]] = bake(facadeModel(i));
   S.pr_tree = bake(treeModel(0)); S.pr_tree2 = bake(treeModel(1));
   S.walk0 = bakeStrip("walk",0);            // one pavement strip, not two
@@ -3310,10 +3351,10 @@ function makeWalk(r, park, crowd, hood){
          something else. */
       /* No station entrances in the park - you are inside it, they are all
          around the edge. */
-      var kinds = park ? PARK_PROPS : PROP_KINDS;
-      var pk = kinds[(Math.random()*kinds.length)|0];
+      var kinds = park ? PARK_WEIGHTS : PROP_WEIGHTS;
+      var pk = wpick(kinds);
       for (var g=0; g<8 && pk === "subway" && hasSub; g++){
-        pk = kinds[(Math.random()*kinds.length)|0];
+        pk = wpick(kinds);
       }
       if (pk === "subway"){ if (hasSub) pk = "newsstand"; else hasSub = true; }
       props.push({ col:cols[i], kind:pk });
@@ -3340,7 +3381,7 @@ function makeWalk(r, park, crowd, hood){
         // the TAM is the rare drop, gated by its own long cooldown
         var kind = (legDir > 0 && r > 7 && r - lastTam >= TAM_COOLDOWN_ROWS &&
                     Math.random() < TAM_CHANCE)
-                   ? "tam" : POWER_POOL[(Math.random()*POWER_POOL.length)|0];
+                   ? "tam" : wpick(POWER_WEIGHTS);
         if (kind === "tam") lastTam = r;
         pickup = { col:pc, kind:kind };
         lastPower = r; break;

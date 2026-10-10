@@ -1275,12 +1275,16 @@ tank you begin with. A flat rate for all three made the choice of cart meaningle
 counter is worth crossing for and a hot dog is what you take because it is
 there.
 
-Measured over 40 generated worlds, the walk puts **0.797 food carts on every
-street**, worth **10.8% of health a street** against a 3% cost once the second
-hot dog is counted — so eating about **28% of the carts you pass** breaks even.
-It was 16% when everything was worth a flat 25, and 35% before hot dog carts
-started serving twice. Eating none still dies around **W 70th**, two thirds of
-the way up. Average spend across a cart: **$5.80**.
+Measured over 1,200 generated worlds — counting a *street* as one run of road
+rows, which is one crossing — the walk puts **1.06 food carts on every
+street**, worth **14.4% of health a street** once the second hot dog is
+counted. Against a ground cost of about 4.5 boxes a street, or 3.4% at the
+current `HP_PER_BOX`, eating roughly a quarter of the carts you pass covers
+the walking; the per-second drain pushes the real break-even to about a third.
+Average spend across a cart: **$5.80**.
+
+Both of those were 1.26 carts and 17.0% before the carts were thinned by 15%
+— see the weights below.
 
 **A cart serves a fixed number of times**, then it is done. Walking into a stand
 is a free move — the step was already refused — so without counting the servings
@@ -2775,6 +2779,47 @@ common pickup at 51%. The pool is built from a **weight table** now rather than
 a hand-written list of thirty strings: thirty slots could only be tuned in
 whole thirtieths, 3.3% a step, too coarse to move one drop by a fifth without
 shoving every other share around. At 150 the step is 0.67%.
+
+**And all three pools are maps of numbers now, drawn with `wpick()`.** Power-ups,
+street props and park props were each a literal array with the common entries
+written out twice, picked with a uniform index. That reads well right up until
+a rate has to move by a percentage: 15% more Cloud Insights against a weight of
+5 in 150 wants **5.78**, and you cannot write 5.78 copies of a string into an
+array — rounding to 6 is +20%. The weights are fractional where the arithmetic
+says so and `wpick` walks them. Verified unbiased over 2,000,000 draws from each
+map: every realised share within 0.07pp of its weight.
+
+| | before | after | measured |
+|---|---|---|---|
+| Cloud Insights, share of drops | 3.333% | 3.833% | **+15.00%** |
+| food carts, share of street props | 38.46% | 32.69% | **−15.00%** |
+| food carts, share of park props | 30.00% | 25.50% | **−15.00%** |
+| TE-ADDON terminal, street props | 7.692% | 6.923% | **−10.00%** |
+| TE-ADDON terminal, park props | 10.00% | 9.00% | **−10.00%** |
+
+Two things about that arithmetic are worth writing down, because both are easy
+to get wrong by eye.
+
+**Raising a weight raises the denominator too.** Cloud Insights at 5 → 5.75 is
++15% of the *weight* but only +14.1% of the actual drop rate, because the pool
+got bigger underneath it. 5.78 is the number that lands on +15.0%. The other
+five power-ups each give up 0.5% of their own share to pay for it, which is
+unavoidable — the shares have to sum to one.
+
+**And lowering one needs somewhere for the weight to go.** Scaling the terminal
+to 0.9 and leaving everything else alone drops its rate by 3.7%, not 10%: the
+denominator shrank with the numerator. The weight that comes off the carts and
+the terminal goes to the **bins and the planters**, split evenly, so both maps
+still total what they did (13 and 10) and every other prop keeps exactly the
+rate it had. That is also the right answer narratively — the two things on the
+pavement that do nothing at all are what should be standing where a hot dog
+cart is not.
+
+In-world rather than in the weights, over six paired trials of 200 worlds each:
+terminals **−10.08%**, carts **−14.71%**. The per-trial spread is wide (−7.5% to
+−11.8% on the terminal) because both sides of the ratio are sampled — a single
+trial is not enough to read one of these off, which is worth knowing before
+anybody re-measures and thinks it has drifted.
 
 **TAM payouts run every 16–28 seconds** once engaged — about 2.7 a minute. They
 used to run every 8–14, which was so often that the banner was more or less
