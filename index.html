@@ -3231,16 +3231,12 @@ function bakeAll(){
 var rows = {};
 var SAFE_MIN = 2;          // the shallowest pavement the generator may lay
 /* A power-up to plant on the first pavement. ?pw=<kind> picks one, and
-   nothing happens unless somebody types it.
-
-   ===================== TEMPORARY, REMOVE BEFORE SHIPPING =================
-   DROP_PW_DEFAULT is "sponsor" again, so EVERY run starts with a Cloud
-   Insights cloud two squares ahead with no query string, because the four
-   second duration is being tested. Set it back to null and the hook goes
-   quiet - that one line is the whole of it. ?pw=off turns it off for a
-   single load without editing anything.
-   ========================================================================= */
-var DROP_PW_DEFAULT = "sponsor";
+   nothing happens unless somebody types it. DROP_PW_DEFAULT has been
+   "sponsor" twice now, so Cloud Insights could be looked at without playing
+   for it; it is back to null both times. That one line is the whole of the
+   hook, and ?pw=sponsor does the same thing for a single load without
+   editing anything at all. */
+var DROP_PW_DEFAULT = null;
 var DROP_PW = (function(){
   var m = /[?&]pw=([a-z]+)/i.exec(location.search);
   if (m) return m[1].toLowerCase();
@@ -4737,7 +4733,8 @@ function collect(atCol){
                "OUTAGES BEFORE THE TICKETS");
     else if (kind === "traffic")
       brandHit(BRAND_SKUS[kind], BRAND_HIT + 0.5, null,
-               "INSIGHT AND CONTROL OF TRAFFIC");
+               "INSIGHT AND CONTROL OF TRAFFIC", false,
+               "YOU\u2019RE UNSTOPPABLE");
     else if (kind === "sponsor")
       brandHit(BRAND_SKUS[kind], BRAND_HIT + 0.5, null,
                "ACCELERATING YOUR JOURNEY IN THE CLOUD");
@@ -11982,10 +11979,14 @@ function drawMoneyRise(){
   ctx.globalAlpha = 1;
 }
 
-function brandHit(what, secs, icon, sub, big){
+/* `kick` is a third line under the tagline, in the money green with an arrow
+   up beside it - the one that says what the SKU did FOR you rather than what
+   it is. The badge says the name, the tagline says the proposition, the
+   kicker says the outcome, and the outcome is the thing a seller repeats. */
+function brandHit(what, secs, icon, sub, big, kick){
   var len = secs || BRAND_HIT;
   G.brand = { life:len, max:len, what:what, col:C.brand,
-              icon:icon || null, sub:sub || null, big:!!big };
+              icon:icon || null, sub:sub || null, big:!!big, kick:kick || null };
   AUDIO.chaChing();
 }
 
@@ -12248,9 +12249,44 @@ function drawBrandHit(){
   txt(B.what, cx, yInk, nsz, "#1a0a00");
   ctx.textBaseline = "middle";          // back to what everything else wants
   if (B.sub){
-    var sy3 = ny + (B.big ? 56 : 48);
+    /* Eight pixels up when there is a kicker under it, so the extra line
+       does not push the stack down onto the row he is reading. The whole
+       burst ends about 658 with one and 639 without - still above the
+       second row ahead of him at 714, which is the one that matters. */
+    var sy3 = ny + (B.big ? 56 : 48) - (B.kick ? 8 : 0);
     txt(B.sub, cx + 2, sy3 + 2, 26, sh);
     txt(B.sub, cx, sy3, 26, "#ffffff");
+
+    if (B.kick){
+      /* THE OUTCOME LINE. Green, because every other number in this game
+         that means "you are winning" is green - the pipeline, the payouts,
+         the money rise - and an arrow up, because a seller reads an arrow up
+         before they read anything at all.
+
+         The arrow and the words are measured and centred as one unit rather
+         than the text being centred and the arrow hung off it, or a short
+         line sits visibly off to one side of the badge above it. */
+      var kY = sy3 + 38, kS = 28;
+      ctx.font = "bold " + kS + 'px "Helvetica Neue",Helvetica,Arial,sans-serif';
+      var kW = ctx.measureText(B.kick).width;
+      var aH = kS * 0.80, aW = aH * 0.88, gap = 12;
+      var kX = cx - (aW + gap + kW) / 2;
+      /* A solid triangle rather than a glyph: an arrow typed as a character
+         resolves to whatever the panel has and lands on a different baseline
+         on every device. Three points always look like three points. */
+      function kTri(ox, oy, c){
+        ctx.fillStyle = c;
+        ctx.beginPath();
+        ctx.moveTo(kX + aW/2 + ox, kY - aH/2 + oy);
+        ctx.lineTo(kX + aW   + ox, kY + aH/2 + oy);
+        ctx.lineTo(kX        + ox, kY + aH/2 + oy);
+        ctx.closePath(); ctx.fill();
+      }
+      kTri(2, 3, sh);
+      kTri(0, 0, C.good);
+      txt(B.kick, kX + aW + gap + 2, kY + 3, kS, sh, "left");
+      txt(B.kick, kX + aW + gap,     kY,     kS, C.good, "left");
+    }
   }
   ctx.globalAlpha = 1;
 }

@@ -2510,6 +2510,29 @@ it just turns a face orange.
 deliberate decision**; the site is `noindex, nofollow` and the disclaimer at the
 top of this file applies.
 
+### The burst has a third line now
+
+`brandHit` takes a **kicker**: a line under the tagline, in the money green
+with a solid triangle pointing up. The badge says the name, the tagline says
+the proposition, and the kicker says the **outcome** — which is the part a
+seller repeats. Traffic Insights carries the first one: *▲ YOU’RE
+UNSTOPPABLE*.
+
+Green because every other number in this game that means *you are winning* is
+green — the pipeline, the payouts, the money rise — and an arrow up because a
+seller reads an arrow up before they read anything else.
+
+The arrow is a filled triangle, not a typed character: an arrow glyph resolves
+to whatever the panel happens to have and lands on a different baseline on
+every device. The arrow and the words are measured and centred **as one unit**
+rather than centring the text and hanging the arrow off it, or a short line
+sits visibly off to one side of the badge above it.
+
+The tagline moves up 8px when a kicker is present, so the extra line does not
+push the stack down onto the row he is reading. Measured, the burst now bottoms
+out at **y 662** with a kicker against 639 for the big ones — still clear of
+the second row ahead of him at 714, which is the one that matters.
+
 ### Power-ups
 
 Four common ThousandEyes capabilities — Endpoint Agent (absorbs one hit),
@@ -2522,11 +2545,10 @@ rare tier:
 > `?pw=sponsor` for Cloud Insights, and `tam`, `agent`, `insight`, `traffic`,
 > `path`, `metro`, `chuck` for the rest. `?pw=off` turns it off.
 >
-> ⚠️ **`DROP_PW_DEFAULT` is currently `"sponsor"`, which means every run
-> starts with a Cloud Insights cloud two squares ahead whether anybody asked
-> for one or not.** It is there so the four-second duration can be tested
-> without playing for the drop. Set that one line back to `null` before this
-> goes in front of anybody; `?pw=off` suppresses it for a single load.
+> `DROP_PW_DEFAULT` is `null`, so nothing is planted unless somebody types it.
+> It has been `"sponsor"` twice while Cloud Insights was being tuned and is
+> back to `null` both times; `?pw=sponsor` does the same job for a single load
+> without editing anything.
 
 **The cloud is struck.** The pickup's bolt flashes: twice about every 1.7
 seconds, 50ms each, and nothing in between — a 6% duty cycle, measured. A bolt
