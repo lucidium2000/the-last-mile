@@ -5402,8 +5402,21 @@ function startRide(enterRow, enterCol){
      far less often than he used to. The whole value of him is the question,
      and a question you only get asked every other ride is not one you carry
      around with you. */
+  /* THE MONEY IS AT ONE END OF THE CAR OR THE OTHER, never in the middle.
+     He starts in slot 2, so an end is always two full slots away - eight
+     steps at the new quarter-slot stride - and that walk is the whole
+     mechanic now that somebody else wants it too. Dropped in slot 1 or 3 it
+     was one stride and a shrug.
+
+     Pulled BEFORE the hooded man, so he can never be standing on it at the
+     moment the doors close. */
+  var ends = [0, RIDE_SLOTS - 1];
+  var cash = Math.random() < 0.55 ? ends[(Math.random() * 2) | 0] : -1;
+  if (cash >= 0){
+    var ci = free.indexOf(cash);
+    if (ci >= 0) free.splice(ci, 1);
+  }
   var shady = Math.random() < 0.70 ? pull() : -1;
-  var cash  = Math.random() < 0.55 ? pull() : -1;
   G.ride = { t:0, phase:"down", fromRow:enterRow, fromCol:enterCol,
              toRow:dest, toCol:exitCol, camFrom:G.camRow,
              streets:Math.abs(streetAt(dest) - fromSt),
@@ -5418,6 +5431,9 @@ function startRide(enterRow, enterCol){
              robbed:0, clack:0,
              hostile: Math.random() < SHADY_HOSTILE,
              tell:0, look:0, lurch:0, eyes:0, sayAt:-99, sayLine:null,
+             /* His interest in the money: how long he has been near it,
+                whether he has noticed, and how long since he took it. */
+             greed:0, sawCash:false, gotCash:0, take:null,
              /* The people in the car get the same lives as the people on the
                 pavement: they are in his way until he says excuse me, and
                 they talk to each other while he is doing it. One per slot,
@@ -5487,6 +5503,35 @@ var SHADY_SPEED = 0.52;    // slots a second, when he means it
 var SHADY_HOSTILE = 0.055;
 var SHADY_CREEP = 0.13;    // slots a second when he is only being odd about it
 var SHADY_KEEP  = 1.35;    // and he never comes closer than this
+/* AND HE CAN SEE THE MONEY. Left alone long enough he notices the roll on the
+   seat, says so, and goes and gets it - which turns an errand into a race and
+   is the only reason the walk to the end of the car costs anything.
+
+   He is slow on purpose. From two slots out that is 2.6s of not noticing and
+   another 5.3s of walking, against a run phase of 4.2 to 9 seconds: the
+   player wins that comfortably if he sets off, and loses it if he stands
+   watching the man in the hood - which is exactly the choice worth having.
+
+   Only the nine-in-ten version does this. The one who means it is already
+   coming for something and a mugger who breaks off to pick up litter is not
+   a threat. */
+/* HE HAS TO BE STANDING ON IT. The reach used to be one step - which, at
+   half a slot, was 165px: a man scooping up a roll of notes from most of a
+   window away. A quarter-slot step made it 83px, which is better and still
+   not what it looks like.
+
+   0.13 is "on the square" expressed as a tolerance. Both the cash slots and
+   his starting slot are whole numbers and he moves in quarters, so the only
+   distance that can ever satisfy this is zero - the 0.13 is slack for
+   floating point after eight additions of 0.25, not a reach. If the stride
+   is ever changed to something that does not divide into 1, this is the line
+   that has to change with it. */
+var RIDE_TAKE = 0.13;
+/* And how long the "+$X" hangs over him afterwards. */
+var TAKE_SECS = 1.9;
+var SHADY_NOTICE = 2.6;    // how long before he clocks it
+var SHADY_GREED  = 0.38;   // slots a second once he has
+var SHADY_CASH_SECS = 4.0; // how long the dollar signs stay up
 /* The red eyes: how long one showing lasts, how much of that is the fade
    up, and how often one starts. 0.09 a second against a run phase of 5.4
    works out at a bit over a third of rides - often enough that it is a
@@ -5596,9 +5641,13 @@ function rideAct(dir){
   /* Within half a slot counts, because he no longer lands on the integers
      every time and a roll of notes you walk past without taking is worse
      than one that is not there. */
-  if (R.cash >= 0 && !R.cashGot && Math.abs(ns - R.cash) <= RIDE_SUB){
+  if (R.cash >= 0 && !R.cashGot && Math.abs(ns - R.cash) <= RIDE_TAKE){
     R.cashGot = true;
-    chuckPayout("Someone left it on the seat.");
+    /* The card never comes up on a train - it would throw him out of the
+       carriage mid-stride - so without this he was handed a five-figure sum
+       and shown nothing at all. The number goes up over his head instead,
+       in the same green and off the same roll. */
+    R.take = { t:0, amt: chuckPayout("Someone left it on the seat.") };
   }
   if (R.shady >= 0 && !R.met && Math.abs(ns - R.shady) <= RIDE_SUB){
     R.met = true;
@@ -5621,6 +5670,32 @@ function carPaxAt(R, i){
   if (!R.pax || i < 0 || i >= RIDE_SLOTS) return null;
   if (i === R.cash && !R.cashGot) return null;
   return R.pax[i];
+}
+
+/* WHAT HE JUST PICKED UP, over his own head. The ticker card is suppressed
+   during a ride for good reasons, which left the one moment the player is
+   actually paid on a train completely silent on screen: the pipeline ticked
+   up in the corner and nothing else happened.
+
+   Same green as every other winning number here, same roll as the card would
+   have shown, and the SKU underneath it - a figure with no name on it is a
+   number, and the whole exercise is that it should be a product. It rises
+   and fades rather than sitting, because he is still walking. */
+function drawCarTake(R, cx0, cw, cy){
+  var T = R.take; if (!T) return;
+  var k = Math.min(1, T.t / TAKE_SECS);
+  var rise = 56 * (1 - Math.pow(1 - Math.min(1, k * 1.7), 2));
+  var a = Math.min(1, k * 7) * Math.min(1, (1 - k) * 3.4);
+  if (a <= 0) return;
+  var x = rideSlotX(rideManX(R), cx0, cw), y = cy + 124 - rise;
+  var pop = 1 + 0.34 * Math.max(0, 1 - k * 6);
+  var str = "+" + cash(T.amt), fs = Math.round(42 * pop);
+  ctx.globalAlpha = a;
+  txt(str, x + 2, y + 3, fs, "#08220f", "center");
+  txt(str, x,     y,     fs, C.good,   "center");
+  ctx.globalAlpha = a * 0.9;
+  txt("CHUCK BUCKS", x, y + 32, 17, POWERS.chuck.col, "center");
+  ctx.globalAlpha = 1;
 }
 
 /* THE ROLL OF NOTES, drawn LAST - after the standing passengers, after the
@@ -5722,10 +5797,16 @@ function updateShady(dt){
      the ride. */
   if (R.swing > 0) R.swing = Math.max(0, R.swing - dt);
   if (R.brace > 0) R.brace = Math.max(0, R.brace - dt);
+  /* Ticked before the knock-out return, or a man floored a frame after he
+     grabbed the roll keeps the dollar signs for the rest of the ride. */
+  if (R.gotCash > 0) R.gotCash = Math.max(0, R.gotCash - dt);
   if (R.ko){ R.koT += dt; return; }
 
-  // the red eyes, which are not a tell and are not connected to anything
-  if (R.eyes > 0) R.eyes = Math.max(0, R.eyes - dt);
+  /* The red eyes, which are not a tell and are not connected to anything.
+     Suppressed while the dollar signs are up: two colours of light in one
+     hood is a fault, not a mood. */
+  if (R.gotCash > 0) R.eyes = 0;
+  else if (R.eyes > 0) R.eyes = Math.max(0, R.eyes - dt);
   else if (Math.random() < EYES_RATE * dt) R.eyes = EYES_SECS;
 
   /* The nine-in-ten version: he drifts up the car and stops a yard and a half
@@ -5740,6 +5821,37 @@ function updateShady(dt){
        does nothing at all - the point is that you cannot know that. */
     if (R.tell > 0) R.tell = Math.max(0, R.tell - dt);
     if (R.lurch > 0) R.lurch = Math.max(0, R.lurch - dt);
+
+    /* HE HAS SEEN THE MONEY. Everything else he does is suspended while he
+       goes for it: he is not being odd about you any more, he is shopping.
+       That is also what makes it readable from across the car - a man who
+       was drifting toward you turns and walks the other way, which is the
+       cue to run. */
+    if (R.cash >= 0 && !R.cashGot){
+      R.greed += dt;
+      if (!R.sawCash && R.greed >= SHADY_NOTICE){
+        R.sawCash = true;
+        R.sayAt = R.t; R.sayLine = "Hey, what's that?";
+        AUDIO.say(11, SAY_ASK);
+      }
+      if (R.sawCash){
+        var dM = R.cash - R.shadyX, stepM = SHADY_GREED * dt;
+        if (Math.abs(dM) <= stepM) R.shadyX = R.cash;
+        else R.shadyX += (dM > 0 ? stepM : -stepM);
+        /* The hood turns toward what he is walking at, not toward the
+           player - which is the tell that he has stopped caring about him. */
+        R.look += (1 - R.look) * Math.min(1, dt * 2.4);
+        if (Math.abs(R.shadyX - R.cash) < 0.08){
+          R.cashGot = true;              // and it is gone. He was quicker.
+          R.gotCash = SHADY_CASH_SECS;
+          R.sayAt = R.t; R.sayLine = "Somebody's lucky day.";
+          AUDIO.say(11, SAY_WARM);
+          AUDIO.chaChing();
+        }
+        R.knife = 0;
+        return;
+      }
+    }
 
     R.pause -= dt;
     if (R.pause <= 0){
@@ -5827,6 +5939,10 @@ function updateShady(dt){
 function updateRide(dt){
   var R = G.ride;
   R.t += dt;
+  if (R.take){
+    R.take.t += dt;
+    if (R.take.t >= TAKE_SECS) R.take = null;
+  }
   R.rock = (R.rock || 0) + dt;
   /* Ease out, so he leans off and settles rather than sliding at a constant
      rate - a figure crossing a train floor at a fixed speed looks towed. */
@@ -5994,7 +6110,7 @@ function hoodFit(){
   var scl = carVis() * HOOD_TALL / 153;    // 153 is his own height, 70 to 223
   return { scl:scl, dy:carSole() - 223 * scl };
 }
-function drawHoodie(mx, cy, scl, alert, look, red){
+function drawHoodie(mx, cy, scl, alert, look, red, cashEyes){
   function R2(x, y, w, h, col){
     ctx.fillStyle = col;
     ctx.fillRect(mx + x * scl, cy + y * scl, w * scl, h * scl);
@@ -6079,6 +6195,30 @@ function drawHoodie(mx, cy, scl, alert, look, red){
     ctx.globalAlpha = 1;
   }
 
+  /* DOLLAR SIGNS, when he got to the roll first. Drawn as type rather than
+     as boxes - a $ is four strokes and a bar at this size and every attempt
+     to build one out of rects reads as a letter S with a problem. Two soft
+     green discs behind them for the same reason the red eyes have them: a
+     flat glyph in a black opening is a sticker, and this is supposed to be
+     lit from inside. They breathe, because a cartoon eye that has just seen
+     money does not hold still. */
+  if ((cashEyes || 0) > 0.01){
+    var gy = cy + 95 * scl, puls = 1 + 0.14 * Math.sin(G.t * 9);
+    ctx.globalAlpha = cashEyes * 0.24; ctx.fillStyle = "#3fd07a";
+    ctx.beginPath(); ctx.arc(mx + lk - 6.5*scl, gy + 2*scl, 8.5*scl*puls, 0, Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.arc(mx + lk + 6.5*scl, gy + 2*scl, 8.5*scl*puls, 0, Math.PI*2); ctx.fill();
+    var fs = Math.max(7, 17 * scl * puls);
+    ctx.font = "bold " + fs + 'px "Helvetica Neue",Helvetica,Arial,sans-serif';
+    ctx.textAlign = "center";
+    ctx.globalAlpha = cashEyes * 0.9; ctx.fillStyle = "#1d6b3c";
+    ctx.fillText("$", mx + lk - 6.5*scl + 1, gy + 3*scl + 1);
+    ctx.fillText("$", mx + lk + 6.5*scl + 1, gy + 3*scl + 1);
+    ctx.globalAlpha = cashEyes; ctx.fillStyle = "#8df7b4";
+    ctx.fillText("$", mx + lk - 6.5*scl, gy + 3*scl);
+    ctx.fillText("$", mx + lk + 6.5*scl, gy + 3*scl);
+    ctx.globalAlpha = 1;
+  }
+
   // drawstrings
   R2(-9, 118, 2, 16, "#cfd6dd");
   R2(7,  118, 2, 13, "#cfd6dd");
@@ -6150,7 +6290,14 @@ function drawShady(cx0, cw, cy){
     var ep = 1 - R.eyes / EYES_SECS;
     red = ep < EYES_UP ? ep / EYES_UP : Math.max(0, (1 - ep) / (1 - EYES_UP));
   }
-  drawHoodie(mx + sw, cy + F.dy, K, alert, look, red);
+  /* And the other kind of light in the hood: he got to the money first. Same
+     ramp shape as the red, so they arrive and leave the same way. */
+  var grn = 0;
+  if ((R.gotCash || 0) > 0){
+    var gp = 1 - R.gotCash / SHADY_CASH_SECS;
+    grn = gp < EYES_UP ? gp / EYES_UP : Math.max(0, (1 - gp) / (1 - EYES_UP));
+  }
+  drawHoodie(mx + sw, cy + F.dy, K, alert, look, red, grn);
 
   /* A hand coming out of the pocket with something in it - and then not.
      It is the same metal as the blade and it lasts under a second. */
@@ -7122,6 +7269,7 @@ function drawCar(ox, rock, lit){
   drawShady(cx0, cw, cy);
   /* Last of all, so nobody in the carriage can stand in front of it. */
   if (cashMX != null) drawCarCash(cashMX, cy);
+  if (R2.take) drawCarTake(R2, cx0, cw, cy);
 
   // doors between windows
   for (var d = 1; d < wn; d++){

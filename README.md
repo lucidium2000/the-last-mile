@@ -2060,6 +2060,58 @@ hundred pixels long reads as a shelf. Drawn before the passengers so they
 stand in front of it rather than on it, and it stops at the bay rather than
 running through the doors, which is where the standing room is.
 
+**The money is at one end of the car or the other, never in the middle.** He
+starts in slot 2, so an end is always two full slots away — eight steps at the
+quarter-slot stride — and that walk is the whole mechanic now that somebody
+else wants it too. Dropped in slot 1 or 3 it was one stride and a shrug. It is
+pulled before the hooded man, so he can never be standing on it when the doors
+close: measured over 4,000 rides, slots 0 and 4 only (1114/1118) and never
+once under him.
+
+**He has to be standing on it.** The reach used to be one step, which at half
+a slot was 165px — a man scooping up a roll of notes from most of a window
+away. `RIDE_TAKE` is 0.13, which is "on the square" expressed as a tolerance:
+both cash slots and his starting slot are whole numbers and he moves in
+quarters, so the only distance that can satisfy it is zero. The 0.13 is slack
+for floating point after eight additions of 0.25, not a reach — if the stride
+ever stops dividing into 1, that is the line that has to change with it.
+
+**And he is told what he got.** The ticker card is suppressed on a train for
+good reasons, which left the one moment the player is actually paid down there
+completely silent: the pipeline ticked up in the corner and nothing else
+happened. The amount now rises over his head in the same green as every other
+winning number, off the same `chuckRoll()` the card would have shown, with the
+SKU under it — a figure with no name on it is a number, and the whole exercise
+is that it should be a product.
+
+### The man in the hood wants it too
+
+Left alone long enough he notices the roll on the seat, says **"Hey, what's
+that?"**, and goes and gets it. That turns an errand into a race and is the
+only reason the walk to the end of the car costs anything.
+
+He is slow on purpose. `SHADY_NOTICE` is 2.6s of not noticing and
+`SHADY_GREED` 0.38 slots a second after that, against a run phase of 4.2 to
+9 seconds. Measured over 3,000 rides with **the player never moving** — the
+worst case — he notices on 94% of them and reaches it on **23%**. A player who
+sets off immediately wins every time: two slots is 1.6–2.7s of tapping against
+his 5.0s best.
+
+Everything else he does is suspended while he goes for it. That is also what
+makes it readable from across the car: a man who was drifting toward *you*
+turns and walks the other way, which is the cue to run.
+
+Only the nine-in-ten version does this. The one who means it is already coming
+for something, and a mugger who breaks off to pick up litter is not a threat.
+
+**And his eyes become green dollar signs.** Same ramp shape as the red eyes so
+they arrive and leave the same way, and they suppress the red entirely — two
+colours of light in one hood is a fault, not a mood. Drawn as type rather than
+boxes: a `$` is four strokes and a bar at this size, and every attempt to
+build one out of rects reads as a letter S with a problem. Verified by
+sampling the hood: 428 green pixels with the dollar signs up and 0 red, 140
+red pixels on an ordinary showing and 0 green.
+
 **And the money is drawn last.** It used to be drawn inside the slot loop,
 which put it behind everything that came after. Nobody *stands* in its slot
 (`carPaxAt` returns null there), so the people in the windows were never the
