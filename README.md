@@ -3550,6 +3550,72 @@ changes, and 1,199 frames held still across twenty seconds of hard banking.
 
 
 
+
+## Two more costumes
+
+`flashModel` set the rule a while back: a power-up big enough to change how
+the game *plays* gets its own figure rather than a badge on the old one. The
+cape is the TAM, the orange suit is Cloud Insights, and these are the other
+pair.
+
+**The driver**, for Traffic Insights. Not a racer in overalls — a man who has
+*control of the traffic*, which is a better joke: a brown leather driving cap
+with the goggles up on the brow, driving gloves with a pale cuff, a quilted
+charcoal jacket with two seams across it and the SKU's blue down the front, a
+white silk scarf, and `01` on the chest. He is dressed for a car he does not
+need, because the cars are getting out of his way.
+
+**Neo**, for Internet Insights, because the SKU drops the world into slow
+motion and there is exactly one thing that means. Long black coat past the
+knee, hanging open on two raised front edges, collar standing at the back of
+the neck, small oval shades. No colour anywhere on him — the green belongs to
+the room, not to the man standing in it.
+
+One baked sprite pair each, with a fixed face. Threading them through the
+face × shield × direction set would have doubled most of the atlas twice over,
+on the machine whose crash was canvas memory, and the dash costume has shown
+for the whole game that one expression is fine while a power is running.
+
+**The hair bug, which took both of them out.** A head covering at `y 0.425`
+has a back edge of 0.585 against the face's 0.58, so the painter — which sorts
+on back edge descending — puts it down **first** and the skin goes over the
+top. The result is a bald tan box with a sliver of fringe above it. Same `y`
+and `d` as the face ties them on the back edge, and the `z` tiebreak then puts
+the covering in front. It is exactly the rule `flashModel`'s cowl comment has
+spelled out since it was written; I just did not follow it.
+
+Worth recording how it was found: the shades looked missing too, and they were
+not — sampling the baked canvas at `proj(0.437, 0.43, 0.735)` came back
+`(7, 8, 10)`, which is the shade colour exactly. Decals are drawn after every
+part, unconditionally, so they cannot be hidden; only the parts can sort wrong.
+Measuring the sprite said which half of the face was actually broken.
+
+## Ultra slow
+
+`SLOW_K` is halved to **0.125**, so the traffic crawls at an eighth of its
+speed rather than a quarter. The power is eleven seconds of being the only
+thing on the street that is moving, and at a quarter the cars were still
+plainly driving.
+
+**And he is slowed too**, to `SLOW_MAN` = 0.75 of his own pace. He used to run
+at full speed through it, which made the effect about the *world* and not
+about him — the shot this is doing an impression of is a man moving
+deliberately while everything else hangs, not a man sprinting past furniture.
+
+It is a buff, not a nerf, which is the nice part:
+
+| | hero | traffic | his advantage |
+|---|---|---|---|
+| before | 100% | 25% | 4× |
+| after | **75%** | **12.5%** | **6×** |
+
+**And the wash went green**, because the thing it is doing an impression of is
+a monitor and that is the colour of one. Two passes rather than one greener
+fill: a dark `#03120a` to take the street down so the scanlines have something
+to sit on, then `#2fd07f` at 0.085 to put the phosphor back over the top. A
+single mid-green at one alpha does one or the other, not both. The sweeping
+band goes green with it.
+
 ## Getting over things
 
 Walking into a bin and being told no, over and over, was the one obstacle in
