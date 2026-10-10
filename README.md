@@ -144,18 +144,45 @@ take a colour. The wordmark is measured and rescaled to 86% of the bars'
 width, because the panel may resolve a different face and a logo whose two
 halves disagree about their width is worse than no logo.
 
-**HANALEI BAY** — a sunset, a cabana and a man who is not walking anywhere.
-Sky in six bands, sea in lines, a glitter path under the sun, palms that sway,
-drapes that blow, and him on a lounger with a drink and his blazer over the
-arm of the chair, done with. *"Soak it in and ENJOY! Your number goes back to
-0 tomorrow."*
+**HANALEI BAY** — a sunset, a cabana and two men who have finished working.
+Sky in six bands with clouds lit from underneath, sea in lines with a swell
+under them, a glitter path, a headland on the horizon, palms that sway, drapes
+that blow, tiki torches, footprints stopping at the chair, a ThousandEyes
+towel on the sand and a CLUB CISCO banner on the canopy. *"Soak it in and
+ENJOY!"* — and then, typed out a character at a time, *"Your number goes back
+to 0 tomorrow."*
 
-The figure is built from **bars between named points** — hip, shoulder, knee,
-ankle — rather than from rotated rectangles. The first pass rotated a shirt
-about its corner and produced something that read as a sail; once the five
-points are placed the drawing cannot come apart. The whole lounger group is
-then scaled about the seat by one transform, because hand-retuning nine points
-to make a man an eighth bigger is nine chances to pull a limb off.
+**The hero took four goes.** Three of them were hand-drawn out of flat bars
+and every one read as a surfboard with a head on it. The fourth was a baked
+**voxel model** built from `playerModel`'s own head, hair and eye line — which
+made him look exactly like the man in the game, and that turned out to be the
+problem: the three ending scenes are *drawn*, and a blitted voxel sprite
+sitting between two drawn scenes read as a different character who had
+wandered in. Consistency across the three beats a resemblance to a fourth
+thing nobody is looking at while they watch them.
+
+So he is `sceneGuySeated`: sceneGuy's rules applied to a seated figure — same
+92x150 body box, same 50x58 head, same 54x14 hair cap with a sideburn each
+side, same front-on view, only the clothes and the pose changed. Seated
+front-on, the thighs are a foreshortened band at the hips and the shins hang
+straight down off it, which keeps every proportion sceneGuy already has.
+
+**The chair is a folding beach chair, not a lounger.** A lounger is for a man
+lying flat and the figure sits up, so the two never agreed and he read as
+crouching on a plank. The striped canvas back goes *behind* him and the arms
+and front legs *in front*, which is what makes him sit **in** it. It is half
+again as wide as he is: at 1.12 it was nine pixels either side of him and
+simply could not be seen, and a chair you cannot see is a man standing up.
+
+**And Chuck is standing next to him**, in `sceneGuyResort` — the same rules
+with the suit swapped for white linen: long sleeves, an open collar with a V
+of chest in it, buttons down the front, a hem below the waist because the
+shirt is not tucked in, and short silver hair set back off the brow, because a
+full cap of hair down to the eyebrows is a young man. It takes its colours as
+parameters rather than being hard-coded to one person, since the moment there
+are two figures on a beach there will be three. He wears **stone** trousers,
+not white: in linen-on-linen the shirt and the legs merged into one tall white
+shape and he read as a chef.
 
 **Winning and dying share a state, and they must not share a beat.**
 `ST_DEAD` means "the run is over and the readout is coming" — it carries the
@@ -262,9 +289,28 @@ obviously hanging.
 
 Both scenes get their own theme. The stage is the only music in the file built
 on stacked fifths and a timpani rather than on a progression you could sit
-under — everything else here is a mood, and this one is an announcement. The
-beach is a ukulele: four strings plucked a few milliseconds apart, which is
-the whole difference between a strum and a chord, with the sea under it.
+under — everything else here is a mood, and this one is an announcement.
+
+**The beach is hapa haole**, and it took two passes. The first was a ukulele
+with a plucked tune over it, which is *island* and is not Hawaiian. Three
+things make it so and none of them were there:
+
+- **The steel.** A lap steel glissando is the sound: a note that arrives by
+  sliding into place from a third or a fifth below and then sits there
+  wobbling. Plucked notes, however pretty, read as a music box. Every lead
+  note glides in over a fifth of a bar and holds — and the hold is two tones a
+  few cents apart so they beat against each other, which is vibrato for free,
+  since there is no LFO in this synth and a detuned pair is indistinguishable
+  at this length.
+- **The vamp.** II7–V7–I, which in C is D7–G7–C: the turnaround every hula
+  uses to get back to the top. The first pass ran C–F–G–Am, which is every
+  other song ever written.
+- **Slack key under it** — alternating thumb bass, root on one and fifth on
+  three, chord brushed on the off beats. That gait is what makes it sway
+  rather than march.
+
+Tempo down from 1.3s a bar to 1.9, because chill is a tempo, and the shaker
+becomes a gourd: a maraca is not an ipu.
 
 ## RoomOS notes
 
