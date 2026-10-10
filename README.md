@@ -1166,6 +1166,13 @@ health bar** rather than in the power-up chip row. What it does is take one hit
 *instead of the bar taking it*, and sitting it with the other power-ups said
 nothing about which number it was protecting.
 
+The two **blazer** pickups hold half a second longer than every other burst
+(`BRAND_HIT + 0.8` against `+ 0.3`, so 2.4s against 1.9s). "DOUBLE PURPLE PIMP
+BLAZER OF ASSURANCE" is thirty-eight characters on one line and it is the joke
+of the whole SKU — at the common duration it was gone before it had been read,
+which is the one failure a gag cannot survive. The third pickup's line is
+short and keeps the ordinary beat.
+
 All of them live together near `CHUCK_BONUS`, so the balance is one line to
 change.
 
@@ -2380,9 +2387,50 @@ tally starts at 440 and scales to **0.81**.
 
 ### The ticker card
 
+### The payout is the move
+
+Chuck Bucks used to pay a flat **$250,000** whether the card behind it said
+0.4% or 9.8%, which made the chart decoration. It is the price of the stock
+now, straight. The anchor is **7.5% pays 250,000**, so:
+
+> **250,000 / 7.5 = $33,333 a percentage point**
+
+| move | pays | move | pays | move | pays |
+|---|---|---|---|---|---|
+| 0.1% | $3,000 | 2.5% | $83,000 | 7.5% | **$250,000** |
+| 1.0% | $33,000 | 5.0% | $167,000 | 9.0% | $300,000 |
+| 2.0% | $67,000 | 6.0% | $200,000 | 10.0% | $333,000 |
+
+Rounded to the nearest thousand, because a payout reading $166,667 is an
+arithmetic result and one reading $167,000 is money.
+
+**One roll feeds both.** The percentage and the money came from two different
+places before, which only worked because one of them was a constant;
+`chuckRoll()` returns the pair, so the number on the chart and the number in
+the pipeline can never disagree. Verified over 20,000 rolls: zero mismatches,
+range $3,000 to $333,000.
+
+**It costs about a third of the average payout, and that is worth knowing.**
+The roll is uniform on 0.1–10.0, so its middle is about 5.05%, not 7.5%.
+Anchoring 250k at 7.5% therefore makes the mean Chuck Bucks **$168,712**
+(measured) against the flat 250,000 it was — in exchange for a spread, and for
+a card that means something. If the old average wants holding, move the roll
+in `chuckRoll()` rather than bending the rate, or the table above stops being
+the thing the card is showing.
+
+**And the number is the loudest thing on the card.** The bottom line keeps its
+brand-orange "CHUCK BUCKS" label at the old size, and sets the amount large in
+the same green every winning number in this game is set in, with four offset
+passes under it for a bloom (no `shadowBlur` here). It pops on arrival — 1.42x
+on the frame it lands, settling to 1 by 0.55s, then a 4.5% breath so it is
+never quite still. The label and the value are measured and centred as one
+unit using the value's *scaled* width, or the line slides left as the pop
+decays; both sit on the middle baseline, which is what lets two sizes share a
+line and still look level.
+
 Collecting Chuck Bucks freezes the walk and shows a mock of the Google Finance
 quote card: the Cisco mark, the name, the NASDAQ line, the Following pill, the
-range tabs, the chart with its cursor and tooltip — reporting **CSCO +10.00%**.
+range tabs, the chart with its cursor and tooltip.
 
 **It carries no share price, and it is marked "Simulated" on its face.** The
 game makes no network calls — the RoomOS constraint the whole file is built
@@ -2522,11 +2570,12 @@ Green because every other number in this game that means *you are winning* is
 green — the pipeline, the payouts, the money rise — and an arrow up because a
 seller reads an arrow up before they read anything else.
 
-The arrow is a filled triangle, not a typed character: an arrow glyph resolves
-to whatever the panel happens to have and lands on a different baseline on
-every device. The arrow and the words are measured and centred **as one unit**
-rather than centring the text and hanging the arrow off it, or a short line
-sits visibly off to one side of the badge above it.
+**One arrow each side.** The arrows are filled triangles, not typed
+characters: an arrow glyph resolves to whatever the panel happens to have and
+lands on a different baseline on every device. The whole run — arrow, gap,
+words, gap, arrow — is measured and centred **as one unit** rather than
+centring the text and hanging the arrows off it, or a short line sits visibly
+off-axis from the badge above it.
 
 The tagline moves up 8px when a kicker is present, so the extra line does not
 push the stack down onto the row he is reading. Measured, the burst now bottoms

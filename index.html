@@ -2511,7 +2511,44 @@ function hpDisplay(){
 /* A fifth less often: it was 0.52, and a run that opens with a TAM is a
    different game from one that does not. */
 var TAM_CHANCE = 0.416;
-var CHUCK_BONUS = 250000;
+/* WHAT A CHUCK BUCKS IS WORTH - and it is not a fixed number any more.
+
+   The card that comes up is a stock ticker showing the day's move, and the
+   money used to ignore it completely: a flat 250k whether the number on the
+   card said 0.4% or 9.8%, which made the chart decoration. It is the price
+   of the stock now, straight: the anchor is 7.5% pays 250,000, and
+   everything else is that rate.
+
+     250,000 / 7.5  =  33,333 a percentage point
+
+   So across the roll (0.1% to 10.0%):
+
+     0.1%  ->  $3,000        2.5%  ->  $83,000       7.5%  ->  $250,000
+     1.0%  ->  $33,000       5.0%  ->  $167,000      9.0%  ->  $300,000
+     2.0%  ->  $67,000       6.0%  ->  $200,000     10.0%  ->  $333,000
+
+   Rounded to the nearest thousand, because a payout reading $166,667 is an
+   arithmetic result and a payout reading $167,000 is money.
+
+   WORTH KNOWING: the roll is uniform on 0.1-10.0, so its middle is about
+   5.05%, not 7.5%. Anchoring 250k at 7.5% therefore makes the AVERAGE Chuck
+   Bucks about $168,000 rather than the flat 250k it was - a third less per
+   pickup, in exchange for a spread of 3k to 333k and a card that means
+   something. If the old average wants holding, raise CHUCK_PCT's partner -
+   the roll in chuckRoll - rather than bending this rate. */
+var CHUCK_BONUS = 250000;      // what the anchor move pays
+var CHUCK_PCT   = 7.5;         // the move that pays it
+function chuckAmt(pct){
+  return Math.max(1000, Math.round(CHUCK_BONUS * pct / CHUCK_PCT / 1000) * 1000);
+}
+/* One roll, used for both the card and the money, so the number on the chart
+   and the number in the pipeline can never disagree. They were generated in
+   two different places before, which only worked because one of them was a
+   constant. */
+function chuckRoll(){
+  var pct = 0.1 + Math.random() * 9.9;
+  return { pct:pct, amt:chuckAmt(pct) };
+}
 /* A TE-ADDON terminal is an attach, and an attach is revenue. It used to
    hand over a trace and a two-line banner and nothing else, which made the
    one piece of actual Cisco motion in the game the quietest thing in it.
@@ -4742,27 +4779,37 @@ function collect(atCol){
       /* Read BEFORE the shield moves - this block runs above the one that
          grants it, so G.shield is still what he had when he stepped on it. */
       var lvl = G.shield | 0;
-      brandHit("ENDPOINT AGENT", BRAND_HIT + 0.3, null,
+      /* The two blazers hold half a second longer than everything else.
+         "DOUBLE PURPLE PIMP BLAZER OF ASSURANCE" is thirty-eight characters
+         on one line and it is the joke of the whole SKU - at the common
+         duration it was gone before it had been read, which is the one
+         failure a gag cannot survive. The third pickup's line is short and
+         keeps the ordinary beat. */
+      brandHit("ENDPOINT AGENT", BRAND_HIT + (lvl < 2 ? 0.8 : 0.3), null,
                lvl < 2 ? AGENT_BLAZER[lvl]
                        : "+" + cash(AGENT_BONUS) + "  \u00B7  NOTHING LEFT TO PUT ON HIM");
     }
     else brandHit(BRAND_SKUS[kind]);
   }
+  /* Rolled here rather than in the branch below, because the flash on the
+     next line quotes the number. */
+  var chuck = (kind === "chuck") ? chuckRoll() : null;
   if (kind === "tam") AUDIO.tam();
   else if (kind === "agent") AUDIO.shieldUp();
   else AUDIO.power(kind);
-  flash(k.name, kind === "chuck" ? ("+" + cash(CHUCK_BONUS) + " on the number.") : k.line, k.col);
+  flash(k.name, chuck ? ("+" + cash(chuck.amt) + " on the number.") : k.line, k.col);
   burst(G.col*TILE + TILE/2, rowScreenY(G.row) - 40, k.col);
 
   if (kind === "chuck"){
-    G.bonus += CHUCK_BONUS; G.bonusChuck += CHUCK_BONUS;
+    G.bonus += chuck.amt; G.bonusChuck += chuck.amt;
     burst(G.col*TILE + TILE/2, rowScreenY(G.row) - 40, "#7fd49a");
     /* The card freezes the world rather than floating over it - at the size it
        needs to be readable it would otherwise cover the traffic you are
        standing in. */
     /* 0 to 10 percent, rolled fresh every time - the card is a celebration,
-       not a quote, so the number may as well be a surprise. */
-    G.ticker = { t:0, pct: 0.1 + Math.random() * 9.9 };
+       not a quote, so the number may as well be a surprise. The payout rode
+       in on the same roll, so the chart and the money agree. */
+    G.ticker = { t:0, pct: chuck.pct, amt: chuck.amt };
     AUDIO.dig();
   }
   /* Cards accumulate. Three in the wallet is three rides, which is what makes
@@ -5430,14 +5477,17 @@ var TRAIN_ROB   = 30;      // what standing still costs you
 
 /* Chuck Bucks found on the train. Same payout as the pavement pickup, same
    card, same voice line - it is the identical event, just somewhere else. */
+/* Returns what it paid, so a caller that wants to quote the number in its
+   own banner does not have to roll a second one and contradict the card. */
 function chuckPayout(where, quiet){
-  G.bonus += CHUCK_BONUS; G.bonusChuck += CHUCK_BONUS;
+  var roll = chuckRoll();
+  G.bonus += roll.amt; G.bonusChuck += roll.amt;
   /* Not on the train. The ticker card takes the whole screen and freezes the
      world behind it, and the ride is already a scene - stacking a second one
      on top threw the player out of the carriage mid-stride, which is exactly
      when the man at the other end is walking towards him. The money, the
      sound and the flash all still land. */
-  if (!G.ride) G.ticker = { t:0, pct: 0.1 + Math.random() * 9.9 };
+  if (!G.ride) G.ticker = { t:0, pct: roll.pct, amt: roll.amt };
   /* `quiet` is for the moment the money is not the event. Knocking a man down
      and having him say "I know you're gonna dig this" over the top of it was
      the wrong voice for what just happened; the briefcase gets the sound. */
@@ -5445,9 +5495,10 @@ function chuckPayout(where, quiet){
      its own banner, and the payout just adds the money. Raising a second
      flash here overwrote "BRIEFCASE, FULL SWING" a frame after it appeared,
      so the headline the player never got to read was the swing itself. */
-  if (quiet) return;
+  if (quiet) return roll.amt;
   AUDIO.dig();
   flash("CHUCK BUCKS", where, POWERS.chuck.col);
+  return roll.amt;
 }
 
 /* Moving around inside the car. The ride owns the input while it is running:
@@ -5472,9 +5523,9 @@ function rideAct(dir){
     AUDIO.heave();
     G.shake = 18;
     AUDIO.swing();
-    chuckPayout("He dropped it on his way down.", true);
+    var swung = chuckPayout("He dropped it on his way down.", true);
     flash("BRIEFCASE, FULL SWING",
-          "He picked the wrong commuter.  +" + cash(CHUCK_BONUS), C.good);
+          "He picked the wrong commuter.  +" + cash(swung), C.good);
     return;
   }
 
@@ -10956,9 +11007,43 @@ function drawTicker(){
   gtxt(headline, tx0 + 22, ty0 + 32, 26, "#81c995", "bold");
   gtxt(CSCO.tipTime, tx0 + 22 + t1 + 32, ty0 + 32, 26, "#9aa0a6", "normal");
 
-  // the one line that is ours, not Google's
-  gtxt("CHUCK BUCKS  \u00B7  +" + cash(CHUCK_BONUS) + " ON THE NUMBER",
-       X + W / 2, Y + H - 34, 26, C.brand, "bold", "center");
+  /* The one line that is ours, not Google's - and the money is the loudest
+     thing on a card otherwise made of greys. The label stays in the brand
+     orange at its old size; the amount is set large, in the same green every
+     winning number in this game is set in, and pops.
+
+     The pop is an overshoot that settles rather than a loop: 1.42x on the
+     frame it lands, down to 1 by 0.55s, then a 4.5% breath so it is never
+     quite still. The two parts are measured and centred as one unit, with
+     the value's SCALED width in the sum, or the line slides left as the pop
+     decays. Both are drawn on the middle baseline, which is what lets two
+     sizes share a line and still look level. */
+  var amt = T.amt || chuckAmt(pct);
+  var cLab = "CHUCK BUCKS  \u00B7  ", cVal = "+" + cash(amt);
+  var cLS = 26, cVS = 46;
+  ctx.font = "bold " + cLS + 'px "Helvetica Neue",Helvetica,Arial,sans-serif';
+  var cLW = ctx.measureText(cLab).width;
+  ctx.font = "bold " + cVS + 'px "Helvetica Neue",Helvetica,Arial,sans-serif';
+  var cVW = ctx.measureText(cVal).width;
+  var cPop = 1 + 0.42 * Math.max(0, 1 - t / 0.55) + 0.045 * Math.sin(t * 5.2);
+  var cBX = X + W / 2 - (cLW + cVW * cPop) / 2, cBY = Y + H - 34;
+  gtxt(cLab, cBX, cBY, cLS, C.brand, "bold");
+  ctx.save();
+  ctx.translate(cBX + cLW + cVW * cPop / 2, cBY);
+  ctx.scale(cPop, cPop);
+  /* Four offset passes at low alpha for the bloom - there is no shadowBlur
+     in this renderer, and a flat green number on a near-black card is the
+     one thing on screen that should not look flat. */
+  var cOff = [[0,-3],[3,0],[0,3],[-3,0]];
+  for (var cq = 0; cq < 4; cq++){
+    ctx.globalAlpha = a * 0.20;
+    gtxt(cVal, cOff[cq][0], cOff[cq][1], cVS, "#1f6b3a", "bold", "center");
+  }
+  ctx.globalAlpha = a;
+  gtxt(cVal, 0, 3, cVS, "#08220f", "bold", "center");
+  gtxt(cVal, 0, 0, cVS, C.good,   "bold", "center");
+  ctx.restore();
+  ctx.globalAlpha = a;
   ctx.restore();
   ctx.globalAlpha = 1;
   drawChuck(t);
@@ -12270,20 +12355,25 @@ function drawBrandHit(){
       ctx.font = "bold " + kS + 'px "Helvetica Neue",Helvetica,Arial,sans-serif';
       var kW = ctx.measureText(B.kick).width;
       var aH = kS * 0.80, aW = aH * 0.88, gap = 12;
-      var kX = cx - (aW + gap + kW) / 2;
+      /* One arrow each side, and the whole run - arrow, gap, words, gap,
+         arrow - is measured and centred as a single unit. Centring the text
+         and hanging the arrows off it leaves a short line visibly off-axis
+         from the badge above it. */
+      var kX = cx - (aW * 2 + gap * 2 + kW) / 2;
+      var kX2 = kX + aW + gap + kW + gap;
       /* A solid triangle rather than a glyph: an arrow typed as a character
          resolves to whatever the panel has and lands on a different baseline
          on every device. Three points always look like three points. */
-      function kTri(ox, oy, c){
+      function kTri(x0, ox, oy, c){
         ctx.fillStyle = c;
         ctx.beginPath();
-        ctx.moveTo(kX + aW/2 + ox, kY - aH/2 + oy);
-        ctx.lineTo(kX + aW   + ox, kY + aH/2 + oy);
-        ctx.lineTo(kX        + ox, kY + aH/2 + oy);
+        ctx.moveTo(x0 + aW/2 + ox, kY - aH/2 + oy);
+        ctx.lineTo(x0 + aW   + ox, kY + aH/2 + oy);
+        ctx.lineTo(x0        + ox, kY + aH/2 + oy);
         ctx.closePath(); ctx.fill();
       }
-      kTri(2, 3, sh);
-      kTri(0, 0, C.good);
+      kTri(kX,  2, 3, sh);  kTri(kX2,  2, 3, sh);
+      kTri(kX,  0, 0, C.good); kTri(kX2, 0, 0, C.good);
       txt(B.kick, kX + aW + gap + 2, kY + 3, kS, sh, "left");
       txt(B.kick, kX + aW + gap,     kY,     kS, C.good, "left");
     }
