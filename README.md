@@ -2531,7 +2531,7 @@ rare tier:
 **Cloud Insights** was Executive Sponsor, which handed him a car service and
 jumped him three rows. A power-up whose entire expression is the player being
 somewhere else a frame later: nothing to look at, nothing to play, and the one
-SKU in the pool with no product behind it. It is four seconds of **three blocks a
+SKU in the pool with no product behind it. It is three seconds of **three blocks a
 jump**: one forward tap clears two rows and lands on the third, at the
 ordinary step rate. Three rows in a third of the time would be nine times the
 ground, which is not a power-up, it is a cutscene — the leap is where the
@@ -2549,7 +2549,7 @@ row his own walk would have taken reads as a bug.
 **And he can still be hit from the side.** Neither the suit nor the leap
 touches the traffic. The lanes run across the street and he is hit from them
 exactly like anybody else, which is the only thing that can still end the run
-while the four seconds are up — a power-up that made him untouchable would
+while the three seconds are up — a power-up that made him untouchable would
 make them a loading screen. The leap does not test for traffic either:
 sailing over two lanes is the point, and he is as vulnerable as anybody else
 on the row he lands in. Verified both halves: a step into a blocked square is
@@ -2562,32 +2562,71 @@ overriding it: a man on his last point of health in running shoes is quick
 *for a man who is about to fall over*. Tagline on the burst, in the same
 treatment as every other SKU: *Accelerating your journey in the Cloud.*
 
-**Four seconds, down from ten.** Ten was double the TAM's flight, which is the
-wrong way round for a common pickup against the headline SKU — and at three
-rows a step it was long enough to cross most of a leg, so the back half was
-spent running out of generated world rather than using it. Four sits under the
-flight's five, which is the order these two belong in. The HUD chip reads
-`POWERS.sponsor.secs` for its bar, so the countdown rescaled on its own.
+**Three seconds, down from ten by way of four.** Ten was double the TAM's
+flight, which is the wrong way round for a common pickup against the headline
+SKU — and at three rows a step it was long enough to cross most of a leg, so
+the back half was spent running out of generated world rather than using it.
+Three sits under the flight's five, which is the order these two belong in.
+It refreshes rather than stacks (`Math.max`), so a second cloud resets the
+clock to three and never goes above it.
 
-It refreshes rather than stacks (`Math.max`), so a second cloud picked up
-mid-run resets the clock to four and never goes above it — verified through
-the real `collect()` path from 3s and from a full 4s.
+`DASH_WARN` came down to **1.0s** with it. 1.4 was 14% of ten and would have
+been 47% of three — half the power-up spent blinking, which turns the warning
+into the experience. At 1.0 it is the last third, close to the 28% the flight
+runs at.
 
-The one thing to watch at this length: `DASH_WARN` is still 1.4s, which was
-14% of ten and is **35% of four**. The TAM's flight warns for 28% of its five.
-If the blink starts to feel like most of the power-up rather than the end of
-it, that constant is the one to drop — 1.0s would put it at 25%, in line with
-the flight.
+### Three seconds has to be performed
+
+A three second power-up is over before an onlooker has worked out that it
+began. The HUD chip that carries every other SKU is 40px across in the bottom
+corner and was never going to hold this one, so the duration is staged
+(`drawDashHud`). Three pieces:
+
+**A strobe on pickup.** 0.42s, two hits rather than one fade — a single ramp
+down reads as a transition between screens, two read as something striking
+him. A rising sweep with a crack on the front of it goes with it, because a
+silent flash reads as a rendering fault.
+
+**A ring that drains, with the number inside it.** At y 268: below the
+pipeline and departure readouts, above `HORIZON`, so it covers sky and the
+tops of distant buildings and **nothing he can walk into**. It pops on each
+whole second so the count is felt as well as read, and the number carries a
+decimal because three integers in a row is not a countdown, it is a list. The
+SKU name sits under it — three seconds of somebody looking straight at the
+words is the entire exercise.
+
+**Edges that beat.** They thicken and quicken as the clock runs down and turn
+red for the last second, so the pressure is readable without looking away from
+his feet. The edges rather than the middle for the same reason as the ring:
+it is the one place a full-screen effect can go without hiding a taxi.
+
+A beat fires on each whole second (`Math.ceil`, so the first lands a second
+*in* — the strobe already owns the pickup moment and two hits on one frame
+read as one). The last one is a fifth higher, so the final second is audibly
+the final second.
+
+Verified through the real `collect()` and `update()` path: pickup at 3.000,
+beats at 1.98 and 0.98, warn window exactly 1.00s, strobe 0.42s, clock reaching
+zero at 3.0s.
+
+**On flashing, because this runs on wall panels.** The edge bars beat at
+1.75Hz at pickup rising to 4.0Hz at the end, and they are at most ~9% of the
+screen — WCAG's general and red flash thresholds apply above 25% of the
+viewing area, and 4Hz is well under the 15–20Hz worst band. The oscillation is
+a sine, so there are no hard transitions. The pickup strobe is full-screen but
+is two flashes, once, against a limit of three in any one second. **Do not
+raise the rate or the area to make it angrier** — make the bars brighter or
+thicker instead, and keep an eye on that 25%.
 
 **And it tells him before it stops.** The last 1.4 seconds the figure blinks,
 quickening as it goes, the HUD chip goes red and a beep counts down — the same
 `FLY_WARN` treatment the TAM's flight gets, on `DASH_WARN`. Every power-up
 that changes how he *moves* has to warn him: a man who is suddenly covering
-one row a tap, having spent four seconds judging gaps three rows at a time, is
+one row a tap, having spent three seconds judging gaps three rows at a time, is
 a man who has already stepped. The one that absorbs a hit or slows the world
 does not need this; the two that change his stride both do.
 
-**And he changes clothes for it.** Four seconds in a full orange suit with a
+**And he changes clothes for it.** Three seconds in a full orange suit with a
 cowl, gold bolts at the ears, a gold belt and a lightning bolt on a pale disc
 across his chest — the only power-up in the game that changes what he *is*
 rather than what he is carrying, and at three squares a step it has earned it.

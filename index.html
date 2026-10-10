@@ -629,6 +629,21 @@ var AUDIO = (function(){
       tone({ f:300, to:190, dur:0.5, type:"triangle", g:0.10, at:0.12, lp:900 });
     },
     /* flight lapsing: a short blip that climbs as the seconds go */
+    /* The shoes landing: a rising sweep with a crack on the front of it. It
+       has to cut through whatever is already playing, because the strobe is
+       simultaneous and a silent flash reads as a rendering fault. */
+    dashGo: function(){
+      tone({ f:420, to:1180, dur:0.26, type:"sawtooth", g:0.16, lp:4200 });
+      tone({ f:840, to:2360, dur:0.20, type:"square",   g:0.07, at:0.01 });
+      hit({ f:5200, hp:true, dur:0.13, g:0.11 });
+    },
+    /* And a beat on each whole second. The last one is a fifth higher so the
+       final second is audibly the final second without having to count. */
+    dashTick: function(n){
+      var f = n <= 1 ? 1240 : 820;
+      tone({ f:f, dur:0.085, type:"square", g:0.12, lp:3000 });
+      tone({ f:f*0.5, dur:0.14, type:"sine", g:0.09 });
+    },
     flyWarn: function(f){
       var base = 860 + (1 - f) * 540;
       tone({ f:base, dur:0.07, type:"square", g:0.12, lp:3200 });
@@ -2249,16 +2264,21 @@ var POWERS = {
      three rows - a power-up whose entire expression was the player being
      somewhere else a frame later. Nothing to look at, nothing to play, and
      the one SKU in the pool with no product behind it. */
-  /* Four seconds, down from ten. Ten was longer than the TAM's flight by
-     double, which is the wrong way round for a common pickup against the
-     headline SKU - and at three rows a step it was enough to cross most of a
-     leg, so the back half was spent running out of world rather than using
-     it. Four is shorter than the flight's five, which is the order these two
-     should be in. The HUD chip reads this constant for its bar, so the
-     countdown rescales on its own. */
+  /* Three seconds, down from ten by way of four. Ten was double the TAM's
+     flight, which is the wrong way round for a common pickup against the
+     headline SKU, and at three rows a step it was long enough to cross most
+     of a leg - the back half was spent running out of generated world rather
+     than using it.
+
+     Three is short enough that the whole thing is one held breath, which is
+     why it is staged rather than merely timed: see drawDashHud. A power-up
+     this brief has to announce itself, count itself down and get out, or it
+     is over before the player has registered that it started. Everything
+     that reads the length reads it from here - the HUD chip bar, the ring,
+     the urgency ramp - so this is still the one number to move. */
   sponsor:{ col:C.pw4, letter:"C", name:"CLOUD INSIGHTS",
             line:"Accelerating your journey in the Cloud. Orange high-tops, and he runs.",
-            secs:4 },
+            secs:3 },
   metro:  { col:"#ffd24a", letter:"M", name:"METROCARD",
             line:"Swipe in at any subway. Ride five to ten streets uptown.", secs:0 },
   /* The premium SKU, and the most powerful thing in the game: five seconds of
@@ -2600,8 +2620,25 @@ var FLY_WARN = 1.4;   // last seconds of flight: ring reddens, figure blinks, be
 /* And the same warning for Cloud Insights. Any power-up that changes how he
    MOVES has to tell him before it stops: a man who is suddenly walking at a
    third of the speed he was judging gaps at is a man who has already
-   stepped. */
-var DASH_WARN = 1.4;
+   stepped.
+
+   One second rather than the flight's 1.4, because this one is three seconds
+   long. 1.4 was 14% of the original ten and would be 47% of three - half the
+   power-up spent blinking, which turns the warning into the experience. At
+   1.0 it is the last third, close to the 28% the flight runs at. */
+var DASH_WARN = 1.0;
+
+/* ----------------------------------------------- STAGING THE THREE SECONDS
+   A three second power-up is over before an onlooker has worked out that it
+   began, so the length itself has to be performed. Three pieces, all of them
+   cheap: a strobe on pickup, a ring that drains with the number inside it,
+   and the screen edges pulsing in time and tightening as it runs out.
+
+   All of it is flat fills, arcs and stacked strokes - no filter, no
+   shadowBlur, nothing this panel cannot do (see RoomOS notes). */
+var DASH_FLASH  = 0.42;        // the pickup strobe
+var DASH_RING_Y = 268;         // clear of the HUD, above HORIZON, off the lanes
+var DASH_RING_R = 92;
 var TAM_COOLDOWN_ROWS = 16;   // uncommon, not rare - it is the headline SKU
 
 /* Things a ThousandEyes TAM actually does. One fires on a timer for as long as
@@ -3650,6 +3687,7 @@ function reset(){
     yumT:0, yumKind:null, yumDir:0, yumBite:0, wowT:0, cheerT:0,
     metro:0, ride:null, trace:null, rides:0, bonus:0, tamLeft:0, riskT:0, dashT:0,
     leapT:0, dashBeep:0, idleT:0, saver:false, hushed:false,
+    dashFlash:0, dashPulse:0, dashWhole:0,
     scene:null, scenesSeen:{}, ticker:null, notice:null, southT:0,
     leg:1, po:false, won:false,
     trainT:TRAIN_MAX, trainLine:tr[0], trainDest:tr[1],
@@ -4635,7 +4673,14 @@ function collect(){
     G.revealT = Math.max(G.revealT, k.secs);
     G.trace = buildTrace();
   }
-  else if (kind === "sponsor") G.dashT = Math.max(G.dashT, k.secs);
+  else if (kind === "sponsor"){
+    G.dashT = Math.max(G.dashT, k.secs);
+    /* The strobe fires on every pickup, including one taken mid-run, because
+       a refresh you cannot see is a refresh you do not trust. */
+    G.dashFlash = DASH_FLASH;
+    G.dashWhole = Math.ceil(G.dashT);
+    AUDIO.dashGo();
+  }
 }
 
 /* ===================== PATH VISUALIZATION ================================
@@ -8025,6 +8070,19 @@ function update(dt){
   if (G.slowT   > 0) G.slowT   = Math.max(0, G.slowT - dt);
   if (G.riskT > 0) G.riskT = Math.max(0, G.riskT - dt);
   if (G.dashT > 0) G.dashT = Math.max(0, G.dashT - dt);
+  if (G.dashFlash > 0) G.dashFlash = Math.max(0, G.dashFlash - dt);
+  /* A beat on every whole second the clock passes through. Ceil rather than
+     floor so the first beat lands a second IN rather than on the pickup -
+     the strobe already owns that moment and two hits on one frame read as
+     one. At three seconds this fires twice, on 2 and on 1, which is exactly
+     as much counting as three seconds can carry. */
+  if (G.dashT > 0 && G.state === ST_PLAY){
+    var dw = Math.ceil(G.dashT);
+    if (dw !== G.dashWhole){
+      G.dashWhole = dw; G.dashPulse = 1; AUDIO.dashTick(dw);
+    }
+  }
+  if (G.dashPulse > 0) G.dashPulse = Math.max(0, G.dashPulse - dt * 3.4);
   if (G.leapT > 0) G.leapT = Math.max(0, G.leapT - dt);
   if (G.hurtT > 0) G.hurtT = Math.max(0, G.hurtT - dt);
   if (G.nahT > 0)  G.nahT  = Math.max(0, G.nahT - dt);
@@ -11062,6 +11120,92 @@ function drawHurt(){
   ctx.globalAlpha = 1;
 }
 function drawHaze(){ ctx.fillStyle = hazeGrad; ctx.fillRect(0, HORIZON - 16, LOGICAL_W, 246); }
+
+/* ===================== CLOUD INSIGHTS, STAGED ============================
+   Three seconds is not long enough to be felt as a duration unless the
+   duration is shown, so this draws the clock rather than leaving it to the
+   HUD chip - which is 40px across in the bottom corner and was never going
+   to carry a three second power-up.
+
+   Deliberately NOT over the lanes he is about to step into. The ring sits at
+   y 268: below the pipeline and departure readouts, above HORIZON, which
+   means it covers sky and the tops of distant buildings and nothing he can
+   walk into. The edges pulse instead of the middle for the same reason - it
+   is the one place a full-screen effect can go without hiding a taxi. The
+   screen-wide strobe is the exception, and it lasts 0.42s on a pickup he
+   just chose to make.
+
+   Everything here is flat fills and arcs. The glow on the drain arc is three
+   stacked strokes of one path at falling alpha and rising width, which is
+   how every other glow in this file is done. */
+function drawDashHud(){
+  if (G.dashFlash <= 0 && G.dashT <= 0) return;
+  var col = POWERS.sponsor.col;
+  var ec  = G.dashT > 0 && G.dashT < DASH_WARN ? C.danger : col;
+
+  /* 1. THE STROBE. Two hits rather than one fade: a single ramp down reads as
+     a transition between screens, two read as something striking him. */
+  if (G.dashFlash > 0){
+    var f = G.dashFlash / DASH_FLASH;
+    var st = f > 0.64 ? 1 : (f > 0.42 ? 0.30 : f / 0.42);
+    ctx.globalAlpha = 0.40 * st;
+    ctx.fillStyle = "#fff0d6"; ctx.fillRect(0, 0, LOGICAL_W, LOGICAL_H);
+    ctx.globalAlpha = 0.30 * st;
+    ctx.fillStyle = col;       ctx.fillRect(0, 0, LOGICAL_W, LOGICAL_H);
+  }
+  if (G.dashT <= 0){ ctx.globalAlpha = 1; return; }
+
+  /* 2. THE EDGES. They beat faster and sit thicker as the clock runs down,
+     so the pressure is readable without looking away from his feet.
+
+     THE RATE IS CAPPED AT ABOUT 4Hz AND THE AREA IS DELIBERATELY SMALL.
+     1.75Hz at pickup rising to 25 rad/s, which is 4.0Hz, at the end. This is
+     a shared wall panel and flashing is a seizure risk, so: the bars are at
+     most ~9% of the screen against the 25% that WCAG's general and red flash
+     thresholds apply above, the oscillation is a sine rather than a square
+     so there are no hard transitions, and 4Hz stays well under the 15-20Hz
+     worst band. Do not raise either number to make it angrier - make the
+     bars brighter or thicker instead, and keep an eye on that 25%. */
+  var urg  = 1 - G.dashT / POWERS.sponsor.secs;
+  var beat = 0.5 + 0.5 * Math.sin(G.t * (11 + urg * 14));
+  var ea   = Math.min(0.80, (0.13 + 0.24 * urg) * (0.42 + 0.58 * beat) + G.dashPulse * 0.42);
+  var th   = 12 + 18 * urg + G.dashPulse * 20;
+  ctx.globalAlpha = ea; ctx.fillStyle = ec;
+  ctx.fillRect(0, 0, LOGICAL_W, th);
+  ctx.fillRect(0, LOGICAL_H - th, LOGICAL_W, th);
+  ctx.fillRect(0, 0, th, LOGICAL_H);
+  ctx.fillRect(LOGICAL_W - th, 0, th, LOGICAL_H);
+
+  /* 3. THE RING. It pops on each whole second so the count is felt as well
+     as read, and the number carries a decimal because three integers in a
+     row is not a countdown, it is a list. */
+  var cx = LOGICAL_W / 2, cy = DASH_RING_Y;
+  var pop = 1 + G.dashPulse * 0.20;
+  var r = DASH_RING_R * pop;
+  var frac = G.dashT / POWERS.sponsor.secs;
+
+  ctx.globalAlpha = 0.55; ctx.fillStyle = "#0a0c11";
+  ctx.beginPath(); ctx.arc(cx, cy, r + 12, 0, Math.PI*2); ctx.fill();
+  ctx.globalAlpha = 0.22; ctx.strokeStyle = "#ffffff"; ctx.lineWidth = 11;
+  ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI*2); ctx.stroke();
+
+  var a0 = -Math.PI/2, a1 = a0 + Math.PI*2*frac;
+  for (var g2 = 0; g2 < 3; g2++){
+    ctx.globalAlpha = g2 === 2 ? 0.96 : 0.20;
+    ctx.lineWidth   = g2 === 2 ? 12   : 12 + (2 - g2) * 11;
+    ctx.strokeStyle = ec;
+    ctx.beginPath(); ctx.arc(cx, cy, r, a0, a1); ctx.stroke();
+  }
+  ctx.globalAlpha = 1;
+  txt(Math.max(0, G.dashT).toFixed(1), cx, cy + 3, Math.round(70 * pop), ec, "center");
+  /* The SKU name under it. The whole exercise is that these words should be
+     the thing people remember, and a three second timer is three seconds of
+     somebody looking straight at it. */
+  /* Anchored to the UNPOPPED radius, or it hops down the screen twice a
+     second along with the ring. */
+  txt("CLOUD INSIGHTS", cx, cy + DASH_RING_R + 38, 24, col, "center");
+  ctx.globalAlpha = 1;
+}
 /* ===================== INTERNET INSIGHTS ==================================
    Paints every lane with the live risk of standing in it - seconds until a
    vehicle would reach that cell. Red is occupied or imminent, amber close,
@@ -12550,6 +12694,8 @@ function render(){
   drawLowHealth();
   drawSouth();
   drawHud();
+  /* Over the HUD, under the cutscenes. It is a mode, not an overlay. */
+  if (G.state === ST_PLAY && !G.ride && !G.scene) drawDashHud();
   if (G.state === ST_PLAY) drawLockup();
   if (G.state === ST_TITLE) drawTitle();
   if (G.state === ST_DEAD)  drawDead();
