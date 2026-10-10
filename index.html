@@ -3110,9 +3110,49 @@ function wpick(w){
    reaches that at 29.21. Rounding up to 29 or across to 28.6 both miss.
    The other five give up 1.9% of their own share between them to pay for
    it, which is unavoidable - the shares have to sum to one. */
+/* ===================== TEMPORARY, REMOVE BEFORE SHIPPING =================
+   A rate multiplier for testing a power-up without playing for it. Set
+   POWER_BOOST to null and the pool is exactly as it was.
+
+   It multiplies the RATE, not the weight, which is not the same thing and is
+   the mistake this file has made twice before: raising a weight raises the
+   denominator too, so doubling a weight is always less than doubling a rate.
+   boostPool solves it instead - the boosted kinds get the rate they were
+   asked for, and everything else keeps its proportions relative to the
+   others and shares out what is left.
+
+   At 5x, Traffic Insights goes 8.77% -> 43.86% and Internet Insights
+   3.13% -> 15.67%, which is 59.5% of every drop between them. The other
+   four are squeezed into the remaining 40%: the metrocard drops from 48%
+   to 20%. That is what 5x costs, and it is why this is temporary.
+   ========================================================================= */
+var POWER_BOOST = { traffic:5, insight:5 };
+
+function boostPool(base, boost){
+  if (!boost) return base;
+  var W = 0, k, taken = 0, rest = 0, out = {};
+  for (k in base) W += base[k];
+  for (k in base){
+    if (boost[k]) taken += boost[k] * base[k] / W;
+    else rest += base[k] / W;
+  }
+  /* If the boosted kinds alone would be more than everything, there is no
+     room left to share and the ask is impossible - leave the pool alone
+     rather than emitting negative weights. */
+  if (taken >= 1 || rest <= 0) return base;
+  var scale = (1 - taken) / rest;
+  for (k in base){
+    out[k] = boost[k] ? boost[k] * base[k] / W : (base[k] / W) * scale;
+  }
+  return out;
+}
+
 var POWER_WEIGHTS = {
   metro:77, chuck:34.81, agent:23, traffic:14, insight:5, sponsor:5.78
 };
+/* What the generator actually draws from. Identical to POWER_WEIGHTS once
+   POWER_BOOST is null again. */
+var POWER_DROPS = boostPool(POWER_WEIGHTS, POWER_BOOST);
 /* How far the world is throttled while Internet Insights is up. One constant,
    because the mover and the crossing test both read it and they must agree -
    a predictor running at a different rate than the thing it predicts will tell
@@ -4617,7 +4657,7 @@ function makeWalk(r, park, crowd, hood){
         // the TAM is the rare drop, gated by its own long cooldown
         var kind = (legDir > 0 && r > 7 && r - lastTam >= TAM_COOLDOWN_ROWS &&
                     Math.random() < TAM_CHANCE)
-                   ? "tam" : wpick(POWER_WEIGHTS);
+                   ? "tam" : wpick(POWER_DROPS);
         if (kind === "tam") lastTam = r;
         pickup = { col:pc, kind:kind };
         lastPower = r; break;

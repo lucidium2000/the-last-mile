@@ -4041,6 +4041,29 @@ rare tier:
 > still needs `HOOD_GREED_AFTER` 4 seconds of chasing first, and on the train
 > he still wants it immediately.
 
+> ⚠️ **TEMPORARY — `POWER_BOOST` is live.** Traffic Insights and Internet
+> Insights are both at **5× their normal rate** so the two new costumes can be
+> tested without playing for them. Set `POWER_BOOST = null` to ship.
+>
+> It multiplies the **rate**, not the weight — which is not the same thing, and
+> is the mistake this file has made twice before: raising a weight raises the
+> denominator too, so doubling a weight is always less than doubling a rate.
+> `boostPool` solves it instead, giving the boosted kinds exactly the rate
+> asked for and sharing what is left among the others in their existing
+> proportions.
+>
+> | | normal | boosted | |
+> |---|---|---|---|
+> | Traffic Insights | 8.77% | **43.86%** | ×5.00 |
+> | Internet Insights | 3.13% | **15.67%** | ×5.00 |
+> | metrocard | 48.25% | 22.17% | ×0.46 |
+> | Chuck Bucks | 21.81% | 10.02% | ×0.46 |
+> | Endpoint Agent | 14.41% | 6.62% | ×0.46 |
+> | Cloud Insights | 3.62% | 1.66% | ×0.46 |
+>
+> The two of them are **59.5% of every drop** between them, which is what 5×
+> costs. Verified over 978 generated drops: 44.8% and 14.1% observed.
+
 > **Testing a power-up:** `?pw=<kind>` plants that one on the first pavement
 > of the run, two rows straight ahead of where he starts, every time —
 > `?pw=sponsor` for Cloud Insights, and `tam`, `agent`, `insight`, `traffic`,
