@@ -454,6 +454,40 @@ var AUDIO = (function(){
       reap(src, [f, g], t + dur + 0.02);
     } catch (e){}
   }
+  /* A WHOOSH, which hit() could not do. hit() is a percussive thing: the
+     gain starts at full and decays, which is what a bump, a hiss or a brake
+     sounds like. Air going past you does the opposite - it is not there,
+     then it is, then it is not - so the envelope has to SWELL. That one
+     difference is the whole cue.
+
+     Bandpass rather than hit()'s low or high pass, because a swept band is
+     what gives it a direction: the ear hears the moving centre frequency as
+     something travelling past, where a sweeping lowpass just opens and shuts
+     like a filter on a synth.
+
+     src.loop MATTERS. noiseBuf is 0.35s and this plays for up to 0.7, so
+     without the loop the back half of every whoosh is silence - and silence
+     halfway through a swell reads as the sound being cut off rather than as
+     a cue, which is worse than not having one. */
+  function whoosh(o){
+    if (!live()) return;
+    try {
+      var t = ac.currentTime + (o.at || 0), dur = o.dur;
+      var src = ac.createBufferSource();
+      src.buffer = noiseBuf; src.loop = true;
+      var f = ac.createBiquadFilter(), g = ac.createGain();
+      f.type = "bandpass";
+      f.Q.value = o.q || 1.1;
+      f.frequency.setValueAtTime(o.f, t);
+      f.frequency.exponentialRampToValueAtTime(Math.max(60, o.to), t + dur);
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.exponentialRampToValueAtTime(o.g || 0.15, t + dur * (o.peak || 0.42));
+      g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+      src.connect(f); f.connect(g); g.connect(master);
+      src.start(t); src.stop(t + dur + 0.02);
+      reap(src, [f, g], t + dur + 0.02);
+    } catch (e){}
+  }
   function arp(notes, type, gain, lp){
     for (var i = 0; i < notes.length; i++){
       tone({ f:notes[i], dur:0.17, type:type, g:gain, at:i * 0.068, lp:lp });
@@ -712,6 +746,28 @@ var AUDIO = (function(){
     },
     /* air-brake hiss when a bus pulls up */
     hiss: function(){ hit({ f:5200, to:2200, hp:true, dur:0.26, g:0.07 }); },
+    /* THE BACKFLIP, in four parts over the 1.08 seconds the move takes.
+
+       Two whooshes rather than one, crossfading at the apex: the first
+       sweeps UP as he leaves the kerb and the second sweeps DOWN as he comes
+       over, which is the Doppler of a thing passing rather than a thing
+       approaching. One whoosh going one way is a swing; two meeting in the
+       middle is a pass.
+
+       Under both of them a sine falling from 180Hz to 42, lowpassed hard.
+       That is the bullet-time drop - the sound of the world slowing, not of
+       him moving - and it is the part doing the film impression. Without it
+       the whooshes are a man jumping; with it they are a man jumping while
+       everything else holds its breath.
+
+       And a thump on the far kerb at 1.05s, because an arc that does not
+       land has not finished. */
+    flip: function(){
+      whoosh({ f:170, to:2600, dur:0.44, g:0.13, q:0.9, peak:0.62 });
+      whoosh({ f:2600, to:170, dur:0.72, g:0.15, q:0.9, peak:0.26, at:0.40 });
+      tone({ f:180, to:42, dur:1.00, type:"sine", g:0.14, lp:420 });
+      hit({ f:700, to:120, dur:0.20, g:0.13, at:1.05 });
+    },
     missedClose: function(){
       tone({ f:392, to:196, dur:0.7, type:"sawtooth", g:0.22, lp:900 });
       tone({ f:261, to:130, dur:0.8, type:"triangle", g:0.16, at:0.1 });
@@ -5859,19 +5915,33 @@ function act(dir){
      any point in the hop. G.leapT is set anyway, because the landing rules
      should not depend on that remaining true.
 
-     IT BAILS RATHER THAN FORCES. If the far kerb is past the end of the
-     generated world, or the square he would land on is occupied, the whole
-     thing is dropped and he takes the ordinary step into lane one - with no
-     flip, because a flip that ends in traffic is the bug this fixes. */
+     IT TAKES THE SECOND ROW OF PAVEMENT IF IT HAS TO. The first version
+     insisted on the kerb itself and dropped the whole move if that square
+     was taken - and a hot dog cart sitting on the far kerb in his column is
+     common enough that the flip was quietly failing to happen, which from
+     the player's side is the power-up not working. A sidewalk strip is
+     usually two rows deep; if the first is occupied the second is still the
+     other side of the street.
+
+     IT STILL BAILS RATHER THAN FORCES. Past the end of the generated world,
+     or two rows of blocked pavement, or the next street starting before any
+     landing was found, and the whole thing is dropped: he takes the ordinary
+     step into lane one with no flip, because a flip that ends in traffic is
+     the bug this fixes. */
   if (dir === "f" && G.slowT > 0 && !(G.dashT > 0) && nr === G.row + 1 &&
       isRoadRow(rows[nr]) && !isRoadRow(rows[G.row])){
-    var fland = -1;
+    var fland = -1, fsafe = 0;
     for (var fq = 2; fq <= FLIP_REACH; fq++){
       var fcand = rows[G.row + fq];
       if (!fcand) break;
-      if (!isRoadRow(fcand)){ fland = G.row + fq; break; }
+      /* Still tarmac: keep going - unless pavement has already been reached
+         and lost, in which case this is the NEXT street and he is done. */
+      if (isRoadRow(fcand)){ if (fsafe) break; continue; }
+      fsafe++;
+      if (!(fcand.blocked && fcand.blocked[nc])){ fland = G.row + fq; break; }
+      if (fsafe >= 2) break;
     }
-    if (fland > 0 && !(rows[fland].blocked && rows[fland].blocked[nc])){
+    if (fland > 0){
       nr = fland;
       G.leapT = LEAP_GRACE; G.leapDir = 1;
     }
@@ -5892,6 +5962,7 @@ function act(dir){
      - and cleared on every step that is not one, for the same reason. */
   G.flip = (G.slowT > 0 && !(G.dashT > 0) && nr > G.fromRow + 1 &&
             isRoadRow(rows[G.fromRow + 1]) && !isRoadRow(rows[nr])) ? 1 : 0;
+  if (G.flip) AUDIO.flip();
   G.row = nr; G.col = nc; G.hop = 0;
   if (nr > G.maxRow){ G.maxRow = nr; progress(); }
   ensureRows(G.maxRow + ROWS_AHEAD);
@@ -6746,7 +6817,7 @@ function colSafeFor(r, col, secs){
    reads as a glitch in the sprite rather than as a man in the air. */
 var FLIP_LIFT = 94;        // px at the top of the arc
 var FLIP_GHOSTS = 3;       // afterimages behind the spin
-var FLIP_SLOW = 2;         // and the hop takes this much longer than a step
+var FLIP_SLOW = 6;         // and the hop takes this much longer than a step
 var FLIP_REACH = 7;        // the widest street it will try to clear
 
 function flipK(){
@@ -12212,12 +12283,17 @@ function update(dt){
        twice as much coming at him. It multiplies with the worn drag rather
        than overriding it - a man on his last point of health in running
        shoes is quick for a man who is about to fall over. */
-    /* And the backflip takes twice as long as the step it replaces. It is
-       the one move in the game that is there to be LOOKED at - a full
-       rotation at the ordinary hop rate is over before the eye has found it,
-       and this is already a power-up whose entire premise is that there is
-       time. It covers three or four times the ground in that doubled window,
-       so he is still crossing faster than he would walk it. */
+    /* And the backflip takes SIX times as long as the step it replaces -
+       about 1.08 seconds against a 180ms slow-motion step. It went to two
+       first, which was better and still not the thing: two is a quick man
+       doing a trick, and what this is impersonating is bullet time, where
+       the camera has all the time in the world and the man in the air is
+       the only thing worth watching.
+
+       A second is a long hold in a game where a step is 135ms, and it is
+       affordable for exactly one reason: he is untouchable for the whole arc
+       (see act()), and everything else on screen is already at an eighth
+       speed, so a second of his clock is an eighth of a second of theirs. */
     G.hop += dt*1000 * (G.slowT > 0 ? SLOW_MAN : 1)
              / (HOP_MS * (1 - 0.32*G.flyA) * drag * dashK()
                 * (G.flip ? FLIP_SLOW : 1));
@@ -13161,13 +13237,16 @@ function hopMs(p){ return 4 + ((p.r * 7 + p.c * 13 + 11) % 46); }
    sixty times a second would be noise, and noise is not a diagnosis. The
    randomness is in WHICH hops and WHEN, not in what they are doing now. */
 var DEGRADE_FADE  = 1.2;    // where the existing alpha fade starts
-/* SIX SECONDS, not one. At one second the whole turn from green to red
+/* EIGHT SECONDS, from one, via six. At one the whole turn from green to red
    happened in a blink right at the end and you had to already be looking at
-   the route to catch it. Six gives it most of the power-up: the line resolves
-   green, runs clean while he crosses a street or two, and then starts losing
-   hops one at a time with plenty of time left to watch it happen. That is the
-   shape of an actual incident, and it is also the shape of a demo. */
-var DEGRADE_LEAD  = 6.0;    // and how long before that the trouble starts
+   the route to catch it. Eight is most of the fourteen the power-up runs: the
+   line resolves green in the first six tenths, runs clean for about four
+   seconds while he crosses a street, and then spends the remaining eight
+   losing hops one at a time. That is the shape of an actual incident, and it
+   is also the shape of a demo - the clean state has to be on screen long
+   enough to be the baseline, and after that the longer it degrades the more
+   of it anybody actually sees. */
+var DEGRADE_LEAD  = 8.0;    // and how long before that the trouble starts
 var DEGRADE_SHARE = 0.38;   // the share of hops that ever go bad at all
 var DEGRADE_IN    = 0.72;   // the last one turns this far into the window
 var DEGRADE_RAMP  = 0.18;   // how long one hop takes to come up

@@ -3612,12 +3612,15 @@ say the colour is decoration:
   `N HOPS DEGRADED` line that only exists once something is wrong, so it reads
   as an alarm rather than as a field that happens to say zero.
 
-**Six seconds, not one.** The first cut gave it a single second and the whole
-turn from green to red happened in a blink right at the end; you had to already
-be looking at the route to catch it. Six gives it most of the power-up: the
-line resolves green, runs clean while he crosses a street or two, then starts
-losing hops one at a time with plenty of time left to watch it happen. That is
-the shape of an actual incident, and it is also the shape of a demo.
+**Eight seconds, from one, via six.** The first cut gave it a single second
+and the whole turn from green to red happened in a blink right at the end; you
+had to already be looking at the route to catch it. Eight is most of the
+fourteen the power-up runs: the line resolves green in the first six tenths,
+runs clean for about four seconds while he crosses a street, then spends the
+remaining eight losing hops one at a time. That is the shape of an actual
+incident, and it is also the shape of a demo — the clean state has to be on
+screen long enough to *be* the baseline, and after that, the longer it degrades
+the more of it anybody actually sees.
 
 ## Neo goes over backwards
 
@@ -3644,16 +3647,47 @@ is not. The lanes in between are never his row at any point in the hop.
 `G.leapT` is set anyway, because the landing rules should not depend on that
 staying true.
 
-**It bails rather than forces.** If the far kerb is past the end of the
-generated world, or the square he would land on is occupied, the whole thing is
-dropped and he takes the ordinary step into lane one — with no flip, because a
-flip that ends in traffic is the bug this fixes.
+**It takes the second row of pavement if it has to.** The first version
+insisted on the kerb itself and dropped the whole move if that square was taken
+— and a hot dog cart sitting on the far kerb in his column is common enough
+that the flip was quietly failing to happen, which from the player's side is
+the power-up not working. A sidewalk strip is usually two rows deep; if the
+first is occupied the second is still the other side of the street.
 
-**And it takes twice as long as the step it replaces.** 357ms measured against
-a 180ms slow-motion step. It is the one move in the game that exists to be
-*looked* at, and a full rotation at the ordinary hop rate is over before the eye
-has found it. It still covers three or four times the ground in that doubled
-window, so he is crossing faster than he could walk it.
+**It still bails rather than forces.** Past the end of the generated world, or
+two rows of blocked pavement, or the next street starting before any landing
+was found, and the whole thing is dropped: he takes the ordinary step into lane
+one with no flip, because a flip that ends in traffic is the bug this fixes.
+
+**It takes six times as long as the step it replaces** — 1079ms measured
+against a 180ms slow-motion step. It went to two first, which was better and
+still not the thing: two is a quick man doing a trick, and what this is
+impersonating is bullet time, where the camera has all the time in the world
+and the man in the air is the only thing worth watching.
+
+A second is a long hold in a game where a step is 135ms, and it is affordable
+for exactly one reason: he is untouchable for the whole arc, and everything
+else on screen is already at an eighth speed, so a second of his clock is an
+eighth of a second of theirs.
+
+**And it has a whoosh now**, in four parts across that second. Two of them,
+crossfading at the apex — the first sweeping *up* as he leaves the kerb, the
+second sweeping *down* as he comes over. One whoosh going one way is a swing;
+two meeting in the middle is a pass. Under both, a sine falling from 180Hz to
+42 behind a hard lowpass: that is the bullet-time drop, the sound of the world
+slowing rather than of him moving, and it is the part doing the film
+impression. Then a thump on the far kerb at 1.05s, because an arc that does not
+land has not finished.
+
+It needed a new primitive. `hit()` is percussive — the gain starts at full and
+decays, which is what a bump, a hiss or a brake sounds like. Air going past you
+does the opposite: it is not there, then it is, then it is not, so the envelope
+has to **swell**. That one difference is the whole cue. Bandpass rather than
+`hit()`'s low or high pass, because a swept band is what gives it a direction;
+a sweeping lowpass just opens and shuts like a filter on a synth. And
+`src.loop` matters — `noiseBuf` is 0.35s and this plays for up to 0.7, so
+without it the back half of every whoosh is silence, which reads as the sound
+being cut off rather than as a cue.
 
 Whether he is flipping is **derived, not flagged**: more than one row, in slow
 motion, off a sidewalk, over tarmac, onto something that is not tarmac. There
