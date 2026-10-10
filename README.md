@@ -3116,7 +3116,62 @@ push the stack down onto the row he is reading. Measured, the burst now bottoms
 out at **y 662** with a kicker against 639 for the big ones — still clear of
 the second row ahead of him at 714, which is the one that matters.
 
-### Power-ups
+#
+## The Desk Pro crash
+
+It started crashing a Desk Pro after a few goes. The obvious suspect was a
+leak in the new code — the dash, the ending scenes, the flight audio — so
+that is what got measured first, and all of it came back clean:
+
+| what | measured | verdict |
+|---|---|---|
+| JS heap | 23 runs, 132s of real play | 5.9 → 6.2MB, flat |
+| world rows | across those runs | 16–27, pruned |
+| audio chains | the whole ending, real time | peak 107, drains to 0 |
+| canvas state stack | gameplay + all 9 scenes | save/restore balanced, net 0/frame |
+| frame cost | gameplay vs every scene | 1.01ms play, every scene cheaper |
+| listeners, rAF, timers | — | registered once, one loop |
+| localStorage | per run | fixed-size counters, board capped at 25 |
+
+**There is no JS memory leak.** Which is exactly why it took a while: a Desk
+Pro was dying while `performance.memory` sat flat, because the memory that
+was killing it is not on the JS heap at all.
+
+**The sprite atlas is 159 separate canvases** — 13.1MB of pixels here, about
+18MB at the `BAKE` of 1 a Desk Pro runs at, and, since every sprite is its
+own canvas, 159 separate GPU textures.
+
+**And `bakeAll` runs more than once.** It fires whenever the scale moves more
+than 2%, and a fullscreen toggle moves it from 0.845 to 1.0 — so every tap of
+FULL SCREEN rebuilt all 159. Dropping the reference to a canvas does not free
+it: the JS object has to be collected first, and only then does Chromium
+release the backing store, with the GPU texture held in Skia's resource cache
+until a budget forces it out. On a desktop that budget is large and the churn
+is invisible. On a Desk Pro it is small, and the eviction can arrive *after*
+the allocation that needed the room, which is a renderer crash rather than a
+slow frame.
+
+Measured, holding the references the way the GPU does: **twelve re-bakes
+orphaned 1,908 canvases holding 187.9MB**, every one still carrying pixels.
+Six fullscreen toggles. That is the crash, and a hallway demo where people
+tap FULL SCREEN between runs is precisely its shape.
+
+The fix is one lever, and it is the only one a page has over canvas memory:
+setting `width = 0` frees the backing store **immediately and
+synchronously**. So `releaseAtlas()` hands the old atlas back *before* the
+new one is asked for — which also means peak usage is one atlas plus one
+sprite, rather than two entire atlases at once. After: twenty rebuilds, 159
+sprites, 13.1MB, pinned, with the heap flat beside it.
+
+**And the sky gradient was being built sixty times a second.** `drawSky`
+allocated a fresh `createLinearGradient` every frame — 3,600 a minute, a
+quarter of a million an hour on a panel left running in a hallway — where
+every other gradient in the file is built once in `layout()` and kept. A
+gradient is a GPU object with a shader behind it. It is now cached like the
+rest, and nulled in `layout()` with them, because a gradient belongs to the
+transform it was built under. 300 frames went from 300 allocations to 0.
+
+## Power-ups
 
 Four common ThousandEyes capabilities — Endpoint Agent (absorbs one hit),
 Internet Insights (drops the world into slow motion), Path Visualization (lights

@@ -1312,6 +1312,10 @@ function layout(){
   ctx.setTransform(scale, 0, 0, scale, 0, 0);
   ctx.textBaseline = "middle";
 
+  /* Every cached gradient is rebuilt here because the transform just
+     changed. glowGrad and the bokeh pair are built lazily on first use, so
+     they are nulled rather than rebuilt - the next frame makes them. */
+  glowGrad = null; bkWarm = null; bkCool = null; bkVig = null;
   skyGrad = ctx.createLinearGradient(0, 0, 0, LOGICAL_H);
   skyGrad.addColorStop(0, C.sky0);
   skyGrad.addColorStop(0.40, C.sky1);
@@ -3444,8 +3448,49 @@ function bakeStrip(kind, alt){
 
 /* ---------------------------------------------------------------- bake all */
 var S = {};
+
+/* RELEASE THE OLD ATLAS BEFORE BUILDING A NEW ONE.
+
+   The sprite atlas is 159 separate canvases - about 18MB of pixels at
+   BAKE 1, and, because every canvas is its own texture, 159 separate
+   allocations on the GPU. Dropping the reference to one does NOT free it
+   promptly: the JS object has to be collected first, and Chromium then
+   releases the backing store and the texture on its own schedule, with the
+   texture held in Skia's resource cache until a budget forces it out. On a
+   desktop that budget is large and the churn is invisible. On a Desk Pro it
+   is small, and the eviction can arrive AFTER the allocation that needed the
+   room - which is a renderer crash, not a slow frame.
+
+   And bakeAll runs more than once. Every fullscreen toggle changes the scale
+   by more than the 2% threshold, so going in and out of fullscreen twice -
+   four layouts - builds the whole atlas four times. Measured: four calls,
+   four full rebuilds, nothing released in between. A hallway demo where
+   people tap FULL SCREEN between runs is the exact shape of "it crashes
+   after a few goes".
+
+   Setting width to 0 frees the backing store immediately and synchronously,
+   which is the one lever a page has over canvas memory. So the old atlas is
+   handed back BEFORE the new one is asked for, and peak usage is one atlas
+   plus one sprite rather than two whole atlases at once. */
+function releaseAtlas(){
+  var k, v, i;
+  function drop(o){
+    if (!o || !o.img || !o.img.width) return;
+    try { o.img.width = 0; o.img.height = 0; } catch (e){}
+  }
+  for (k in S){
+    v = S[k];
+    if (!v) continue;
+    if (Object.prototype.toString.call(v) === "[object Array]"){
+      for (i = 0; i < v.length; i++) drop(v[i]);
+    } else drop(v);
+  }
+  S = {};
+}
+
 function bakeAll(){
   var i, k, m;
+  releaseAtlas();
   for (i=0;i<ALL_HAZ.length;i++){
     k = ALL_HAZ[i]; m = MODELS[k]();
     S[k+"_r"] = bake(m);
@@ -11433,15 +11478,24 @@ var LANDMARKS = [
   { from:60, to:999, fade:3, lane:-1, draw:lmPark }
 ];
 
+/* Built once, not sixty times a second. This one was allocating a fresh
+   gradient on every single frame of the game - 3,600 a minute, a quarter of
+   a million an hour on a panel left running in a hallway - where every other
+   gradient in the file is built in layout() and kept. A gradient is a GPU
+   object with a shader behind it, so this is the cheapest allocation in the
+   file to stop making. Cleared by layout(), like the rest. */
+var glowGrad = null;
 function drawSky(){
   ctx.fillStyle = skyGrad;
   ctx.fillRect(0, 0, LOGICAL_W, LOGICAL_H);
 
   // warm glow behind the skyline, brightest right at the street
-  var gl = ctx.createLinearGradient(0, SKY_BASE - 150, 0, SKY_BASE);
-  gl.addColorStop(0, "rgba(201,72,10,0)");
-  gl.addColorStop(1, "rgba(201,72,10,0.30)");
-  ctx.fillStyle = gl;
+  if (!glowGrad){
+    glowGrad = ctx.createLinearGradient(0, SKY_BASE - 150, 0, SKY_BASE);
+    glowGrad.addColorStop(0, "rgba(201,72,10,0)");
+    glowGrad.addColorStop(1, "rgba(201,72,10,0.30)");
+  }
+  ctx.fillStyle = glowGrad;
   ctx.fillRect(0, SKY_BASE - 150, LOGICAL_W, 150);
 
   var i;
