@@ -3562,6 +3562,28 @@ function propAtObj(row, col, kind){
   }
   return null;
 }
+/* Is there something at this square he would STOP for? Used by the sideways
+   leap, which has to arrive at things rather than fly over them.
+
+   Food he has not finished, a terminal he has not used, a paper he has not
+   read, a staircase. Not scaffolding, not a parked truck, not a bin - those
+   are the things the suit is supposed to go through, and they are exactly
+   what it would be maddening to be stopped by. The test is "is there
+   something here that would have happened if he had walked into it", which
+   is the only definition that keeps the leap and the walk telling the same
+   story. */
+function interactAt(row, col){
+  if (!row || !row.props) return false;
+  for (var i = 0; i < row.props.length; i++){
+    var pr = row.props[i];
+    if (pr.col !== col) continue;
+    if (pr.kind === "kiosk" && !pr.used) return true;
+    if (pr.kind === "newsstand" && !pr.read) return true;
+    if (pr.kind === "subway") return true;
+    if (foodPropAt(row, col)) return true;
+  }
+  return false;
+}
 function foodPropAt(row, col){
   if (!row || !row.props) return null;
   for (var i = 0; i < row.props.length; i++){
@@ -3733,7 +3755,7 @@ function reset(){
     brand:null, pipePop:0, rise:null, tam:false, tamT:0, tamWins:0, tamWin:null, hurtT:0, nahT:0, nahSay:null, walkSaid:false,
     yumT:0, yumKind:null, yumDir:0, yumBite:0, wowT:0, cheerT:0,
     metro:0, ride:null, trace:null, rides:0, bonus:0, tamLeft:0, riskT:0, dashT:0,
-    leapT:0, dashBeep:0, idleT:0, saver:false, hushed:false,
+    leapT:0, leapDir:1, dashBeep:0, idleT:0, saver:false, hushed:false,
     dashFlash:0, dashPulse:0, dashWhole:0,
     scene:null, scenesSeen:{}, ticker:null, notice:null, southT:0,
     leg:1, po:false, won:false,
@@ -4083,6 +4105,46 @@ function act(dir){
 
   if (nc < 0 || nc > COLS-1){ AUDIO.bump(); return; }
   if (nr < 0 || nr < G.maxRow - 6){ AUDIO.bump(); return; }
+
+  /* ------------------------------------------- THE SIDEWAYS LEAP, RESOLVED
+     Three columns a stride, and it has to be settled HERE rather than after
+     the interaction checks below, because those checks only ever look at the
+     one square named in `nc`. While the reach was applied further down, a
+     leap sailed straight over a hot dog cart two columns away: the cart was
+     never the square being tested.
+
+     So the sweep walks the squares in travel order and does two different
+     things with what it finds.
+
+     PICKUPS ARE TAKEN IN PASSING. Running over a TAM and not picking it up
+     because you happened to be moving quickly is not a rule anybody would
+     defend, and collect() takes the column now so he does not have to land
+     on it.
+
+     ANYTHING HE WOULD HAVE STOPPED FOR STOPS HIM. The leap ends on that
+     square and the ordinary interaction below runs exactly as it would for
+     a walk - he eats, reads, attaches, swipes in. Sideways is the deliberate
+     move, the one you make to go and GET something; forward is progress and
+     still goes through everything. That asymmetry is the whole point of
+     doing this on one axis and not both.
+
+     Only pavement furniture counts (see interactAt) - scaffolding, parked
+     trucks and bins are still run straight through, because being stopped
+     dead by a skip is the thing the suit exists not to do. */
+  var sweptStop = false;
+  if ((dir === "l" || dir === "r") && G.dashT > 0){
+    var sdir = nc - G.col, srow = rows[G.row], reachS = G.col;
+    for (var sq = 1; sq <= DASH_JUMP; sq++){
+      var sc = G.col + sdir * sq;
+      if (sc < 0 || sc > COLS - 1) break;
+      reachS = sc;
+      if (srow && srow.pickup && srow.pickup.col === sc) collect(sc);
+      if (interactAt(srow, sc)){ sweptStop = true; break; }
+    }
+    nc = reachS;
+    if (Math.abs(nc - G.col) > 1){ G.leapT = LEAP_GRACE; G.leapDir = 1; }
+  }
+
   var target = rows[nr];
   /* A TE-ADDON terminal runs a trace for you. You do not step into
      it - you use it from where you stand - so the kiosk stays solid and is
@@ -4148,7 +4210,8 @@ function act(dir){
      else, which is the only thing that can still end the run while the ten
      seconds are up. A power-up that made him untouchable would make the ten
      seconds a loading screen. */
-  if (G.flyT <= 0 && G.dashT <= 0 && target && target.blocked && target.blocked[nc]){
+  if (G.flyT <= 0 && (G.dashT <= 0 || sweptStop) &&
+      target && target.blocked && target.blocked[nc]){
     /* Walk into a bagel cart, a slice counter or a hot dog stand and he stops,
        pays and eats. It costs nothing - the step was already refused - and it
        is the only time anything on the pavement answers back. */
@@ -4325,28 +4388,32 @@ function act(dir){
        which is the one thing sailing over two lanes is supposed to rule
        out. It covers the flight and the moment after it; standing there is
        still standing there. */
-    if (nr > G.row + 1) G.leapT = LEAP_GRACE;
+    if (nr > G.row + 1){ G.leapT = LEAP_GRACE; G.leapDir = 1; }
   }
-  /* AND THE SAME SIDEWAYS. The stride is the stride whichever way he is
-     pointing - a man covering three rows a stride does not cover one column
-     a stride, and having the suit only work up the screen made the sideways
-     tap feel like the power had switched itself off. It is also the move
-     that gets him out from under a bus, which is the one place three
-     squares of reach is worth most.
+  /* AND BACKWARDS, which was the one direction left out and the one that
+     made the suit look broken.
 
-     It stops at the edge of the STREET rather than the edge of the
-     generated world: there is no column 15 to land in, and a leap that runs
-     off the kerb would have to be clamped anyway. Same grace, same air, and
-     it goes through props and people exactly as the forward leap does. */
-  if ((dir === "l" || dir === "r") && G.dashT > 0 && Math.abs(nc - G.col) === 1){
-    var stepc = nc - G.col, reachc = nc;
-    for (var jc = 2; jc <= DASH_JUMP; jc++){
-      var cand = G.col + stepc * jc;
-      if (cand < 0 || cand > COLS - 1) break;
-      reachc = cand;
+     Forward and sideways leap three and arm LEAP_GRACE, which is what keeps
+     him from being hit while he is still in the air over a lane - and it is
+     also what arms the vault, the rule that bumps him a row clear instead of
+     killing him if he comes down on a vehicle. Backwards did neither. So
+     retreating in the suit was the one move that put him on a single square
+     at walk speed with no grace and no vault, into lanes he had just leapt
+     over: he was hit stepping back out of exactly the traffic the power-up
+     had carried him across, which reads as the suit switching itself off.
+
+     The floor is the same one the ordinary step obeys - six rows below
+     maxRow, and never below row 0 - clamped here because the bounds check
+     above only ever saw a single step back. */
+  if (dir === "b" && G.dashT > 0 && nr === G.row - 1){
+    var floorR = Math.max(0, G.maxRow - 6), reachb = nr;
+    for (var jb = 2; jb <= DASH_JUMP; jb++){
+      var candb = G.row - jb;
+      if (candb < floorR || !rows[candb]) break;
+      reachb = candb;
     }
-    nc = reachc;
-    if (Math.abs(nc - G.col) > 1) G.leapT = LEAP_GRACE;
+    nr = reachb;
+    if (nr < G.row - 1){ G.leapT = LEAP_GRACE; G.leapDir = -1; }
   }
 
   G.steps++;
@@ -4633,9 +4700,11 @@ window.addEventListener("keydown", function(e){
 });
 
 /* ----------------------------------------------------------------- powers */
-function collect(){
+function collect(atCol){
   var row = rows[G.row];
-  if (!row || !row.pickup || row.pickup.col !== G.col) return;
+  /* atCol lets a sideways leap sweep a pickup up from a square it is only
+     passing through. Everything after this point is position independent. */
+  if (!row || !row.pickup || row.pickup.col !== (atCol === undefined ? G.col : atCol)) return;
   var kind = row.pickup.kind, k = POWERS[kind];
   row.pickup = null;
   G.powersUsed++;
@@ -8513,10 +8582,24 @@ function update(dt){
          and runs out in 0.22s, so a man who leaps into a lane and stands
          there is hit by the next thing along exactly like anybody else.
          Being carried is the reward for moving; it is not a parking
-         permit. */
-      if (hitKind && G.dashT > 0 && G.leapT > 0 && rows[G.row + 1]){
+         permit.
+
+         IT GOES THE WAY HE WAS ALREADY GOING. It used to vault forward
+         always, which was right while only forward leapt - but a man who
+         leapt three rows BACKWARDS out of traffic and is then shoved
+         forward has been put straight back into the lane he was retreating
+         from, which is a second bug wearing the first one's coat. If the
+         row that way does not exist or is past the limit he is allowed to
+         retreat to, it falls back to the other direction: being carried the
+         wrong way still beats being killed by the power-up. */
+      var vd = G.leapDir || 1, vr = G.row + vd;
+      var vOK = function(r){ return r >= 0 && r >= G.maxRow - 6 && !!rows[r]; };
+      if (hitKind && G.dashT > 0 && G.leapT > 0 && !vOK(vr)){
+        vd = -vd; vr = G.row + vd;
+      }
+      if (hitKind && G.dashT > 0 && G.leapT > 0 && vOK(vr)){
         G.fromRow = G.row; G.fromCol = G.col;
-        G.row += 1; G.hop = 0;
+        G.row = vr; G.hop = 0;
         G.invulnT = Math.max(G.invulnT, 0.25);
         G.leapT = LEAP_GRACE;
         if (G.row > G.maxRow){ G.maxRow = G.row; progress(); }

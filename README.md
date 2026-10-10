@@ -2580,14 +2580,66 @@ at it. The player gets a free half second and the dial never lies, because it
 is not counting yet. Measured: grace exactly **0.500s**, beats at 0.5s, 1.5s
 and 2.5s, warn window exactly **1.00s**, zero at **3.5s**.
 
-**Both axes leap.** The stride is the stride whichever way he is pointing, and
-having the suit only work up the screen made a sideways tap feel like the
-power had switched itself off. Left and right go three columns exactly as
-forward goes three rows — and sideways is the move that gets him out from
-under a bus, which is where three squares of reach is worth most. It stops at
-the edge of the *street* rather than the edge of the generated world, since
-there is no column 16 to land in: measured, a leap from column 14 clamps to 15
-and one from column 1 clamps to 0.
+**All four directions leap.** The stride is the stride whichever way he is
+pointing, and having the suit only work up the screen made a sideways tap feel
+like the power had switched itself off. Left and right go three columns
+exactly as forward goes three rows — and sideways is the move that gets him
+out from under a bus, which is where three squares of reach is worth most. It
+stops at the edge of the *street* rather than the edge of the generated world,
+since there is no column 16 to land in: measured, a leap from column 14 clamps
+to 15 and one from column 1 clamps to 0.
+
+**Backwards was the one left out, and it made the suit look broken.** Forward
+and sideways leap three and arm `LEAP_GRACE`, which is what keeps him from
+being hit while still in the air over a lane — and it is also what arms the
+vault, the rule that bumps him a row clear instead of killing him when he
+comes down on a vehicle. Backwards did neither, so retreating in the suit was
+the one move that put him on a single square at walk speed with no grace and
+no vault, stepping back into lanes he had just leapt across. He was hit
+getting out of exactly the traffic the power-up had carried him through. It
+now leaps and arms the grace like the rest, clamped to the same floor the
+ordinary step obeys (six rows below `maxRow`, never below row 0) — measured at
+both limits.
+
+**And the vault goes the way he was already going.** It always pushed forward,
+which was right while only forward leapt. A man who leapt three rows backwards
+out of traffic and was then shoved forward had been put straight back into the
+lane he was retreating from — a second bug wearing the first one's coat.
+`G.leapDir` carries the direction; sideways vaults forward, since a sideways
+leap has no row of its own to continue into and forward is where progress is.
+If the row that way is missing or past the retreat limit it falls back to the
+other direction, because being carried the wrong way still beats being killed
+by the power-up.
+
+### A sideways leap arrives at things
+
+Running three columns past a hot dog cart because you were moving quickly is
+not a rule anybody would defend. The leap used to be applied *after* the
+interaction checks in `act()`, and those checks only ever look at the one
+square named in `nc` — so a leap sailed clean over a cart two columns away,
+which was never the square being tested.
+
+It is resolved up front now, walking the squares in travel order and doing two
+different things with what it finds.
+
+**Pickups are taken in passing.** `collect()` takes an optional column, so a
+power-up two squares into the leap is swept up and he still completes the full
+three. Running over a TAM and missing it because you were quick is the same
+unarguable bug in a different coat.
+
+**Anything he would have stopped for stops him.** The leap ends on that square
+and the ordinary interaction runs exactly as a walk would — he eats, reads,
+attaches, swipes in. `interactAt()` defines the list: food he has not
+finished, a terminal he has not used, a paper he has not read, a staircase.
+Scaffolding, parked trucks and bins are *not* on it, because being stopped
+dead by a skip is the thing the suit exists not to do.
+
+**Forward still goes through everything.** The asymmetry is deliberate:
+sideways is the move you make to go and *get* something, forward is progress.
+Measured — a forward leap through a pizza cart covers three rows and eats
+nothing; a sideways leap at the same cart two columns away eats it for +15
+health and leaves him where he stood, which is bit for bit what walking into
+it does.
 
 The air under him and the mid-air grace are owed to the longer axis now
 (`leapSpan()`), not to the row span. A three column dive with no arc is a man
