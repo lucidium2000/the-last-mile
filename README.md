@@ -3388,6 +3388,44 @@ there too, as the backstop. Verified: 21.3px of shake in gameplay, exactly 0
 during a cutscene.
 
 
+
+## The pavement teaches
+
+Overheard fragments that sound like two New Yorkers talking and are, every one
+of them, the thing a player most needs to be told. Nothing is phrased as
+instruction — a tutorial on a hallway panel is a tutorial nobody reads — and a
+man saying his jacket is tailored armour is just a man pleased with his
+jacket. He is also telling you the Endpoint Agent eats a hit.
+
+| the line | what it actually teaches |
+|---|---|
+| *"Can you literally walk through Traffic with Insights?"* | Traffic Insights makes stopped traffic harmless |
+| *"I just found money on the subway!"* | Chuck Bucks are on the train too |
+| *"It isn't just a jacket; it's my tailored armor."* | the Endpoint Agent absorbs one hit |
+| *"Tap into your future; swipe to change your path."* | tap to step, swipe to change lane |
+| *"Skipped lunch again. I can feel it in my legs."* | not eating is what actually kills you |
+| *"Standing still is the only thing that's ever made me late."* | only forward progress buys the clock back |
+| *"Three cards in my wallet. I never wait on a train."* | metrocards stack — three is three rides |
+
+The last three are the three biggest mechanics the first four left uncovered:
+the health drain, `FISC_PER_HOP`, and the fact that cards accumulate.
+
+**They live in their own pool**, not folded in with `FOLK_CHAT`, for two
+reasons. The ratio becomes one number (`FOLK_TIP_ODDS`) instead of an accident
+of list lengths — seven tips dropped into ten pleasantries would have made
+four lines in ten a lesson, which is a tutorial wearing a coat. And only the
+**first speaker of a pair** can draw one, so two tips can never land on top of
+each other: one person says the useful thing and the other replies with the
+weather, which is what being talked at actually sounds like.
+
+`folkTip()` never returns the same line twice running — with seven of them a
+repeat is a one-in-seven coincidence that reads as the game being broken.
+Measured over 4,000 draws: all seven appear, 13.5–14.9% each, **zero**
+back-to-back repeats. In real play they are 6.7% of all pedestrian speech —
+about two every couple of minutes, four to six across a run, so most of the
+seven are heard once and none of them twice. The widest bubble is 535px
+against a 1920 screen.
+
 ## "Wanna split it?"
 
 He spends the whole block working out how to be near your things. The one

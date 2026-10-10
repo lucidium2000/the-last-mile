@@ -7256,6 +7256,51 @@ var FOLK_CHAT = [
   "Did you see that game?", "Tell your mother I said hi.",
   "Same time Thursday?", "Running late, running late."
 ];
+/* THE PAVEMENT TEACHES. Overheard fragments that sound like two New Yorkers
+   talking and are, every one of them, the thing a player most needs to be
+   told. Nothing here is phrased as instruction - a tutorial on a hallway
+   panel is a tutorial nobody reads - and a man saying his jacket is tailored
+   armour is just a man being pleased with his jacket. He is also telling you
+   the Endpoint Agent eats a hit.
+
+   One mechanic each, and between them they cover the four things that
+   actually decide a run:
+
+     the SKU that walks you through traffic       Traffic Insights
+     the money that is on the train               Chuck Bucks underground
+     the one that absorbs a hit                   Endpoint Agent
+     tap to step, swipe to change lane            the controls
+     not eating is what kills you                 the health drain
+     forward progress is what buys the clock      FISC_PER_HOP
+     cards stack, so three is three rides         the metrocard
+
+   Kept in their OWN pool rather than folded in with FOLK_CHAT, for two
+   reasons. The ratio becomes one number instead of an accident of list
+   lengths - seven tips dropped into ten pleasantries would have made four
+   lines in ten a lesson, which is a tutorial wearing a coat. And only the
+   FIRST speaker of a pair can draw one, so two tips can never land on top of
+   each other: one person says the useful thing and the other replies with
+   the weather, which is what being talked at actually sounds like. */
+var FOLK_TIPS = [
+  "Can you literally walk through Traffic with Insights?",
+  "I just found money on the subway!",
+  "It isn't just a jacket; it's my tailored armor.",
+  "Tap into your future; swipe to change your path.",
+  "Skipped lunch again. I can feel it in my legs.",
+  "Standing still is the only thing that's ever made me late.",
+  "Three cards in my wallet. I never wait on a train."
+];
+var FOLK_TIP_ODDS = 0.35;       // how often a chat opens with one
+var lastTip = -1;
+function folkTip(){
+  var i = (Math.random() * FOLK_TIPS.length) | 0;
+  /* Never the same one twice running. With seven of them a repeat is a one
+     in seven coincidence that reads as the game being broken. */
+  if (i === lastTip) i = (i + 1) % FOLK_TIPS.length;
+  lastTip = i;
+  return FOLK_TIPS[i];
+}
+
 /* On the train they talk about the train. The pavement's lines are about
    the pavement - "I'm walkin' here" means nothing to somebody holding a
    pole - so the carriage gets its own set, and one of them is the thing
@@ -7681,7 +7726,10 @@ function updateFolk(dt){
         f.holdT = g.holdT = FOLK_CHAT_FOR + Math.random() * 0.8;
         f.chatAt = g.chatAt = G.t;
         f.sayAt = G.t;
-        f.line = FOLK_CHAT[(Math.random()*FOLK_CHAT.length)|0];
+        /* The opener may be a tip; the reply never is - see FOLK_TIPS. */
+        f.line = Math.random() < FOLK_TIP_ODDS
+               ? folkTip()
+               : FOLK_CHAT[(Math.random()*FOLK_CHAT.length)|0];
         g.sayAt = G.t + 0.75;                   // the reply, half a beat later
         g.line = FOLK_CHAT[(Math.random()*FOLK_CHAT.length)|0];
         /* Two people talking to each other are pleased to see each other,
