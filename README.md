@@ -3186,7 +3186,7 @@ under twelve, the whole of `FISC_PER_HOP`. What changed is what it counts down
 *to*:
 
 ```
-        Q4 FY26  ·  11:59 PM  ·  EAST PUBLIC SECTOR
+        Q4 FY26  ·  11:59 PM  ·  NYC COMMERCIAL
               END OF FISCAL   0:58
 ```
 
@@ -3198,8 +3198,11 @@ transferred without a line of logic changing.
 
 The board keeps its three fields and its cadence, because a departure board is
 still the right *shape* for a deadline you are running at: QUARTER — TIME —
-who it is for. Only the territory is rolled, from ten of them; the quarter and
-the hour are the two things about a fiscal close that never vary. The timer
+who it is for. **All three are fixed.** The territory was rolled from ten at
+first, reasoning that the old board rolled its destination — but a departure
+board rolls because there are eleven trains and you are catching one of them,
+and there is only ever one territory. It is NYC COMMERCIAL, every run, because
+that is whose quarter this is. The timer
 line is capped at 460 like the line above it, which `DEPARTS 0:58` never needed
 and `END OF FISCAL 0:58` does — it is half again as long and ran off both ends
 of the 500px plate.
@@ -3208,7 +3211,7 @@ Running out of it used to be **MISSED YOUR TRAIN** over `LIRR · HUNTINGTON ·
 THE 5:01`. It is now:
 
 > **THE QUARTER CLOSED**
-> Q4 FY26 · GREATER NY COMMERCIAL · 11:59 PM
+> Q4 FY26 · NYC COMMERCIAL · 11:59 PM
 > *You stood on the corner too long.*
 > **REMEMBER** — The quarter closes whether or not you are ready.
 
@@ -3216,7 +3219,7 @@ It keeps its amber, which is what separates running out of time from being hit
 by something. The leaderboard cause goes `MISSED TRAIN` → `MISSED CLOSE`.
 
 The names went with it rather than being left as a layer of archaeology:
-`TRAINS` → `SEGMENTS`, `trainT` → `fiscT`, `TRAIN_MAX`/`TRAIN_PER_HOP` →
+`TRAINS` → three constants, `trainT` → `fiscT`, `TRAIN_MAX`/`TRAIN_PER_HOP` →
 `FISC_MAX`/`FISC_PER_HOP`, `missTrain` → `missClose`, `missedTrain` →
 `missedClose`, including the one in the Cloud Insights comment that explains
 where the banked time comes from. **The subway keeps every one of its train

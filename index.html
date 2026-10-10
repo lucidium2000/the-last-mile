@@ -1744,15 +1744,14 @@ var MILESTONES_BACK = {
 
    The board keeps its three fields and its cadence, because a departure
    board is still the right SHAPE for a deadline you are running at:
-   QUARTER - TIME - who it is for. Only the territory is rolled; the quarter
-   and the hour are the two things about a fiscal close that never vary. */
-var FISC_Q = "Q4 FY26", FISC_CLOSE = "11:59 PM";
-var SEGMENTS = [
-  "NY METRO ENTERPRISE", "NORTHEAST ENTERPRISE", "TRI-STATE ENTERPRISE",
-  "MANHATTAN COMMERCIAL", "NY FINANCIAL SERVICES", "EAST PUBLIC SECTOR",
-  "NORTHEAST SERVICE PROVIDER", "GREATER NY COMMERCIAL",
-  "HUDSON VALLEY ENTERPRISE", "NY METRO COMMERCIAL"
-];
+   QUARTER - TIME - who it is for.
+
+   And all three are FIXED. The territory was rolled from ten at first, on
+   the reasoning that the old board rolled its destination - but a departure
+   board rolls because there are eleven trains and you are catching one of
+   them, and there is only ever one territory. It is NYC COMMERCIAL, every
+   run, because that is whose quarter this is. */
+var FISC_Q = "Q4 FY26", FISC_CLOSE = "11:59 PM", FISC_SEG = "NYC COMMERCIAL";
 
 /* ----------------------------------------------------------- hazard models */
 var TYRE = "#0a0d11";
@@ -4138,7 +4137,6 @@ function reset(){
   lastHood = -999;
   curStreet = START_ST; curLane = 0; legDir = 1;
   ensureRows(ROWS_AHEAD);
-  var seg = SEGMENTS[(Math.random()*SEGMENTS.length)|0];
   G = {
     state:ST_TITLE, row:0, col:COLS>>1, fromRow:0, fromCol:COLS>>1,
     hop:1, facing:1, maxRow:0, camRow:0, street:START_ST,
@@ -4159,7 +4157,7 @@ function reset(){
     dashFlash:0, dashPulse:0, dashWhole:0,
     scene:null, scenesSeen:{}, ticker:null, notice:null, southT:0,
     leg:1, po:false, won:false,
-    fiscT:FISC_MAX, fiscSeg:seg,
+    fiscT:FISC_MAX,
     missedClose:false,
     shake:0, parts:[], deathName:"", deathObj:"", deathFix:"", deadFor:0,
     steps:0, got:blankPowers(), startedAt:Date.now(), logged:false,
@@ -14335,7 +14333,7 @@ function drawHud(){
   var secs = Math.max(0, Math.ceil(G.fiscT));
   var urgent = G.fiscT < 12;
   plate(LOGICAL_W/2 - 250, 26, 500, 78, C.ink);
-  txt(FISC_Q + "  ·  " + FISC_CLOSE + "  ·  " + G.fiscSeg,
+  txt(FISC_Q + "  ·  " + FISC_CLOSE + "  ·  " + FISC_SEG,
       LOGICAL_W/2, 50, 20, C.textDim, "center", 460);
   var tcol = urgent ? C.danger : C.amber;
   if (urgent && Math.sin(G.t*9) < 0) tcol = C.text;
@@ -15232,7 +15230,7 @@ function drawDead(){
      scales to 0.81. */
   if (G.missedClose){
     txt("THE QUARTER CLOSED", LOGICAL_W/2, 182, 82, C.amber);
-    txt(FISC_Q + " · " + G.fiscSeg + " · " + FISC_CLOSE, LOGICAL_W/2, 250, 30, C.text);
+    txt(FISC_Q + " · " + FISC_SEG + " · " + FISC_CLOSE, LOGICAL_W/2, 250, 30, C.text);
   } else {
     txt(G.po ? "SO CLOSE" : "DIDN’T MAKE IT", LOGICAL_W/2, 182, 86, C.danger);
     txt((G.po ? "SIGNED ORDER, STOPPED ON W " : "STOPPED ON W ") + G.street + " ST BY " + G.deathName, LOGICAL_W/2, 250, 30, C.text);
