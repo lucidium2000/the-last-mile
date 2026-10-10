@@ -3186,8 +3186,8 @@ under twelve, the whole of `FISC_PER_HOP`. What changed is what it counts down
 *to*:
 
 ```
-        Q4 FY27  ·  11:59 PM  ·  NYC COMMERCIAL
-              END OF FISCAL   0:58
+        Q4 FY27  ·  11:30 PM  ·  THE LAST MILE
+              END OF FISCAL   0:30
 ```
 
 **End of fiscal is the only deadline in this job that behaves exactly like a
@@ -3224,11 +3224,35 @@ two-digit roll at the century.
 Q4 stays Q4: the clock counts down to the *end* of fiscal, and that is the
 quarter the end of fiscal is in.
 
-The other two are fixed outright. The territory was rolled from ten at
-first, reasoning that the old board rolled its destination — but a departure
-board rolls because there are eleven trains and you are catching one of them,
-and there is only ever one territory. It is NYC COMMERCIAL, every run, because
-that is whose quarter this is. The timer
+**The wall clock moves, because the countdown does.** It sat at a static
+11:59 PM next to a number that was visibly draining — two clocks on one line
+disagreeing about what time it is. The hour is now the *same* clock as the
+number under it, read the other way round: the countdown says how much is
+left, the wall clock says what time it is, and midnight is the deadline both
+are about.
+
+| left | clock | | left | clock |
+|---|---|---|---|---|
+| 60s | 11:00 PM | | 10s | 11:50 PM |
+| 30s | 11:30 PM | | 0s | 12:00 AM |
+
+A minute of real time is a minute on the wall, which is the one mapping a
+player never has to be told. And it lets the top line answer what the
+countdown cannot: `0:30` is a quantity, **11:30 PM is a place** — you can see
+how near the edge of the year you are standing. Banking time by walking a
+block turns the clock *back*, which is exactly what buying yourself minutes
+should look like, and the cap at `FISC_MAX` stops it ever reading earlier than
+11:00. Both numbers read off the same `G.fiscT`, so they cannot drift apart.
+
+**The third field went through three answers.** NYC COMMERCIAL was the first,
+and it was not *cliché* — quarter, close time and segment is how a forecast
+call is actually labelled, which reads as credible rather than cringe. The
+problem was narrower than that: it was the only line in the game that assigned
+the player an identity they might not have. Everything else is careful to be
+universal — Midtown is a *place*, the objections coming out of those vehicles
+are *every* seller's, the tally is *your* pipeline — and then one line told
+most of a GSX hallway that this quarter belonged to somebody else. It is
+THE LAST MILE now, which is nobody's territory and everybody's. The timer
 line is capped at 460 like the line above it, which `DEPARTS 0:58` never needed
 and `END OF FISCAL 0:58` does — it is half again as long and ran off both ends
 of the 500px plate.
@@ -3237,7 +3261,7 @@ Running out of it used to be **MISSED YOUR TRAIN** over `LIRR · HUNTINGTON ·
 THE 5:01`. It is now:
 
 > **THE QUARTER CLOSED**
-> Q4 FY27 · NYC COMMERCIAL · 11:59 PM
+> Q4 FY27 · THE LAST MILE · 12:00 AM
 > *You stood on the corner too long.*
 > **REMEMBER** — The quarter closes whether or not you are ready.
 

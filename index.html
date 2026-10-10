@@ -1751,7 +1751,33 @@ var MILESTONES_BACK = {
    board rolls because there are eleven trains and you are catching one of
    them, and there is only ever one territory. It is NYC COMMERCIAL, every
    run, because that is whose quarter this is. */
-var FISC_CLOSE = "11:59 PM", FISC_SEG = "NYC COMMERCIAL";
+var FISC_SEG = "THE LAST MILE";
+
+/* THE WALL CLOCK, AND IT MOVES.
+
+   It sat at a static 11:59 PM next to a countdown that was visibly draining,
+   which is two clocks on one line disagreeing about what time it is. Now the
+   hour hand is the SAME clock as the number underneath it, read the other
+   way round: the countdown says how long is left, the wall clock says what
+   time it is, and midnight is the deadline both of them are about.
+
+       60s left -> 11:00 PM        10s left -> 11:50 PM
+       30s left -> 11:30 PM         0s left -> 12:00 AM
+
+   A minute of real time is a minute on the wall, which is the one mapping a
+   player never has to be told. And it means the top line answers the
+   question the countdown cannot: 0:30 is a quantity, 11:30 PM is a place -
+   you can see how close to the edge of the year you are standing.
+
+   Banking time by walking a block turns the clock BACK, which is exactly
+   what it should look like: you have bought yourself minutes. The cap at
+   FISC_MAX keeps it from ever going earlier than 11:00. */
+function fiscClock(secs){
+  var m = 60 - Math.ceil(secs);
+  if (m >= 60) return "12:00 AM";      // the close itself, and you are past it
+  if (m < 0) m = 0;
+  return "11:" + pad2(m) + " PM";
+}
 
 /* THE FISCAL YEAR WORKS ITSELF OUT, because a hard-coded one is wrong from
    the next July onwards and nobody is going to remember to come back and
@@ -14369,7 +14395,7 @@ function drawHud(){
   var secs = Math.max(0, Math.ceil(G.fiscT));
   var urgent = G.fiscT < 12;
   plate(LOGICAL_W/2 - 250, 26, 500, 78, C.ink);
-  txt(FISC_Q + "  ·  " + FISC_CLOSE + "  ·  " + FISC_SEG,
+  txt(FISC_Q + "  ·  " + fiscClock(G.fiscT) + "  ·  " + FISC_SEG,
       LOGICAL_W/2, 50, 20, C.textDim, "center", 460);
   var tcol = urgent ? C.danger : C.amber;
   if (urgent && Math.sin(G.t*9) < 0) tcol = C.text;
@@ -15266,7 +15292,9 @@ function drawDead(){
      scales to 0.81. */
   if (G.missedClose){
     txt("THE QUARTER CLOSED", LOGICAL_W/2, 182, 82, C.amber);
-    txt(FISC_Q + " · " + FISC_SEG + " · " + FISC_CLOSE, LOGICAL_W/2, 250, 30, C.text);
+    /* fiscT is 0 by the time this is up, so the clock reads 12:00 AM - the
+       minute it went, rather than the minute before it. */
+    txt(FISC_Q + " · " + FISC_SEG + " · " + fiscClock(G.fiscT), LOGICAL_W/2, 250, 30, C.text);
   } else {
     txt(G.po ? "SO CLOSE" : "DIDN’T MAKE IT", LOGICAL_W/2, 182, 86, C.danger);
     txt((G.po ? "SIGNED ORDER, STOPPED ON W " : "STOPPED ON W ") + G.street + " ST BY " + G.deathName, LOGICAL_W/2, 250, 30, C.text);
