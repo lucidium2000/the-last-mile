@@ -7720,7 +7720,11 @@ function drawCar(ox, rock, lit){
    run over the top of a frozen world, so the budget is the same as a frame.
    Each plays once per run. */
 var SCENE_SECS = 2.9;
-function sceneFrame(title, sub, body){
+/* `sc` is optional and only the last scene passes one: it carries a second
+   subtitle that arrives late. A punchline printed at the same instant as the
+   line it is a punchline TO is not a punchline, it is a sentence - the beat
+   is the joke. */
+function sceneFrame(title, sub, body, sc){
   var R = G.scene, t = R.t;
   var fin = Math.min(1, t/0.3), fout = Math.min(1, (R.len - t)/0.35);
   var a = Math.max(0, Math.min(fin, fout));
@@ -7737,7 +7741,23 @@ function sceneFrame(title, sub, body){
      in the evening - and it was 26px of the same grey the HUD uses for
      things nobody has to read. Brand orange at 32 puts it on the same side
      of the screen as the rule above the title. */
-  txt(sub, LOGICAL_W/2, LOGICAL_H-54, 32, C.brand, "center", LOGICAL_W - 160);
+  var sub2 = sc && sc.sub2;
+  if (!sub2){
+    txt(sub, LOGICAL_W/2, LOGICAL_H-54, 32, C.brand, "center", LOGICAL_W - 160);
+  } else {
+    /* Two lines, so the first one moves up to make room. The second fades
+       in on its own clock and rises a few pixels as it comes, because a
+       line that simply appears reads as a frame drop. */
+    txt(sub, LOGICAL_W/2, LOGICAL_H-74, 32, C.brand, "center", LOGICAL_W - 160);
+    var k2 = Math.max(0, Math.min(1, (t - (sc.sub2At || 2.0)) / 0.7));
+    if (k2 > 0){
+      var e2 = k2 * k2 * (3 - 2 * k2);
+      ctx.globalAlpha = a * e2;
+      txt(sub2, LOGICAL_W/2, LOGICAL_H - 30 + (1 - e2) * 8, 32,
+          C.brand, "center", LOGICAL_W - 160);
+      ctx.globalAlpha = a;
+    }
+  }
   ctx.globalAlpha = 1;
 }
 /* Times Square. Billboards of mixed sizes each running their own moving
@@ -8424,7 +8444,170 @@ function sceneBar(t, a){
 }
 
 /* Penn 1. The lobby, the desk, the paper going down on it, and the stamp. */
+/* ------------------------------------------------- PENN 1, FROM OUTSIDE
+   The building itself, before the desk. One Penn Plaza is a black slab
+   forty-odd storeys high standing directly on top of the Garden, and the
+   photograph everybody has of it is taken from the pavement looking up -
+   the tower leaning away from you and the drum of MSG curving in from the
+   side underneath it.
+
+   The low angle is faked the only way flat rectangles can fake it: the
+   tower TAPERS. Its sides converge as they rise and its window courses get
+   shorter and closer together toward the top, which is what perspective
+   does to a grid. It also runs off the top of the frame rather than
+   stopping, because the one thing a 150-storey photograph never shows you
+   is the roof.
+
+   The Garden is the other half of the picture: a curved fascia band with
+   ribs hanging off it, swinging in from the right and passing BEHIND the
+   tower's base. Those two shapes together are the corner of 33rd and 7th
+   and nothing else is needed. */
+function scenePennOutside(t, a){
+  var i, SKY_T = 150, GROUND = 742;
+
+  // dusk over the avenue
+  var SKY = ["#1b2330", "#243041", "#31405a", "#44546f"];
+  for (i = 0; i < SKY.length; i++)
+    ctx.fillStyle = SKY[i], ctx.fillRect(0, SKY_T + i * 150, LOGICAL_W, 151);
+
+  /* THE GARDEN, behind. A fascia arc with ribs under it. Drawn before the
+     tower so the tower stands in front of it, which is how they sit. */
+  var MX = 1430, MY = 980, MR = 430;
+  ctx.save();
+  ctx.beginPath(); ctx.rect(0, SKY_T, LOGICAL_W, GROUND - SKY_T); ctx.clip();
+  ctx.fillStyle = "#2b313b";
+  ctx.beginPath(); ctx.arc(MX, MY, MR, Math.PI, Math.PI * 2); ctx.fill();
+  ctx.fillRect(MX - MR, MY, MR * 2, 120);
+  // the pale fascia band along the top of the drum
+  ctx.strokeStyle = "#cdd3da"; ctx.lineWidth = 26;
+  ctx.beginPath(); ctx.arc(MX, MY, MR - 8, Math.PI, Math.PI * 2); ctx.stroke();
+  ctx.strokeStyle = "#9aa2ad"; ctx.lineWidth = 7;
+  ctx.beginPath(); ctx.arc(MX, MY, MR + 8, Math.PI, Math.PI * 2); ctx.stroke();
+  // ribs hanging off it
+  for (i = 0; i <= 26; i++){
+    var ra = Math.PI + (i / 26) * Math.PI;
+    var rx1 = MX + Math.cos(ra) * (MR - 22), ry1 = MY + Math.sin(ra) * (MR - 22);
+    var rx2 = MX + Math.cos(ra) * (MR - 104), ry2 = MY + Math.sin(ra) * (MR - 104);
+    ctx.strokeStyle = "#39404b"; ctx.lineWidth = 9;
+    ctx.beginPath(); ctx.moveTo(rx1, ry1); ctx.lineTo(rx2, ry2); ctx.stroke();
+  }
+  // a lit band of windows round the base of the drum
+  for (i = 0; i < 22; i++){
+    ctx.fillStyle = ((i * 7 + 3) % 5) ? "#1d222a" : "#d8c489";
+    ctx.fillRect(MX - MR + 36 + i * 36, MY - 46, 22, 36);
+  }
+  ctx.restore();
+
+  /* THE TOWER. Tapering, and running off the top of the frame. */
+  /* The taper is SMALL. The first pass narrowed it by a quarter over the
+     height of the frame and the result was a ziggurat - a real slab shot
+     from the pavement converges by a few per cent, and the eye reads even
+     that as "very tall". Narrower overall too: a slab is tall and thin, and
+     644px of base on a 1920 frame was a warehouse. */
+  var BL = 300, BR = 772, TL = 330, TR = 746;   // base and top edges
+  function edgeL(y){ var k = (GROUND - y) / (GROUND - SKY_T); return BL + (TL - BL) * k; }
+  function edgeR(y){ var k = (GROUND - y) / (GROUND - SKY_T); return BR + (TR - BR) * k; }
+  ctx.fillStyle = "#15181e";
+  ctx.beginPath();
+  ctx.moveTo(BL, GROUND); ctx.lineTo(BR, GROUND);
+  ctx.lineTo(TR, SKY_T);  ctx.lineTo(TL, SKY_T);
+  ctx.closePath(); ctx.fill();
+  // the darker return on the right, which is what makes it a slab and not a wall
+  ctx.fillStyle = "#0c0e13";
+  ctx.beginPath();
+  ctx.moveTo(BR - 58, GROUND); ctx.lineTo(BR, GROUND);
+  ctx.lineTo(TR, SKY_T); ctx.lineTo(TR - 44, SKY_T);
+  ctx.closePath(); ctx.fill();
+
+  /* The window grid. Courses get shorter and tighter as they rise, which is
+     the taper doing the work - an even grid on a tapering box reads as a
+     poster of a building. A fixed hash lights about a fifth of them and the
+     same ones stay lit, because an office block does not twinkle. */
+  /* Shorter courses than the first pass, so there are more of them. The
+     number of window bands IS the height of the building. */
+  var yy = GROUND - 26, h = 13, gap = 8, course = 0;
+  while (yy > SKY_T + 6 && course < 80){
+    var l = edgeL(yy) + 14, rr2 = edgeR(yy) - 62;
+    var cols = Math.max(4, Math.floor((rr2 - l) / 21));
+    var w = (rr2 - l) / cols;
+    for (i = 0; i < cols; i++){
+      var lit = ((i * 31 + course * 17 + ((i + course) % 7) * 13) % 23) < 5;
+      ctx.fillStyle = lit ? "#e8d9a6" : "#20242c";
+      ctx.fillRect(l + i * w + 2, yy, w - 5, h);
+    }
+    // and the return face, a touch darker
+    var r2 = edgeR(yy);
+    for (i = 0; i < 3; i++){
+      var lit2 = ((i * 19 + course * 23) % 29) < 5;
+      ctx.fillStyle = lit2 ? "#b9a978" : "#171a21";
+      ctx.fillRect(rr2 + 6 + i * 19, yy, 13, h);
+    }
+    course++;
+    yy -= h + gap;
+    h = Math.max(7, h * 0.962); gap = Math.max(5, gap * 0.962);
+  }
+
+  /* The ground floor: a tall lit lobby behind glass, the canopy over the
+     doors, and PENN 1 over them. */
+  ctx.fillStyle = "#0a0c10"; ctx.fillRect(BL, GROUND - 118, BR - BL, 118);
+  ctx.fillStyle = "#2a2f38"; ctx.fillRect(BL, GROUND - 122, BR - BL, 8);
+  var DX = 448, DW = 210;
+  ctx.fillStyle = "#e0c88a"; ctx.fillRect(DX, GROUND - 104, DW, 104);
+  ctx.globalAlpha = a * 0.5; ctx.fillStyle = "#fff4cf";
+  ctx.fillRect(DX + 12, GROUND - 96, DW - 24, 96);
+  ctx.globalAlpha = a;
+  ctx.fillStyle = "#15181e";
+  ctx.fillRect(DX + DW/2 - 4, GROUND - 104, 8, 104);
+  for (i = 0; i < 4; i++)
+    ctx.fillRect(BL + 30 + i * 108, GROUND - 100, 14, 100);
+  ctx.fillStyle = "#1d222a"; ctx.fillRect(DX - 26, GROUND - 126, DW + 52, 24);
+  ctx.fillStyle = C.brand;   ctx.fillRect(DX - 26, GROUND - 106, DW + 52, 5);
+  txt("PENN 1", DX + DW/2, GROUND - 114, 26, "#f0e4c6");
+
+  // the pavement
+  ctx.fillStyle = "#23272e"; ctx.fillRect(0, GROUND, LOGICAL_W, 890 - GROUND);
+  ctx.fillStyle = "#2c313a"; ctx.fillRect(0, GROUND, LOGICAL_W, 10);
+  for (i = 0; i < 16; i++){
+    ctx.fillStyle = "#1e222a";
+    ctx.fillRect(i * 128, GROUND + 14, 4, 890 - GROUND - 14);
+  }
+  // light spilling out of the lobby across it
+  ctx.globalAlpha = a * 0.22; ctx.fillStyle = "#e8d9a6";
+  ctx.beginPath();
+  ctx.moveTo(DX, GROUND); ctx.lineTo(DX + DW, GROUND);
+  ctx.lineTo(DX + DW + 90, 890); ctx.lineTo(DX - 90, 890);
+  ctx.closePath(); ctx.fill();
+  ctx.globalAlpha = a;
+
+  /* HIM, in from the left and through the doors. He shrinks a little as he
+     goes, which is the cheapest depth there is, and the last of him fades
+     into the lobby light rather than clipping off at the frame. */
+  var walk = Math.min(1, t / 2.1);
+  var e = 1 - Math.pow(1 - walk, 1.7);
+  var px = -90 + e * (DX + DW/2 + 90);
+  var k = 1.00 - e * 0.26;
+  var inside = Math.max(0, Math.min(1, (t - 1.85) / 0.75));
+  ctx.globalAlpha = a * (1 - inside * 0.92);
+  var bob = Math.abs(Math.sin(t * 7.2)) * 5 * (1 - e * 0.5);
+  sceneGuy(px, GROUND + 24 - bob - e * 24, k, BLAZER, HERO_SKIN, "#2b1d14",
+           { cap:"#2b1d14", tie:C.brand });
+  /* The envelope under his arm, which is the only reason he is here. */
+  ctx.fillStyle = "#f6efe2";
+  ctx.fillRect(px + 34 * k, GROUND - 42 - bob - e * 24, 42 * k, 30 * k);
+  ctx.fillStyle = C.brand;
+  ctx.fillRect(px + 34 * k, GROUND - 42 - bob - e * 24, 42 * k, 7 * k);
+  ctx.globalAlpha = a;
+}
+
+/* Two shots in one scene: the building, then the desk. One title card
+   covers both because it is one arrival - cutting to a second card that
+   also said PENN 1 would be an edit, not a beat. */
+var PENN_CUT = 3.1;
 function scenePenn(t, a){
+  if (t < PENN_CUT){ scenePennOutside(t, a); return; }
+  scenePennDesk(t - PENN_CUT, a);
+}
+function scenePennDesk(t, a){
   var i;
   ctx.fillStyle = "#1b1f27"; ctx.fillRect(0, 150, LOGICAL_W, 520);   // the lobby
   ctx.fillStyle = "#121620"; ctx.fillRect(0, 150, LOGICAL_W, 60);
@@ -8858,6 +9041,28 @@ function sceneCabana(t, a){
   }
   ctx.fillStyle = "#f6cf8e"; ctx.fillRect(0, top + SKY.length * band, LOGICAL_W, 60);
 
+  /* CLOUDS, lit from underneath. Three bands of lozenges at different
+     heights and speeds, each with a warm lower edge - a sunset sky with
+     nothing in it is a colour chart. */
+  var CL = [[214, 0.9, "#6b3f5a", "#c9704f"], [292, 1.5, "#8c4a52", "#e08a55"],
+            [372, 2.3, "#b0604c", "#f2ae68"]];
+  for (var cq = 0; cq < CL.length; cq++){
+    var cy3 = CL[cq][0], csp = CL[cq][1];
+    for (i = 0; i < 7; i++){
+      var cwd = 150 + ((i * 97 + cq * 53) % 220);
+      var cx3 = ((t * csp * 7 + i * 340 + cq * 170) % (LOGICAL_W + 600)) - 300;
+      var ch3 = 17 + ((i + cq) % 3) * 7;
+      ctx.globalAlpha = a * 0.66;
+      ctx.fillStyle = CL[cq][2];
+      ctx.fillRect(cx3, cy3, cwd, ch3);
+      ctx.fillRect(cx3 + 36, cy3 - ch3 * 0.55, cwd * 0.5, ch3 * 0.6);
+      ctx.globalAlpha = a * 0.80;
+      ctx.fillStyle = CL[cq][3];
+      ctx.fillRect(cx3, cy3 + ch3 - 5, cwd, 5);
+      ctx.globalAlpha = a;
+    }
+  }
+
   // the sun, sitting on the horizon
   var sunY = 586, sunX = LOGICAL_W * 0.62;
   ctx.globalAlpha = a * 0.22; ctx.fillStyle = "#ffd9a0";
@@ -8866,6 +9071,23 @@ function sceneCabana(t, a){
   ctx.beginPath(); ctx.arc(sunX, sunY, 122, 0, Math.PI*2); ctx.fill();
   ctx.globalAlpha = a; ctx.fillStyle = "#fff0c4";
   ctx.beginPath(); ctx.arc(sunX, sunY, 74, 0, Math.PI*2); ctx.fill();
+
+  /* A HEADLAND, away to the left. One dark shape on the horizon is the
+     difference between "the sea" and "an island" - and Hanalei has a ridge
+     at the end of the bay that does exactly this. */
+  ctx.globalAlpha = a * 0.74; ctx.fillStyle = "#3d2a44";
+  ctx.beginPath();
+  ctx.moveTo(-40, 606);
+  ctx.lineTo(70, 556); ctx.lineTo(150, 572); ctx.lineTo(236, 528);
+  ctx.lineTo(330, 566); ctx.lineTo(430, 548); ctx.lineTo(530, 592);
+  ctx.lineTo(600, 606);
+  ctx.closePath(); ctx.fill();
+  ctx.globalAlpha = a * 0.34; ctx.fillStyle = "#6b4a63";
+  ctx.beginPath();
+  ctx.moveTo(236, 528); ctx.lineTo(330, 566); ctx.lineTo(430, 548);
+  ctx.lineTo(430, 606); ctx.lineTo(236, 606);
+  ctx.closePath(); ctx.fill();
+  ctx.globalAlpha = a;
 
   /* A boat on the horizon, because an empty sea is a wall. */
   var bx = 300 + ((t * 7) % 340);
@@ -8992,6 +9214,65 @@ function sceneCabana(t, a){
     ctx.globalAlpha = a;
   }
 
+  /* THE BANNER. This is a Club trip, not a holiday - the resort knows what
+     week it is and so should the picture. Strung between the posts under
+     the canopy, behind him, with the mark on it.
+
+     It is the one thing that turns the scene from "a man on a beach" into
+     "a man at the thing he won", which is the whole point of it being here
+     at the end of a sales game. */
+  var BN_Y = CB - 236, BN_W = CW - 70;
+  ctx.fillStyle = "#123a52";
+  ctx.fillRect(CX - BN_W/2, BN_Y, BN_W, 54);
+  ctx.fillStyle = "#0d2b3d";
+  ctx.fillRect(CX - BN_W/2, BN_Y + 46, BN_W, 8);
+  ctx.fillStyle = C.brand;
+  ctx.fillRect(CX - BN_W/2, BN_Y, BN_W, 4);
+  /* Mark hard left, words centred in what is left of the strip. They were
+     both pulled toward the middle and the C of CLUB was sitting in the
+     wordmark's air. */
+  drawCiscoLogo(CX - BN_W/2 + 66, BN_Y + 9, 88, "#eaf2ff");
+  txt("CLUB CISCO", CX + 70, BN_Y + 29, 34, "#eaf2ff");
+  // two short ties where it hangs off the canopy
+  ctx.fillStyle = "#c9a06a";
+  ctx.fillRect(CX - BN_W/2 + 28, BN_Y - 12, 5, 14);
+  ctx.fillRect(CX + BN_W/2 - 33, BN_Y - 12, 5, 14);
+
+  /* TIKI TORCHES, one outside each post. Bamboo, a bowl, and a flame that
+     is three stacked shapes on their own flicker - a single triangle reads
+     as a traffic cone. */
+  function torch(tx, base, k2t, ph){
+    ctx.fillStyle = "#7a5c3c";
+    ctx.fillRect(tx - 7 * k2t, base - 150 * k2t, 14 * k2t, 150 * k2t);
+    ctx.fillStyle = "#6b4a30";
+    for (var nb = 0; nb < 3; nb++)
+      ctx.fillRect(tx - 9 * k2t, base - (38 + nb * 38) * k2t, 18 * k2t, 5 * k2t);
+    ctx.fillStyle = "#4a3221";
+    ctx.fillRect(tx - 15 * k2t, base - 166 * k2t, 30 * k2t, 18 * k2t);
+    var fl = 1 + 0.18 * Math.sin(t * 7.3 + ph) + 0.10 * Math.sin(t * 11.7 + ph);
+    var fy = base - 168 * k2t;
+    ctx.globalAlpha = a * 0.16; ctx.fillStyle = "#ffb04a";
+    ctx.beginPath(); ctx.arc(tx, fy - 18 * k2t, 46 * k2t * fl, 0, Math.PI*2); ctx.fill();
+    ctx.globalAlpha = a;
+    ctx.fillStyle = "#e8622a";
+    ctx.beginPath();
+    ctx.moveTo(tx, fy - 54 * k2t * fl);
+    ctx.lineTo(tx + 15 * k2t, fy); ctx.lineTo(tx - 15 * k2t, fy);
+    ctx.closePath(); ctx.fill();
+    ctx.fillStyle = "#ffa32a";
+    ctx.beginPath();
+    ctx.moveTo(tx, fy - 38 * k2t * fl);
+    ctx.lineTo(tx + 10 * k2t, fy); ctx.lineTo(tx - 10 * k2t, fy);
+    ctx.closePath(); ctx.fill();
+    ctx.fillStyle = "#ffe08a";
+    ctx.beginPath();
+    ctx.moveTo(tx, fy - 20 * k2t * fl);
+    ctx.lineTo(tx + 5 * k2t, fy); ctx.lineTo(tx - 5 * k2t, fy);
+    ctx.closePath(); ctx.fill();
+  }
+  torch(CX - CW/2 - 86, CB + 16, 1.00, 0);
+  torch(CX + CW/2 + 86, CB + 24, 1.06, 2.2);
+
   /* ------------------------------------------------- HIM, ON THE LOUNGER
      Third go at this figure, and the first two are worth recording because
      they were the same mistake twice: a reclining man drawn as ONE long
@@ -9021,19 +9302,7 @@ function sceneCabana(t, a){
   // a towel over the back, hanging a little past it
   sceneArm(HX, SEATY - 14, BKX - 6, BKY - 6, 30, "#efe9dc");
 
-  /* THE BLAZER, hung off the back of the chair - and drawn HERE, before the
-     body, so he sits in front of it. Drawn after him it was a blue slab
-     across his chest that read as a surfboard he was holding. It is the
-     only thing in the picture from the other ninety-four blocks, and the
-     joke only works if you can tell it is a jacket and that he is not in
-     it. */
-  ctx.save();
-  ctx.translate(BKX - 34, BKY + 30); ctx.rotate(-0.48);
-  ctx.fillStyle = shade(BLAZER, -0.16); ctx.fillRect(-32, -12, 64, 92);
-  ctx.fillStyle = BLAZER;               ctx.fillRect(-32, -12, 64, 14);
-  ctx.fillStyle = shade(BLAZER, 0.10);  ctx.fillRect(-7, 0, 9, 76);
-  ctx.fillStyle = shade(BLAZER, -0.34); ctx.fillRect(-32, 66, 64, 14);
-  ctx.restore();
+
 
   /* --- the body. Points first, limbs second. */
   var SHX = HX - 92, SHY = HY - 72;               // shoulder
@@ -9064,20 +9333,70 @@ function sceneCabana(t, a){
   ctx.fillStyle = "#e9edf1";
   ctx.fillRect(SHX - 20 + ux * 8, SHY - 18 + uy * 8, 40, 26);
 
-  // neck, then the head a little past the shoulder on the same line
-  sceneArm(SHX, SHY, SHX + ux * 26, SHY + uy * 26, 26, shade(HERO_SKIN, -0.10));
-  var HCX = SHX + ux * 48, HCY = SHY + uy * 48;
-  ctx.fillStyle = HERO_SKIN; ctx.fillRect(HCX - 29, HCY - 33, 58, 64);
+  /* NECK AND HEAD. The head used to be drawn axis-aligned on the end of a
+     neck that was rotated along the torso, and the kink where the two met
+     read as a broken neck. Both are on the same rake now, tilted back a
+     little less than the torso is - which is what a man propped against a
+     deckchair actually does with his head - and the neck is short and wide
+     enough that the joint is inside the head and the collar. */
+  var tAng = Math.atan2(uy, ux) + Math.PI;        // the torso, pointing up-left
+  var hAng = tAng * 0.42;                         // the head, propped nearer upright
+  sceneArm(SHX, SHY, SHX + ux * 22, SHY + uy * 22, 34, shade(HERO_SKIN, -0.08));
+  var HCX = SHX + ux * 46, HCY = SHY + uy * 46;
+  ctx.save();
+  ctx.translate(HCX, HCY); ctx.rotate(hAng);
+  ctx.fillStyle = HERO_SKIN; ctx.fillRect(-29, -33, 58, 64);
   ctx.fillStyle = "#2b1d14";
-  ctx.fillRect(HCX - 32, HCY - 43, 64, 17);                    // hair
-  ctx.fillRect(HCX - 32, HCY - 30, 8, 26);
-  ctx.fillRect(HCX + 24, HCY - 30, 8, 26);
-  ctx.fillStyle = "#15181d"; ctx.fillRect(HCX - 23, HCY - 15, 48, 16);
+  ctx.fillRect(-32, -43, 64, 17);                              // hair
+  ctx.fillRect(-32, -30, 8, 26);
+  ctx.fillRect(24, -30, 8, 26);
+  ctx.fillStyle = "#15181d"; ctx.fillRect(-23, -15, 48, 16);
   ctx.globalAlpha = a * 0.55; ctx.fillStyle = "#ffd9a0";
-  ctx.fillRect(HCX - 20, HCY - 12, 16, 6);
-  ctx.fillRect(HCX + 4,  HCY - 12, 16, 6);
+  ctx.fillRect(-20, -12, 16, 6);
+  ctx.fillRect(4,  -12, 16, 6);
   ctx.globalAlpha = a;
-  ctx.fillStyle = "#8a5a44"; ctx.fillRect(HCX - 8, HCY + 14, 19, 5);
+  ctx.fillStyle = "#8a5a44"; ctx.fillRect(-8, 14, 19, 5);
+  ctx.restore();
+
+  /* THE BLAZER, over the FOOT of the lounger. Third place it has been: by
+     his feet as a flat box, where it read as a cool box; over the chair
+     back, where it turned out the chair back, his torso and his head all
+     lie along the same diagonal and there is no room on it for anything -
+     it came out as a blue slab on his chest, which is the surfboard problem
+     again in a different coat.
+
+     Hanging off the end of the rail it overlaps nothing, it is obviously a
+     jacket because it is obviously hanging, and it is the only thing in the
+     picture from the other ninety-four blocks. */
+  ctx.save();
+  ctx.translate(HX + 252, SEATY - 6); ctx.rotate(0.08);
+  ctx.fillStyle = shade(BLAZER, -0.12); ctx.fillRect(-30, 0, 60, 84);
+  ctx.fillStyle = BLAZER;               ctx.fillRect(-34, -9, 68, 16);
+  ctx.fillStyle = shade(BLAZER, 0.12);  ctx.fillRect(-5, 8, 9, 68);
+  ctx.fillStyle = shade(BLAZER, -0.32); ctx.fillRect(-30, 70, 60, 14);
+  // a lapel, so it is a jacket and not a towel
+  ctx.fillStyle = shade(BLAZER, 0.20);
+  ctx.beginPath();
+  ctx.moveTo(-18, 2); ctx.lineTo(-4, 2); ctx.lineTo(-14, 34);
+  ctx.closePath(); ctx.fill();
+  ctx.restore();
+
+  /* A LEI. Everybody who has ever been to one of these has a photograph of
+     themselves wearing one, and it is four lines of code: a dozen small
+     discs round the neck point in three alternating colours, the near ones
+     a touch larger so the thing has a front and a back. */
+  var NKX = SHX + ux * 24, NKY = SHY + uy * 24;
+  var LEI = ["#f04a7a", "#ffd24a", "#f6f2ea"];
+  for (var li = 0; li < 13; li++){
+    var la = -0.5 + (li / 12) * (Math.PI + 1.0);
+    var lrx = 30, lry = 19;
+    var lx2 = NKX + Math.cos(la) * lrx - ux * 4;
+    var ly2 = NKY + Math.sin(la) * lry + 10;
+    var lnear = Math.sin(la) > 0 ? 1.25 : 0.95;
+    ctx.fillStyle = LEI[li % 3];
+    ctx.beginPath();
+    ctx.arc(lx2, ly2, 6.5 * lnear, 0, Math.PI*2); ctx.fill();
+  }
 
   /* --- the near arm, bent at the elbow, holding the drink up over his
      chest. It lifts once early and then stays: a man who keeps raising his
@@ -9114,6 +9433,40 @@ function sceneCabana(t, a){
   ctx.restore();
 
 
+  /* FOOTPRINTS, coming in from the left and stopping at the chair. Nobody
+     arrives at a beach by teleport, and two rows of dents in the sand are
+     the cheapest story in the picture. */
+  ctx.globalAlpha = a * 0.30; ctx.fillStyle = "#b08d61";
+  for (i = 0; i < 11; i++){
+    var fpx = 120 + i * 52, fpy = 854 - i * 7;
+    ctx.beginPath();
+    ctx.ellipse(fpx, fpy + (i % 2 ? 11 : 0), 11, 6, -0.2, 0, Math.PI*2);
+    ctx.fill();
+  }
+  ctx.globalAlpha = a;
+
+  /* A SIDE TABLE, and the joke on it: his phone, face down. He is not
+     checking it. That is the entire reward. */
+  var TBX = HX + 300, TBY = SEATY + 6;
+  ctx.fillStyle = "#7a5c3c"; ctx.fillRect(TBX - 7, TBY, 14, 52);
+  ctx.fillStyle = "#8a6a46";
+  ctx.beginPath(); ctx.ellipse(TBX, TBY, 54, 15, 0, 0, Math.PI*2); ctx.fill();
+  ctx.fillStyle = "#9a7a52";
+  ctx.beginPath(); ctx.ellipse(TBX, TBY - 4, 54, 15, 0, 0, Math.PI*2); ctx.fill();
+  // the phone, face down, with a notification light nobody is looking at
+  ctx.save();
+  ctx.translate(TBX - 6, TBY - 9); ctx.rotate(0.22);
+  ctx.fillStyle = "#15181d"; ctx.fillRect(-25, -12, 50, 24);
+  ctx.fillStyle = "#23272e"; ctx.fillRect(-22, -9, 44, 18);
+  ctx.globalAlpha = a * (0.35 + 0.45 * (0.5 + 0.5 * Math.sin(t * 2.6)));
+  ctx.fillStyle = "#4ad07a"; ctx.fillRect(16, -10, 6, 6);
+  ctx.globalAlpha = a;
+  ctx.restore();
+  // and a second glass, because nobody at one of these is drinking alone
+  ctx.fillStyle = "#cfe9f2"; ctx.fillRect(TBX + 20, TBY - 44, 24, 36);
+  ctx.fillStyle = "#e8622a"; ctx.fillRect(TBX + 20, TBY - 26, 24, 18);
+  ctx.fillStyle = "#e8e2d6"; ctx.fillRect(TBX + 17, TBY - 47, 30, 5);
+
   /* Two birds, high and slow, on a long loop. */
   for (i = 0; i < 2; i++){
     var px2 = ((t * 26 + i * 700) % (LOGICAL_W + 300)) - 150;
@@ -9145,7 +9498,7 @@ var SCENES = {
    opposite order, because both are keyed on the street number. */
 var SCENES_BACK = {
   34: { title:"PENN 1",             sub:"Thirty-fourth and Seventh",  draw:scenePenn,
-        secs:5.2, music:"city", then:"stage" }
+        secs:8.3, music:"city", then:"stage" }
 };
 
 /* The two that are not on any street. They are chained off `then` rather
@@ -9159,7 +9512,8 @@ var SCENES_END = {
      job rather than about the walk. Everything up to here has been reward;
      this is the one that lands on the way out of the room. */
   cabana:{ title:"HANALEI BAY",
-           sub:"Soak it in and ENJOY! Your number goes back to 0 tomorrow",
+           sub:"Soak it in and ENJOY!",
+           sub2:"Your number goes back to 0 tomorrow", sub2At:2.0,
            draw:sceneCabana, secs:10.6, music:"island", win:true }
 };
 
@@ -9285,9 +9639,29 @@ function updateScene(dt){
   if (sc.win) winGame();
 }
 
+/* WINNING AND DYING SHARE A STATE, AND THEY MUST NOT SHARE A BEAT.
+
+   ST_DEAD is "the run is over and the readout is coming" - it carries the
+   tally for both endings, which is right. What was not right is that it also
+   carried the DEATH HOLD: deadFor started at 0, drawDead() waits for
+   deathHold() before it shows anything, and so a man who had just booked the
+   deal, taken the stage and spent ten seconds on a beach in Hawaii was cut
+   back to a Midtown pavement to lie face down on it for a second and a half
+   before being told he had won.
+
+   So a win starts its clock already expired. The readout is up on the very
+   first frame after the beach and the street is never seen again.
+
+   `hushed` is pre-set with it. The hush exists to cut whatever is still
+   ringing when a readout arrives, and it fires on the same test - which with
+   the clock expired would now land on the same frame as AUDIO.win() and eat
+   it. The island theme is 10.4s of scheduled notes against a 10.6s scene, so
+   by here there is nothing left to cut anyway. */
 function winGame(){
-  G.won = true; G.missedTrain = false;
-  G.state = ST_DEAD; G.deadFor = 0;
+  G.won = true; G.missedTrain = false; G.tiredDeath = false;
+  G.state = ST_DEAD;
+  G.deadFor = deathHold();
+  G.hushed = true;
   saveBest(G.maxRow); endRun();
   AUDIO.win();
 }
@@ -9295,7 +9669,7 @@ function drawScene(){
   if (!G.scene) return;
   var sc = G.scene.sc;
   if (!sc){ G.scene = null; return; }
-  sceneFrame(sc.title, sc.sub, sc.draw);
+  sceneFrame(sc.title, sc.sub, sc.draw, sc);
 }
 
 function drawRide(){
@@ -11949,7 +12323,11 @@ function drawPlayer(pp){
     /* Gated on the state rather than on the tilt being non-zero: the tilt is
        exactly 0 on the first frame of the fall, and the slide and the hop
        have already started by then. */
-    if (G.state === ST_DEAD){
+    /* ...and not on a win. He is only ever ST_DEAD on this path because the
+       readout lives there; a man who has won is still standing. The screen
+       over him is 88% opaque rather than 100, and a corpse showing faintly
+       through the word BOOKED is worse than no figure at all. */
+    if (G.state === ST_DEAD && !G.won){
       /* Once he is down from exhaustion he is a different sprite entirely -
          a body face down, not the standing one rotated. It is drawn flat,
          with a short squash on arrival that is weight landing. */

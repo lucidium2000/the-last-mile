@@ -99,6 +99,22 @@ hands off to two more scenes, chained on a `then` field rather than keyed to a
 street, because neither of them is in Midtown. 25.2 seconds of ending in all,
 verified by running the whole chain through the real `updateScene`.
 
+**PENN 1 is two shots now.** The building, then the desk — one title card,
+because it is one arrival and cutting to a second card that also said PENN 1
+would be an edit rather than a beat. One Penn Plaza is a black slab standing
+directly on top of the Garden, and the photograph everybody has of it is taken
+from the pavement looking up: the tower leaning away and the drum of MSG
+curving in underneath. He walks in from the left and through the lit doors.
+
+The low angle is faked the only way flat rectangles can: the tower **tapers**,
+and its window courses get shorter and tighter as they rise. The first pass
+narrowed it by a quarter over the frame and produced a ziggurat — a real slab
+converges by a few per cent and the eye reads even that as "very tall". It
+also runs off the top of the frame rather than stopping, because the one thing
+such a photograph never shows you is the roof. The Garden is a curved fascia
+band with ribs hanging off it, drawn **before** the tower so the tower stands
+in front of it, which is how they sit.
+
 **CISCO CLUB** — up on the big stage at GSX. An arena: LED wall, truss with
 six heads swinging on their own phase, a lit deck, and four ranks of audience
 in the dark with phones going off in them. He comes up the steps stage left,
@@ -135,6 +151,62 @@ about its corner and produced something that read as a sail; once the five
 points are placed the drawing cannot come apart. The whole lounger group is
 then scaled about the seat by one transform, because hand-retuning nine points
 to make a man an eighth bigger is nine chances to pull a limb off.
+
+**Winning and dying share a state, and they must not share a beat.**
+`ST_DEAD` means "the run is over and the readout is coming" — it carries the
+tally for both endings, which is right. What was not right is that it also
+carried the **death hold**: `deadFor` started at 0, `drawDead()` waits for
+`deathHold()` before it shows anything, and so a man who had just booked the
+deal, taken the stage and spent ten seconds on a beach in Hawaii was cut back
+to a Midtown pavement to lie face down on it for a second and a half before
+being told he had won.
+
+A win now starts its clock already expired, so the readout is up on the very
+first frame after the beach and the street is never seen again — measured, the
+word BOOKED is painting 5,205 pixels on that frame. The death pose is guarded
+on `!G.won` too, because the win screen is 88% opaque rather than 100 and a
+corpse showing faintly through BOOKED is worse than no figure at all. And
+`hushed` is pre-set with it: the hush fires on the same test and would
+otherwise land on the same frame as the win sting and eat it. An ordinary
+death is untouched — verified: nothing painted during the hold, headline
+after it.
+
+**The punchline arrives late.** The beach card carries a `sub2`, which fades
+in and rises two seconds after the first line. A punchline printed at the same
+instant as the line it is a punchline *to* is not a punchline, it is a
+sentence; the beat is the joke. *"Soak it in and ENJOY!"* — then, after two
+seconds, *"Your number goes back to 0 tomorrow."*
+
+**And it is a Club picture, not a holiday.** The resort knows what week it is
+and so should the frame: a **CLUB CISCO banner** with the mark on it strung
+between the cabana posts, two **tiki torches** whose flames are three stacked
+shapes on their own flicker (a single triangle reads as a traffic cone), and a
+**lei** round his neck, because everybody who has been to one of these has a
+photograph of themselves wearing one. That is what turns it from "a man on a
+beach" into "a man at the thing he won", which is the only reason it is at the
+end of a sales game.
+
+And it keeps going: **clouds** lit from underneath on three bands at
+different speeds (a sunset sky with nothing in it is a colour chart), a
+**headland** on the horizon — one dark shape is the difference between "the
+sea" and "an island" — **footprints** coming in from the left and stopping at
+the chair, because nobody arrives at a beach by teleport, and a **side table**
+with his phone on it **face down**. He is not checking it. That is the entire
+reward.
+
+**His neck.** The head used to be drawn axis-aligned on the end of a neck that
+was rotated along the torso, and the kink where the two met read as a broken
+neck. Both are on the same rake now, the head tilted back a little less than
+the torso is — which is what a man propped against a deckchair does with his
+head — and the neck is short and wide enough that the joint is hidden inside
+the head and the collar.
+
+The blazer took three attempts to place. By his feet it read as a cool box; on
+the chair back it turned out the back rail, his torso and his head all lie
+along the same diagonal, so it came out as a blue slab on his chest — the
+surfboard problem again in a different coat. Hanging off the **end of the
+lounger rail** it overlaps nothing and is obviously a jacket because it is
+obviously hanging.
 
 Both scenes get their own theme. The stage is the only music in the file built
 on stacked fifths and a timpani rather than on a progression you could sit
