@@ -3110,23 +3110,18 @@ function wpick(w){
    reaches that at 29.21. Rounding up to 29 or across to 28.6 both miss.
    The other five give up 1.9% of their own share between them to pay for
    it, which is unavoidable - the shares have to sum to one. */
-/* ===================== TEMPORARY, REMOVE BEFORE SHIPPING =================
-   A rate multiplier for testing a power-up without playing for it. Set
-   POWER_BOOST to null and the pool is exactly as it was.
+/* A rate multiplier for testing a power-up without playing for it, and it
+   is OFF. `{ traffic:5, insight:5 }` is what it held while the two new
+   costumes were being looked at; null is what ships, and that one line is
+   the whole of the hook.
 
    It multiplies the RATE, not the weight, which is not the same thing and is
    the mistake this file has made twice before: raising a weight raises the
    denominator too, so doubling a weight is always less than doubling a rate.
    boostPool solves it instead - the boosted kinds get the rate they were
    asked for, and everything else keeps its proportions relative to the
-   others and shares out what is left.
-
-   At 5x, Traffic Insights goes 8.77% -> 43.86% and Internet Insights
-   3.13% -> 15.67%, which is 59.5% of every drop between them. The other
-   four are squeezed into the remaining 40%: the metrocard drops from 48%
-   to 20%. That is what 5x costs, and it is why this is temporary.
-   ========================================================================= */
-var POWER_BOOST = { traffic:5, insight:5 };
+   others and shares out what is left. */
+var POWER_BOOST = null;
 
 function boostPool(base, boost){
   if (!boost) return base;
@@ -3148,7 +3143,23 @@ function boostPool(base, boost){
 }
 
 var POWER_WEIGHTS = {
-  metro:77, chuck:34.81, agent:23, traffic:14, insight:5, sponsor:5.78
+  /* INTERNET INSIGHTS KEEPS THE 15% IT WAS TESTED AT. It was 3.13%, which
+     for a power-up with its own costume, its own eleven seconds and its own
+     colour grade is barely ever - most runs never saw it. 27.28 is the
+     weight that lands exactly on 15%, SOLVED rather than multiplied: the
+     weight is its own denominator, so 5 x 4.8 would not have got there.
+
+     Everything else is back to the weight it always had. Their RATES are
+     each about an eighth lower all the same, because rates have to sum to
+     one and somebody has to give up the share Internet Insights gained -
+     there is no version of this where it goes up and nothing else moves. It
+     comes off all five in proportion, which is the only neutral way to take
+     it:
+
+         metro    48.25% -> 42.34%     traffic   8.77% ->  7.70%
+         chuck    21.81% -> 19.14%     insight   3.13% -> 15.00%
+         agent    14.41% -> 12.65%     sponsor   3.62% ->  3.18%  */
+  metro:77, chuck:34.81, agent:23, traffic:14, insight:27.28, sponsor:5.78
 };
 /* What the generator actually draws from. Identical to POWER_WEIGHTS once
    POWER_BOOST is null again. */

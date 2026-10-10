@@ -4041,28 +4041,33 @@ rare tier:
 > still needs `HOOD_GREED_AFTER` 4 seconds of chasing first, and on the train
 > he still wants it immediately.
 
-> ⚠️ **TEMPORARY — `POWER_BOOST` is live.** Traffic Insights and Internet
-> Insights are both at **5× their normal rate** so the two new costumes can be
-> tested without playing for them. Set `POWER_BOOST = null` to ship.
+> **Internet Insights keeps the 15% it was tested at.** It was 3.13%, which
+> for a power-up with its own costume, its own eleven seconds and its own
+> colour grade is barely ever — most runs never saw it. The weight is 27.28,
+> **solved** rather than multiplied: a weight is its own denominator, so
+> 5 × 4.8 would not have landed on 15.
 >
-> It multiplies the **rate**, not the weight — which is not the same thing, and
-> is the mistake this file has made twice before: raising a weight raises the
-> denominator too, so doubling a weight is always less than doubling a rate.
-> `boostPool` solves it instead, giving the boosted kinds exactly the rate
-> asked for and sharing what is left among the others in their existing
-> proportions.
+> Everything else is back to the weight it always had. Their *rates* are each
+> about an eighth lower all the same, because rates sum to one and somebody
+> has to give up the share Internet Insights gained — there is no version of
+> this where it goes up and nothing else moves. It comes off all five in
+> proportion, which is the only neutral way to take it.
 >
-> | | normal | boosted | |
+> | | was | now | |
 > |---|---|---|---|
-> | Traffic Insights | 8.77% | **43.86%** | ×5.00 |
-> | Internet Insights | 3.13% | **15.67%** | ×5.00 |
-> | metrocard | 48.25% | 22.17% | ×0.46 |
-> | Chuck Bucks | 21.81% | 10.02% | ×0.46 |
-> | Endpoint Agent | 14.41% | 6.62% | ×0.46 |
-> | Cloud Insights | 3.62% | 1.66% | ×0.46 |
+> | metrocard | 48.25% | 42.34% | −5.9pt |
+> | Chuck Bucks | 21.81% | 19.14% | −2.7pt |
+> | Endpoint Agent | 14.41% | 12.65% | −1.8pt |
+> | Traffic Insights | 8.77% | 7.70% | −1.1pt |
+> | **Internet Insights** | **3.13%** | **15.00%** | **+11.9pt** |
+> | Cloud Insights | 3.62% | 3.18% | −0.4pt |
 >
-> The two of them are **59.5% of every drop** between them, which is what 5×
-> costs. Verified over 978 generated drops: 44.8% and 14.1% observed.
+> Verified over 1,332 generated drops: 15.3% observed.
+>
+> `POWER_BOOST` is the hook that got it there and it is **off** — it held
+> `{ traffic:5, insight:5 }` while the costumes were being looked at. It
+> multiplies the *rate*, not the weight, which is not the same thing and is
+> the mistake this file has made twice before.
 
 > **Testing a power-up:** `?pw=<kind>` plants that one on the first pavement
 > of the run, two rows straight ahead of where he starts, every time —
