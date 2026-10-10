@@ -3585,6 +3585,17 @@ street. `buildTrace` takes an origin now and defaults to the player, which is
 right for Path Visualization — that one is a thing he switches on from where
 he stands. The TE-ADDON is not.
 
+**And the pack sits on its own route.** The trace is drawn at
+`c*TILE + TILE*0.5` with no shear at all — it is a line on the floor, and the
+floor is not sheared. Everything with HEIGHT is: cabinet projection pushes a
+model right by `SKEW` per unit of depth, so a box half a tile deep ends up
+about fourteen pixels right of the column its own route runs down. Close
+enough to look like a mistake rather than a projection, which is exactly what
+it looked like. `kioskDX` shifts it back onto the line — measured off the
+sprite, because the open one and the shut one have different bounds and both
+have to land on the same column. It works out at **−13.5px**, which is
+`SKEW/2` exactly.
+
 **The beam is centred properly too.** `cx` is the middle of the *square*, and
 in cabinet projection that is not the middle of the thing standing on it:
 everything is sheared right by `SKEW` per unit of depth, so a box half a tile

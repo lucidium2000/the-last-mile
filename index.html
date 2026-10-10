@@ -13016,6 +13016,20 @@ function drawBill(p){
    The sparks climbing out of it are the TRACE green, not the amber. They are
    a preview of the thing it hands you, and they are the only green on the
    street until you take it. */
+/* HOW FAR LEFT THE PACK HAS TO SIT TO LINE UP WITH ITS OWN ROUTE.
+
+   The trace is drawn at `c*TILE + TILE*0.5` with no shear at all - it is a
+   line on the floor, and the floor is not sheared. Everything with HEIGHT is:
+   cabinet projection pushes a model right by SKEW per unit of depth, so a box
+   half a tile deep ends up about fourteen pixels right of the column the
+   route runs down. Close enough to look like a mistake rather than a
+   projection, which is exactly what it looked like.
+
+   So the pack is shifted back onto the line. Measured off the sprite rather
+   than hard-coded, because the open one and the shut one have different
+   bounds and both have to land on the same column. */
+function kioskDX(sp){ return TILE*0.5 - (sp.w*0.5 - sp.ox); }
+
 function drawKiosk(col, sy, used, usedAt){
   var cx = col*TILE + TILE*0.5, ground = sy - ROW_H*0.46;
   if (used){
@@ -13036,7 +13050,7 @@ function drawKiosk(col, sy, used, usedAt){
     var age = G.t - (usedAt == null ? G.t : usedAt);
     var k = Math.max(0, Math.min(1, age / KIOSK_GONE));
     var kb0 = S.pr_kioskOpen;
-    var mx0 = col*TILE - kb0.ox + kb0.w*0.5;
+    var mx0 = cx;                              // the pack is shifted onto it
     var open = Math.max(0, 1 - age / KIOSK_BURST);      // 1 at the instant, 0 after
     var dim = 1;
     if (age >= KIOSK_BURST){
@@ -13062,7 +13076,7 @@ function drawKiosk(col, sy, used, usedAt){
     ctx.restore();
 
     ctx.globalAlpha = dim;
-    blit(kb0, col*TILE, sy);
+    blit(kb0, col*TILE + kioskDX(kb0), sy);
 
     // the light sitting in the open mouth
     ctx.globalAlpha = dim * (0.30 + 0.45 * open);
@@ -13097,7 +13111,7 @@ function drawKiosk(col, sy, used, usedAt){
      and how wide it is - so it is right by construction and stays right if
      the model changes. */
   var kb = S.pr_kiosk;
-  var mx = col*TILE - kb.ox + kb.w*0.5;
+  var mx = cx;                                 // the pack is shifted onto it
 
   /* SHUT, AND LIT FROM INSIDE. The light leaves off the top of the lid - it
      used to start at the ground and run three hundred pixels up through the
@@ -13119,7 +13133,7 @@ function drawKiosk(col, sy, used, usedAt){
   ctx.restore();
   ctx.globalAlpha = 1;
 
-  blit(kb, col*TILE, sy - bob);
+  blit(kb, col*TILE + kioskDX(kb), sy - bob);
 
   ctx.globalAlpha = 0.20 + 0.14*pul; ctx.fillStyle = C.pw3;
   ctx.beginPath();
