@@ -1225,9 +1225,9 @@ impact to play, so `AUDIO.collapse()` is a long breath falling away with the
 two thuds that are the whole of it, soft and low, at 0.62 and 1.66 — the knees,
 then the rest of him. The screen does not shake at all.
 
-**The drain is per box and per second now, not per street.** Half a point of
-health for every square he covers on foot, and a quarter point for every
-second the run is live. A street was a lumpy proxy for both: a four-lane canyon and a one-lane
+**The drain is per box and per second now, not per street.** Three quarters of
+a point of health for every square he covers on foot, and three eighths for
+every second the run is live. A street was a lumpy proxy for both: a four-lane canyon and a one-lane
 side street took the same 3% off him, a sideways dodge to get out from under a
 bus was free, and standing on a corner reading the traffic cost nothing at all
 — which is the one behaviour the old model actively rewarded.
@@ -1242,20 +1242,33 @@ stays free of the per-box charge — he is sitting down, and charging forty boxe
 for a ride would make the metrocard a trap — but the clock keeps running,
 because time passes on a train like anywhere else.
 
-**Both rates are half what they first shipped at.** The shape was right and
-the rate was not. At a point a box and half a point a second the two charges
-together came to roughly 1.9x the old per-street drain — the walk to the
-restaurant is 211 boxes, so the round trip alone was 422% against the old
-282%, with a four-minute run adding another 120% from the clock. That turned
-the food cart from a thing you took when it was on your way into a thing you
-had to go and find, and a man detouring for a hot dog is not a man walking
-uptown. Halved, the round trip costs about what the streets used to and the
-clock is the part that bites.
+**These rates were walked in from both ends, and they are the first dial to
+reach for.** They shipped at 1 a box and 0.5 a second, which came to roughly
+1.9x the per-street drain they replaced — the walk to the restaurant is 211
+boxes, so the round trip alone was 422% against the old 282%, with a
+four-minute run adding another 120% off the clock. That turned the food cart
+from a thing you took when it was on your way into a thing you had to go and
+find, and a man detouring for a hot dog is not a man walking uptown. Halving
+both overshot the other way: the walk stopped costing enough for the route to
+be worth tracing, and a cart you passed was a cart you could ignore. The
+current numbers are the midpoint.
 
-Measured at the current rates: one forward step costs exactly 0.500, a
-three-row Cloud Insights leap exactly 1.500, standing still 0.250/second —
-200 boxes of ground or 6.7 minutes of clock to burn a full tank, and the
-`HP_CRAWL` third still rides on top of both (0.170 a step down there).
+| | 1 / 0.5 | 0.5 / 0.25 | **0.75 / 0.375** |
+|---|---|---|---|
+| a forward step | 1.000 | 0.500 | **0.750** |
+| a three-row Cloud Insights leap | 3.000 | 1.500 | **2.250** |
+| standing still, per second | 0.500 | 0.250 | **0.375** |
+| a step below `HP_CRAWL` | 0.340 | 0.170 | **0.255** |
+| full tank, ground alone | 100 boxes | 200 boxes | **133 boxes** |
+| full tank, clock alone | 3.3 min | 6.7 min | **4.4 min** |
+| round trip, ground only | 422% | 211% | **317%** |
+| a four-minute run, clock only | 120% | 60% | **90%** |
+
+All measured through `spendHp()` rather than read off the constants, so the
+`HP_CRAWL` third is in the step figures. If it needs moving again, move
+`HP_PER_BOX` first: the ground is the part the player can watch himself
+spending, and the clock is the part he feels without being able to point at
+it.
 
 The drain is deliberately more than you start with. You cannot finish on the
 tank you begin with. A flat rate for all three made the choice of cart meaningless. Now a pizza
