@@ -3827,6 +3827,60 @@ the more of it anybody actually sees.
 
 
 
+
+## The dojo crane, and turning into the move
+
+Three widths, three moves, and the width tells you which one is coming:
+**one lane is the crane**, two is the running jump, three or more is the
+backflip.
+
+The crane is the one he pulls on Morpheus — a leap into a held stance, one knee
+drawn up hard with the shin folded under it, the other leg straight, both arms
+raised and uneven — carried across and put down.
+
+**It is a pose, not a cycle**, and that is the whole difference. Every other
+gait here is `sin(phase)` driving two limbs in opposition; this one ignores the
+phase entirely and interpolates towards a *fixed* set of offsets. A held shape
+is what makes a martial-arts jump read as deliberate — a man doing something,
+rather than a man mid-stride who happens to be off the ground.
+
+**The hold is the shape of the easing.** `sin * 2.2` clamped at 1 reaches the
+pose about 15% in, sits at it for 70% of the flight, and drops out over the
+last 15%. Those two ends are the only frames where `walkStride` still has the
+figure, so he leaves the kerb running and lands running, and the crane is what
+happens in between. Measured: knee −24 and shin −30 held flat from h=0.18 to
+h=0.82, arms −16 and −23.
+
+The ceiling is the shin band again — 41.2px — and `CRANE_KNEE * CRANE_TUCK` is
+24 × 1.25, which is exactly 30. The arm window is 76px, so the arms can go
+further than the legs, which is lucky, because this pose is mostly arms.
+
+Which knee comes up follows `G.facing`, so the pose turns with him instead of
+being drawn on one shoulder for ever.
+
+## Turning into a sideways run
+
+Going sideways he was a man facing you and travelling left, and at this
+amplitude of arm and leg swing that reads as *sliding* rather than running —
+which is the jarring part.
+
+He has no profile sprite and is not getting one: a second baked figure per
+costume, to be seen for two tenths of a second, is a lot of atlas for very
+little. **Narrowing him does the whole job.** A figure squashed on x is a
+figure seen at an angle — the oldest trick in 2D animation, and it works
+because the eye reads foreshortening before it reads anatomy. The mirror on
+`G.facing` was already pointing him the right way; this is what makes the turn
+believable.
+
+30%, eased in and out across the hop on the same half-sine the jump arc uses,
+so he turns *into* the step and squares back up as he lands rather than
+snapping flat. Measured: 95.9px wide forward, 95.1 at the start of a sideways
+step, 67.2 at its midpoint.
+
+`kx` also drives every band edge, so the limbs narrow with him and nothing had
+to be told about it separately. The ordinary walk is untouched — 126.1px
+sideways, exactly as before.
+
 ## The trail follows him sideways too
 
 *"Neo's run style should be used for sideways movements too."* The limb rig

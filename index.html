@@ -5272,7 +5272,7 @@ function reset(){
     hp:HP_MAX, hpGain:null, hpShow:0, hpFrom:HP_MAX, hpHold:0, hpFill:0,
     meals:0, sadT:0, needFood:0, saidFood:false,
     bonusChuck:0, bonusTam:0, bonusAddon:0, bonusFood:0, bonusChamp:0,
-    bonusUpsell:0, upsells:0, traceRun:0, flip:0, sprint:0,
+    bonusUpsell:0, upsells:0, traceRun:0, flip:0, sprint:0, crane:0,
     bonusAgent:0, agentPays:0,
     bonusNews:0, news:0, paper:null,
     addons:0, champs:0, addonWin:null, champWin:null,
@@ -6203,6 +6203,10 @@ function act(dir){
      frightening rather than when it is merely there. */
   G.flip   = (crossing && laneSpan >= 3) ? 1 : 0;
   G.sprint = (crossing && laneSpan >= 1 && laneSpan <= 2) ? 1 : 0;
+  /* One lane is the dojo jump, two is the running one. Both are "sprint" as
+     far as the clock, the arc and the sound are concerned - they differ only
+     in what his limbs do on the way over. */
+  G.crane  = (G.sprint && laneSpan === 1) ? 1 : 0;
   /* How wide the jump is, kept for the arc: two lanes gets more air than one,
      because it is further and he is in the air longer to cover it. */
   G.sprintSpan = G.sprint ? laneSpan : 1;
@@ -7081,10 +7085,12 @@ function colSafeFor(r, col, secs){
    So a one-lane street gets the OTHER thing the film is full of: the running
    jump off the roof. He does not stop running to do it - he hits the kerb at
    full stride, leaves the ground, and his legs KEEP GOING in the air the
-   whole way across, which is the whole look. It covers one and two lane
-   streets - which is most of them - and three or more still gets the
-   backflip, because going over backwards is what you do when the gap is
-   frightening rather than when it is merely there.
+   whole way across, which is the whole look. It covers TWO lane
+   streets. One lane gets the dojo crane instead (see THE CRANE above) and
+   three or more still gets the backflip, because going over backwards is
+   what you do when the gap is frightening rather than when it is merely
+   there. Three widths, three moves, and the width tells you which one is
+   coming.
 
    That falls out of the rig for free rather than needing a pose: runGait()
    is true for the entire crossing and the limb cycle is driven off walkPh,
@@ -7124,6 +7130,76 @@ var SPRINT_SLOW = 3 / SPRINT_AIR;   // so the hop takes this much longer than a 
 var SPRINT_PHASE = 2;       // twice the footfalls per square
 var SPRINT_LIFT = 27, SPRINT_ARM = 19, SPRINT_KNEE = 1.3;
 var SPRINT_JUMP = 72;       // px of air under the running jump
+
+/* ------------------------------------------------------------- THE CRANE
+   The dojo. One lane gets the move Neo pulls on Morpheus rather than the
+   running jump: a leap into a held crane - one knee drawn up hard, the other
+   leg straight under him, both arms raised and uneven - carried across and
+   put down.
+
+   IT IS A POSE, NOT A CYCLE, and that is the whole difference. Every other
+   gait here is sin(phase) driving two limbs in opposition; this one ignores
+   the phase entirely and interpolates towards a FIXED set of offsets. A held
+   shape is what makes a martial-arts jump read as deliberate - a man doing
+   something, rather than a man mid-stride who happens to be off the ground.
+
+   THE HOLD IS THE SHAPE OF THE EASING. sin * 2.2 clamped at 1 reaches the
+   pose about 15% in, sits at it for 70% of the flight, and drops out of it
+   over the last 15%. Those two ends are the only frames where walkStride
+   still has the figure, so he leaves the kerb running and lands running, and
+   the crane is what happens in between.
+
+   THE CEILING IS THE SHIN BAND, as ever: 41.2px, so the raised knee's shin
+   offset tops out at 30 before the foot leaves its own window. 24 * 1.25 is
+   exactly 30. The arm window is 76px, so the arms can go further than the
+   legs - which is lucky, because this pose is mostly arms. */
+var CRANE_KNEE = 24;        // the drawn-up knee
+var CRANE_TUCK = 1.25;      // and how far the shin folds under it
+var CRANE_ARM_HI = 23, CRANE_ARM_LO = 16;   // raised, and uneven
+var CRANE_LIFT = 1.16;      // a touch more air than the running jump
+
+/* ------------------------------------------------- TURNING INTO THE MOVE
+   Going sideways, he was a man facing you and travelling left - and at this
+   amplitude of arm and leg swing that reads as sliding rather than running,
+   which is the jarring part. He has no profile sprite and is not getting one:
+   a second baked figure per costume to be seen for two tenths of a second is
+   a lot of atlas for very little.
+
+   Narrowing him instead does the whole job. A figure squashed on x is a
+   figure seen at an angle - it is the oldest trick in 2D animation and it
+   works because the eye reads foreshortening before it reads anatomy. The
+   mirror on G.facing was already pointing him the right way; this is what
+   makes the turn believable.
+
+   0.30, eased in and out across the hop on the same half-sine the jump arc
+   uses, so he turns into the step and squares back up as he lands rather
+   than snapping flat. kx also drives every band edge, so the limbs narrow
+   with him and nothing has to be told about it separately. */
+var SIDE_TURN = 0.30;
+function sideTurn(){
+  if (!runGait() || G.hop >= 1 || G.col === G.fromCol) return 0;
+  return Math.sin(Math.min(1, Math.max(0, G.hop)) * Math.PI);
+}
+
+function craneAmt(){
+  if (!G.crane || G.hop <= 0 || G.hop >= 1) return 0;
+  return Math.min(1, Math.sin(G.hop * Math.PI) * 2.2);
+}
+function craneStride(){
+  var k = craneAmt();
+  if (k <= 0) return null;
+  /* Which knee comes up follows which way he is facing, so the pose turns
+     with him instead of being drawn on one shoulder for ever. */
+  var right = G.facing > 0;
+  var hi = -CRANE_KNEE * k, hiShin = -CRANE_KNEE * CRANE_TUCK * k;
+  return {
+    legL:  right ? hi : 0,     shinL: right ? hiShin : 0,
+    legR:  right ? 0  : hi,    shinR: right ? 0 : hiShin,
+    kickL: 0, kickR: 0,
+    armL: -(right ? CRANE_ARM_LO : CRANE_ARM_HI) * k,
+    armR: -(right ? CRANE_ARM_HI : CRANE_ARM_LO) * k
+  };
+}
 var SPRINT_GHOSTS = 4;      // the trail, on the crossing only
 var SPRINT_GHOST_GAP = 11;  // px between them, along the path
 
@@ -7196,6 +7272,7 @@ function playerPos(){
      being lobbed. */
   if (G.sprint && G.hop < 1)
     lift += SPRINT_JUMP * (1 + 0.22 * ((G.sprintSpan || 1) - 1))
+            * (G.crane ? CRANE_LIFT : 1)
             * Math.sin(G.hop * Math.PI);
   return { col:G.fromCol + (G.col-G.fromCol)*e, row:G.fromRow + (G.row-G.fromRow)*e,
            lift:lift, sq:s };
@@ -15432,6 +15509,7 @@ function drawPlayer(pp){
      exactly the thing that was being smoothed out. A fifth of it is enough
      to stop a stride looking rigid. */
   var kx = (1 - pp.sq*0.022) * hk, ky = (1 + pp.sq*0.031) * hk;
+  kx *= 1 - SIDE_TURN * sideTurn();      // turned into a sideways run
 
 /* A head shake, for the turnstile with no card in the wallet. The figure is
      baked as one sprite, so shaking it whole reads as a stumble; what reads as
@@ -15588,8 +15666,13 @@ function drawPlayer(pp){
      anyway - a walk cycle is the one thing his legs are not doing.
 
      The RUN, by contrast, is nothing but the limb rig at bigger numbers, so
-     it comes out of walkStride like everything else. */
-  var W2 = flipSpin() ? null : walkStride();
+     it comes out of walkStride like everything else.
+
+     The CRANE takes priority over the run while it is held, and returns null
+     at both ends of the jump - which is what hands the figure back to the
+     stride for the take-off and the landing without either of them needing
+     to know the other exists. */
+  var W2 = flipSpin() ? null : (craneStride() || walkStride());
   if (W2){
     /* A model point (x, y, z) lands on screen at sx + (x*TILE + y*SKEW)*kx,
        dy - (y*ROW_H + z*ZH)*ky, because blitScaled offsets by the same ox/oy
