@@ -5299,7 +5299,7 @@ function reset(){
     meals:0, sadT:0, needFood:0, saidFood:false,
     bonusChuck:0, bonusTam:0, bonusAddon:0, bonusFood:0, bonusChamp:0,
     bonusUpsell:0, upsells:0, traceRun:0, flip:0, sprint:0, crane:0, queued:null,
-    jumpTurn:0,
+    jumpTurn:0, sideA:0,
     bonusAgent:0, agentPays:0,
     bonusNews:0, news:0, paper:null,
     addons:0, champs:0, addonWin:null, champWin:null,
@@ -6203,8 +6203,19 @@ function act(dir){
      landing was found, and the whole thing is dropped: he takes the ordinary
      step into lane one with no flip, because a flip that ends in traffic is
      the bug this fixes. */
+  /* NOT OFF A TRACED ROUTE. The crossing leap carries him two to four rows,
+     and on a route that is two to four NODES skipped - which breaks the run
+     of ten he is being paid a hundred thousand for, and dumps him somewhere
+     off the line he was told was safe. The trace is already safe passage
+     across that tarmac; he does not need to leave the ground to use it.
+
+     Both halves of it count: standing on the route, and stepping onto it.
+     Either way the answer is an ordinary step, which is what walking a path
+     looks like. Off the route entirely and the jumps come back. */
+  var onRoute = (G.revealT > 0 && G.trace &&
+                 (onPath || onTrace(G.row, G.col)));
   if (dir === "f" && G.slowT > 0 && !(G.dashT > 0) && nr === G.row + 1 &&
-      isRoadRow(rows[nr]) && !isRoadRow(rows[G.row])){
+      !onRoute && isRoadRow(rows[nr]) && !isRoadRow(rows[G.row])){
     var fland = -1, fsafe = 0;
     for (var fq = 2; fq <= FLIP_REACH; fq++){
       var fcand = rows[G.row + fq];
@@ -7237,15 +7248,19 @@ var CRANE_LIFT = 1.16;      // a touch more air than the running jump
    mirror on G.facing was already pointing him the right way; this is what
    makes the turn believable.
 
-   0.30, eased in and out across the hop on the same half-sine the jump arc
-   uses, so he turns into the step and squares back up as he lands rather
-   than snapping flat. kx also drives every band edge, so the limbs narrow
-   with him and nothing has to be told about it separately. */
+   IT HOLDS, rather than pulsing once per step. The first version rode a
+   half-sine across the hop, so a man crossing three columns turned, squared
+   up, turned, squared up, turned - three narrowings and three recoveries in
+   under half a second, which is a flicker and not a turn. It is a smoothed
+   level now, exactly the way G.walkAmt works: up fast while a lateral step
+   is running, down gently when he stops. Hold the key and he stays turned;
+   let go and he comes back round over about a fifth of a second.
+
+   kx also drives every band edge, so the limbs narrow with him and nothing
+   has to be told about it separately. */
 var SIDE_TURN = 0.30;
-function sideTurn(){
-  if (!runGait() || G.hop >= 1 || G.col === G.fromCol) return 0;
-  return Math.sin(Math.min(1, Math.max(0, G.hop)) * Math.PI);
-}
+var SIDE_K = 0.85;          // a sideways step in the coat, against HOP_MS
+function sideTurn(){ return runGait() ? G.sideA : 0; }
 
 /* Which jump he does: crane, then the running jump, then the backflip, round
    and round. */
@@ -7274,8 +7289,8 @@ function craneStride(){
     armR: -(right ? CRANE_ARM_HI : CRANE_ARM_LO) * k
   };
 }
-var SPRINT_GHOSTS = 4;      // the trail, on the crossing only
-var SPRINT_GHOST_GAP = 11;  // px between them, along the path
+var SPRINT_GHOSTS = 4;      // the trail
+var GHOST_BACK = 0.11;      // how far back down the hop clock each one sits
 
 /* Is he running? The coat is the whole test. The backflip is excluded because
    a man turning over is not using his legs for anything. */
@@ -12862,11 +12877,17 @@ function update(dt){
        a reaction rendered at three quarters speed is a man who has seen the
        car and is strolling out of its way.
 
-       So a lateral step runs at the ordinary 135ms rather than 180. Forward
-       keeps the 75%, and the jumps keep their own multipliers, so the only
-       thing that got quicker is the one move that is supposed to be quick. */
+       So a lateral step does not just skip the 75% - it goes BELOW the
+       ordinary step, to 115ms against 135. He is the only thing in the game
+       that moves faster than the game does, for the eleven seconds he has the
+       coat on, and sideways is where that should be felt: it is the axis you
+       press when something is about to hit you.
+
+       Forward keeps the 75%, and the jumps keep their own multipliers, so the
+       only thing that got quicker is the one move that is supposed to be. */
     var lateral = G.col !== G.fromCol;
-    G.hop += dt*1000 * ((G.slowT > 0 && !lateral) ? SLOW_MAN : 1)
+    var sideK = (G.slowT > 0 && lateral) ? SIDE_K : 1;
+    G.hop += dt*1000 * ((G.slowT > 0 && !lateral) ? SLOW_MAN : 1) / sideK
              / (HOP_MS * (1 - 0.32*G.flyA) * drag * dashK()
                 * (G.flip ? FLIP_SLOW : (G.sprint ? SPRINT_SLOW : 1)));
     if (G.hop >= 1){
@@ -12998,6 +13019,12 @@ function update(dt){
               * ((G.sprint && G.hop < 1) ? SPRINT_AIR : 1);
   G.walkAmt += (stepping - G.walkAmt) * Math.min(1, dt * (stepping ? 24 : 9));
   if (G.walkAmt < 0.002) G.walkAmt = 0;
+  /* How far round he is turned, held across consecutive sideways steps so
+     side-to-side reads as one continuous movement rather than a series of
+     separate flinches. Up in about 40ms, down over about 140. */
+  var lat = (G.hop < 1 && G.col !== G.fromCol) ? 1 : 0;
+  G.sideA += (lat - G.sideA) * Math.min(1, dt * (lat ? 26 : 7));
+  if (G.sideA < 0.002) G.sideA = 0;
 
   var fdx = G.col - G.fromCol;
   var fdir = fdx > 0 ? 1 : (fdx < 0 ? -1 : (G.facing > 0 ? 1 : -1));
@@ -15729,24 +15756,41 @@ function drawPlayer(pp){
      man who blurs going forwards and not going sideways is a man with an
      effect attached to one keypress.
 
-     Ordinary steps get a little over half the jump's strength. The jump is
-     still the big one; this is the difference between moving and running.
+     ON THE PATH HE ACTUALLY TOOK, not a fixed offset behind him. The first
+     two versions stepped the copies back by a constant 11px - first always
+     downwards, then along the sign of the displacement - and a constant does
+     not know how far he is going or how fast. A sideways step covers a whole
+     tile, 120px, so four ghosts 11px apart smeared the first third of it and
+     left the rest bare; the trail was densest where he had barely moved.
 
-     IT TRAILS THE DIRECTION OF TRAVEL. Dropping the copies straight down was
-     right only because the only move that had them went up the screen. Taking
-     the sign off the actual displacement puts them behind him whichever way
-     he went, which is the entire point of a motion trail. */
+     Winding the hop clock back instead gives it for nothing. The position is
+     `from + (to - from) * smoothstep(hop)`, so evaluating that at earlier
+     hops is literally where he WAS - correctly spaced, correctly curved
+     through the easing (bunched at both ends, stretched through the middle,
+     which is exactly how a real smear falls), and right for every move
+     without being told which one it is. The jump arc goes through the same
+     wind-back, so on a crossing the ghosts follow him over the top rather
+     than hanging in a line underneath.
+
+     Ordinary runs get three quarters of the jump's strength. The jump is
+     still the big one; this is the difference between moving and running. */
   if (runGait() && G.hop < 1){
     var sa = G.sprint ? sprintAmt() : G.walkAmt;
-    var gStr = G.sprint ? 0.30 : 0.17;
+    var gStr = G.sprint ? 0.30 : 0.225;
     if (sa > 0.02){
-      var gdc = G.col - G.fromCol, gdr = G.row - G.fromRow;
-      var gtx = gdc > 0 ? -1 : (gdc < 0 ? 1 : 0);
-      var gty = gdr > 0 ? 1 : (gdr < 0 ? -1 : 0);
       for (var si = SPRINT_GHOSTS; si >= 1; si--){
+        var gh = G.hop - si * GHOST_BACK;
+        if (gh <= 0) continue;
+        var ge = gh * gh * (3 - 2 * gh);
+        var gcol = G.fromCol + (G.col - G.fromCol) * ge;
+        var grow = G.fromRow + (G.row - G.fromRow) * ge;
+        var gl = G.sprint
+               ? SPRINT_JUMP * (1 + 0.22 * ((G.sprintSpan || 1) - 1))
+                 * (G.crane ? CRANE_LIFT : 1) * Math.sin(gh * Math.PI)
+               : 0;
         ctx.globalAlpha = gStr * sa * (1 - si / (SPRINT_GHOSTS + 1));
-        blitScaled(s, sx + si * SPRINT_GHOST_GAP * gtx,
-                      dy + si * SPRINT_GHOST_GAP * gty, kx, ky);
+        blitScaled(s, gcol * TILE,
+                      rowScreenY(grow) - gl - lift - flyLift, kx, ky);
       }
       ctx.globalAlpha = 1;
     }

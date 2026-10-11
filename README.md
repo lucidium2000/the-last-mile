@@ -3829,6 +3829,58 @@ the more of it anybody actually sees.
 
 
 
+
+## Side to side, made fluid
+
+Three things, all of them about the same two tenths of a second.
+
+**The turn holds instead of pulsing.** It rode a half-sine across each hop, so
+a man crossing three columns turned, squared up, turned, squared up, turned —
+three narrowings and three recoveries in under half a second, which is a
+flicker and not a turn. It is a smoothed level now, exactly the way
+`G.walkAmt` works: up in about 40ms while a lateral step is running, down over
+about 140 when he stops. Measured across four alternating steps it sits at
+0.99 and stays there, then decays to nothing once the presses stop. Hold the
+key and he stays turned.
+
+**And the lateral step goes below the ordinary one** — 117ms measured, against
+the base game's 150 and the 183 it used to be in the coat. He is the only
+thing in the game that moves faster than the game does, for the eleven seconds
+he has the coat on, and sideways is where that should be felt: it is the axis
+you press when something is about to hit you.
+
+**The trail now follows the path he actually took.** The first two versions
+stepped the copies back by a constant 11px — first always downwards, then along
+the sign of the displacement — and a constant does not know how far he is going
+or how fast. A sideways step covers a whole tile, 120px, so four ghosts 11px
+apart smeared the first third of it and left the rest bare: the trail was
+densest where he had barely moved.
+
+Winding the hop clock back gives it for nothing. The position is
+`from + (to - from) * smoothstep(hop)`, so evaluating that at earlier hops is
+literally where he *was* — correctly spaced, correctly curved through the
+easing (bunched at both ends, stretched through the middle, which is how a
+real smear falls), and right for every move without being told which one it
+is. Measured mid-step: he is at column 9.30 and his ghosts are at 8.97, 8.65,
+8.36, 8.14.
+
+The jump arc goes through the same wind-back, so on a crossing they follow him
+over the top rather than hanging in a line underneath. Runs are up from 0.17 to
+0.225 against the jump's 0.30 — still the smaller version of the same effect.
+
+## No jumping off a traced route
+
+The crossing leap carries him two to four rows, and on a route that is two to
+four *nodes* skipped — which breaks the run of ten he is being paid a hundred
+thousand for, and puts him down somewhere off the line he was just told was
+safe. The trace is already safe passage across that tarmac; he does not need to
+leave the ground to use it.
+
+Both halves count: standing on the route, and stepping onto it. Either way the
+answer is an ordinary step, which is what walking a path looks like. Off the
+route entirely and the jumps come back. Verified: the same street gives a crane
+from kerb 2 to 5 with no trace up, and a single step from 7 to 8 with one.
+
 ## A tap is never lost
 
 Going side to side he seemed to hesitate, and the cause was one line: `act()`
