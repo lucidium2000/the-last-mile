@@ -3860,7 +3860,17 @@ says it. Measured over 70 crossings: 23 of 23 backflips, 12 of 22 running
 jumps, 14 of 25 cranes.
 
 And 15% louder — gain 1.15, which with the clip's own 0.529 peak lands at 0.195
-through the master. Audibly over the whoosh it sits on, nowhere near clipping.
+through the master. Nowhere near clipping.
+
+**The whoosh went the other way, to 60%.** Only the voice was meant to come up;
+raising it without lowering the air just made the whole crossing louder. The
+jump cue is one dial now (`FLIP_G`) so the balance inside it cannot drift, and
+all four of its components moved together: 0.051, 0.057, 0.06, 0.06 against the
+old 0.085, 0.095, 0.10, 0.10. The whoosh is the air he is going through and the
+woah is him — the air does not need to be heard over the man.
+
+The push-off scuff is deliberately *not* on that dial: that is his feet on the
+kerb, not air, and it was in balance already.
 
 The crane is the one he pulls on Morpheus — a leap into a held stance, one knee
 drawn up hard with the shin folded under it, the other leg straight, both arms

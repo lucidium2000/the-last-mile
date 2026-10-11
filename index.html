@@ -382,6 +382,7 @@ var AUDIO = (function(){
     };
   }
   var freeClip = sampler(FREE_B64), woahClip = sampler(WOAH_B64);
+  var FLIP_G = 0.60;              // the jump whoosh, under the voice
   var WOAH_CUT = 1.45;            // past the landing, and past the word itself
   var WOAH_FULL_FROM = 2;         // more lanes than this and it plays whole
 
@@ -874,9 +875,16 @@ var AUDIO = (function(){
        And a thump on the far kerb at 1.05s, because an arc that does not
        land has not finished. */
     /* Every level here came down by about a third when the voice went on top
-       of it. Bandpassed noise is broadband where a voice is, so it masks one
-       far more effectively than its amplitude suggests - the woah was nominally
-       four times louder than this and still disappeared into it. */
+       of it, and then by a further 40% when the voice went up: bandpassed
+       noise is broadband where a voice is, so it masks one far more
+       effectively than its amplitude suggests. The whoosh is the air he is
+       going through and the woah is him - the air does not need to be heard
+       over the man.
+
+       FLIP_G is the one dial, so the whole cue moves together and the balance
+       inside it cannot drift. The push-off scuff is deliberately NOT scaled
+       by it: that is his feet on the kerb, not air, and it was in balance
+       already. */
     flip: function(secs){
       /* Scaled to the length of the jump. Everything here was written against
          the backflip's 1.08s, and the running jump is half that - played
@@ -884,10 +892,10 @@ var AUDIO = (function(){
          on the pavement, which reads as a second event rather than as the
          end of the first. */
       var k = (secs || 1.08) / 1.08;
-      whoosh({ f:170, to:2600, dur:0.44*k, g:0.085, q:0.9, peak:0.62 });
-      whoosh({ f:2600, to:170, dur:0.72*k, g:0.095, q:0.9, peak:0.26, at:0.40*k });
-      tone({ f:180, to:42, dur:1.00*k, type:"sine", g:0.10, lp:420 });
-      hit({ f:700, to:120, dur:0.20, g:0.10, at:1.05*k });
+      whoosh({ f:170, to:2600, dur:0.44*k, g:0.085*FLIP_G, q:0.9, peak:0.62 });
+      whoosh({ f:2600, to:170, dur:0.72*k, g:0.095*FLIP_G, q:0.9, peak:0.26, at:0.40*k });
+      tone({ f:180, to:42, dur:1.00*k, type:"sine", g:0.10*FLIP_G, lp:420 });
+      hit({ f:700, to:120, dur:0.20, g:0.10*FLIP_G, at:1.05*k });
     },
     missedClose: function(){
       tone({ f:392, to:196, dur:0.7, type:"sawtooth", g:0.22, lp:900 });
