@@ -3862,15 +3862,31 @@ jumps, 14 of 25 cranes.
 And 15% louder — gain 1.15, which with the clip's own 0.529 peak lands at 0.195
 through the master. Nowhere near clipping.
 
-**The whoosh went the other way, to 60%.** Only the voice was meant to come up;
-raising it without lowering the air just made the whole crossing louder. The
-jump cue is one dial now (`FLIP_G`) so the balance inside it cannot drift, and
-all four of its components moved together: 0.051, 0.057, 0.06, 0.06 against the
-old 0.085, 0.095, 0.10, 0.10. The whoosh is the air he is going through and the
-woah is him — the air does not need to be heard over the man.
+**The whoosh went the other way.** Only the voice was meant to come up; raising
+it without lowering the air just made the whole crossing louder. It went to 60%
+and then back to 72% once that turned out to be a shade far — the whoosh is the
+air he is going through and the woah is him, and the air has to be *there*
+without being heard over the man.
 
-The push-off scuff is deliberately *not* on that dial: that is his feet on the
-kerb, not air, and it was in balance already.
+Three dials, each describing one thing:
+
+| | gain | |
+|---|---|---|
+| the air — two whooshes and the drop | `FLIP_G` 0.72 | 0.061, 0.068, 0.072 |
+| the landing thump | `FLIP_LAND_G` 0.40 | 0.040 |
+| the push-off scuff | on neither | 0.17, 0.11, 0.10 |
+
+**The landing has a dial of its own and sits below the air.** It started level
+with the whoosh and came down twice, because a thump is a transient, and a
+transient at the same level as a sustained sound is always the louder of the
+two to the ear. It only has to say *down* — the eye has already seen him land.
+
+The push-off is on neither: that is his feet on the kerb, not air, and it was
+in balance already.
+
+The woah ended at **1.32** — 0.223 through the master gain, still comfortably
+short of clipping, and now clearly the loudest thing in the crossing. Which is
+the point: it is the only part of it that is him.
 
 The crane is the one he pulls on Morpheus — a leap into a held stance, one knee
 drawn up hard with the shin folded under it, the other leg straight, both arms

@@ -382,7 +382,12 @@ var AUDIO = (function(){
     };
   }
   var freeClip = sampler(FREE_B64), woahClip = sampler(WOAH_B64);
-  var FLIP_G = 0.60;              // the jump whoosh, under the voice
+  var FLIP_G = 0.72;              // the jump whoosh, under the voice
+  /* The landing is on its own dial, below the air. It started level with the
+     whoosh and came down twice: a thump is a transient, and a transient at
+     the same level as a sustained sound is always the louder of the two to
+     the ear. It only has to say "down" - the eye has already seen him land. */
+  var FLIP_LAND_G = 0.40;
   var WOAH_CUT = 1.45;            // past the landing, and past the word itself
   var WOAH_FULL_FROM = 2;         // more lanes than this and it plays whole
 
@@ -881,10 +886,11 @@ var AUDIO = (function(){
        going through and the woah is him - the air does not need to be heard
        over the man.
 
-       FLIP_G is the one dial, so the whole cue moves together and the balance
-       inside it cannot drift. The push-off scuff is deliberately NOT scaled
-       by it: that is his feet on the kerb, not air, and it was in balance
-       already. */
+       FLIP_G is the dial for the AIR - the two whooshes and the drop under
+       them - so those three move together and cannot drift apart. The landing
+       has FLIP_LAND_G of its own and sits below them. The push-off scuff is
+       on neither: that is his feet on the kerb, not air, and it was in
+       balance already. */
     flip: function(secs){
       /* Scaled to the length of the jump. Everything here was written against
          the backflip's 1.08s, and the running jump is half that - played
@@ -895,7 +901,7 @@ var AUDIO = (function(){
       whoosh({ f:170, to:2600, dur:0.44*k, g:0.085*FLIP_G, q:0.9, peak:0.62 });
       whoosh({ f:2600, to:170, dur:0.72*k, g:0.095*FLIP_G, q:0.9, peak:0.26, at:0.40*k });
       tone({ f:180, to:42, dur:1.00*k, type:"sine", g:0.10*FLIP_G, lp:420 });
-      hit({ f:700, to:120, dur:0.20, g:0.10*FLIP_G, at:1.05*k });
+      hit({ f:700, to:120, dur:0.20, g:0.10*FLIP_LAND_G, at:1.05*k });
     },
     missedClose: function(){
       tone({ f:392, to:196, dur:0.7, type:"sawtooth", g:0.22, lp:900 });
@@ -1451,10 +1457,11 @@ var AUDIO = (function(){
     woah: function(lanes){
       if (!live()) return;
       woahClip.prime();
-      /* 1.15, up fifteen per cent. The clip peaks at 0.529 internally, so
-         this lands at 0.608 before the master gain's 0.32 - nowhere near
-         clipping, and audibly over the whoosh it sits on. */
-      woahClip.play(1.15, (lanes || 1) > WOAH_FULL_FROM ? 0 : WOAH_CUT);
+      /* 1.32, up again. The clip peaks at 0.529 internally, so this lands at
+         0.70 before the master gain's 0.32 - still comfortably short of
+         clipping, and now clearly the loudest thing in the crossing, which is
+         the point: it is the only part of it that is him. */
+      woahClip.play(1.32, (lanes || 1) > WOAH_FULL_FROM ? 0 : WOAH_CUT);
     },
     /* Booked. */
     win: function(){
