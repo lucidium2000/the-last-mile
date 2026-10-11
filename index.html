@@ -18686,8 +18686,14 @@ function drawReport(){
     txt((r.steps || 0).toLocaleString("en-US"), x0 + 600, ry, 20, C.textDim, "right");
     txt(String(r.rides || 0),   x0 + 690,  ry, 20, C.textDim, "right");
     txt(String(r.tamWins || 0), x0 + 770,  ry, 20, C.textDim, "right");
-    txt(String(r.addons || 0),  x0 + 880,  ry, 20, C.textDim, "right");
-    txt(String(r.champs || 0),  x0 + 990,  ry, 20, C.textDim, "right");
+    /* A DASH IS NOT A ZERO. These two fields arrived after the board did,
+       and the rows that predate them have no value at all - which is a
+       different thing from a run that found no add-ons, and printing 0 for
+       both says the older players all failed at something that did not exist
+       yet. `== null` catches undefined and null and nothing else, so a real
+       0 still prints as 0. */
+    txt(r.addons == null ? "\u2014" : String(r.addons), x0 + 880, ry, 20, C.textDim, "right");
+    txt(r.champs == null ? "\u2014" : String(r.champs), x0 + 990, ry, 20, C.textDim, "right");
     txt(r.secs ? mmss(r.secs) : "\u2014", x0 + 1090, ry, 20, C.textDim, "right");
     txt(whenStamp(r.at), x0 + 1290, ry, 19, C.textDim, "right");
     txt(r.won ? "BOOKED" : (r.cause || "\u2014"), x0 + 1700, ry, 19,
