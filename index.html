@@ -6779,19 +6779,23 @@ function collect(atCol){
      world and that is worth saying before it happens. */
   if (BRAND_SKUS[kind]){
     if (kind === "insight")
+      /* `bare` - no arrows. The arrows are a TREND mark; they belong on a
+         number that has moved up from somewhere. This one is a price, and a
+         price with an up-arrow either side of it reads as a price rise. */
       brandHit(BRAND_SKUS[kind], BRAND_HIT + 0.5, "hourglass",
                "OUTAGES BEFORE THE TICKETS", false,
-               "+" + cash(INSIGHT_BONUS) + " ON THE PIPELINE");
+               "+" + cash(INSIGHT_BONUS) + " ON THE PIPELINE", { bare:true });
     else if (kind === "traffic")
       brandHit(BRAND_SKUS[kind], BRAND_HIT + 0.5, null,
                "INSIGHT AND CONTROL OF TRAFFIC", false,
                "YOU\u2019RE UNSTOPPABLE");
     else if (kind === "sponsor")
-      /* The kicker line, which is the money green one with the arrow beside
-         it - the same slot the blazers use to say what they bought him. */
+      /* The kicker line, the money green one - the same slot the blazers use
+         to say what they bought him, and `bare` for the same reason as
+         above: no arrows on a price. */
       brandHit(BRAND_SKUS[kind], BRAND_HIT + 0.5, null,
                "ACCELERATING YOUR JOURNEY IN THE CLOUD", false,
-               "+" + cash(CLOUD_BONUS) + " ON THE PIPELINE");
+               "+" + cash(CLOUD_BONUS) + " ON THE PIPELINE", { bare:true });
     else if (kind === "agent"){
       /* Read BEFORE the shield moves - this block runs above the one that
          grants it, so G.shield is still what he had when he stepped on it. */

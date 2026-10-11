@@ -3882,10 +3882,15 @@ same figure: a seller reading the card twice should see two products, not one
 priced twice.
 
 Each says so on the card in the kicker slot, under the tagline, in the money
-green with the arrows — the same line the blazers use to say what they bought
-him — and each floats its own figure off his head, labelled with the SKU that
-paid it. Separate buckets, both into the pipeline: collecting one of each
-leaves $380,000 on the number.
+green — the same line the blazers use to say what they bought him — and each
+floats its own figure off his head, labelled with the SKU that paid it.
+Separate buckets, both into the pipeline: collecting one of each leaves
+$380,000 on the number.
+
+**No arrows on either**, which the kicker already had a flag for. The arrows
+are a *trend* mark and belong on a number that has moved up from somewhere.
+These are prices, and a price with an up-arrow either side of it reads as a
+price rise.
 
 ## Side to side, made fluid
 
