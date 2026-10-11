@@ -7125,8 +7125,35 @@ function traceBlocks(r, x, w){
    standing in? Same reach as traceBlocks uses against a route node, because
    it is the same question asked of a single column instead of a path - and
    the two effects should agree about what counts as touching. */
-function colBlocks(col, x, w){
-  return x < col + 0.95 && x + w > col + 0.05;
+/* THE BEAM IS THE RULE, not a picture of it. It started as his column - one
+   tile wide from his feet to the horizon - with the headlight drawn over the
+   top as a V, and the two disagreed: the light reached across four lanes at
+   the far end and the traffic only kept out of one. A player watching a car
+   drive through the middle of the beam has been told the effect is cosmetic.
+
+   So the rule takes the beam's own geometry. BEAM_NEAR at his feet widening
+   to BEAM_FAR over BEAM_LEN, exactly the numbers drawTrafficLane uses, which
+   means they cannot drift apart: anything inside the lit area turns its lane
+   around, and the edge of the light is the edge of the effect.
+
+   Behind him it stays a column - `t` clamps at 0 - because a headlight does
+   not shine backwards and the parting still has to hold on the row he is
+   standing in. The 0.45 floor is what keeps the apex exactly as wide as the
+   old single-column test, so nothing about his own square changed.
+
+   Cached on G.t because this is asked once per vehicle per frame and
+   playerPos() is not free. */
+var beamC = { t:-1, c:0, r:0 };
+function beamBlocks(r, x, w){
+  if (beamC.t !== G.t){
+    var pp = playerPos();
+    beamC.t = G.t; beamC.c = pp.col + 0.5; beamC.r = pp.row;
+  }
+  var t = (r - beamC.r) * ROW_H / BEAM_LEN;
+  if (t < 0) t = 0; else if (t > 1) t = 1;
+  var half = (BEAM_NEAR + (BEAM_FAR - BEAM_NEAR) * t) / TILE;
+  if (half < 0.45) half = 0.45;
+  return x < beamC.c + half - 0.05 && x + w > beamC.c - half + 0.05;
 }
 
 /* every hazard interval in a row over the next `secs`, used by the tests */
@@ -13204,11 +13231,11 @@ function update(dt){
         }
         /* AND TRAFFIC INSIGHTS PARTS THE WHOLE STREET, not just his row.
 
-           His column is a line nothing crosses. Every lane on screen, not
-           only the one he is standing in, turns around when a vehicle
-           reaches it - so the view up the street is a clear channel with the
-           traffic backing away from it on both sides, and he walks up the
-           middle of it.
+           Everything the headlight touches is a place nothing may be. Every
+           lane on screen, not only the one he is standing in, turns around
+           when a vehicle enters the lit area - so the view up the street is a
+           widening clear channel with the traffic backing out of it on both
+           sides, and he walks up the middle of it.
 
            That is the difference between a power-up you read in a banner and
            one you can see from the other end of the block. The row-level
@@ -13222,7 +13249,7 @@ function update(dt){
            starts undefined, and `undefined <= 0` is false - the mistake that
            silently disabled the trace's version of this the first time. */
         if (deter && !(row.bounce > 0) &&
-            colBlocks(G.col, carX(row, car), row.eff || 1)){
+            beamBlocks(r, carX(row, car), row.eff || 1)){
           row.rv = -(row.rv || 1);
           row.bounce = 1.4;
         }
@@ -13306,7 +13333,7 @@ function update(dt){
            standing in - so anything that IS on it, because it is mid-turn,
            is part of the wall rather than a thing that hits him. */
         if (ctrl && (crow.cars[i].stopped ||
-                     colBlocks(G.col, cx, crow.eff || HAZ[crow.kind].w))) continue;
+                     beamBlocks(cr, cx, crow.eff || HAZ[crow.kind].w))) continue;
         if (cx < p1 && cx + (crow.eff || HAZ[crow.kind].w) > p0){
           hitKind = crow.kind;
           push = (crow.dir * (crow.rv || 1)) > 0 ? 1 : -1;
@@ -13328,7 +13355,7 @@ function update(dt){
       /* The wrong-way bike too, by the same column rule - leaving it out
          would have reproduced the bug in the one vehicle most likely to be
          sitting on his line when its lane turned. */
-      if (!hitKind && crow.rogue && !(ctrl && colBlocks(G.col, rogueX(crow), HAZ.ebike.w))){
+      if (!hitKind && crow.rogue && !(ctrl && beamBlocks(cr, rogueX(crow), HAZ.ebike.w))){
         var rx = rogueX(crow);
         if (rx < p1 && rx + HAZ.ebike.w > p0){
           hitKind = "ebike";

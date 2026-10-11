@@ -4416,6 +4416,35 @@ The afterimages are the cheapest Matrix there is: the same sprite, the same
 pivot, three steps back along the rotation at falling alpha. No extra canvas,
 no filter, three `drawImage`s during a move that happens once a street.
 
+
+## The beam is the rule
+
+The headlight was a picture of the rule, not the rule. Nothing could stand on
+his **column**; the light reached across four lanes at the far end. So a car
+could drive straight through the middle of the beam, and a player who sees that
+has been told the effect is cosmetic.
+
+The rule takes the beam's own geometry now — `BEAM_NEAR` at his feet widening
+to `BEAM_FAR` over `BEAM_LEN`, literally the numbers `drawTrafficLane` draws
+with, so the two cannot drift apart. **Anything inside the lit area turns its
+lane around, and the edge of the light is the edge of the effect.**
+
+Measured, in columns of blocked half-width: 0.45 on his own row, 1.00 one row
+ahead, 1.50 at four, 1.85 by nine — the drawn cone exactly.
+
+Behind him it stays a column, because `t` clamps at zero: a headlight does not
+shine backwards, and the parting still has to hold on the row he is standing
+in. The 0.45 floor keeps the apex exactly as wide as the old single-column
+test, so nothing about his own square changed.
+
+With the power up, the count of cars inside the beam holds steady at **1 of 8**
+— the one currently in the act of turning out, since a flipped lane gets a 1.4s
+cooldown before it can flip again. With the power off the same count wanders
+between 0 and 3, which is just traffic.
+
+It is cached on `G.t`, because the question is asked once per vehicle per frame
+and `playerPos()` is not free.
+
 ## Traffic Insights gets headlights
 
 The corridor was correct and inert. The rule is that nothing may stand on the
