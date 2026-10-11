@@ -3828,6 +3828,39 @@ the more of it anybody actually sees.
 
 
 
+
+## A tap is never lost
+
+Going side to side he seemed to hesitate, and the cause was one line: `act()`
+began with `if (G.hop < 1) return;`. A press landing while he was mid-step was
+**thrown away**. Holding a rhythm left-right-left-right meant every second
+press simply did not happen — which from the player's side is the figure
+ignoring them, not the figure being slow.
+
+**One slot, latest wins.** The press is remembered and fired the instant the
+step lands. Nothing is dropped, and he can still only ever be one move ahead of
+what you have seen; a deeper queue would let the input run away from the
+picture, which is the opposite failure and a worse one. Only the four
+directions are held — everything else reaching `act()` is a screen-level tap,
+and re-firing one of those a tenth of a second later would be a surprise.
+
+Traced frame by frame: press at hop 0.21, held through 0.33 → 0.95, fires on
+the frame the step lands, one square, queue cleared. At a press rate just
+faster than the hop, five of six land; with the old behaviour, **none** did.
+
+**And sideways no longer pays the slow-motion tax.** `SLOW_MAN` holds him at
+75% through Internet Insights, which is right for walking up the street — the
+power-up is a held moment and he should move through it deliberately — and
+wrong for a dodge. Stepping aside is a *reaction*, and a reaction rendered at
+three quarters speed is a man who has seen the car and is strolling out of its
+way.
+
+A lateral step is back to the ordinary 135ms against forward's 180. Measured by
+driving the fixed-step update by hand rather than trusting the frame loop:
+sideways in the coat 150ms, forward in the coat 183ms, the plain game 150ms
+either way. The jumps keep their own multipliers, so the only thing that got
+quicker is the one move that is supposed to be quick.
+
 ## The dojo crane, and turning into the move
 
 Three moves at the kerb — the crane, the running jump, the backflip — and
@@ -3873,11 +3906,12 @@ Three dials, each describing one thing:
 | | gain | |
 |---|---|---|
 | the air — two whooshes and the drop | `FLIP_G` 0.72 | 0.061, 0.068, 0.072 |
-| the landing thump | `FLIP_LAND_G` 0.40 | 0.040 |
+| the landing thump | `FLIP_G * 0.5` | 0.036 |
 | the push-off scuff | on neither | 0.17, 0.11, 0.10 |
 
-**The landing has a dial of its own and sits below the air.** It started level
-with the whoosh and came down twice, because a thump is a transient, and a
+**The landing is half the air, derived rather than typed**, so it stays half of
+it whatever the air does next. It started level with the whoosh and came down
+twice before landing on that rule, because a thump is a transient, and a
 transient at the same level as a sustained sound is always the louder of the
 two to the ear. It only has to say *down* — the eye has already seen him land.
 

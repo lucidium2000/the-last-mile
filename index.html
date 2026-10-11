@@ -383,11 +383,13 @@ var AUDIO = (function(){
   }
   var freeClip = sampler(FREE_B64), woahClip = sampler(WOAH_B64);
   var FLIP_G = 0.72;              // the jump whoosh, under the voice
-  /* The landing is on its own dial, below the air. It started level with the
-     whoosh and came down twice: a thump is a transient, and a transient at
-     the same level as a sustained sound is always the louder of the two to
-     the ear. It only has to say "down" - the eye has already seen him land. */
-  var FLIP_LAND_G = 0.40;
+  /* The landing is HALF THE AIR, and derived rather than typed, so it stays
+     half of it whatever the air does next. It started level with the whoosh
+     and came down twice before landing on this: a thump is a transient, and
+     a transient at the same level as a sustained sound is always the louder
+     of the two to the ear. It only has to say "down" - the eye has already
+     seen him land. */
+  var FLIP_LAND_G = FLIP_G * 0.5;
   var WOAH_CUT = 1.45;            // past the landing, and past the word itself
   var WOAH_FULL_FROM = 2;         // more lanes than this and it plays whole
 
@@ -5290,7 +5292,7 @@ function reset(){
     hp:HP_MAX, hpGain:null, hpShow:0, hpFrom:HP_MAX, hpHold:0, hpFill:0,
     meals:0, sadT:0, needFood:0, saidFood:false,
     bonusChuck:0, bonusTam:0, bonusAddon:0, bonusFood:0, bonusChamp:0,
-    bonusUpsell:0, upsells:0, traceRun:0, flip:0, sprint:0, crane:0,
+    bonusUpsell:0, upsells:0, traceRun:0, flip:0, sprint:0, crane:0, queued:null,
     bonusAgent:0, agentPays:0,
     bonusNews:0, news:0, paper:null,
     addons:0, champs:0, addonWin:null, champWin:null,
@@ -5735,7 +5737,25 @@ function act(dir){
     return;
   }
   if (G.ride){ rideAct(dir); return; }
-  if (G.hop < 1) return;
+  /* ------------------------------------------------- A TAP IS NEVER LOST
+     This used to be a bare `return`, and that is the whole of the hesitation.
+     A press landing while he is mid-step was thrown away, so holding a rhythm
+     left-right-left-right meant every second press simply did not happen -
+     which from the player's side is the figure ignoring them, not the figure
+     being slow.
+
+     ONE SLOT, LATEST WINS. The press is remembered and fired the instant the
+     step lands, so nothing is dropped and he can still only ever be one move
+     ahead of what you have seen. A queue any deeper would let the input run
+     away from the picture, which is the opposite failure and a worse one.
+
+     Only the four directions are held. Everything else that reaches act() is
+     a screen-level tap and re-firing one of those a tenth of a second later
+     would be a surprise. */
+  if (G.hop < 1){
+    if (dir === "l" || dir === "r" || dir === "f" || dir === "b") G.queued = dir;
+    return;
+  }
 
   var nr = G.row, nc = G.col;
   if (dir === "f") nr++;
@@ -12816,7 +12836,18 @@ function update(dt){
        affordable for exactly one reason: he is untouchable for the whole arc
        (see act()), and everything else on screen is already at an eighth
        speed, so a second of his clock is an eighth of a second of theirs. */
-    G.hop += dt*1000 * (G.slowT > 0 ? SLOW_MAN : 1)
+    /* SIDEWAYS DOES NOT PAY THE SLOW-MOTION TAX. SLOW_MAN holds him at 75%
+       through Internet Insights, which is right for walking up the street -
+       the power-up is a held moment and he should move through it
+       deliberately - and wrong for a dodge. Stepping aside is a reaction, and
+       a reaction rendered at three quarters speed is a man who has seen the
+       car and is strolling out of its way.
+
+       So a lateral step runs at the ordinary 135ms rather than 180. Forward
+       keeps the 75%, and the jumps keep their own multipliers, so the only
+       thing that got quicker is the one move that is supposed to be quick. */
+    var lateral = G.col !== G.fromCol;
+    G.hop += dt*1000 * ((G.slowT > 0 && !lateral) ? SLOW_MAN : 1)
              / (HOP_MS * (1 - 0.32*G.flyA) * drag * dashK()
                 * (G.flip ? FLIP_SLOW : (G.sprint ? SPRINT_SLOW : 1)));
     if (G.hop >= 1){
@@ -12824,6 +12855,14 @@ function update(dt){
          itself gets the full window, not whatever is left of the flight. */
       if (G.dashT > 0 && leapSpan() > 1) G.leapT = LEAP_GRACE;
       G.hop = 1; collect();
+      /* And the press that arrived while he was still moving. Taken out of
+         the slot BEFORE act() runs, so a step that cannot happen - blocked,
+         a scene came up, the edge of the world - drops the press rather than
+         re-queueing it for ever. */
+      if (G.queued){
+        var qd = G.queued; G.queued = null;
+        act(qd);
+      }
     }
   }
   if (G.slowT   > 0) G.slowT   = Math.max(0, G.slowT - dt);
