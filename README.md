@@ -3907,6 +3907,28 @@ have feet landing. What is left is the two strides he takes *into* it and the
 scrape of the last one leaving the kerb — the part that says he did not stop to
 jump.
 
+**And then the whole jump went to 0.6 speed — which had to mean the legs too.**
+Stretching the hop on its own would have left him cycling at the same rate over
+a longer flight: *more* strides, not slower ones, which is a man pedalling
+rather than a man in bullet time. So the hop gets 1/0.6 longer **and** the limb
+clock is multiplied by 0.6. Between them they play the identical motion at six
+tenths the rate.
+
+Measured: 910ms against the old 544 (0.598×), and the same **4 stride cycles**
+in the air at **4.4Hz instead of 7.41** (0.594×). Same strides, taking longer.
+
+Both halves derive from one number, so they cannot drift — `SPRINT_SLOW` is
+`3 / SPRINT_AIR`, and the audio is told the resulting length rather than
+carrying its own copy of it.
+
+**The trail is built the way the backflip's is**: copies of the same sprite at
+the same scale, stepped back along the move at falling alpha, nearest one
+brightest. The flip steps its ghosts back through the *rotation*, because that
+is what is changing about it; this one steps them back along the *path*. Four
+rather than three, 11px apart rather than 15, and up to the flip's 0.30 alpha,
+so they overlap into a smear instead of reading as four separate men — the
+cheapest blur there is on a canvas with no `filter` and no `shadowBlur`.
+
 It is built **out of** the walk cycle rather than beside it. The walk is
 already a band-clipped limb rig, and the only thing a sprint is, is the same
 rig with the amplitude turned up and the clock turned up with it: **three times

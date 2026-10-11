@@ -7098,11 +7098,23 @@ function colSafeFor(r, col, secs){
    gives the same stride FREQUENCY whatever the step is - two footfalls a
    square instead of the walk's one, which is the difference between walking
    and running stated exactly. */
-var SPRINT_SLOW = 3;        // a kerb-to-kerb hop takes this much longer
+/* THE JUMP RUNS AT 0.6 SPEED, and that has to mean the legs too. Stretching
+   the hop on its own would have left him cycling at the same rate over a
+   longer flight - more strides, not slower ones, which is a man pedalling
+   rather than a man in bullet time. So the hop gets 1/0.6 longer AND the limb
+   clock is multiplied by 0.6, which between them play the identical motion at
+   six tenths the rate. Same number of strides in the air, taking longer.
+
+   Derived from one number so the two halves cannot drift: SPRINT_SLOW is 3
+   over SPRINT_AIR, and the audio is told the resulting length rather than
+   carrying its own copy of it. */
+var SPRINT_AIR = 0.6;       // the whole jump plays at this rate
+var SPRINT_SLOW = 3 / SPRINT_AIR;   // so the hop takes this much longer than a step
 var SPRINT_PHASE = 2;       // twice the footfalls per square
 var SPRINT_LIFT = 27, SPRINT_ARM = 19, SPRINT_KNEE = 1.3;
 var SPRINT_JUMP = 72;       // px of air under the running jump
-var SPRINT_GHOSTS = 3;      // the trail, on the crossing only
+var SPRINT_GHOSTS = 4;      // the trail, on the crossing only
+var SPRINT_GHOST_GAP = 11;  // px between them, along the path
 
 /* Is he running? The coat is the whole test. The backflip is excluded because
    a man turning over is not using his legs for anything. */
@@ -12797,7 +12809,11 @@ function update(dt){
      work. */
   var stepping = (G.state === ST_PLAY && G.hop < 1 && !G.ride && G.flyA <= 0.05)
                  ? 1 : 0;
-  if (stepping) G.walkPh += dt * (Math.PI / (HOP_MS * dashK() / 1000));
+  /* ...and the limb clock slows with the jump, so the stride is the same
+     stride at six tenths the speed rather than a faster one. */
+  if (stepping)
+    G.walkPh += dt * (Math.PI / (HOP_MS * dashK() / 1000))
+              * ((G.sprint && G.hop < 1) ? SPRINT_AIR : 1);
   G.walkAmt += (stepping - G.walkAmt) * Math.min(1, dt * (stepping ? 24 : 9));
   if (G.walkAmt < 0.002) G.walkAmt = 0;
 
@@ -15512,17 +15528,23 @@ function drawPlayer(pp){
     return;
   }
 
-  /* The trail. Three copies of him dropped BEHIND along the direction of
-     travel - which is down the screen, because forward is up - at falling
-     alpha, strongest in the middle of the crossing where he is quickest. It
-     is three blits during a move that happens once a street, and it is the
-     cheapest way there is to say "this is faster than walking". */
+  /* The trail, built the way the backflip's is: copies of the same sprite at
+     the same scale, stepped back along the move at falling alpha, nearest
+     one brightest. The flip steps its ghosts back through the ROTATION
+     because that is what is changing about it; this one steps them back along
+     the PATH, which is down the screen, because forward is up.
+
+     Tighter and one deeper than the first version - 11px apart rather than
+     15, four rather than three, and up to the flip's 0.30 - so they overlap
+     into a smear instead of reading as four separate men. Four blits during
+     a move that happens once a street, and the cheapest blur there is on a
+     canvas with no filter and no shadowBlur. */
   if (G.sprint && G.hop < 1){
     var sa = sprintAmt();
     if (sa > 0.02){
       for (var si = SPRINT_GHOSTS; si >= 1; si--){
-        ctx.globalAlpha = 0.24 * sa * (1 - si / (SPRINT_GHOSTS + 1));
-        blitScaled(s, sx, dy + si * 15, kx, ky);
+        ctx.globalAlpha = 0.30 * sa * (1 - si / (SPRINT_GHOSTS + 1));
+        blitScaled(s, sx, dy + si * SPRINT_GHOST_GAP, kx, ky);
       }
       ctx.globalAlpha = 1;
     }
