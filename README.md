@@ -3830,6 +3830,56 @@ the more of it anybody actually sees.
 
 
 
+
+## Becoming him
+
+Internet Insights used to change his sprite between one frame and the next.
+Eleven seconds of coat, shades and bullet time arriving as a *cut* — which is
+the one moment in the power-up nobody sees, because there is nothing to see.
+
+Three cheap things, each doing one job.
+
+**The wipe.** The suit and the coat are two baked sprites with the same origin,
+so clipping the frame at a height and drawing one above the line and the other
+below costs two blits and a rect. The line climbs him from the shoes to the
+crown with a bright edge riding on it: he is replaced from the ground up, which
+reads as the change travelling *through* him rather than a swap.
+
+**The shades come in separately, and late.** They fall from above the frame
+onto the bridge of his nose and settle with a small overshoot, after the wipe
+has already dressed him — because the coat is the costume and the glasses are
+the punchline, and a punchline lands last. Their position is derived from the
+model the same way the limb bands are: the lenses live at x 0.378–0.622,
+z 0.714–0.758 on the face's own plane, so projecting those four numbers puts
+them exactly where the baked ones are and they hand over without a seam. A
+glint travels across them as they seat.
+
+**And rings off the floor**, three out of phase, which is the only part that is
+pure decoration.
+
+Two blits, a clip, five rects and three ellipses, for eight tenths of a second,
+once per power-up. No filter, no `shadowBlur`, no second canvas.
+
+The sound is a rising sweep for the wipe and then a hard little click as the
+glasses seat. The click is the whole cue — everything before it is just making
+you wait for it.
+
+One thing the first pass got wrong, caught in a magnified frame: the wipe's
+bright edge was drawn off `sx`, which is the left edge of the *tile*, not of
+him. His middle is half a tile plus the row's shear further over — the same
+place every limb band is measured from — so the edge hung out to his left like
+a shelf. It also now thins and fades over the last of its travel, so it leaves
+through the top of his head rather than parking above it.
+
+## Cloud Insights pays
+
+Every other SKU in the game either buys him a power or buys him money, and
+Cloud Insights was the only one that was pure movement — which made it the one
+pickup a seller could not put a number against. **$200,000**, and the card says
+so: the kicker line under the tagline, in the money green with the arrows, the
+same slot the blazers use to say what they bought him. Plus the figure floating
+off his head labelled `CLOUD INSIGHTS`.
+
 ## Side to side, made fluid
 
 Three things, all of them about the same two tenths of a second.

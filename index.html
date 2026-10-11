@@ -1448,6 +1448,19 @@ var AUDIO = (function(){
        The short one keeps its 90ms fade, because it IS being cut and a
        waveform truncated at an arbitrary sample is a click. The full one is
        never touched, so there is nothing to fade. */
+    /* BECOMING HIM. A rising sweep for the wipe travelling up him, then the
+       shades: a short airy drop as they fall and a hard little click as they
+       seat. The click is the whole cue - everything before it is just making
+       you wait for it. */
+    neoIn: function(){
+      if (!live()) return;
+      whoosh({ f:220, to:2400, dur:0.50, g:0.11, q:1.0, peak:0.80 });
+      tone({ f:98, to:330, dur:0.52, type:"sine", g:0.11, lp:900 });
+      whoosh({ f:2600, to:900, dur:0.22, g:0.10, q:1.4, at:0.40 });
+      hit({ f:3400, to:900, hp:true, dur:0.055, g:0.20, at:0.60 });   // the click
+      tone({ f:1318.51, dur:0.42, type:"sine", g:0.075, at:0.60 });
+      tone({ f:1975.53, dur:0.34, type:"sine", g:0.045, at:0.615 });
+    },
     /* THE PUSH-OFF, under the jump cue. It was six footfalls across the
        crossing while that crossing was a run on the ground; it is a jump now,
        and a man in the air does not have feet landing. What is left is the
@@ -3388,6 +3401,11 @@ var POWERS = {
    Blazer of Assurance, and having remembered it they can tell you what it
    does. A third set has nothing left to put on him, so it pays instead. */
 var AGENT_BONUS = 100000;
+/* Cloud Insights pays as well as carrying him. Every other SKU in the game
+   either buys him a power or buys him money, and this was the only one that
+   was pure movement - which made it the one pickup a seller could not put a
+   number against. Two hundred thousand, and the card says so. */
+var CLOUD_BONUS = 200000;
 var AGENT_BLAZER = [
   "\u201CBLUE BLAZER OF ASSURANCE\u201D",
   "\u201CDOUBLE PURPLE PIMP BLAZER OF ASSURANCE\u201D"
@@ -5298,8 +5316,9 @@ function reset(){
     hp:HP_MAX, hpGain:null, hpShow:0, hpFrom:HP_MAX, hpHold:0, hpFill:0,
     meals:0, sadT:0, needFood:0, saidFood:false,
     bonusChuck:0, bonusTam:0, bonusAddon:0, bonusFood:0, bonusChamp:0,
-    bonusUpsell:0, upsells:0, traceRun:0, flip:0, sprint:0, crane:0, queued:null,
-    jumpTurn:0, sideA:0,
+    bonusUpsell:0, upsells:0, bonusCloud:0, clouds:0,
+    traceRun:0, flip:0, sprint:0, crane:0, queued:null,
+    jumpTurn:0, sideA:0, neoT:0,
     bonusAgent:0, agentPays:0,
     bonusNews:0, news:0, paper:null,
     addons:0, champs:0, addonWin:null, champWin:null,
@@ -6762,8 +6781,11 @@ function collect(atCol){
                "INSIGHT AND CONTROL OF TRAFFIC", false,
                "YOU\u2019RE UNSTOPPABLE");
     else if (kind === "sponsor")
+      /* The kicker line, which is the money green one with the arrow beside
+         it - the same slot the blazers use to say what they bought him. */
       brandHit(BRAND_SKUS[kind], BRAND_HIT + 0.5, null,
-               "ACCELERATING YOUR JOURNEY IN THE CLOUD");
+               "ACCELERATING YOUR JOURNEY IN THE CLOUD", false,
+               "+" + cash(CLOUD_BONUS) + " ON THE PIPELINE");
     else if (kind === "agent"){
       /* Read BEFORE the shield moves - this block runs above the one that
          grants it, so G.shield is still what he had when he stepped on it. */
@@ -6798,7 +6820,7 @@ function collect(atCol){
   if (kind === "tam") AUDIO.tam();
   else if (kind === "agent") AUDIO.shieldUp();
   else AUDIO.power(kind);
-  if (kind === "insight") AUDIO.freeYourMind();
+  if (kind === "insight"){ AUDIO.freeYourMind(); G.neoT = NEO_IN; AUDIO.neoIn(); }
   flash(k.name, chuck ? ("+" + cash(chuck.amt) + " on the number.") : k.line, k.col);
   burst(G.col*TILE + TILE/2, rowScreenY(G.row) - 40, k.col);
 
@@ -6879,6 +6901,8 @@ function collect(atCol){
     G.trace = buildTrace();
   }
   else if (kind === "sponsor"){
+    G.bonus += CLOUD_BONUS; G.bonusCloud += CLOUD_BONUS; G.clouds++;
+    moneyRise(CLOUD_BONUS, "CLOUD INSIGHTS");
     G.dashT = Math.max(G.dashT, k.secs);
     /* The strobe fires on every pickup, including one taken mid-run, because
        a refresh you cannot see is a refresh you do not trust. */
@@ -12905,6 +12929,7 @@ function update(dt){
       }
     }
   }
+  if (G.neoT  > 0) G.neoT  = Math.max(0, G.neoT - dt);
   if (G.slowT   > 0) G.slowT   = Math.max(0, G.slowT - dt);
   if (G.riskT > 0) G.riskT = Math.max(0, G.riskT - dt);
   if (G.dashT > 0) G.dashT = Math.max(0, G.dashT - dt);
@@ -15496,6 +15521,117 @@ function deathSlideY(){
   return -DEATH_HOP * Math.sin((t / 0.30) * Math.PI);
 }
 
+/* ================================================== BECOMING HIM =========
+   Internet Insights used to change his sprite between one frame and the next.
+   Eleven seconds of coat, shades and bullet time arriving as a cut - which is
+   the one moment in the power-up nobody sees, because there is nothing to
+   see. It gets a transformation now, and it is built out of three cheap
+   things that each do one job.
+
+   THE WIPE. The suit and the coat are two baked sprites with the same origin,
+   so clipping the frame at a height and drawing one above the line and the
+   other below costs two blits and a rect. The line climbs him from the shoes
+   to the crown over the first part of the beat, with a bright edge riding on
+   it: he is replaced from the ground up, which reads as the change travelling
+   through him rather than a swap.
+
+   THE SHADES COME IN SEPARATELY, and late. They fall from above the frame
+   onto the bridge of his nose and settle with a small overshoot, after the
+   wipe has already dressed him - because the coat is the costume and the
+   glasses are the punchline, and a punchline lands last. Their position is
+   derived from the model the same way the limb bands are: the lenses live at
+   x 0.378-0.622, z 0.714-0.758 on the face's own plane, so projecting those
+   four numbers puts them exactly where the baked ones are and they can hand
+   over without a seam.
+
+   AND RINGS OFF THE FLOOR, three of them out of phase, which is the only part
+   that is pure decoration. Two strokes each.
+
+   No filter, no shadowBlur, no extra canvas: two blits, a clip, five rects
+   and three ellipses, for eight tenths of a second, once per power-up. */
+var NEO_IN = 0.85;          // how long becoming him takes
+var NEO_WIPE = 0.55;        // ...of which this much is the wipe
+var NEO_DROP = 108;         // px the shades fall from
+
+function drawNeoSwap(s, s0, sx, dy, kx, ky){
+  var k = 1 - Math.max(0, Math.min(1, G.neoT / NEO_IN));   // 0 -> 1
+  var top = dy - s.oy * ky, bot = top + s.h * ky;
+  var col = POWERS.insight.col;
+
+  /* THE WIPE, bottom to top. Eased so it leaves the ground quickly and
+     settles into the head, rather than travelling at one rate like a loading
+     bar. */
+  var w = Math.min(1, k / NEO_WIPE);
+  var we = w >= 1 ? 1 : 1 - Math.pow(1 - w, 2.4);
+  var lineY = bot - (bot - top + 6) * we;
+
+  ctx.save();
+  ctx.beginPath(); ctx.rect(sx - 120, lineY, 240, bot - lineY + 8); ctx.clip();
+  blitScaled(s, sx, dy, kx, ky);                 // the coat, below the line
+  ctx.restore();
+  if (we < 1){
+    ctx.save();
+    ctx.beginPath(); ctx.rect(sx - 120, top - 60, 240, lineY - top + 60); ctx.clip();
+    blitScaled(s0, sx, dy, kx, ky);              // the suit, above it
+    ctx.restore();
+    /* The edge riding on the line. Centred on HIM, not on sx: sx is the left
+       edge of the tile and his middle is half a tile plus the row's shear
+       further over, which is the same place every limb band is measured from.
+       Drawn off sx it was a bar hanging out to his left.
+
+       And it thins and fades over the last of the travel, so it leaves
+       through the top of his head rather than parking above it. */
+    var ex = sx + (0.5 * TILE + 0.45 * SKEW) * kx;
+    var ea = Math.min(1, (1 - we) * 4);
+    ctx.globalAlpha = 0.9 * ea;
+    ctx.fillStyle = "#eafff2"; ctx.fillRect(ex - 30, lineY - 2, 60, 3);
+    ctx.globalAlpha = 0.45 * ea; ctx.fillStyle = col;
+    ctx.fillRect(ex - 41, lineY - 5, 82, 9);
+    ctx.globalAlpha = 1;
+  }
+
+  /* THE SHADES. Projected off the model, so they land exactly on the baked
+     pair and the hand-over is invisible. */
+  var d = Math.max(0, Math.min(1, (k - 0.42) / (1 - 0.42)));
+  if (d > 0){
+    /* overshoot: past the nose by a hair, then back up onto it */
+    var e = 1 - Math.pow(1 - d, 3);
+    var over = Math.sin(d * Math.PI) * 0.14;
+    var drop = NEO_DROP * (1 - e) - over * 9;
+    var lx = sx + (0.378 * TILE + 0.43 * SKEW) * kx;
+    var rx = sx + (0.514 * TILE + 0.43 * SKEW) * kx;
+    var ly = dy - (0.43 * ROW_H + 0.758 * ZH) * ky + drop;
+    var lw = 0.108 * TILE * kx, lh = 0.044 * ZH * ky;
+    ctx.globalAlpha = Math.min(1, d * 3);
+    ctx.fillStyle = "#07080a";
+    ctx.fillRect(lx, ly, lw, lh);
+    ctx.fillRect(rx, ly, lw, lh);
+    ctx.fillStyle = "#20242a";
+    ctx.fillRect(sx + (0.486 * TILE + 0.43 * SKEW) * kx,
+                 ly + lh * 0.32, 0.028 * TILE * kx, 0.012 * ZH * ky + 1);
+    /* a glint travelling across the lenses as they settle */
+    if (d > 0.55){
+      var g = (d - 0.55) / 0.45;
+      ctx.globalAlpha = (1 - g) * 0.85; ctx.fillStyle = "#dffdf0";
+      ctx.fillRect(lx + lw * g * 1.9 - lw * 0.45, ly, lw * 0.30, lh);
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  /* RINGS off the floor. */
+  var fy = dy - (0.45 * ROW_H) * ky + 10;
+  ctx.lineWidth = 3; ctx.strokeStyle = col;
+  for (var r = 0; r < 3; r++){
+    var rk = k * 1.5 - r * 0.22;
+    if (rk <= 0 || rk >= 1) continue;
+    ctx.globalAlpha = (1 - rk) * 0.5;
+    ctx.beginPath();
+    ctx.ellipse(sx + TILE * 0.5, fy, 26 + rk * 86, 10 + rk * 32, 0, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+  ctx.globalAlpha = 1;
+}
+
 function drawPlayer(pp){
   /* The cape follows FLIGHT, not the TAM. He suits back up the moment the
      initial five seconds lapse, and only transforms again when a TAM win hands
@@ -15749,6 +15885,17 @@ function drawPlayer(pp){
      into a smear instead of reading as four separate men. Four blits during
      a move that happens once a street, and the cheapest blur there is on a
      canvas with no filter and no shadowBlur. */
+  /* BECOMING HIM takes the frame for its eight tenths of a second: no limb
+     rig, no trail. He is standing in the middle of the street being replaced
+     from the feet up, and a walk cycle through that would be a man putting a
+     coat on while jogging. */
+  if (G.neoT > 0 && G.state === ST_PLAY && G.flyA < 0.1){
+    var s0 = (G.shield >= 2 ? (right ? S.playerP_r : S.playerP_l)
+            : G.shield      ? (right ? S.playerS_r : S.playerS_l)
+                            : (right ? S.player_r  : S.player_l));
+    if (s0){ drawNeoSwap(s, s0, sx, dy, kx, ky); return; }
+  }
+
   /* EVERY MOVE IN THE COAT, not only the jump. The limb rig was already
      running on sideways steps - same phase advance, same amplitudes, measured
      identical to a forward one - but the trail was gated on the crossing, so
