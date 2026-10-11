@@ -5416,7 +5416,30 @@ var BOARD_API = "https://lucidium2000--be403ca8c25711f194891607ee4eb77e.web.val.
    raising the bar here raises it there, which is the same decision said once. */
 var BOARD_MAX = 20;                 // rows kept locally, and asked for
 var BOARD_SHOW = 10;                // rows on screen
-var LS_BOARD = "lastmile.board.v1", LS_STATS = "lastmile.stats.v1",
+/* ------------------------------------------------------- WHICH BOARD ----
+   ?team=nyc puts the panel on its own leaderboard. No parameter is the
+   default board, which is the one that already has every run ever played on
+   it and is left exactly as it was.
+
+   The two do not mix. A run posts to one board and one only: the NYC panels
+   compete with each other, the unmarked ones stay the playground. Writing to
+   both would have been the other reasonable answer, and it is the wrong one
+   here - a team board that quietly includes every test run is not a team
+   board.
+
+   SANITISED HARD, because this ends up in a storage key on the server. Lower
+   case letters, digits and hyphens, 24 characters, or it is not a team at
+   all. Anything else falls back to the default rather than erroring: a
+   mistyped URL on a panel in a hallway should still play the game. */
+var TEAM = (function(){
+  var m = /[?&]team=([A-Za-z0-9-]{1,24})(?:&|$)/.exec(location.search);
+  return m ? m[1].toLowerCase() : "";
+})();
+var TEAM_SFX = TEAM ? "." + TEAM : "";
+/* The local cache is namespaced too. One panel switched between boards would
+   otherwise show the other board's rows for as long as it took the fetch to
+   come back - and offline, for ever. */
+var LS_BOARD = "lastmile.board.v1" + TEAM_SFX, LS_STATS = "lastmile.stats.v1",
     LS_WHO   = "lastmile.who.v1";
 var OFFLINE = /[?&]offline=1/.test(location.search);
 
@@ -5541,7 +5564,8 @@ function boardGET(){
   };
   setTimeout(function(){ give(BOARD.state === "…" ? "OFFLINE" : BOARD.state); }, 6000);
   try {
-    fetch(BOARD_API + "/top?n=" + BOARD_MAX, { method:"GET", mode:"cors" })
+    fetch(BOARD_API + "/top?n=" + BOARD_MAX + (TEAM ? "&team=" + TEAM : ""),
+          { method:"GET", mode:"cors" })
       .then(function(r){ return r.ok ? r.json() : null; })
       .then(function(j){
         if (j && j.rows){
@@ -5564,6 +5588,7 @@ function boardPOST(rec){
       method:"POST", mode:"cors",
       headers:{ "Content-Type":"text/plain" },   // text/plain keeps it a simple
       body: JSON.stringify({                     // request: no CORS preflight
+        team: TEAM,
         id: playerId().id, ini: rec.ini, score: rec.score, rows: rec.rows,
         steps: rec.steps, streets: rec.streets, rides: rec.rides,
         tamWins: rec.tamWins, addons: rec.addons, champs: rec.champs,
@@ -18457,11 +18482,21 @@ function statLine(st){
 
 function drawBoard(){
   ctx.fillStyle = "rgba(6,5,4,0.93)"; ctx.fillRect(0, 0, LOGICAL_W, LOGICAL_H);
-  txt("THE BOARD", LOGICAL_W/2, 112, 56, C.brand);
+  /* WHICH BOARD, said on the board. Two panels side by side showing
+     different rows under the same title is the kind of thing that gets
+     reported as a bug for a year. */
+  var title = TEAM ? ("THE BOARD  \u00B7  " + TEAM.toUpperCase()) : "THE BOARD";
+  txt(title, LOGICAL_W/2, 112, 56, C.brand);
   var badge = BOARD.state;
   var bw = 150;
-  plate(LOGICAL_W/2 + 230, 86, bw, 38, C.ink, 8);
-  txt(badge, LOGICAL_W/2 + 230 + bw/2, 110, 20,
+  /* The badge sits off the MEASURED title, not a fixed offset. It was at
+     +230, which cleared "THE BOARD" and nothing else - the moment a team
+     name went on the end, the status landed on top of the letters. Measuring
+     costs one call and works for whatever a board ends up being called. */
+  ctx.font = 'bold 56px "Helvetica Neue",Helvetica,Arial,sans-serif';
+  var bx = LOGICAL_W/2 + ctx.measureText(title).width/2 + 34;
+  plate(bx, 86, bw, 38, C.ink, 8);
+  txt(badge, bx + bw/2, 110, 20,
       badge === "LIVE" ? C.good : (badge === "OFFLINE" ? C.danger : C.textDim));
 
   var x0 = 250, x1 = 1670, y = 178, rowH = 46;
@@ -18678,7 +18713,9 @@ function drawReport(){
 
   /* ---- the list ------------------------------------------------------- */
   var x0 = 100;
-  txt("THE BOARD  \u00B7  TOP " + Math.max(1, list.length), x0, oy + 14, 24, C.brand, "left");
+  txt((TEAM ? TEAM.toUpperCase() + "  \u00B7  " : "") +
+      "THE BOARD  \u00B7  TOP " + Math.max(1, list.length),
+      x0, oy + 14, 24, C.brand, "left");
   var hy = oy + 56;
   txt("#",        x0 + 36,   hy, 18, C.textDim, "right");
   txt("WHO",      x0 + 60,   hy, 18, C.textDim, "left");

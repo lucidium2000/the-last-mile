@@ -37,6 +37,21 @@ import { blob } from "https://esm.town/v/std/blob";
 const BOARD_KEY = "lastmile_board";
 const STATS_KEY = "lastmile_stats";
 const RECENT_KEY = "lastmile_recent";
+
+/* ------------------------------------------------------- WHICH BOARD ----
+   ?team=nyc, or `team` in the posted body, puts the run on its own set of
+   three blobs. No team is the original set, untouched and still holding
+   every run played before any of this existed.
+
+   The suffix is rebuilt from a whitelist rather than trusted. This string
+   becomes part of a storage key, and a key built out of whatever a client
+   sends is how one board ends up overwriting another - or reading one it was
+   never meant to see. Anything that is not 1-24 characters of lower-case
+   letters, digits and hyphens is treated as no team at all. */
+function teamSuffix(raw: unknown) {
+  const t = String(raw || "").toLowerCase();
+  return /^[a-z0-9-]{1,24}$/.test(t) ? "_" + t : "";
+}
 /* TWO COLLECTIONS, because they answer two different questions.
 
    The BOARD is the top scores: who is best, ordered by score, and it is meant
@@ -78,9 +93,10 @@ export default async function (request: Request): Promise<Response> {
 
   if (request.method === "GET" && url.pathname === "/top") {
     const n = clampInt(url.searchParams.get("n"), 1, KEEP, 25);
-    const rows = await readJSON(BOARD_KEY, []);
-    const stats = await readJSON(STATS_KEY, blankStats());
-    const recent = await readJSON(RECENT_KEY, []);
+    const sfx = teamSuffix(url.searchParams.get("team"));
+    const rows = await readJSON(BOARD_KEY + sfx, []);
+    const stats = await readJSON(STATS_KEY + sfx, blankStats());
+    const recent = await readJSON(RECENT_KEY + sfx, []);
     return json({
       rows: rows.slice(0, n),
       stats: publicStats(stats),
@@ -99,7 +115,8 @@ export default async function (request: Request): Promise<Response> {
     const id = String(body.id || "").slice(0, 64);
     if (!id) return json({ error: "no id" }, 400);
 
-    const stats = await readJSON(STATS_KEY, blankStats());
+    const sfx = teamSuffix(body.team);
+    const stats = await readJSON(STATS_KEY + sfx, blankStats());
     const now = Date.now();
     if (stats.seen && now - (stats.seen[id] || 0) < POST_EVERY_MS) {
       return json({ error: "slow down" }, 429);
@@ -122,22 +139,22 @@ export default async function (request: Request): Promise<Response> {
       at: now,
     };
 
-    const rows = await readJSON(BOARD_KEY, []);
+    const rows = await readJSON(BOARD_KEY + sfx, []);
     rows.push(rec);
     rows.sort((a: any, b: any) => b.score - a.score || a.at - b.at);
     const kept = rows.slice(0, KEEP);
-    await blob.setJSON(BOARD_KEY, kept);
+    await blob.setJSON(BOARD_KEY + sfx, kept);
 
     /* And the same run again, in time order this time. Every run lands here,
        including the ones that drop straight off the bottom of the board -
        which is the point: a run that did not place is still a run that
        happened, and this is the only place that remembers it. */
-    const recent = await readJSON(RECENT_KEY, []);
+    const recent = await readJSON(RECENT_KEY + sfx, []);
     recent.push(rec);
     const keptRecent = recent.slice(-RECENT_KEEP);
-    await blob.setJSON(RECENT_KEY, keptRecent);
+    await blob.setJSON(RECENT_KEY + sfx, keptRecent);
 
-    await blob.setJSON(STATS_KEY, bump(stats, rec, id));
+    await blob.setJSON(STATS_KEY + sfx, bump(stats, rec, id));
 
     return json({
       rows: kept.slice(0, 25),
