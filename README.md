@@ -3881,18 +3881,16 @@ slow — which made them the pickups a seller could not put a number against.
 same figure: a seller reading the card twice should see two products, not one
 priced twice.
 
-Each says so on the card in the kicker slot, under the tagline, in the money
-green — the same line the blazers use to say what they bought him. Separate
-buckets, both into the pipeline: collecting one of each leaves $380,000 on the
-number.
+Each announces it the way the add-on, the agent and the champion already do:
+the **big green figure off his head**, labelled with the SKU that paid it, with
+the HUD readout pulsing in sympathy. Separate buckets, both into the pipeline:
+collecting one of each leaves $380,000 on the number.
 
-**Once, not twice.** The first cut also floated the figure off his head through
-`moneyRise`, which printed the same number in the same green two inches under
-the card that was already carrying it. The add-on and the agent only get away
-with that because their cards do *not* carry it. The pipe pop stays, because
-that is not the number — it is the HUD *reacting* to the number, and the
-readout in the corner swelling is the one part of this that says the money
-actually landed somewhere.
+**Once, not twice.** It briefly had both — a kicker line on the card *and* the
+floating figure — which put the same number on screen twice at the same moment,
+small on the card and large underneath it. The large one wins: it is the one
+that moves, it is the one the HUD is reacting to, and a bonus is a thing that
+*lands* rather than a line of copy. The card is back to a title and a tagline.
 
 **No arrows on either**, which the kicker already had a flag for. The arrows
 are a *trend* mark and belong on a number that has moved up from somewhere.

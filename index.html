@@ -6778,24 +6778,21 @@ function collect(atCol){
      carries the glass, because its effect is a change in the speed of the
      world and that is worth saying before it happens. */
   if (BRAND_SKUS[kind]){
+    /* THE CARD DOES NOT CARRY THE FIGURE. It did for a few minutes, in the
+       kicker slot, and that put the number twice on screen at once - small
+       on the card and large underneath it. The large one won: it is the one
+       that moves, it is the one the HUD readout is pulsing in sympathy with,
+       and a bonus is a thing that lands rather than a line of copy. */
     if (kind === "insight")
-      /* `bare` - no arrows. The arrows are a TREND mark; they belong on a
-         number that has moved up from somewhere. This one is a price, and a
-         price with an up-arrow either side of it reads as a price rise. */
       brandHit(BRAND_SKUS[kind], BRAND_HIT + 0.5, "hourglass",
-               "OUTAGES BEFORE THE TICKETS", false,
-               "+" + cash(INSIGHT_BONUS) + " ON THE PIPELINE", { bare:true });
+               "OUTAGES BEFORE THE TICKETS");
     else if (kind === "traffic")
       brandHit(BRAND_SKUS[kind], BRAND_HIT + 0.5, null,
                "INSIGHT AND CONTROL OF TRAFFIC", false,
                "YOU\u2019RE UNSTOPPABLE");
     else if (kind === "sponsor")
-      /* The kicker line, the money green one - the same slot the blazers use
-         to say what they bought him, and `bare` for the same reason as
-         above: no arrows on a price. */
       brandHit(BRAND_SKUS[kind], BRAND_HIT + 0.5, null,
-               "ACCELERATING YOUR JOURNEY IN THE CLOUD", false,
-               "+" + cash(CLOUD_BONUS) + " ON THE PIPELINE", { bare:true });
+               "ACCELERATING YOUR JOURNEY IN THE CLOUD");
     else if (kind === "agent"){
       /* Read BEFORE the shield moves - this block runs above the one that
          grants it, so G.shield is still what he had when he stepped on it. */
@@ -6900,7 +6897,7 @@ function collect(atCol){
   }
   else if (kind === "insight"){
     G.bonus += INSIGHT_BONUS; G.bonusInsight += INSIGHT_BONUS; G.insights++;
-    G.pipePop = PIPE_POP;          // the card carries the figure; see above
+    moneyRise(INSIGHT_BONUS, "INTERNET INSIGHTS");
     /* Only on the way IN. A second card while the first is still running
        extends the clock, and starting a second drone on top of the one
        already playing is two drones, not a louder one. */
@@ -6914,15 +6911,9 @@ function collect(atCol){
   }
   else if (kind === "sponsor"){
     G.bonus += CLOUD_BONUS; G.bonusCloud += CLOUD_BONUS; G.clouds++;
-    /* NO FLOATING FIGURE ON THESE TWO. The card is already saying the number
-       in its kicker line, and moneyRise would print the same figure again two
-       inches under it in the same green at the same moment - the add-on and
-       the agent only get away with it because their cards do NOT carry it.
-
-       The pipe pop stays, because that is not the number, it is the HUD
-       reacting to the number: the readout in the corner swelling is the one
-       part of this that says the money actually landed somewhere. */
-    G.pipePop = PIPE_POP;
+    /* The big green figure off his head, the same one the add-on, the agent
+       and the champion all use - and it brings the HUD pop with it. */
+    moneyRise(CLOUD_BONUS, "CLOUD INSIGHTS");
     G.dashT = Math.max(G.dashT, k.secs);
     /* The strobe fires on every pickup, including one taken mid-run, because
        a refresh you cannot see is a refresh you do not trust. */
