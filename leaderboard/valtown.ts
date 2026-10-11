@@ -140,7 +140,8 @@ function blankStats() {
     plays: 0, wins: 0, deaths: 0, bestScore: 0,
     steps: 0, rows: 0, rides: 0, tamWins: 0, addons: 0, champs: 0, secs: 0,
     players: 0, seen: {} as Record<string, number>,
-    powers: cleanPowers(null), first: Date.now(), last: 0,
+    powers: cleanPowers(null), causes: {} as Record<string, number>,
+    first: Date.now(), last: 0,
   };
 }
 /* `seen` is the browser ids, and it never leaves the server - the game only
@@ -163,5 +164,19 @@ function bump(st: any, rec: any, id: string) {
   if (!st.seen[id]) st.players = Object.keys(st.seen).length + 1;
   st.seen[id] = rec.at;                        // doubles as the rate limit clock
   for (const k of POWERS) st.powers[k] = (st.powers[k] || 0) + (rec.powers[k] || 0);
+  /* HOW THE RUN ENDED, counted across every run posted rather than across the
+     hundred rows kept. The board is the good runs by definition, so tallying
+     causes from it answered "how do the BEST runs end" while being captioned
+     as what stops people - and now that a run which misses the board posts its
+     numbers and loses its row, the board would have skewed further still.
+
+     The key is already sanitised to 28 printable characters upstream. The cap
+     is on the number of DISTINCT causes, so a client inventing new ones cannot
+     grow this blob without bound; once it is full, known causes still count. */
+  if (!st.causes) st.causes = {};
+  const why = rec.won ? "Booked" : (rec.cause || "Unknown");
+  if (st.causes[why] != null || Object.keys(st.causes).length < 40) {
+    st.causes[why] = (st.causes[why] || 0) + 1;
+  }
   return st;
 }

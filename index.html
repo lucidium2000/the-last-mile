@@ -18770,12 +18770,36 @@ function drawReport(){
   ]);
   by += 170;
 
-  head(by, "WHAT STOPS PEOPLE");
-  var tally = {}, order = [];
-  for (i = 0; i < list.length; i++){
-    var c = list[i].won ? "Booked" : (list[i].cause || "Unknown");
-    if (tally[c] == null){ tally[c] = 0; order.push(c); }
-    tally[c]++;
+  /* ------------------------------------------------- HOW RUNS END -------
+     It was captioned WHAT STOPS PEOPLE and counted the top fifty rows, which
+     is not the same question. The board is the good runs by definition, so
+     more than half of it says "Booked" - and a chart of what stops people
+     whose biggest bar is people finishing is answering something else.
+
+     It reads the GLOBAL causes when the service offers them: every run ever
+     posted, win or loss, board or no board. The rows are the fallback for an
+     old service or a cold device, and they are honest about being the board
+     because the heading no longer claims otherwise.
+
+     It still cannot see the runs nobody finished - a player who walks off
+     mid-street never posts anything, so "gave up and left" is not a bar here
+     and cannot be. The title says how runs END, which is exactly the set this
+     has. */
+  var gcz = BOARD.global && BOARD.global.causes;
+  head(by, gcz ? "HOW RUNS END  \u00B7  EVERYONE" : "HOW THE TOP RUNS ENDED");
+  var tally = {}, order = [], ck;
+  if (gcz){
+    for (ck in gcz){
+      if (!Object.prototype.hasOwnProperty.call(gcz, ck)) continue;
+      if (!gcz[ck]) continue;
+      tally[ck] = gcz[ck]; order.push(ck);
+    }
+  } else {
+    for (i = 0; i < list.length; i++){
+      var c = list[i].won ? "Booked" : (list[i].cause || "Unknown");
+      if (tally[c] == null){ tally[c] = 0; order.push(c); }
+      tally[c]++;
+    }
   }
   order.sort(function(a,b){ return tally[b] - tally[a]; });
   var causeItems = [];
