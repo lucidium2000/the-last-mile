@@ -4733,10 +4733,7 @@ var SAFE_MIN = 2;          // the shallowest pavement the generator may lay
    An unknown name is not an error here. The drop is guarded by
    POWERS[DROP_PW], so ?pw=off, ?pw=none or ?pw=anythingelse all simply plant
    nothing - which is why there is no list of valid kinds to keep in step. */
-/* TEMPORARY: "sponsor" while the per-street flash payout is being looked at -
-   one Cloud Insights on the first pavement of every run. Back to null before
-   it ships. */
-var DROP_PW_DEFAULT = "sponsor";
+var DROP_PW_DEFAULT = null;
 var DROP_PW = (function(){
   var m = /[?&]pw=([a-z]+)/i.exec(location.search);
   return m ? m[1].toLowerCase() : DROP_PW_DEFAULT;
