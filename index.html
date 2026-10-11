@@ -18821,92 +18821,148 @@ function drawReport(){
   ctx.clip();
   var oy = REPORT_TOP - G.reportY;
 
-  /* ---- the list ------------------------------------------------------- */
-  var x0 = 100;
-  txt((TEAM ? TEAM.toUpperCase() + "  \u00B7  " : "") +
-      "THE BOARD  \u00B7  TOP " + Math.max(1, list.length),
-      x0, oy + 14, 24, C.brand, "left");
-  var hy = oy + 56;
-  txt("#",        x0 + 36,   hy, 18, C.textDim, "right");
-  txt("WHO",      x0 + 60,   hy, 18, C.textDim, "left");
-  txt("PIPELINE", x0 + 380,  hy, 18, C.textDim, "right");
-  txt("BLOCKS",   x0 + 480,  hy, 18, C.textDim, "right");
-  txt("STEPS",    x0 + 600,  hy, 18, C.textDim, "right");
-  txt("RIDES",    x0 + 690,  hy, 18, C.textDim, "right");
-  txt("TAM",      x0 + 770,  hy, 18, C.textDim, "right");
-  txt("ADD-ONS",  x0 + 880,  hy, 18, C.textDim, "right");
-  txt("CHAMPS",   x0 + 990,  hy, 18, C.textDim, "right");
-  txt("TIME",     x0 + 1090, hy, 18, C.textDim, "right");
-  txt("WHEN",     x0 + 1290, hy, 18, C.textDim, "right");
-  txt("RESULT",   x0 + 1700, hy, 18, C.textDim, "right");
-  ctx.fillStyle = "rgba(255,255,255,0.12)"; ctx.fillRect(x0, hy + 16, 1700, 2);
+  /* =====================================================================
+     THE REPORT, READ TOP TO BOTTOM
 
-  if (!list.length) txt("NOBODY HAS WALKED IT YET", LOGICAL_W/2, hy + 90, 28, C.textDim);
-  for (i = 0; i < list.length; i++){
-    var r = list[i], ry = hy + 56 + i*42;
-    if (ry < REPORT_TOP - 50 || ry > LOGICAL_H + 20) continue;   // off-page
-    var mine = G.rec && r.at === G.rec.at && r.ini === G.rec.ini;
-    if (mine) plate(x0 - 12, ry - 27, 1724, 40, "rgba(255,106,19,0.18)", 7);
-    var col = mine ? C.brand : (i === 0 ? C.pw5 : C.text);
-    txt(String(i+1),   x0 + 36,  ry, 21, i < 3 ? C.brand : C.textDim, "right");
-    txt(r.ini,         x0 + 60,  ry, 25, col, "left");
-    txt(cash(r.score), x0 + 380, ry, 22, col, "right");
-    txt(String(r.rows || 0), x0 + 480, ry, 20, C.textDim, "right");
-    txt((r.steps || 0).toLocaleString("en-US"), x0 + 600, ry, 20, C.textDim, "right");
-    txt(String(r.rides || 0),   x0 + 690,  ry, 20, C.textDim, "right");
-    txt(String(r.tamWins || 0), x0 + 770,  ry, 20, C.textDim, "right");
-    /* A DASH IS NOT A ZERO. These two fields arrived after the board did,
-       and the rows that predate them have no value at all - which is a
-       different thing from a run that found no add-ons, and printing 0 for
-       both says the older players all failed at something that did not exist
-       yet. `== null` catches undefined and null and nothing else, so a real
-       0 still prints as 0. */
-    txt(r.addons == null ? "\u2014" : String(r.addons), x0 + 880, ry, 20, C.textDim, "right");
-    txt(r.champs == null ? "\u2014" : String(r.champs), x0 + 990, ry, 20, C.textDim, "right");
-    txt(r.secs ? mmss(r.secs) : "\u2014", x0 + 1090, ry, 20, C.textDim, "right");
-    txt(whenStamp(r.at), x0 + 1290, ry, 19, C.textDim, "right");
-    txt(r.won ? "BOOKED" : (r.cause || "\u2014"), x0 + 1700, ry, 19,
-        r.won ? C.good : C.textDim, "right");
-  }
-  /* An empty board still needs the room its message takes, or TOTALS slides
-     up underneath "NOBODY HAS WALKED IT YET" and the two overlap. */
-  var by = hy + 56 + (list.length ? list.length*42 : 130) + 50;
+     The order is the argument. It opens with the three numbers somebody
+     would repeat in a corridor, then the totals behind them, then the shape
+     of the thing, and only then the twenty rows of who did it - because a
+     table is a reference and an argument is a story, and a story that opens
+     with a reference is a table.
 
-  /* ---- the breakdowns -------------------------------------------------- */
-  function head(y2, label){
+     NOTHING HERE ALLOCATES PER FRAME. Every chart is flat fillRects and
+     arcs, banded by alpha to get the depth a gradient would give - the same
+     trick the trace's glow uses, for the same reason: createLinearGradient
+     per bar per frame is thirty-odd objects sixty times a second on a panel
+     that has to also run a game.
+     ===================================================================== */
+  var x0 = 100, W = 1700;
+
+  function head(y2, label, note){
     txt(label, x0, y2, 24, C.brand, "left");
-    ctx.fillStyle = "rgba(255,255,255,0.12)"; ctx.fillRect(x0, y2 + 16, 1700, 2);
+    if (note) txt(note, x0 + W, y2, 18, C.textDim, "right");
+    ctx.fillStyle = "rgba(255,255,255,0.12)"; ctx.fillRect(x0, y2 + 16, W, 2);
   }
   function cards(y2, items){
-    var cw = 1700 / items.length;
+    var cw = W / items.length;
     for (var j = 0; j < items.length; j++){
       var cx = x0 + j*cw;
       txt(items[j][1], cx + cw/2, y2 + 46, 34, items[j][2] || C.text);
       txt(items[j][0], cx + cw/2, y2 + 80, 18, C.textDim);
     }
   }
+  /* A bar with a lit top edge and a bright nose. Four rects, no gradient. */
+  function gbar(bx, by2, bw, bh, col){
+    ctx.globalAlpha = 0.10; ctx.fillStyle = C.text;
+    ctx.fillRect(bx, by2, W - (bx - x0) - 200, bh);          // the track
+    ctx.globalAlpha = 0.78; ctx.fillStyle = col;
+    ctx.fillRect(bx, by2, bw, bh);                            // the body
+    ctx.globalAlpha = 0.34; ctx.fillStyle = "#ffffff";
+    ctx.fillRect(bx, by2, bw, Math.max(2, bh * 0.34));        // the lit top
+    ctx.globalAlpha = 0.95; ctx.fillStyle = "#ffffff";
+    ctx.fillRect(bx + bw - 3, by2, 3, bh);                    // the nose
+    ctx.globalAlpha = 1;
+  }
   function bars(y2, items, colFn){
-    var max = 1;
-    for (var j = 0; j < items.length; j++) max = Math.max(max, items[j][1]);
+    var max = 1, j;
+    for (j = 0; j < items.length; j++) max = Math.max(max, items[j][1]);
+    var tot = 0;
+    for (j = 0; j < items.length; j++) tot += items[j][1];
     for (j = 0; j < items.length; j++){
-      var byy = y2 + 34 + j*34, w = (items[j][1] / max) * 1080;
+      var byy = y2 + 38 + j*36, w = (items[j][1] / max) * 1000;
       txt(items[j][0], x0, byy, 20, C.textDim, "left", 380);
-      ctx.fillStyle = colFn ? colFn(items[j]) : C.brand;
-      ctx.globalAlpha = 0.75;
-      ctx.fillRect(x0 + 400, byy - 11, Math.max(2, w), 22);
-      ctx.globalAlpha = 1;
-      txt(String(items[j][1]), x0 + 1520, byy, 22, C.text, "right");
+      gbar(x0 + 400, byy - 12, Math.max(3, w), 24,
+           colFn ? colFn(items[j]) : C.brand);
+      txt(String(items[j][1]), x0 + 1460, byy, 22, C.text, "right");
+      /* The share, which is the number people actually argue about. */
+      if (tot > 0){
+        txt(Math.round(items[j][1] / tot * 100) + "%",
+            x0 + W, byy, 19, C.textDim, "right");
+      }
     }
   }
+  /* A column chart. Bands again, brightest at the cap. */
+  function cols(y2, h, items, colFn, labEvery){
+    var max = 1, j;
+    for (j = 0; j < items.length; j++) max = Math.max(max, items[j][1]);
+    var cw = W / Math.max(1, items.length), bw = Math.max(6, cw * 0.62);
+    ctx.globalAlpha = 0.10; ctx.fillStyle = C.text;
+    ctx.fillRect(x0, y2 + h, W, 2);                           // the floor
+    ctx.globalAlpha = 1;
+    for (j = 0; j < items.length; j++){
+      var ch = Math.max(3, (items[j][1] / max) * h);
+      var cx = x0 + j*cw + (cw - bw)/2, cy = y2 + h - ch;
+      var col = colFn ? colFn(items[j], j) : C.brand;
+      ctx.globalAlpha = 0.72; ctx.fillStyle = col;
+      ctx.fillRect(cx, cy, bw, ch);
+      ctx.globalAlpha = 0.40; ctx.fillStyle = "#ffffff";
+      ctx.fillRect(cx, cy, bw, Math.min(6, ch));              // the cap
+      ctx.globalAlpha = 1;
+      if (!labEvery || j % labEvery === 0)
+        txt(items[j][0], cx + bw/2, y2 + h + 24, 17, C.textDim);
+    }
+    return max;
+  }
+  /* A gauge. Two arcs and a number in the hole. */
+  function ring(cx, cy, rad, frac, col, big, lab){
+    ctx.lineWidth = 14; ctx.lineCap = "butt";
+    ctx.globalAlpha = 0.16; ctx.strokeStyle = C.text;
+    ctx.beginPath(); ctx.arc(cx, cy, rad, 0, Math.PI*2); ctx.stroke();
+    ctx.globalAlpha = 0.95; ctx.strokeStyle = col;
+    ctx.beginPath();
+    ctx.arc(cx, cy, rad, -Math.PI/2, -Math.PI/2 + Math.PI*2*Math.max(0, Math.min(1, frac)));
+    ctx.stroke();
+    ctx.globalAlpha = 1;
+    txt(big, cx, cy + 4, 34, col);
+    txt(lab, cx, cy + rad + 30, 18, C.textDim);
+  }
 
+  /* ---- what somebody repeats in a corridor ----------------------------- */
+  var by = oy + 10;
+  var pr = Math.max(1, st.plays);
+  var avgScore = st.scoreRuns ? Math.round(st.scoreSum / st.scoreRuns) : 0;
+  var rc = BOARD.recent, gl = BOARD.global;
+  var heroes = [
+    ["PIPELINE BUILT", cash(st.scoreSum || 0), "on this device", C.good],
+    ["BEST RUN",       cash(st.bestScore),     "all time",       C.brand],
+    ["AVERAGE RUN",    st.scoreRuns ? cash(avgScore) : "\u2014",
+                       st.scoreRuns + (st.scoreRuns === 1 ? " run" : " runs") + " counted",
+                       C.text]
+  ];
+  var hw = W / 3;
+  for (i = 0; i < heroes.length; i++){
+    var hx = x0 + i*hw;
+    plate(hx + 8, by, hw - 16, 128, "rgba(255,255,255,0.045)", 12);
+    ctx.globalAlpha = 0.5; ctx.fillStyle = heroes[i][3];
+    ctx.fillRect(hx + 8, by, hw - 16, 4);
+    ctx.globalAlpha = 1;
+    txt(heroes[i][0], hx + hw/2, by + 34, 18, C.textDim);
+    txt(heroes[i][1], hx + hw/2, by + 84, 46, heroes[i][3]);
+    txt(heroes[i][2], hx + hw/2, by + 112, 17, C.textDim);
+  }
+  by += 178;
+
+  /* ---- the gauges ------------------------------------------------------ */
+  head(by, "AT A GLANCE", gl ? ("EVERYONE  \u00B7  " + gl.players + " players") : "THIS DEVICE");
+  var bookRate = (gl ? (gl.wins / Math.max(1, gl.plays)) : (st.wins / pr));
+  var reach    = Math.min(1, (st.rows / pr) / Math.max(1, st.bestRows || 1));
+  var perMin   = st.secs ? Math.round((st.scoreSum || 0) / (st.secs / 60)) : 0;
+  var gy = by + 112, gr = 62, gw = W / 4;
+  ring(x0 + gw*0.5, gy, gr, bookRate, C.good,
+       Math.round(bookRate*100) + "%", "BOOKED");
+  ring(x0 + gw*1.5, gy, gr, reach, C.brand,
+       String(Math.round(st.rows / pr)), "BLOCKS A RUN");
+  ring(x0 + gw*2.5, gy, gr, Math.min(1, (st.rides/pr) / 3), C.pw3,
+       (Math.round((st.rides||0)/pr*10)/10).toFixed(1), "RIDES A RUN");
+  ring(x0 + gw*3.5, gy, gr, Math.min(1, perMin / 2000000), C.pw5,
+       perMin ? cash(perMin) : "\u2014", "PIPELINE A MINUTE");
+  by += 290;
+
+  /* ---- the totals ------------------------------------------------------ */
   head(by, "TOTALS  \u00B7  EVERY RUN ON THIS DEVICE");
   cards(by, [
     ["runs",    String(st.plays)],
     ["booked",  String(st.wins), C.good],
-    /* The best run lives HERE, with the other totals. It spent a while in
-       the averages block, where a figure labelled "best" under a heading
-       saying "on average" is a category error however true the number is. */
-    ["best pipeline", cash(st.bestScore), C.good],
     ["blocks",  (st.rows || 0).toLocaleString("en-US")],
     ["steps",   (st.steps || 0).toLocaleString("en-US")],
     ["rides",   String(st.rides || 0)],
@@ -18915,14 +18971,8 @@ function drawReport(){
   by += 170;
 
   head(by, "PER RUN, ON AVERAGE");
-  var pr = Math.max(1, st.plays);
   cards(by, [
-    /* A REAL ONE NOW. It reads scoreSum over scoreRuns, not over plays - see
-       statsBump. A device with runs from before the total existed shows the
-       average of the runs it has summed, which is honest; dividing by every
-       run it ever played would not be. An em-dash until there is one. */
-    ["pipeline", st.scoreRuns ? cash(Math.round(st.scoreSum / st.scoreRuns))
-                              : "\u2014", C.good],
+    ["pipeline", st.scoreRuns ? cash(avgScore) : "\u2014", C.good],
     ["blocks",   String(Math.round((st.rows || 0) / pr))],
     ["steps",    String(Math.round((st.steps || 0) / pr))],
     ["rides",    (Math.round((st.rides || 0) / pr * 10) / 10).toFixed(1)],
@@ -18932,28 +18982,46 @@ function drawReport(){
   ]);
   by += 170;
 
-  /* ------------------------------------------------- HOW RUNS END -------
-     It was captioned WHAT STOPS PEOPLE and counted the top fifty rows, which
-     is not the same question. The board is the good runs by definition, so
-     more than half of it says "Booked" - and a chart of what stops people
-     whose biggest bar is people finishing is answering something else.
+  /* ---- the spread of the board ----------------------------------------- */
+  if (list.length){
+    var med = list[Math.floor(list.length/2)].score;
+    head(by, "PIPELINE ACROSS THE BOARD",
+         "top " + list.length + "  \u00B7  median " + cash(med));
+    var scoreItems = [];
+    for (i = 0; i < list.length; i++) scoreItems.push([String(i+1), list[i].score]);
+    var smax = cols(by + 44, 150, scoreItems, function(it, j){
+      return j === 0 ? C.pw5 : (list[j].won ? C.good : C.brand);
+    }, list.length > 12 ? 2 : 1);
+    /* The median as a line across it, which is the whole point of showing
+       twenty columns rather than one average: you can see whether the board
+       is a field or one runaway. */
+    var mly = by + 44 + 150 - (med / smax) * 150;
+    ctx.globalAlpha = 0.55; ctx.fillStyle = C.text;
+    for (var dx2 = 0; dx2 < W; dx2 += 16) ctx.fillRect(x0 + dx2, mly, 9, 2);
+    ctx.globalAlpha = 1;
+    txt("MEDIAN", x0 + W, mly - 12, 17, C.textDim, "right");
+    by += 44 + 150 + 56;
 
-     It reads the GLOBAL causes when the service offers them: every run ever
-     posted, win or loss, board or no board. The rows are the fallback for an
-     old service or a cold device, and they are honest about being the board
-     because the heading no longer claims otherwise.
+    /* ---- how far people actually get --------------------------------- */
+    head(by, "HOW FAR THEY GET", "blocks reached, top " + list.length);
+    var bins = [0,0,0,0,0,0,0,0], labs = ["0-9","10-19","20-29","30-39","40-49","50-59","60-69","70+"];
+    for (i = 0; i < list.length; i++){
+      var bi = Math.min(7, Math.floor((list[i].rows || 0) / 10));
+      bins[bi]++;
+    }
+    var binItems = [];
+    for (i = 0; i < bins.length; i++) binItems.push([labs[i], bins[i]]);
+    cols(by + 44, 130, binItems, function(it, j){
+      return j >= 6 ? C.good : (j >= 4 ? C.brand : C.pw3);
+    });
+    by += 44 + 130 + 56;
+  }
 
-     It still cannot see the runs nobody finished - a player who walks off
-     mid-street never posts anything, so "gave up and left" is not a bar here
-     and cannot be. The title says how runs END, which is exactly the set this
-     has. */
-  /* The window, not the board, and not an all-time counter either. See the
-     service: it is derived on read over the last hundred runs, so it always
-     describes the game as it is now rather than as it was two rebalances
-     ago. The heading says how many it actually has. */
-  var rc = BOARD.recent, gcz = rc && rc.n ? rc.causes : null;
-  head(by, gcz ? ("HOW RUNS END  \u00B7  LAST " + rc.n + (rc.n === 1 ? " RUN" : " RUNS"))
-               : "HOW THE TOP RUNS ENDED");
+  /* ---- how runs end ---------------------------------------------------- */
+  var gcz = rc && rc.n ? rc.causes : null;
+  head(by, gcz ? "HOW RUNS END" : "HOW THE TOP RUNS ENDED",
+       gcz ? ("last " + rc.n + (rc.n === 1 ? " run" : " runs") + "  \u00B7  everyone")
+           : "this board");
   var tally = {}, order = [], ck;
   if (gcz){
     for (ck in gcz){
@@ -18970,12 +19038,13 @@ function drawReport(){
   }
   order.sort(function(a,b){ return tally[b] - tally[a]; });
   var causeItems = [];
-  for (i = 0; i < Math.min(order.length, 6); i++) causeItems.push([order[i], tally[order[i]]]);
+  for (i = 0; i < Math.min(order.length, 7); i++) causeItems.push([order[i], tally[order[i]]]);
   if (!causeItems.length) causeItems = [["Nothing yet", 0]];
   bars(by, causeItems, function(it){ return it[0] === "Booked" ? C.good : C.danger; });
-  by += 50 + causeItems.length*34 + 40;
+  by += 54 + causeItems.length*36 + 44;
 
-  head(by, "POWER-UPS COLLECTED");
+  /* ---- what they picked up --------------------------------------------- */
+  head(by, "POWER-UPS COLLECTED", "this device");
   var powItems = [];
   for (i = 0; i < POWER_ORDER.length; i++){
     var kk = POWER_ORDER[i], pk = POWERS[kk];
@@ -18984,8 +19053,7 @@ function drawReport(){
        cards stack, so three picked up and never swiped read as three times
        the use of a TAM that actually fired. Rides completed is what the
        metrocard was FOR, and it is the only honest number to put beside the
-       others. Labelled so, because a bar called METROCARD showing a smaller
-       figure than the cards collected would just look like a bug. */
+       others. */
     var isMetro = kk === "metro";
     powItems.push([
       isMetro ? "METROCARD (RIDES)" : (pk ? pk.name : kk.toUpperCase()),
@@ -18994,8 +19062,62 @@ function drawReport(){
     ]);
   }
   bars(by, powItems, function(it){ return POWERS[it[2]] ? POWERS[it[2]].col : C.brand; });
+  by += 54 + powItems.length*36 + 54;
+
+  /* ---- and LAST, the names ---------------------------------------------
+     It used to be first. A table of twenty rows at the top of a page means
+     everything that explains it is below the fold, and the one screen that
+     exists to make an argument opened with its appendix. */
+  head(by, (TEAM ? TEAM.toUpperCase() + "  \u00B7  " : "") +
+           "THE BOARD  \u00B7  TOP " + Math.max(1, list.length));
+  var hy = by + 52;
+  txt("#",        x0 + 36,   hy, 18, C.textDim, "right");
+  txt("WHO",      x0 + 60,   hy, 18, C.textDim, "left");
+  txt("PIPELINE", x0 + 380,  hy, 18, C.textDim, "right");
+  txt("BLOCKS",   x0 + 480,  hy, 18, C.textDim, "right");
+  txt("STEPS",    x0 + 600,  hy, 18, C.textDim, "right");
+  txt("RIDES",    x0 + 690,  hy, 18, C.textDim, "right");
+  txt("TAM",      x0 + 770,  hy, 18, C.textDim, "right");
+  txt("ADD-ONS",  x0 + 880,  hy, 18, C.textDim, "right");
+  txt("CHAMPS",   x0 + 990,  hy, 18, C.textDim, "right");
+  txt("TIME",     x0 + 1090, hy, 18, C.textDim, "right");
+  txt("WHEN",     x0 + 1290, hy, 18, C.textDim, "right");
+  txt("RESULT",   x0 + 1700, hy, 18, C.textDim, "right");
+  ctx.fillStyle = "rgba(255,255,255,0.12)"; ctx.fillRect(x0, hy + 16, W, 2);
+
+  if (!list.length) txt("NOBODY HAS WALKED IT YET", LOGICAL_W/2, hy + 90, 28, C.textDim);
+  for (i = 0; i < list.length; i++){
+    var r = list[i], ry = hy + 56 + i*42;
+    if (ry < REPORT_TOP - 50 || ry > LOGICAL_H + 20) continue;   // off-page
+    var mine = G.rec && r.at === G.rec.at && r.ini === G.rec.ini;
+    if (mine) plate(x0 - 12, ry - 27, 1724, 40, "rgba(255,106,19,0.18)", 7);
+    /* A band on every other row. A twenty-row table with twelve columns is
+       exactly where an eye loses its place. */
+    else if (i % 2){
+      ctx.globalAlpha = 0.035; ctx.fillStyle = C.text;
+      ctx.fillRect(x0 - 12, ry - 27, 1724, 40); ctx.globalAlpha = 1;
+    }
+    var col = mine ? C.brand : (i === 0 ? C.pw5 : C.text);
+    txt(String(i+1),   x0 + 36,  ry, 21, i < 3 ? C.brand : C.textDim, "right");
+    txt(r.ini,         x0 + 60,  ry, 25, col, "left");
+    txt(cash(r.score), x0 + 380, ry, 22, col, "right");
+    txt(String(r.rows || 0), x0 + 480, ry, 20, C.textDim, "right");
+    txt((r.steps || 0).toLocaleString("en-US"), x0 + 600, ry, 20, C.textDim, "right");
+    txt(String(r.rides || 0),   x0 + 690,  ry, 20, C.textDim, "right");
+    txt(String(r.tamWins || 0), x0 + 770,  ry, 20, C.textDim, "right");
+    /* A DASH IS NOT A ZERO. These two fields arrived after the board did,
+       and the rows that predate them have no value at all - which is a
+       different thing from a run that found no add-ons. `== null` catches
+       undefined and null and nothing else, so a real 0 still prints as 0. */
+    txt(r.addons == null ? "\u2014" : String(r.addons), x0 + 880, ry, 20, C.textDim, "right");
+    txt(r.champs == null ? "\u2014" : String(r.champs), x0 + 990, ry, 20, C.textDim, "right");
+    txt(r.secs ? mmss(r.secs) : "\u2014", x0 + 1090, ry, 20, C.textDim, "right");
+    txt(whenStamp(r.at), x0 + 1290, ry, 19, C.textDim, "right");
+    txt(r.won ? "BOOKED" : (r.cause || "\u2014"), x0 + 1700, ry, 19,
+        r.won ? C.good : C.textDim, "right");
+  }
   /* Where the page ends, in page space - `oy` is the top of it. */
-  reportBottom = (by + 40 + powItems.length*34 + 30) - oy;
+  reportBottom = (hy + 56 + (list.length ? list.length*42 : 130) + 40) - oy;
 
   ctx.restore();
 
