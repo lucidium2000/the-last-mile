@@ -3871,14 +3871,21 @@ place every limb band is measured from — so the edge hung out to his left like
 a shelf. It also now thins and fades over the last of its travel, so it leaves
 through the top of his head rather than parking above it.
 
-## Cloud Insights pays
+## The two insight SKUs pay
 
-Every other SKU in the game either buys him a power or buys him money, and
-Cloud Insights was the only one that was pure movement — which made it the one
-pickup a seller could not put a number against. **$200,000**, and the card says
-so: the kicker line under the tagline, in the money green with the arrows, the
-same slot the blazers use to say what they bought him. Plus the figure floating
-off his head labelled `CLOUD INSIGHTS`.
+Every other pickup in the game either buys him a power or buys him money, and
+these two were pure effect — one makes him quick, the other makes the world
+slow — which made them the pickups a seller could not put a number against.
+
+**Cloud Insights $200,000. Internet Insights $180,000.** Deliberately not the
+same figure: a seller reading the card twice should see two products, not one
+priced twice.
+
+Each says so on the card in the kicker slot, under the tagline, in the money
+green with the arrows — the same line the blazers use to say what they bought
+him — and each floats its own figure off his head, labelled with the SKU that
+paid it. Separate buckets, both into the pipeline: collecting one of each
+leaves $380,000 on the number.
 
 ## Side to side, made fluid
 

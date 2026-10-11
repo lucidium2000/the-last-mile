@@ -3406,6 +3406,11 @@ var AGENT_BONUS = 100000;
    was pure movement - which made it the one pickup a seller could not put a
    number against. Two hundred thousand, and the card says so. */
 var CLOUD_BONUS = 200000;
+/* And Internet Insights with it, at 180. The two of them are the pure-power
+   SKUs - one makes him quick and one makes the world slow - and neither had a
+   number against it. They are deliberately not the same number: a seller
+   reading the card twice should see two products, not one priced twice. */
+var INSIGHT_BONUS = 180000;
 var AGENT_BLAZER = [
   "\u201CBLUE BLAZER OF ASSURANCE\u201D",
   "\u201CDOUBLE PURPLE PIMP BLAZER OF ASSURANCE\u201D"
@@ -5316,7 +5321,7 @@ function reset(){
     hp:HP_MAX, hpGain:null, hpShow:0, hpFrom:HP_MAX, hpHold:0, hpFill:0,
     meals:0, sadT:0, needFood:0, saidFood:false,
     bonusChuck:0, bonusTam:0, bonusAddon:0, bonusFood:0, bonusChamp:0,
-    bonusUpsell:0, upsells:0, bonusCloud:0, clouds:0,
+    bonusUpsell:0, upsells:0, bonusCloud:0, clouds:0, bonusInsight:0, insights:0,
     traceRun:0, flip:0, sprint:0, crane:0, queued:null,
     jumpTurn:0, sideA:0, neoT:0,
     bonusAgent:0, agentPays:0,
@@ -6775,7 +6780,8 @@ function collect(atCol){
   if (BRAND_SKUS[kind]){
     if (kind === "insight")
       brandHit(BRAND_SKUS[kind], BRAND_HIT + 0.5, "hourglass",
-               "OUTAGES BEFORE THE TICKETS");
+               "OUTAGES BEFORE THE TICKETS", false,
+               "+" + cash(INSIGHT_BONUS) + " ON THE PIPELINE");
     else if (kind === "traffic")
       brandHit(BRAND_SKUS[kind], BRAND_HIT + 0.5, null,
                "INSIGHT AND CONTROL OF TRAFFIC", false,
@@ -6889,6 +6895,8 @@ function collect(atCol){
     }
   }
   else if (kind === "insight"){
+    G.bonus += INSIGHT_BONUS; G.bonusInsight += INSIGHT_BONUS; G.insights++;
+    moneyRise(INSIGHT_BONUS, "INTERNET INSIGHTS");
     /* Only on the way IN. A second card while the first is still running
        extends the clock, and starting a second drone on top of the one
        already playing is two drones, not a louder one. */
