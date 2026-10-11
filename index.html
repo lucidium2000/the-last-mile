@@ -5787,10 +5787,23 @@ function act(dir){
          rows are full and the score beats none of them - and asking a man
          for his initials so they can be thrown away is worse than not
          asking. He goes straight to the board, where he can see what he was
-         up against. G.rec goes with him only when it earned a row. */
+         up against.
+
+         IT STILL COUNTS, THOUGH. The post is what feeds the global counters -
+         runs, players, steps, rides, every power ever picked up - and the
+         first cut of this skipped the post along with the prompt, which
+         quietly turned "656 runs" into "656 runs good enough for the board".
+         The stats are meant to be a record of the game being played, not of
+         it being won.
+
+         So it posts, anonymously: no name was given, so none is claimed. The
+         row sorts below the hundred the server keeps and falls off the end
+         by itself, which is the correct outcome for a run that did not make
+         it - the numbers survive and the row does not. */
       else if (!boardRank(G.rec ? G.rec.score : 0)){
+        if (G.rec){ G.rec.ini = "---"; boardPOST(G.rec); }
         G.rec = null; G.state = ST_BOARD; G.deadFor = 0;
-        boardGET(); AUDIO.ui();
+        AUDIO.ui();
       }
       else { G.state = ST_NAME; G.iniAt = 0; AUDIO.ui(); }
     }
