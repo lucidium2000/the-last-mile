@@ -3825,6 +3825,37 @@ the more of it anybody actually sees.
 
 
 
+
+## The arms were swinging the whole time
+
+*"Swing the arms when doing the front jump."* They were. The rig had been
+handing back a 19px arm swing on every frame of it — the drawing was throwing
+most of it away.
+
+Each limb is drawn by clipping a window out of the sprite and shifting the
+whole sprite inside it, and the arm window ended at model x **0.245**. That
+number was measured off the base figure, whose sleeves run 0.16 to 0.24 —
+entirely outboard of it, so the whole arm travels. **Neo's arms were pulled in
+to 0.222–0.298 while he was being slimmed down**, which left 0.245 cutting
+straight through them: 28% of each arm swung and the other 72% stayed pinned in
+the torso pass.
+
+A costume change silently broke an animation that had nothing to do with it,
+and it broke it in the one way that looks like the animation simply not being
+there.
+
+**0.308 for him** puts the arm and the hand (which reaches 0.304) wholly inside
+the band while still clearing his torso, which starts at 0.315. Measured by
+diffing two opposite stride phases across the arm-band rows: **5 of 5 columns
+inside his arm now move**, where before only the ones under 0.245 could.
+
+It catches about two screen pixels of the coat panel's edge on the way past,
+which is correct anyway — a coat moves with the arm inside it.
+
+This was never specific to the jump. It fixes the arms everywhere the coat is
+on: the run, the crossing and the jump are one rig, so they were all losing the
+same 72%.
+
 ## He runs the whole time the coat is on
 
 There were three gaits for an hour — walk, a bigger walk in the coat, and a

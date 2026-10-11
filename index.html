@@ -15577,8 +15577,22 @@ function drawPlayer(pp){
     var hip   = dy - (0.45*ROW_H + 0.330*ZH) * ky;
     var knee  = dy - (0.45*ROW_H + 0.210*ZH) * ky;
     var shldr = dy - (0.45*ROW_H + 0.560*ZH) * ky;
-    var aL    = sx + (0.245*TILE + 0.45*SKEW) * kx;
-    var aR    = sx + (0.755*TILE + 0.45*SKEW) * kx;
+    /* WHERE THE ARM BAND ENDS, AND IT IS NOT ONE NUMBER ANY MORE.
+
+       0.245 was measured off the base figure, whose sleeves run 0.16 to 0.24
+       - entirely outboard of it, so the whole arm travels. Neo's arms were
+       pulled IN to 0.222-0.298 (his hand reaches 0.304) while he was being
+       slimmed down, which left 0.245 cutting straight through them: 28% of
+       each arm swung and the other 72% stayed pinned in the torso pass. The
+       arms were moving the whole time and almost none of it was visible.
+
+       0.308 for him puts the arm and the hand wholly inside the band while
+       still clearing his torso, which starts at 0.315. It catches about two
+       screen pixels of the coat panel's edge on the way past, which is
+       correct anyway - a coat moves with the arm inside it. */
+    var asp   = (s === S.neo_r || s === S.neo_l) ? 0.308 : 0.245;
+    var aL    = sx + (asp*TILE + 0.45*SKEW) * kx;
+    var aR    = sx + ((1 - asp)*TILE + 0.45*SKEW) * kx;
     var legM  = sx + (0.500*TILE + 0.45*SKEW) * kx;
     function band(x0, y0, x1, y1, oy, ox){
       ctx.save();
