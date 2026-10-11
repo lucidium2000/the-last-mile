@@ -4177,46 +4177,43 @@ pointer at all. The initials screen was built for a finger: three letter
 wheels and a button, with the keyboard as a shortcut. On a remote it was a
 dead end — you could change the letters and never reach OK.
 
-**The focus runs 0..4 now**: the three letters, then `PUT ME ON THE BOARD`,
-then `SKIP`. Left and right walk the whole ring, so one axis reaches
-everything. Up and down are the letter wheel while the focus is on a letter,
-and the vertical walk once it is on a button — OK sits under the letters and
-SKIP under OK, so up climbs back towards them.
+**Right is the whole screen.** The focus runs 0..3 — the three letters, then
+`PUT ME ON THE BOARD` — and one more right off the button posts it. Four
+presses of one arrow finish the screen from a cold start and nothing else is
+needed.
 
-**An arrow never commits.** The first cut had up fire whatever was
-highlighted, which meant a player feeling their way around could post a score
-by nudging the wrong way. Moving is moving; the button is the button.
+That is the point, and it came out of the first version being wrong. `a` went
+into the action table because it is the main button on these panels, and it
+never arrived: they reserve it for the mouse, so the keypress does not happen.
+It is out again, the initials screen types A again, and the arrows now have to
+be able to complete the screen on their own — because a screen that can only be
+finished with a button the hardware does not send is a screen nobody finishes.
 
-**The action button steps through and then fires**: letters advance, the last
-letter hands over to OK, and the buttons do what they say. Three presses after
-three letters is a posted score without the player ever having found a
-separate control. Typing the third letter lands on OK too, so a keyboard user
-still gets one Enter to submit.
+**Only the direction you are already travelling in commits.** Left walks back
+and wraps without firing; up climbs from the button back to the letters; down
+is the wheel and nothing else. An arrow that moves cannot also fire, or
+somebody feeling their way around posts a score by accident.
 
-**`a` costs something, and it is worth saying what.** It is the main button on
-the panels this runs on, so on the initials screen it is the button and no
-longer types the letter A. Every other letter still types; A is still
-reachable the way all 37 characters are, on the wheel — which is how a console
-enters it anyway, there being no keyboard attached to a Board. In *play* `a` is
-untouched and still strafes left, because that is what this whole thing is
-about; the guard is a single `G.state !== ST_PLAY`.
+The action keys that *do* arrive still work and still step through: `Enter`,
+`Return`, space, `Select`, `Accept`, `OK`. Typing the third letter lands on the
+button too, so a keyboard user gets one Enter to submit. They live in a table
+rather than a chain of `||`, so whatever the next panel sends is one entry and
+not a new branch — alongside `Start`, `MediaPlayPause` and `Play`, which behave
+as the action everywhere outside play and so start the game from the title.
 
-The keys live in two tables rather than a chain of `||`, so whatever the next
-panel sends is one entry and not a new branch: `Enter`, `Return`, space, `a`,
-`Select`, `Accept`, `OK` for the action, and `Start`, `MediaPlayPause`, `Play`
-for start. Start behaves as the action everywhere outside play, which is what
-makes it start the game from the title.
-
-**SKIP is new and deliberately quiet** — smaller, inked rather than branded. It
-is the way out for somebody who does not want their initials on a shared
-panel. It clears `G.rec` on the way to the board, because a board that
-highlights a row which was never saved is lying about where you came.
+**No offer if there is no room.** `boardRank` returns 0 once the fifty rows are
+full and the score beats none of them, and asking a man for his initials so
+they can be thrown away is worse than not asking. He goes straight to the
+board, where he can see what he was up against. Verified three ways: board full
+plus a low score goes to the board with `G.rec` cleared, board full plus a high
+score offers the screen, and a board with room still offers it for a score of
+one.
 
 **Touch is untouched**, which was the condition. The pointer paths only ever
-set 0..2 and call the buttons directly, so the two input models never have to
-agree about where the focus is — only about what the buttons do. Verified: OK,
-SKIP, a letter column and a chevron all still resolve to the right target, and
-in play `a` strafes and space steps forward.
+set 0..2 and call the button directly, so the two input models never have to
+agree about where the focus is — only about what the button does. Verified: OK,
+a letter column and a chevron all still resolve to the right target, and in
+play `a` strafes and space steps forward.
 
 ## The arms were swinging the whole time
 
