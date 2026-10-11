@@ -3824,6 +3824,39 @@ screen long enough to *be* the baseline, and after that, the longer it degrades
 the more of it anybody actually sees.
 
 
+
+## Three gaits, one rig
+
+The man in the shades was walking like a man on his way somewhere. While
+Internet Insights is up the same limb rig now runs at nearly twice the
+amplitude — **17 and 14 against the ordinary 9 and 6** — so the legs swing, the
+arms drive and the stride reads from across the room. The bounce goes up with
+it, 3.4 to 5.6.
+
+**The ordinary walk is untouched.** It is the game's resting state, it is not
+broken, and the first pass at this raised it globally, which was the wrong
+answer to the question.
+
+**The ceiling is the band, not taste.** Each limb is drawn by clipping a window
+out of the sprite and shifting the whole sprite inside it. The shin window runs
+from the knee to six pixels under his heel — 41.2px — so a shin offset past
+about 30 slides the shoe out of its own window and he loses a foot. The three
+gaits measure −13.5, −25.5 and −35.1, all inside it. The arm window is the
+shoulder to the same floor, 76px, which is why the arms can take more than the
+legs can.
+
+That check caught a live bug in the sprint: at `SPRINT_KNEE` 1.55 the shin
+offset was 41.9 against a 41.2 band, so the back foot was being clipped clean
+out of frame at the top of every swing. 1.3 puts it back.
+
+| | lift | arm | shin |
+|---|---|---|---|
+| walk | 9 | 6 | −13.5 |
+| Neo | 17 | 14 | −25.5 |
+| sprint | 27 | 19 | −35.1 |
+
+Three gaits, one rig, one phase, one easing — only the numbers change.
+
 ## One lane, and he runs it
 
 Going over backwards to clear a single row of tarmac is a man showing off at a

@@ -7065,7 +7065,12 @@ function colSafeFor(r, col, secs){
    legs are visibly going round rather than taking one long stride. */
 var SPRINT_SLOW = 3;        // the hop takes this much longer than a step
 var SPRINT_CYCLES = 2.5;    // full leg cycles inside one crossing
-var SPRINT_LIFT = 27, SPRINT_ARM = 19, SPRINT_KNEE = 1.55;
+/* 1.3 rather than 1.55 on the knee: 27 * 1.55 is 41.9 and the shin window is
+   41.2, so the back foot was being clipped clean out of frame at the top of
+   the swing. 35 keeps it inside. The lift and the arm stay where they are,
+   because the walk coming up to 16 and 13 means the sprint still has to be
+   most of twice it to read as a different gait. */
+var SPRINT_LIFT = 27, SPRINT_ARM = 19, SPRINT_KNEE = 1.3;
 var SPRINT_BOB = 7;         // px of body bounce, on the whole figure
 var SPRINT_GHOSTS = 3;      // the trail
 
@@ -7120,7 +7125,8 @@ function playerPos(){
      A figure that is perfectly still between taps is a statue, and a statue
      is the other half of what reads as stiff. */
   var lift = air ? (6 + G.flyMove * 26) * air
-           : Math.abs(Math.sin(G.walkPh)) * 3.4 * G.walkAmt
+           : Math.abs(Math.sin(G.walkPh)) *
+             (G.slowT > 0 ? NEO_BOB : 3.4) * G.walkAmt
              + (1 - G.walkAmt) * 1.3 * (0.5 + 0.5 * Math.sin(G.t * 1.6));
   /* A leap of more than one row gets real air under it, on a half sine so
      he is highest in the middle of it. A three-row jump that stays at walk
@@ -7182,6 +7188,24 @@ function playerPos(){
    cycle; the amplitude is G.walkAmt, which eases out over about a tenth of
    a second so the legs settle rather than snap to attention. */
 var STRIDE_LIFT = 9, STRIDE_ARM = 6, STRIDE_KNEE = 1.5, STRIDE_KICK = 2.5;
+/* AND MORE OF ALL OF IT IN THE COAT. The ordinary walk stays exactly where it
+   was - it is the whole game's resting state and it is not broken - but the
+   man in the shades is in a film, and a film character does not amble. While
+   Internet Insights is up the same rig runs at nearly twice the amplitude:
+   the legs swing, the arms drive, and the stride reads from across the room.
+
+   THE CEILING IS THE BAND, not taste. Each limb is drawn by clipping a window
+   out of the sprite and shifting the whole thing inside it: the shin window
+   runs from the knee to six pixels under his heel, which is 41px, so a shin
+   offset past about 30 slides the shoe out of its own window and he loses a
+   foot. 17 * 1.5 is 25.5, comfortably inside. The arm window is the shoulder
+   to the same floor - 76px - which is why the arms can take more than the
+   legs can.
+
+   It also has to stay clearly under the sprint, or the two gaits stop being
+   two gaits. 17 and 14 against 27 and 19 is a walk with intent and a man
+   flat out, which is the distinction worth keeping. */
+var NEO_LIFT = 17, NEO_ARM = 14, NEO_KICK = 4.5, NEO_BOB = 5.6;
 function walkStride(){
   if (G.state !== ST_PLAY || G.ride) return null;
   if (G.flyA > 0.05) return null;            // flight has no footfalls
@@ -7190,12 +7214,17 @@ function walkStride(){
   var a = Math.sin(G.walkPh);
   var up = Math.max(0, a) * amt, dn = Math.max(0, -a) * amt;
   var dx = G.col - G.fromCol;
-  var kick = (dx > 0 ? 1 : (dx < 0 ? -1 : 0)) * STRIDE_KICK;
+  /* The coat is the only thing that changes the numbers. Same rig, same
+     phase, same easing - a different man walking. */
+  var neo  = G.slowT > 0;
+  var LIFT = neo ? NEO_LIFT : STRIDE_LIFT;
+  var ARM  = neo ? NEO_ARM  : STRIDE_ARM;
+  var kick = (dx > 0 ? 1 : (dx < 0 ? -1 : 0)) * (neo ? NEO_KICK : STRIDE_KICK);
   return {
-    legL: -up * STRIDE_LIFT, shinL: -up * STRIDE_LIFT * STRIDE_KNEE,
-    legR: -dn * STRIDE_LIFT, shinR: -dn * STRIDE_LIFT * STRIDE_KNEE,
+    legL: -up * LIFT, shinL: -up * LIFT * STRIDE_KNEE,
+    legR: -dn * LIFT, shinR: -dn * LIFT * STRIDE_KNEE,
     kickL: up * kick, kickR: dn * kick,
-    armL: -dn * STRIDE_ARM, armR: -up * STRIDE_ARM
+    armL: -dn * ARM, armR: -up * ARM
   };
 }
 function burst(x, y, col){
