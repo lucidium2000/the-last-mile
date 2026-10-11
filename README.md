@@ -3823,6 +3823,46 @@ incident, and it is also the shape of a demo — the clean state has to be on
 screen long enough to *be* the baseline, and after that, the longer it degrades
 the more of it anybody actually sees.
 
+
+## One lane, and he runs it
+
+Going over backwards to clear a single row of tarmac is a man showing off at a
+zebra crossing, and the backflip loses its weight if it is what he does to
+cross anything at all. So a **one-lane street gets the other thing the film is
+full of**: a flat-out sprint, arms and legs going, a trail behind him. Two
+lanes or more and he still flips.
+
+It is built **out of** the walk cycle rather than beside it. The walk is
+already a band-clipped limb rig, and the only thing a sprint is, is the same
+rig with the amplitude turned up and the clock turned up with it: **three times
+the lift** (27px against 9), **three times the arm swing** (19 against 6), and
+**two and a half full leg cycles inside one crossing** instead of the half
+cycle a step gets — so his legs are visibly going round rather than taking one
+long stride. Arms opposite the legs, which is the one rule that makes a limb
+rig read as running rather than as flailing.
+
+Measured across the crossing: legs alternating to −27 and −19 while the arms
+run −19 and −13 on the opposite beat.
+
+**The bounce goes in `playerPos`**, not the draw, so the shadow pumps with him.
+A runner whose head stays level is a runner on a conveyor belt.
+
+**Three ghosts drop behind him** along the direction of travel — which is *down*
+the screen, because forward is up — at falling alpha, strongest in the middle
+of the crossing where he is quickest. Three blits during a move that happens
+once a street.
+
+**544ms**, exactly three times a slow-motion step: quick enough to be a run,
+and a fifth of the backflip's six. Both are the same leap underneath — the same
+squares, the same immunity — and they differ only in what he does in the air
+and how long he takes over it.
+
+**And it sounds like running.** Six footfalls across the crossing rather than
+the one note a step gets, pitched down as they go because a fast foot lands
+flatter than a slow one, with a rising hiss of air over the top and a scuff on
+the push-off. **No woah** — a woah is what you say going *over* something, and
+he is going *through* this one.
+
 ## Neo goes over backwards
 
 Internet Insights put the world in slow motion and put him in the coat and the

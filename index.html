@@ -1420,6 +1420,21 @@ var AUDIO = (function(){
        The short one keeps its 90ms fade, because it IS being cut and a
        waveform truncated at an arbitrary sample is a click. The full one is
        never touched, so there is nothing to fade. */
+    /* THE SPRINT. Six footfalls across the crossing rather than the one note
+       a step gets, pitched down the way a fast foot lands flatter than a slow
+       one, with a rising hiss of air over the top and a scuff on the push-off.
+       No woah: a woah is what you say going over something, and he is going
+       THROUGH this one. */
+    sprint: function(){
+      if (!live()) return;
+      var i;
+      for (i = 0; i < 6; i++){
+        hit({ f:1500 - i * 90, to:260, dur:0.085, g:0.17 - i * 0.012, at:i * 0.082 });
+        tone({ f:150 - i * 6, to:84, dur:0.09, type:"sine", g:0.11, at:i * 0.082 });
+      }
+      whoosh({ f:300, to:1900, dur:0.52, g:0.085, q:1.1, peak:0.72 });
+      hit({ f:4200, to:1400, hp:true, dur:0.16, g:0.09 });
+    },
     woah: function(lanes){
       if (!live()) return;
       woahClip.prime();
@@ -5248,7 +5263,7 @@ function reset(){
     hp:HP_MAX, hpGain:null, hpShow:0, hpFrom:HP_MAX, hpHold:0, hpFill:0,
     meals:0, sadT:0, needFood:0, saidFood:false,
     bonusChuck:0, bonusTam:0, bonusAddon:0, bonusFood:0, bonusChamp:0,
-    bonusUpsell:0, upsells:0, traceRun:0,
+    bonusUpsell:0, upsells:0, traceRun:0, flip:0, sprint:0,
     bonusAgent:0, agentPays:0,
     bonusNews:0, news:0, paper:null,
     addons:0, champs:0, addonWin:null, champWin:null,
@@ -6164,10 +6179,18 @@ function act(dir){
      something that is not tarmac. Derived rather than flagged, so there is no
      state to leak into the next step if act() returns early between the two
      - and cleared on every step that is not one, for the same reason. */
-  G.flip = (G.slowT > 0 && !(G.dashT > 0) && nr > G.fromRow + 1 &&
-            isRoadRow(rows[G.fromRow + 1]) && !isRoadRow(rows[nr])) ? 1 : 0;
+  /* A kerb-to-kerb crossing in slow motion, and then WHICH ONE. One lane of
+     tarmac is a sprint; two or more is the backflip. Both are the same leap -
+     the same squares, the same immunity - and they differ only in what he
+     does in the air and how long he takes over it. */
+  var crossing = (G.slowT > 0 && !(G.dashT > 0) && nr > G.fromRow + 1 &&
+                  isRoadRow(rows[G.fromRow + 1]) && !isRoadRow(rows[nr]));
+  var laneSpan = nr - G.fromRow - 1;
+  G.flip   = (crossing && laneSpan >= 2) ? 1 : 0;
+  G.sprint = (crossing && laneSpan === 1) ? 1 : 0;
   /* The lanes between the two kerbs, which is what the woah is sized to. */
-  if (G.flip){ AUDIO.flip(); AUDIO.woah(nr - G.fromRow - 1); }
+  if (G.flip){ AUDIO.flip(); AUDIO.woah(laneSpan); }
+  else if (G.sprint) AUDIO.sprint();
   G.row = nr; G.col = nc; G.hop = 0;
   if (nr > G.maxRow){ G.maxRow = nr; progress(); }
   ensureRows(G.maxRow + ROWS_AHEAD);
@@ -7021,6 +7044,49 @@ function colSafeFor(r, col, secs){
    whatever rate you left it at, and the arc is the only thing easing. Easing
    the rotation too gives a figure that hangs upside down at the apex, which
    reads as a glitch in the sprite rather than as a man in the air. */
+/* ------------------------------------------------------------ THE SPRINT
+   One lane does not deserve a backflip. Going over backwards to clear a
+   single row of tarmac is a man showing off at a zebra crossing, and the move
+   loses its weight if it is what he does to cross anything at all.
+
+   So a one-lane street gets the OTHER thing the film is full of: a flat-out
+   run, arms and legs going, a trail behind him. Two lanes or more and he
+   still flips.
+
+   It is built out of the walk cycle rather than beside it, because the walk
+   is already a band-clipped limb rig and the only thing a sprint is, is the
+   same rig with the amplitude turned up and the clock turned up with it.
+   Three times the lift, three times the arm swing, and two and a half full
+   cycles inside one crossing instead of the half-cycle a step gets - so his
+   legs are visibly going round rather than taking one long stride. */
+var SPRINT_SLOW = 3;        // the hop takes this much longer than a step
+var SPRINT_CYCLES = 2.5;    // full leg cycles inside one crossing
+var SPRINT_LIFT = 27, SPRINT_ARM = 19, SPRINT_KNEE = 1.55;
+var SPRINT_BOB = 7;         // px of body bounce, on the whole figure
+var SPRINT_GHOSTS = 3;      // the trail
+
+function sprintPhase(){ return Math.min(1, G.hop) * Math.PI * 2 * SPRINT_CYCLES; }
+/* Full amplitude through the middle and eased at both ends, so the first and
+   last frame of the crossing are a stance rather than a pose frozen mid-air. */
+function sprintAmt(){
+  if (!G.sprint || G.hop >= 1 || G.state !== ST_PLAY) return 0;
+  return Math.min(1, Math.sin(Math.min(1, G.hop) * Math.PI) * 1.9);
+}
+function sprintStride(){
+  var amt = sprintAmt();
+  if (amt <= 0) return null;
+  var a = Math.sin(sprintPhase());
+  var up = Math.max(0, a) * amt, dn = Math.max(0, -a) * amt;
+  /* Arms opposite the legs, which is the one rule that makes a limb rig read
+     as running rather than as flailing. */
+  return {
+    legL: -up * SPRINT_LIFT, shinL: -up * SPRINT_LIFT * SPRINT_KNEE,
+    legR: -dn * SPRINT_LIFT, shinR: -dn * SPRINT_LIFT * SPRINT_KNEE,
+    kickL: 0, kickR: 0,
+    armL: -dn * SPRINT_ARM, armR: -up * SPRINT_ARM
+  };
+}
+
 var FLIP_LIFT = 94;        // px at the top of the arc
 var FLIP_GHOSTS = 3;       // afterimages behind the spin
 var FLIP_SLOW = 6;         // and the hop takes this much longer than a step
@@ -7067,6 +7133,11 @@ function playerPos(){
      shield ring and anything else reading pp.lift all agree about how far
      off the ground he is. */
   if (G.flip && G.hop < 1) lift += FLIP_LIFT * Math.sin(G.hop * Math.PI);
+  /* The sprint bounces rather than flies: a body rising and falling twice a
+     stride, on the whole figure so the shadow pumps with it. A runner whose
+     head stays level is a runner on a conveyor belt. */
+  if (G.sprint && G.hop < 1)
+    lift += SPRINT_BOB * sprintAmt() * Math.abs(Math.sin(sprintPhase()));
   return { col:G.fromCol + (G.col-G.fromCol)*e, row:G.fromRow + (G.row-G.fromRow)*e,
            lift:lift, sq:s };
 }
@@ -12556,7 +12627,7 @@ function update(dt){
        speed, so a second of his clock is an eighth of a second of theirs. */
     G.hop += dt*1000 * (G.slowT > 0 ? SLOW_MAN : 1)
              / (HOP_MS * (1 - 0.32*G.flyA) * drag * dashK()
-                * (G.flip ? FLIP_SLOW : 1));
+                * (G.flip ? FLIP_SLOW : (G.sprint ? SPRINT_SLOW : 1)));
     if (G.hop >= 1){
       /* Touched down from a leap: top the grace back up so the landing
          itself gets the full window, not whatever is left of the flight. */
@@ -15382,12 +15453,31 @@ function drawPlayer(pp){
     return;
   }
 
+  /* The trail. Three copies of him dropped BEHIND along the direction of
+     travel - which is down the screen, because forward is up - at falling
+     alpha, strongest in the middle of the crossing where he is quickest. It
+     is three blits during a move that happens once a street, and it is the
+     cheapest way there is to say "this is faster than walking". */
+  if (G.sprint && G.hop < 1){
+    var sa = sprintAmt();
+    if (sa > 0.02){
+      for (var si = SPRINT_GHOSTS; si >= 1; si--){
+        ctx.globalAlpha = 0.24 * sa * (1 - si / (SPRINT_GHOSTS + 1));
+        blitScaled(s, sx, dy + si * 15, kx, ky);
+      }
+      ctx.globalAlpha = 1;
+    }
+  }
+
   /* No limb cycle while he is turning over. The stride is drawn by clipping
      bands of the sprite in unrotated screen space and nudging each one; put()
      now rotates what it is handed, so the bands would cut the figure into
      slices that stay level while the man inside them spins. He is in the air
-     anyway - a walk cycle is the one thing his legs are not doing. */
-  var W2 = flipSpin() ? null : walkStride();
+     anyway - a walk cycle is the one thing his legs are not doing.
+
+     The SPRINT, by contrast, is nothing but the limb rig, so it takes the
+     same path the walk does and simply hands it bigger numbers. */
+  var W2 = flipSpin() ? null : (sprintStride() || walkStride());
   if (W2){
     /* A model point (x, y, z) lands on screen at sx + (x*TILE + y*SKEW)*kx,
        dy - (y*ROW_H + z*ZH)*ky, because blitScaled offsets by the same ox/oy
