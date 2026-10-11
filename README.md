@@ -3825,16 +3825,33 @@ the more of it anybody actually sees.
 
 
 
-## Three gaits, one rig
+## He runs the whole time the coat is on
 
-The man in the shades was walking like a man on his way somewhere. While
-Internet Insights is up the same limb rig now runs at nearly twice the
-amplitude — **17 and 14 against the ordinary 9 and 6** — so the legs swing, the
-arms drive and the stride reads from across the room. The bounce goes up with
-it, 3.4 to 5.6.
+There were three gaits for an hour — walk, a bigger walk in the coat, and a
+sprint reserved for one-lane crossings — and the middle one was a compromise
+nobody asked for. A man who sprints across a road and then strolls down the
+pavement is a man doing a stunt, not a man in a hurry. **One run, every square,
+from the moment Internet Insights lands**, at the sprint's full amplitude:
+**27 and 19 against the ordinary 9 and 6**.
+
+**The clock is `G.walkPh`, doubled**, rather than a count of cycles per hop.
+That distinction matters: a kerb-to-kerb crossing takes 540ms and an ordinary
+step 180, so a fixed number of cycles per hop would have run his legs three
+times faster on the short one. `walkPh` advances with the hop clock, so a phase
+multiplier gives the same stride *frequency* whatever the step is — two
+footfalls a square instead of the walk's one, which is the difference between
+walking and running stated exactly.
+
+The backflip is excluded, because a man turning over is not using his legs for
+anything. The crossing keeps the two things that belong to it rather than to
+the gait: the harder bounce and the ghost trail.
+
+That collapsed `sprintStride` into `walkStride` and deleted `SPRINT_CYCLES`,
+`sprintPhase`, `NEO_LIFT` and `NEO_ARM` outright — one rig, one phase, one
+easing, and the only thing the coat changes is the numbers.
 
 **The ordinary walk is untouched.** It is the game's resting state, it is not
-broken, and the first pass at this raised it globally, which was the wrong
+broken, and an earlier pass at this raised it globally, which was the wrong
 answer to the question.
 
 **The ceiling is the band, not taste.** Each limb is drawn by clipping a window
@@ -3849,13 +3866,10 @@ That check caught a live bug in the sprint: at `SPRINT_KNEE` 1.55 the shin
 offset was 41.9 against a 41.2 band, so the back foot was being clipped clean
 out of frame at the top of every swing. 1.3 puts it back.
 
-| | lift | arm | shin |
-|---|---|---|---|
-| walk | 9 | 6 | −13.5 |
-| Neo | 17 | 14 | −25.5 |
-| sprint | 27 | 19 | −35.1 |
-
-Three gaits, one rig, one phase, one easing — only the numbers change.
+| | lift | arm | shin | footfalls/square |
+|---|---|---|---|---|
+| walk | 9 | 6 | −13.5 | 1 |
+| in the coat | 27 | 19 | −35.1 | 2 |
 
 ## One lane, and he runs it
 
