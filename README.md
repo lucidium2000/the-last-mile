@@ -3846,9 +3846,21 @@ and it rules out the one case that would undo the point of rolling at all: the
 same move three times by chance. Measured over 19 crossings: 6 backflips, 7
 running jumps, 6 cranes, **zero repeats**.
 
-The sound follows the move rather than the width — backflip 1.08s and a woah,
-the other two 0.9s and the push-off — while the *woah's own length* still
-tracks the street, short under three lanes and whole over.
+The sound follows the move rather than the width — backflip 1.08s, the other
+two 0.9s and a push-off — while the *woah's own length* still tracks the
+street, short under three lanes and whole over.
+
+**The backflip always gets a woah; a front jump sometimes does.** The argument
+for withholding it was that a woah is what you say going over something
+backwards and he has not the breath going forwards — true of the man, and the
+wrong call for the game, because it left two thirds of his crossings quiet. It
+is rolled at even odds instead, which beats either extreme: every time is a
+catchphrase, never is a missing sound, and half the time is a man who sometimes
+says it. Measured over 70 crossings: 23 of 23 backflips, 12 of 22 running
+jumps, 14 of 25 cranes.
+
+And 15% louder — gain 1.15, which with the clip's own 0.529 peak lands at 0.195
+through the master. Audibly over the whoosh it sits on, nowhere near clipping.
 
 The crane is the one he pulls on Morpheus — a leap into a held stance, one knee
 drawn up hard with the shin folded under it, the other leg straight, both arms
