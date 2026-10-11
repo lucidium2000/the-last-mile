@@ -3878,7 +3878,7 @@ these two were pure effect — one makes him quick, the other makes the world
 slow — which made them the pickups a seller could not put a number against.
 
 **Internet Insights $180,000** on collection. **Cloud Insights pays by the
-street**: $50,000 for every one the flash carries him past.
+road**: $20,000 for every lane of tarmac the flash carries him across.
 
 A flat figure on collection was a number that arrived whether he then ran or
 stood still, which is the opposite of what that SKU is — it makes him faster,
@@ -3887,19 +3887,29 @@ out-earns the old flat $200,000 comfortably, which is the right shape of
 incentive and the right thing to say about the product. Its card says what to
 *do* with it rather than carrying a figure: **RUN FAST FOR PIPELINE!**
 
-It is counted inside `progress()`, in the loop that walks every street between
-where he was and where he is — already the authority on what "a street passed"
-means, which is why a subway ride cannot silently skip them. Forward only, and
-not while riding: a ride crosses seven to fifteen streets at once and would
-have paid out the lot on arrival for no running at all.
+**The unit is a lane of tarmac, not a block.** It was a block first, and a
+block is a lumpy thing to price — a one-lane side street and a four-lane canyon
+paid the same, which is the exact complaint `spendHp()` already records about
+charging by the crossing. A road row is the thing he is running across and the
+thing that was going to kill him, so it is the thing worth twenty thousand.
 
-**The floater carries the running total as well as the fifty**, so the fourth
-one says what the first three were worth without him keeping count. Measured
-over six streets: `+$50,000 / RUN TOTAL $50,000`, then `$100,000`, `$150,000`,
-up to `$300,000`, all of it into the Cloud Insights bucket. The tally starts
-fresh on a cold pickup and carries on through a warm one — topping the clock up
-mid-run is the same run continuing, and zeroing the total under him would read
-as the money being taken back.
+It also prices the suit's own leap correctly for nothing. Counting over the
+*span* rather than on the destination means three rows in one bound over three
+lanes pays three: the count is of what he covered, not of how many times he
+tapped. Measured — `rows 2→5, roads 2, +$40,000`, then `rows 5→8, roads 1,
++$20,000`, totalling $420,000 over 21 roads.
+
+Forward only, and not on a train: a ride crosses a dozen roads underground and
+would have paid the lot out on arrival for no running at all.
+
+**The running total is the headline and the payment is the footnote.** It went
+the other way first — 54px on the payment with the total at 22 underneath — and
+that is the wrong way round twice over: the increment is the same number every
+time, and the total is the one that is actually news. The payment sits at 34
+and the total takes the 54, with `RUN TOTAL` as a label beneath. The tally
+starts fresh on a cold pickup and carries on through a warm one — topping the
+clock up mid-run is the same run continuing, and zeroing the total under him
+would read as the money being taken back.
 
 Each announces it the way the add-on, the agent and the champion already do:
 the **big green figure off his head**, labelled with the SKU that paid it, with

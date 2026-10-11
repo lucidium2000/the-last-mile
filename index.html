@@ -3405,17 +3405,25 @@ var AGENT_BONUS = 100000;
    either buys him a power or buys him money, and this was the only one that
    was pure movement - which made it the one pickup a seller could not put a
    number against. Two hundred thousand, and the card says so. */
-/* CLOUD INSIGHTS IS PAID BY THE STREET, not by the pickup. A flat two
-   hundred thousand on collection was a number that arrived whether he then
-   ran or stood still, which is the opposite of what the SKU is: it makes him
-   faster, so it should pay him for being faster. Fifty a street, for as long
-   as the ten seconds last, and a man who uses the whole of it out-earns the
-   flat figure comfortably - which is the right shape of incentive and the
-   right thing to say about the product.
+/* CLOUD INSIGHTS IS PAID BY THE ROAD, not by the pickup. A flat two hundred
+   thousand on collection was a number that arrived whether he then ran or
+   stood still, which is the opposite of what the SKU is: it makes him faster,
+   so it should pay him for being faster.
 
-   Walking only. A subway ride crosses seven to fifteen streets in one go and
-   would have paid out the lot on arrival for no running at all. */
-var FLASH_PER_ST = 50000;
+   THE UNIT IS A LANE OF TARMAC, not a block. It was a block first, and a
+   block is a lumpy thing to price - a one-lane side street and a four-lane
+   canyon paid the same, which is the exact complaint spendHp() already
+   records about charging by the crossing. A road row is the thing he is
+   actually running across and the thing that was going to kill him, so it is
+   the thing worth twenty thousand.
+
+   It also prices the suit's own leap correctly for nothing: three rows in one
+   bound over three lanes pays three, because the count is of what he covered
+   rather than of how many times he tapped.
+
+   Walking only. A subway ride crosses a dozen roads underground and would
+   have paid the lot out on arrival for no running at all. */
+var FLASH_PER_RD = 20000;
 /* And Internet Insights with it, at 180. The two of them are the pure-power
    SKUs - one makes him quick and one makes the world slow - and neither had a
    number against it. They are deliberately not the same number: a seller
@@ -5331,7 +5339,7 @@ function reset(){
     meals:0, sadT:0, needFood:0, saidFood:false,
     bonusChuck:0, bonusTam:0, bonusAddon:0, bonusFood:0, bonusChamp:0,
     bonusUpsell:0, upsells:0, bonusCloud:0, clouds:0, bonusInsight:0, insights:0,
-    dashCash:0, flashStreets:0,
+    dashCash:0, flashRoads:0,
     traceRun:0, flip:0, sprint:0, crane:0, queued:null,
     jumpTurn:0, sideA:0, neoT:0,
     bonusAgent:0, agentPays:0,
@@ -5701,23 +5709,6 @@ function progress(){
          idea measured in the two things he actually spends: ground and
          time. A street was a lumpy proxy for both, and it meant a
          four-lane canyon and a one-lane side street cost him the same. */
-      /* ----------------------------------------- PAID BY THE STREET ---
-         One of these for every street the flash carries him past, counted
-         here because this loop is already the authority on what "a street
-         passed" means - it walks every one between where he was and where he
-         is, which is why a subway ride does not silently skip them.
-
-         Forward only, and not while riding. The floater carries the running
-         total as well as the fifty, so the fourth one says what the first
-         three were worth without him having to keep count. */
-      if (G.dashT > 0 && step > 0 && !G.ride && G.state === ST_PLAY){
-        G.bonus += FLASH_PER_ST;
-        G.bonusCloud += FLASH_PER_ST;
-        G.dashCash += FLASH_PER_ST;
-        G.flashStreets++;
-        moneyRise(FLASH_PER_ST, "RUN TOTAL  " + cash(G.dashCash));
-        AUDIO.deal();
-      }
       queueScene(n, st);
       var ms = (G.leg > 0 ? MILESTONES : MILESTONES_BACK)[n];
       if (ms){
@@ -6355,6 +6346,27 @@ function act(dir){
     if (Math.random() < WOAH_ODDS[pick]) AUDIO.woah(pick === 2);
   }
   G.row = nr; G.col = nc; G.hop = 0;
+  /* ------------------------------------------------- PAID BY THE ROAD ---
+     Every lane of tarmac this step covered, at FLASH_PER_RD each. Counted
+     over the SPAN rather than on the destination, so the suit's three-row
+     leap pays for all three lanes it cleared instead of for the one it came
+     down on - the count is of what he covered, not of how many times he
+     tapped.
+
+     Forward only, and not on a train. The floater carries the running total
+     at the same size as the payment, so the fourth one says what the first
+     three were worth without him keeping count. */
+  if (G.dashT > 0 && nr > G.fromRow && !G.ride && G.state === ST_PLAY){
+    var roads = 0, rr;
+    for (rr = G.fromRow + 1; rr <= nr; rr++) if (isRoadRow(rows[rr])) roads++;
+    if (roads > 0){
+      var paid = FLASH_PER_RD * roads;
+      G.bonus += paid; G.bonusCloud += paid; G.dashCash += paid;
+      G.flashRoads += roads;
+      moneyRise(paid, "RUN TOTAL", cash(G.dashCash));
+      AUDIO.deal();
+    }
+  }
   if (nr > G.maxRow){ G.maxRow = nr; progress(); }
   ensureRows(G.maxRow + ROWS_AHEAD);
 }
@@ -17306,9 +17318,10 @@ var PIPE_POP = 1.4, RISE_SECS = 1.9;
    already announced itself in the top strip and in a burst. The upsell is the
    one you earn rather than collect, so it is also the one where the figure
    alone does not say what you did. */
-function moneyRise(amt, note){
+function moneyRise(amt, note, big){
   var pp = playerPos();
   G.rise = { life:RISE_SECS, max:RISE_SECS, amt:amt, note:note || null,
+             big:big || null,
              x:pp.col*TILE + TILE*0.5, y:rowScreenY(pp.row) - 96 };
   G.pipePop = PIPE_POP;
 }
@@ -17333,13 +17346,28 @@ function drawMoneyRise(){
   var y = R.y - e * 120;
   var up = R.amt >= 0;
   var lab = (up ? "+" : "") + cash(R.amt);
+  /* THE RUNNING TOTAL IS THE HEADLINE, the payment is the footnote. It went
+     the other way first - 54px on the twenty thousand with the total at 22
+     underneath - and that is the wrong way round twice over: the increment is
+     the same number every time and the total is the one that is actually
+     news. So the payment drops to 34 and the total takes the 54. */
+  var ls = R.big ? 34 : 54;
   ctx.globalAlpha = a * 0.55;
-  txt(lab, R.x + 3, y + 3, 54, up ? "#06130a" : "#1a0406");
+  txt(lab, R.x + 2, y + 2, ls, up ? "#06130a" : "#1a0406");
   ctx.globalAlpha = a;
-  txt(lab, R.x, y, 54, up ? C.good : C.danger);
-  ctx.globalAlpha = a * 0.8;
-  txt(R.note || (up ? "ON THE PIPELINE" : "OFF THE PIPELINE"), R.x, y + 34, 22,
-      up ? "#bdf0cd" : "#ffc9d2");
+  txt(lab, R.x, y, ls, up ? C.good : C.danger);
+  if (R.big){
+    ctx.globalAlpha = a * 0.55;
+    txt(R.big, R.x + 3, y + 47, 54, "#06130a");
+    ctx.globalAlpha = a;
+    txt(R.big, R.x, y + 44, 54, C.good);
+    ctx.globalAlpha = a * 0.8;
+    txt(R.note || "", R.x, y + 78, 22, "#bdf0cd");
+  } else {
+    ctx.globalAlpha = a * 0.8;
+    txt(R.note || (up ? "ON THE PIPELINE" : "OFF THE PIPELINE"), R.x, y + 34, 22,
+        up ? "#bdf0cd" : "#ffc9d2");
+  }
   ctx.globalAlpha = 1;
 }
 
