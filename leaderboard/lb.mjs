@@ -48,6 +48,31 @@ const TOKEN = process.env.VAL_TOWN_API_KEY || "";
 const repoPath = path.join(HERE, CFG.repoFile);
 const backupDir = path.join(HERE, "backups");
 
+/* ------------------------------------------------------- WHICH BOARD ----
+   --team=nyc points every data command at that board's blobs; leaving it off
+   means the default board, which is the one the game serves at a bare URL.
+
+   The same whitelist the service uses, for the same reason and with one
+   extra: here it also stops a typo quietly clearing the wrong board. A key
+   assembled from an unchecked string is how `reset --team=nyv` deletes the
+   default instead of saying it cannot find NYV.
+
+   Everything that touches a blob goes through KEYS. CFG.blobKeys is the
+   shape - board, recent, stats - and this is that shape pointed at one
+   board. */
+const TEAM = (function () {
+  const a = process.argv.slice(2).find(function (x) { return x.indexOf("--team=") === 0; });
+  return a ? a.slice(7).toLowerCase() : "";
+})();
+if (TEAM && !/^[a-z0-9-]{1,24}$/.test(TEAM)) {
+  console.error("\n  --team must be 1-24 of a-z 0-9 - , got: " + JSON.stringify(TEAM) + "\n");
+  process.exit(1);
+}
+const SFX = TEAM ? "_" + TEAM : "";
+const KEYS = CFG.blobKeys.map(function (k) { return k + SFX; });
+const WHICH = TEAM ? TEAM.toUpperCase() : "default";
+function teamQS() { return TEAM ? "&team=" + TEAM : ""; }
+
 function die(msg) { console.error("\n  " + msg + "\n"); process.exit(1); }
 function needToken() {
   if (!TOKEN) {
@@ -111,11 +136,11 @@ async function blobList(prefix) {
    namespace is wrong and the honest answer is to say so. Reporting "nothing to
    do" in that situation is how a prune silently does nothing. */
 async function readBoard() {
-  const mine = await blobGet(CFG.blobKeys[0]);
+  const mine = await blobGet(KEYS[0]);
   if (Array.isArray(mine) && mine.length) return mine;
   let live = null;
   try {
-    const r = await fetch(CFG.url + "/top?n=100");
+    const r = await fetch(CFG.url + "/top?n=100" + teamQS());
     if (r.ok) live = (await r.json()).rows || [];
   } catch (e) { /* offline: fall through to whatever the API said */ }
   if (live && live.length) {
@@ -123,7 +148,7 @@ async function readBoard() {
     die([
       "The board has " + live.length + " row" + (live.length === 1 ? "" : "s") +
         " on it, but this token cannot see them in blob storage.",
-      "  Looked for:        " + CFG.blobKeys.join(", "),
+      "  Looked for:        " + KEYS.join(", "),
       "  The token can see: " +
         (keys.length ? keys.map(function (k) { return k.key; }).join(", ")
                      : "(no blobs at all)"),
@@ -164,7 +189,7 @@ function ask(q) {
 }
 
 function rowsIn(data) {
-  const b = data && data[CFG.blobKeys[0]];
+  const b = data && data[KEYS[0]];
   return Array.isArray(b) ? b.length : 0;
 }
 
@@ -174,7 +199,7 @@ const CMD = {
     // the public half needs no token, so this always reports something useful
     let board = null;
     try {
-      const r = await fetch(CFG.url + "/top?n=100");
+      const r = await fetch(CFG.url + "/top?n=100" + teamQS());
       board = r.ok ? await r.json() : null;
     } catch (e) { /* offline */ }
     console.log("\n  endpoint  " + CFG.url);
@@ -238,7 +263,7 @@ const CMD = {
     await readBoard();                       // fails loudly if the keys are wrong
     const list = await blobList("lastmile_");
     const keys = list.map(function (b) { return b.key; }).filter(Boolean);
-    const use = keys.length ? keys : CFG.blobKeys;
+    const use = keys.length ? keys : KEYS;
     const data = {};
     for (const k of use) data[k] = await blobGet(k);
     const stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-");
@@ -265,8 +290,8 @@ const CMD = {
     all.forEach(function (b) {
       console.log("    " + b.key + (b.size != null ? "   " + b.size + " bytes" : ""));
     });
-    console.log("\n  val.json expects: " + CFG.blobKeys.join(", "));
-    const missing = CFG.blobKeys.filter(function (k) {
+    console.log("\n  val.json expects: " + KEYS.join(", "));
+    const missing = KEYS.filter(function (k) {
       return !all.some(function (b) { return b.key === k; });
     });
     console.log(missing.length
@@ -281,7 +306,7 @@ const CMD = {
           "  node leaderboard/lb.mjs restore leaderboard/backups/board-....json");
     }
     const snap = JSON.parse(fs.readFileSync(file, "utf8"));
-    const live = await blobGet(CFG.blobKeys[0]);
+    const live = await blobGet(KEYS[0]);
     console.log("\n  about to REPLACE the live board (" + ((live || []).length) +
                 " rows) with this backup (" + rowsIn(snap.data) + " rows)");
     if ((await ask("  type yes to go ahead: ")) !== "yes") {
@@ -314,21 +339,22 @@ const CMD = {
       console.log("  nothing changed");
       return;
     }
-    await blobPut(CFG.blobKeys[0], keep);
+    await blobPut(KEYS[0], keep);
     console.log("  dropped - the counters are left alone, they are totals not rows");
   },
 
   async reset() {
     needToken();
     const live = await readBoard();
-    console.log("\n  about to DELETE the board and the counters (" +
-                ((live || []).length) + " rows live right now)");
+    console.log("\n  about to DELETE the " + WHICH + " board, its last-100 window" +
+                " and its counters (" + ((live || []).length) + " rows live right now)");
+    console.log("  keys: " + KEYS.join(", "));
     console.log("  run `backup` first if you want them back");
     if ((await ask("  type yes to go ahead: ")) !== "yes") {
       console.log("  nothing changed");
       return;
     }
-    for (const k of CFG.blobKeys) await blobDelete(k);
+    for (const k of KEYS) await blobDelete(k);
     console.log("  cleared - the next score starts a fresh board");
   },
 };
