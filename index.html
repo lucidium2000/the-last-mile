@@ -6900,7 +6900,7 @@ function collect(atCol){
   }
   else if (kind === "insight"){
     G.bonus += INSIGHT_BONUS; G.bonusInsight += INSIGHT_BONUS; G.insights++;
-    moneyRise(INSIGHT_BONUS, "INTERNET INSIGHTS");
+    G.pipePop = PIPE_POP;          // the card carries the figure; see above
     /* Only on the way IN. A second card while the first is still running
        extends the clock, and starting a second drone on top of the one
        already playing is two drones, not a louder one. */
@@ -6914,7 +6914,15 @@ function collect(atCol){
   }
   else if (kind === "sponsor"){
     G.bonus += CLOUD_BONUS; G.bonusCloud += CLOUD_BONUS; G.clouds++;
-    moneyRise(CLOUD_BONUS, "CLOUD INSIGHTS");
+    /* NO FLOATING FIGURE ON THESE TWO. The card is already saying the number
+       in its kicker line, and moneyRise would print the same figure again two
+       inches under it in the same green at the same moment - the add-on and
+       the agent only get away with it because their cards do NOT carry it.
+
+       The pipe pop stays, because that is not the number, it is the HUD
+       reacting to the number: the readout in the corner swelling is the one
+       part of this that says the money actually landed somewhere. */
+    G.pipePop = PIPE_POP;
     G.dashT = Math.max(G.dashT, k.secs);
     /* The strobe fires on every pickup, including one taken mid-run, because
        a refresh you cannot see is a refresh you do not trust. */
