@@ -6188,25 +6188,27 @@ function act(dir){
      something that is not tarmac. Derived rather than flagged, so there is no
      state to leak into the next step if act() returns early between the two
      - and cleared on every step that is not one, for the same reason. */
-  /* A kerb-to-kerb crossing in slow motion, and then WHICH ONE. One lane of
-     tarmac is a sprint; two or more is the backflip. Both are the same leap -
-     the same squares, the same immunity - and they differ only in what he
-     does in the air and how long he takes over it. */
+  /* A kerb-to-kerb crossing in slow motion, and then WHICH OF THE THREE.
+     All three are the same leap - the same squares, the same immunity - and
+     they differ only in what he does in the air and how long he takes over
+     it, so any of them fits any street. */
   var crossing = (G.slowT > 0 && !(G.dashT > 0) && nr > G.fromRow + 1 &&
                   isRoadRow(rows[G.fromRow + 1]) && !isRoadRow(rows[nr]));
   var laneSpan = nr - G.fromRow - 1;
-  /* THE RUNNING JUMP TAKES TWO LANES AS WELL. It started as the one-lane
-     answer and the backflip kept everything else, which made the flip the
-     common case - most streets here are one or two lanes deep - and a signature
-     move you see on most crossings is not a signature move. Three lanes is a
-     genuine avenue, and going over backwards is what you do when the gap is
-     frightening rather than when it is merely there. */
-  G.flip   = (crossing && laneSpan >= 3) ? 1 : 0;
-  G.sprint = (crossing && laneSpan >= 1 && laneSpan <= 2) ? 1 : 0;
-  /* One lane is the dojo jump, two is the running one. Both are "sprint" as
-     far as the clock, the arc and the sound are concerned - they differ only
-     in what his limbs do on the way over. */
-  G.crane  = (G.sprint && laneSpan === 1) ? 1 : 0;
+  /* ROLLED, NOT DERIVED FROM THE WIDTH. Tying each move to a lane count was
+     tidy and turned out to be the wrong kind of tidy: the streets repeat, so
+     the moves repeated with them, and by the third one-lane street in a row
+     you knew exactly what you were about to watch. Rolling it means the
+     street tells you nothing and every crossing is worth looking at.
+
+     Never the same one twice running - the same rule the pedestrian lines
+     use. With three moves and the last one excluded it is a fair pick of the
+     other two, and it rules out the one case that would undo the point of
+     rolling at all: the same move three times by chance. */
+  var pick = crossing ? rollJump() : -1;
+  G.flip   = (pick === 0) ? 1 : 0;
+  G.sprint = (pick === 1 || pick === 2) ? 1 : 0;
+  G.crane  = (pick === 2) ? 1 : 0;
   /* How wide the jump is, kept for the arc: two lanes gets more air than one,
      because it is further and he is in the air longer to cover it. */
   G.sprintSpan = G.sprint ? laneSpan : 1;
@@ -7085,12 +7087,10 @@ function colSafeFor(r, col, secs){
    So a one-lane street gets the OTHER thing the film is full of: the running
    jump off the roof. He does not stop running to do it - he hits the kerb at
    full stride, leaves the ground, and his legs KEEP GOING in the air the
-   whole way across, which is the whole look. It covers TWO lane
-   streets. One lane gets the dojo crane instead (see THE CRANE above) and
-   three or more still gets the backflip, because going over backwards is
-   what you do when the gap is frightening rather than when it is merely
-   there. Three widths, three moves, and the width tells you which one is
-   coming.
+   whole way across, which is the whole look. It is one of three, rolled at
+   the kerb - this, the dojo crane (see THE CRANE above) and the backflip -
+   and which one you get has nothing to do with how wide the street is. Any
+   of them clears any of them.
 
    That falls out of the rig for free rather than needing a pose: runGait()
    is true for the entire crossing and the limb cycle is driven off walkPh,
@@ -7179,6 +7179,15 @@ var SIDE_TURN = 0.30;
 function sideTurn(){
   if (!runGait() || G.hop >= 1 || G.col === G.fromCol) return 0;
   return Math.sin(Math.min(1, Math.max(0, G.hop)) * Math.PI);
+}
+
+/* Which jump he does, rolled fresh each crossing and never twice running. */
+var lastJump = -1;
+function rollJump(){
+  var j;
+  do { j = (Math.random() * 3) | 0; } while (j === lastJump);
+  lastJump = j;
+  return j;
 }
 
 function craneAmt(){

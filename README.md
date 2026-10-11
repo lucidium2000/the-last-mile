@@ -3830,9 +3830,25 @@ the more of it anybody actually sees.
 
 ## The dojo crane, and turning into the move
 
-Three widths, three moves, and the width tells you which one is coming:
-**one lane is the crane**, two is the running jump, three or more is the
-backflip.
+Three moves at the kerb — the crane, the running jump, the backflip — and
+**which one you get is rolled, not derived from the width.**
+
+Tying each to a lane count was tidy and turned out to be the wrong kind of
+tidy: the streets repeat, so the moves repeated with them, and by the third
+one-lane street in a row you knew exactly what you were about to watch.
+Rolling it means the street tells you nothing and every crossing is worth
+looking at. All three are the same leap underneath — same squares, same
+immunity — so any of them fits any street.
+
+**Never the same one twice running**, the same rule the pedestrian lines use.
+With three moves and the last one excluded it is a fair pick of the other two,
+and it rules out the one case that would undo the point of rolling at all: the
+same move three times by chance. Measured over 19 crossings: 6 backflips, 7
+running jumps, 6 cranes, **zero repeats**.
+
+The sound follows the move rather than the width — backflip 1.08s and a woah,
+the other two 0.9s and the push-off — while the *woah's own length* still
+tracks the street, short under three lanes and whole over.
 
 The crane is the one he pulls on Morpheus — a leap into a held stance, one knee
 drawn up hard with the shin folded under it, the other leg straight, both arms
