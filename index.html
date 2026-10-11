@@ -3405,7 +3405,17 @@ var AGENT_BONUS = 100000;
    either buys him a power or buys him money, and this was the only one that
    was pure movement - which made it the one pickup a seller could not put a
    number against. Two hundred thousand, and the card says so. */
-var CLOUD_BONUS = 200000;
+/* CLOUD INSIGHTS IS PAID BY THE STREET, not by the pickup. A flat two
+   hundred thousand on collection was a number that arrived whether he then
+   ran or stood still, which is the opposite of what the SKU is: it makes him
+   faster, so it should pay him for being faster. Fifty a street, for as long
+   as the ten seconds last, and a man who uses the whole of it out-earns the
+   flat figure comfortably - which is the right shape of incentive and the
+   right thing to say about the product.
+
+   Walking only. A subway ride crosses seven to fifteen streets in one go and
+   would have paid out the lot on arrival for no running at all. */
+var FLASH_PER_ST = 50000;
 /* And Internet Insights with it, at 180. The two of them are the pure-power
    SKUs - one makes him quick and one makes the world slow - and neither had a
    number against it. They are deliberately not the same number: a seller
@@ -4715,7 +4725,10 @@ var SAFE_MIN = 2;          // the shallowest pavement the generator may lay
    An unknown name is not an error here. The drop is guarded by
    POWERS[DROP_PW], so ?pw=off, ?pw=none or ?pw=anythingelse all simply plant
    nothing - which is why there is no list of valid kinds to keep in step. */
-var DROP_PW_DEFAULT = null;
+/* TEMPORARY: "sponsor" while the per-street flash payout is being looked at -
+   one Cloud Insights on the first pavement of every run. Back to null before
+   it ships. */
+var DROP_PW_DEFAULT = "sponsor";
 var DROP_PW = (function(){
   var m = /[?&]pw=([a-z]+)/i.exec(location.search);
   return m ? m[1].toLowerCase() : DROP_PW_DEFAULT;
@@ -5318,6 +5331,7 @@ function reset(){
     meals:0, sadT:0, needFood:0, saidFood:false,
     bonusChuck:0, bonusTam:0, bonusAddon:0, bonusFood:0, bonusChamp:0,
     bonusUpsell:0, upsells:0, bonusCloud:0, clouds:0, bonusInsight:0, insights:0,
+    dashCash:0, flashStreets:0,
     traceRun:0, flip:0, sprint:0, crane:0, queued:null,
     jumpTurn:0, sideA:0, neoT:0,
     bonusAgent:0, agentPays:0,
@@ -5687,6 +5701,23 @@ function progress(){
          idea measured in the two things he actually spends: ground and
          time. A street was a lumpy proxy for both, and it meant a
          four-lane canyon and a one-lane side street cost him the same. */
+      /* ----------------------------------------- PAID BY THE STREET ---
+         One of these for every street the flash carries him past, counted
+         here because this loop is already the authority on what "a street
+         passed" means - it walks every one between where he was and where he
+         is, which is why a subway ride does not silently skip them.
+
+         Forward only, and not while riding. The floater carries the running
+         total as well as the fifty, so the fourth one says what the first
+         three were worth without him having to keep count. */
+      if (G.dashT > 0 && step > 0 && !G.ride && G.state === ST_PLAY){
+        G.bonus += FLASH_PER_ST;
+        G.bonusCloud += FLASH_PER_ST;
+        G.dashCash += FLASH_PER_ST;
+        G.flashStreets++;
+        moneyRise(FLASH_PER_ST, "RUN TOTAL  " + cash(G.dashCash));
+        AUDIO.deal();
+      }
       queueScene(n, st);
       var ms = (G.leg > 0 ? MILESTONES : MILESTONES_BACK)[n];
       if (ms){
@@ -6787,8 +6818,12 @@ function collect(atCol){
                "INSIGHT AND CONTROL OF TRAFFIC", false,
                "YOU\u2019RE UNSTOPPABLE");
     else if (kind === "sponsor")
+      /* The kicker tells him what to DO with it, which is the one thing a
+         card can say that a floating number cannot. No figure on it: the
+         figures are coming, one per street, for the next ten seconds. */
       brandHit(BRAND_SKUS[kind], BRAND_HIT + 0.5, null,
-               "ACCELERATING YOUR JOURNEY IN THE CLOUD");
+               "ACCELERATING YOUR JOURNEY IN THE CLOUD", false,
+               "RUN FAST FOR PIPELINE!", { bare:true });
     else if (kind === "agent"){
       /* Read BEFORE the shield moves - this block runs above the one that
          grants it, so G.shield is still what he had when he stepped on it. */
@@ -6906,10 +6941,11 @@ function collect(atCol){
     G.trace = buildTrace();
   }
   else if (kind === "sponsor"){
-    G.bonus += CLOUD_BONUS; G.bonusCloud += CLOUD_BONUS; G.clouds++;
-    /* The big green figure off his head, the same one the add-on, the agent
-       and the champion all use - and it brings the HUD pop with it. */
-    moneyRise(CLOUD_BONUS, "CLOUD INSIGHTS");
+    G.clouds++;
+    /* The tally starts fresh on a cold pickup and carries on through a warm
+       one: topping the clock up mid-run is the same run continuing, and
+       zeroing the total under him would read as the money being taken back. */
+    if (G.dashT <= 0) G.dashCash = 0;
     G.dashT = Math.max(G.dashT, k.secs);
     /* The strobe fires on every pickup, including one taken mid-run, because
        a refresh you cannot see is a refresh you do not trust. */
