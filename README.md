@@ -4169,6 +4169,55 @@ them at +11 to +44 in y, right at −11 to −44 in x, left at +11 to +44.
 
 11 blits a frame in the coat against the walk's 7, at 60fps.
 
+
+## Driving the initials screen from a console
+
+A room console has four arrows, one action button and a start button, and no
+pointer at all. The initials screen was built for a finger: three letter
+wheels and a button, with the keyboard as a shortcut. On a remote it was a
+dead end — you could change the letters and never reach OK.
+
+**The focus runs 0..4 now**: the three letters, then `PUT ME ON THE BOARD`,
+then `SKIP`. Left and right walk the whole ring, so one axis reaches
+everything. Up and down are the letter wheel while the focus is on a letter,
+and the vertical walk once it is on a button — OK sits under the letters and
+SKIP under OK, so up climbs back towards them.
+
+**An arrow never commits.** The first cut had up fire whatever was
+highlighted, which meant a player feeling their way around could post a score
+by nudging the wrong way. Moving is moving; the button is the button.
+
+**The action button steps through and then fires**: letters advance, the last
+letter hands over to OK, and the buttons do what they say. Three presses after
+three letters is a posted score without the player ever having found a
+separate control. Typing the third letter lands on OK too, so a keyboard user
+still gets one Enter to submit.
+
+**`a` costs something, and it is worth saying what.** It is the main button on
+the panels this runs on, so on the initials screen it is the button and no
+longer types the letter A. Every other letter still types; A is still
+reachable the way all 37 characters are, on the wheel — which is how a console
+enters it anyway, there being no keyboard attached to a Board. In *play* `a` is
+untouched and still strafes left, because that is what this whole thing is
+about; the guard is a single `G.state !== ST_PLAY`.
+
+The keys live in two tables rather than a chain of `||`, so whatever the next
+panel sends is one entry and not a new branch: `Enter`, `Return`, space, `a`,
+`Select`, `Accept`, `OK` for the action, and `Start`, `MediaPlayPause`, `Play`
+for start. Start behaves as the action everywhere outside play, which is what
+makes it start the game from the title.
+
+**SKIP is new and deliberately quiet** — smaller, inked rather than branded. It
+is the way out for somebody who does not want their initials on a shared
+panel. It clears `G.rec` on the way to the board, because a board that
+highlights a row which was never saved is lying about where you came.
+
+**Touch is untouched**, which was the condition. The pointer paths only ever
+set 0..2 and call the buttons directly, so the two input models never have to
+agree about where the focus is — only about what the buttons do. Verified: OK,
+SKIP, a letter column and a chevron all still resolve to the right target, and
+in play `a` strafes and space steps forward.
+
 ## The arms were swinging the whole time
 
 *"Swing the arms when doing the front jump."* They were. The rig had been

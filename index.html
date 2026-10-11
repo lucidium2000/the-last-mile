@@ -5316,6 +5316,25 @@ function rogueX(row){ return (row.dir > 0 ? SPAN - row.rogue.p : row.rogue.p) - 
 /* -------------------------------------------------------------- game state */
 var ST_TITLE = 0, ST_PLAY = 1, ST_DEAD = 2, ST_NAME = 3, ST_BOARD = 4;
 var INI_CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 ";
+/* ------------------------------------------------- THE CONSOLE BUTTONS ---
+   A room console has four arrows, one action button and a start button, and
+   browsers do not agree on what any of them send. Enter and Space are the
+   common ones; "a" is what the main button reports on the panels this runs
+   on; Select, Accept and OK turn up on remotes and set-top keymaps.
+
+   It is a table rather than a chain of || so that adding whatever the next
+   panel sends is one entry and not a new branch - and so the ONE place that
+   decides what a button is cannot drift from the places that ask.
+
+   "a" costs something, and it is worth saying what: on the initials screen
+   it is the button, so it no longer types the letter A. Every other letter
+   still types. A is still reachable the way all 37 characters are, on the
+   wheel - which is how a console enters it anyway, there being no keyboard
+   attached to a Board. */
+var KEY_GO = { "Enter":1, "Return":1, " ":1, "Spacebar":1,
+               "a":1, "A":1, "Select":1, "Accept":1, "OK":1, "Ok":1 };
+var KEY_START = { "Start":1, "MediaPlayPause":1, "MediaPlay":1, "Play":1,
+                  "GamepadStart":1, "ContextMenu":1 };
 var RANKS = [[0,"SDR INTERN"],[18,"AE IN RAMP"],[40,"QUOTA CARRIER"],
              [70,"PRESIDENT'S CLUB"],[110,"MIDTOWN LEGEND"]];
 
@@ -5766,10 +5785,27 @@ function act(dir){
     return;
   }
   if (G.state === ST_NAME){
-    if (dir === "l"){ G.iniAt = (G.iniAt + 2) % 3; AUDIO.step(); }
-    else if (dir === "r"){ G.iniAt = (G.iniAt + 1) % 3; AUDIO.step(); }
-    else if (dir === "f"){ iniStep(1); }
-    else if (dir === "b"){ iniStep(-1); }
+    /* Left and right walk the whole screen in one ring, letters and buttons
+       alike, so a remote can reach everything on one axis.
+
+       Up and down are the letter wheel while the focus is on a letter, and
+       the vertical walk once it is on a button: OK sits under the letters and
+       SKIP under OK, so up climbs back towards them and down goes on to SKIP.
+
+       AN ARROW NEVER COMMITS. The first cut had up fire whatever was
+       highlighted, which meant a player feeling their way around the screen
+       could post a score by nudging the wrong way. Moving is moving; the
+       button is the button. */
+    if (dir === "l"){ G.iniAt = (G.iniAt + INI_FOCI - 1) % INI_FOCI; AUDIO.step(); }
+    else if (dir === "r"){ G.iniAt = (G.iniAt + 1) % INI_FOCI; AUDIO.step(); }
+    else if (dir === "f"){
+      if (iniOnLetter()) iniStep(1);
+      else { G.iniAt = (G.iniAt === INI_SKIP) ? INI_OK : INI_SLOTS - 1; AUDIO.step(); }
+    }
+    else if (dir === "b"){
+      if (iniOnLetter()) iniStep(-1);
+      else if (G.iniAt === INI_OK){ G.iniAt = INI_SKIP; AUDIO.step(); }
+    }
     return;
   }
   if (G.state === ST_BOARD){
@@ -6535,7 +6571,48 @@ function endRun(){
     G.ini[i] = at < 0 ? 0 : at;
   }
 }
+/* ------------------------------------------------- THE INITIALS FOCUS ---
+   G.iniAt used to be 0, 1 or 2 - which of the three letters is live. It runs
+   0..4 now, because a console has no pointer and every target on the screen
+   has to be reachable with the same four arrows and one button:
+
+     0 1 2   the letters
+     3       PUT ME ON THE BOARD
+     4       SKIP
+
+   Everything that moves the focus wraps through all five, so a remote can
+   walk the whole screen in one direction and arrive everywhere. Nothing that
+   TOUCHES does: a tap still lands straight on whatever is under the finger,
+   which is why the pointer paths below only ever set 0..2 and call the
+   buttons directly. The two input models do not have to agree about where
+   the focus is, only about what the buttons do.
+
+   INI_SLOTS is the guard that keeps the letter code honest - G.ini has three
+   entries and iniAt can now name a button, so anything reaching into the
+   array checks first. */
+var INI_SLOTS = 3, INI_OK = 3, INI_SKIP = 4, INI_FOCI = 5;
+function iniOnLetter(){ return G.iniAt < INI_SLOTS; }
+
+/* What the one button on the remote does, wherever the focus happens to be.
+   Letters advance, the last letter hands over to OK, and the buttons fire -
+   so three presses after three letters is a posted score without the player
+   ever having found a separate control. */
+function nameAction(){
+  if (G.iniAt < INI_SLOTS - 1){ G.iniAt++; AUDIO.step(); }
+  else if (G.iniAt === INI_SLOTS - 1){ G.iniAt = INI_OK; AUDIO.step(); }
+  else if (G.iniAt === INI_OK){ submitScore(); }
+  else { skipScore(); }
+}
+/* Straight to the board, nothing posted. G.rec goes with it: a board that
+   highlights a row which was never saved is lying about where you came. */
+function skipScore(){
+  G.rec = null;
+  G.state = ST_BOARD; G.deadFor = 0;
+  boardGET(); AUDIO.ui();
+}
+
 function iniStep(d){
+  if (!iniOnLetter()) return;             // the focus is on a button
   G.ini[G.iniAt] = (G.ini[G.iniAt] + d + INI_CHARS.length) % INI_CHARS.length;
   AUDIO.coach();
 }
@@ -6696,6 +6773,7 @@ cv.addEventListener("pointerup", function(e){
       var h = nameHit(lx, ly);
       if (h){
         if (h.ok) submitScore();
+        else if (h.skip) skipScore();
         else if (h.d) { G.iniAt = h.i; iniStep(h.d); }
         else { G.iniAt = h.i; AUDIO.step(); }
       }
@@ -6751,7 +6829,7 @@ cv.addEventListener("wheel", function(e){
   while (Math.abs(wheelAcc) >= WHEEL_STEP && guard++ < 8){
     var d = wheelAcc > 0 ? 1 : -1;
     wheelAcc -= d * WHEEL_STEP;
-    if (sideways){ G.iniAt = (G.iniAt + d + 3) % 3; AUDIO.step(); }
+    if (sideways){ G.iniAt = (G.iniAt + d + INI_FOCI) % INI_FOCI; AUDIO.step(); }
     else iniStep(-d);          // scrolling up runs the letters up, like the arrow
   }
   if (guard >= 8) wheelAcc = 0;
@@ -6769,24 +6847,37 @@ window.addEventListener("keydown", function(e){
     AUDIO.unlock(); AUDIO.cycleVolume(); volSync(); e.preventDefault(); return;
   }
   AUDIO.unlock();
+  var go = KEY_GO[k] === 1, start = KEY_START[k] === 1;
   /* Typing your initials beats nudging a letter wheel, so on that one screen
-     the keyboard is a keyboard. */
+     the keyboard is a keyboard - except for the one key the console sends
+     for its own button, which is claimed above the typing path. */
   if (G.state === ST_NAME){
-    if (k === "Enter"){ submitScore(); e.preventDefault(); return; }
-    if (k === "Backspace"){ G.iniAt = (G.iniAt + 2) % 3; AUDIO.step(); e.preventDefault(); return; }
+    if (go || start){ nameAction(); e.preventDefault(); return; }
+    if (k === "Backspace"){
+      G.iniAt = (G.iniAt + INI_FOCI - 1) % INI_FOCI; AUDIO.step();
+      e.preventDefault(); return;
+    }
     if (k && k.length === 1){
       var at = INI_CHARS.indexOf(k.toUpperCase());
-      if (at >= 0){
+      if (at >= 0 && iniOnLetter()){
         G.ini[G.iniAt] = at;
-        if (G.iniAt < 2) G.iniAt++;
+        /* The THIRD letter hands over to OK rather than parking on the last
+           box. Somebody who types their initials then presses the button is
+           done, and somebody holding a remote has arrived at the same place
+           by a different road. */
+        G.iniAt = Math.min(INI_OK, G.iniAt + 1);
         AUDIO.coach(); e.preventDefault(); return;
       }
     }
   }
-  /* Enter is "go on, then" everywhere that is not the game itself - the
-     title, the end screen, the board. The name screen takes it first, above,
-     where it means submit. */
-  if (k === "Enter" && G.state !== ST_PLAY){ act("f"); e.preventDefault(); return; }
+  /* The action and start buttons are "go on, then" everywhere that is not
+     the game itself - the title, the end screen, the board. The name screen
+     takes them first, above, where they walk the focus instead.
+
+     NOT IN PLAY. `a` is strafe-left and space is forward while he is on the
+     street, and those are the controls this whole thing is about; the guard
+     below is what keeps the console mapping out of them. */
+  if ((go || start) && G.state !== ST_PLAY){ act("f"); e.preventDefault(); return; }
   if (k==="ArrowUp"    || k==="w" || k===" "){ act("f"); e.preventDefault(); }
   if (k==="ArrowDown"  || k==="s"){ act("b"); e.preventDefault(); }
   if (k==="ArrowLeft"  || k==="a"){ act("l"); e.preventDefault(); }
@@ -18222,6 +18313,11 @@ function iniX(i){
   return (LOGICAL_W - total)/2 + i*(INI_BOX.w + INI_BOX.gap);
 }
 var OK_BOX = { w:340, h:84, x:(LOGICAL_W-340)/2, y:716 };
+/* SKIP sits under OK and is deliberately smaller and quieter. It is the way
+   out for somebody who does not want their initials on a shared panel, and
+   for a console walking the focus round in a circle - but it is not the
+   thing anybody came here to press, so it does not look like it is. */
+var SKIP_BOX = { w:220, h:56, x:(LOGICAL_W-220)/2, y:820 };
 
 /* Where a tap on the initials screen landed, in logical coordinates. */
 function nameHit(lx, ly){
@@ -18236,6 +18332,8 @@ function nameHit(lx, ly){
   }
   if (lx >= OK_BOX.x && lx <= OK_BOX.x + OK_BOX.w &&
       ly >= OK_BOX.y && ly <= OK_BOX.y + OK_BOX.h)                return { ok:true };
+  if (lx >= SKIP_BOX.x && lx <= SKIP_BOX.x + SKIP_BOX.w &&
+      ly >= SKIP_BOX.y && ly <= SKIP_BOX.y + SKIP_BOX.h)          return { skip:true };
   return null;
 }
 
@@ -18267,10 +18365,28 @@ function drawName(){
     ctx.lineTo(cx2 + 26, INI_BOX.y + INI_BOX.h + 20); ctx.closePath(); ctx.fill();
   }
 
+  /* The focus ring. A console has no pointer, so the only way to know what
+     the button is about to do is to see it - and it has to be the same mark
+     on a letter box and on a button, or they do not read as one list. */
+  function focusRing(b, r){
+    if (!b) return;
+    rr(b.x - 6, b.y - 6, b.w + 12, b.h + 12, r + 6);
+    ctx.strokeStyle = C.brand; ctx.lineWidth = 4;
+    ctx.globalAlpha = 0.55 + 0.45 * (0.5 + 0.5 * Math.sin(G.t * 4));
+    ctx.stroke(); ctx.globalAlpha = 1;
+  }
+
   plate(OK_BOX.x, OK_BOX.y, OK_BOX.w, OK_BOX.h, C.brand, 14);
   txt("PUT ME ON THE BOARD", OK_BOX.x + OK_BOX.w/2, OK_BOX.y + 52, 28, "#1a0a02");
-  txt("TAP THE ARROWS, OR TYPE THREE LETTERS AND PRESS ENTER",
-      LOGICAL_W/2, 856, 22, C.textDim);
+  if (G.iniAt === INI_OK) focusRing(OK_BOX, 14);
+
+  plate(SKIP_BOX.x, SKIP_BOX.y, SKIP_BOX.w, SKIP_BOX.h, C.ink, 12);
+  txt("SKIP", SKIP_BOX.x + SKIP_BOX.w/2, SKIP_BOX.y + 36, 24,
+      G.iniAt === INI_SKIP ? C.text : C.textDim);
+  if (G.iniAt === INI_SKIP) focusRing(SKIP_BOX, 12);
+
+  txt("TAP THE ARROWS, OR TYPE THREE LETTERS  \u00B7  OK STEPS THROUGH, OK AGAIN POSTS",
+      LOGICAL_W/2, 912, 22, C.textDim);
 }
 
 /* m:ss for a run, h:mm:ss once a total runs past the hour. One pair of
