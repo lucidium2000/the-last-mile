@@ -893,7 +893,7 @@ var AUDIO = (function(){
        has FLIP_LAND_G of its own and sits below them. The push-off scuff is
        on neither: that is his feet on the kerb, not air, and it was in
        balance already. */
-    flip: function(secs){
+    flip: function(secs, thud){
       /* Scaled to the length of the jump. Everything here was written against
          the backflip's 1.08s, and the running jump is half that - played
          unscaled its landing thump arrived half a second after he was back
@@ -903,7 +903,7 @@ var AUDIO = (function(){
       whoosh({ f:170, to:2600, dur:0.44*k, g:0.085*FLIP_G, q:0.9, peak:0.62 });
       whoosh({ f:2600, to:170, dur:0.72*k, g:0.095*FLIP_G, q:0.9, peak:0.26, at:0.40*k });
       tone({ f:180, to:42, dur:1.00*k, type:"sine", g:0.10*FLIP_G, lp:420 });
-      hit({ f:700, to:120, dur:0.20, g:0.10*FLIP_LAND_G, at:1.05*k });
+      if (thud) hit({ f:700, to:120, dur:0.20, g:0.10*FLIP_LAND_G, at:1.05*k });
     },
     missedClose: function(){
       tone({ f:392, to:196, dur:0.7, type:"sawtooth", g:0.22, lp:900 });
@@ -5293,6 +5293,7 @@ function reset(){
     meals:0, sadT:0, needFood:0, saidFood:false,
     bonusChuck:0, bonusTam:0, bonusAddon:0, bonusFood:0, bonusChamp:0,
     bonusUpsell:0, upsells:0, traceRun:0, flip:0, sprint:0, crane:0, queued:null,
+    jumpTurn:0,
     bonusAgent:0, agentPays:0,
     bonusNews:0, news:0, paper:null,
     addons:0, champs:0, addonWin:null, champWin:null,
@@ -5532,7 +5533,8 @@ function pipeline(){ return Math.max(0, G.maxRow*DOLLARS_PER_ROW + G.bonus); }
 
    The run resets on the payout, so a long route can pay twice. Ten more is
    ten more. */
-var WOAH_ODDS = 0.5;        // how often a front jump gets one; a flip always does
+/* How often he says it, by move: crane, running jump, backflip. */
+var WOAH_ODDS = [0, 0.5, 0.75];
 var TRACE_RUN = 10, UPSELL_AMT = 100000;
 function unitsUpsell(){
   G.traceRun = 0;
@@ -6234,20 +6236,28 @@ function act(dir){
   var crossing = (G.slowT > 0 && !(G.dashT > 0) && nr > G.fromRow + 1 &&
                   isRoadRow(rows[G.fromRow + 1]) && !isRoadRow(rows[nr]));
   var laneSpan = nr - G.fromRow - 1;
-  /* ROLLED, NOT DERIVED FROM THE WIDTH. Tying each move to a lane count was
-     tidy and turned out to be the wrong kind of tidy: the streets repeat, so
-     the moves repeated with them, and by the third one-lane street in a row
-     you knew exactly what you were about to watch. Rolling it means the
-     street tells you nothing and every crossing is worth looking at.
+  /* IN ORDER, NOT AT RANDOM. Rolling it fixed the problem of the street
+     telling you which move was coming and introduced a quieter one: a random
+     pick has no shape, so three crossings could be three cranes and the
+     sequence never built to anything.
 
-     Never the same one twice running - the same rule the pedestrian lines
-     use. With three moves and the last one excluded it is a fair pick of the
-     other two, and it rules out the one case that would undo the point of
-     rolling at all: the same move three times by chance. */
-  var pick = crossing ? rollJump() : -1;
-  G.flip   = (pick === 0) ? 1 : 0;
-  G.sprint = (pick === 1 || pick === 2) ? 1 : 0;
-  G.crane  = (pick === 2) ? 1 : 0;
+     It is a cycle of three now, and the three are deliberately ordered from
+     plain to loud:
+
+       0  the crane    - the whoosh, nothing else
+       1  the run jump - the whoosh, and half the time he says something
+       2  the backflip - the whoosh, the landing thud, and three times in
+                         four he says it
+
+     So every third crossing is the big one, you always get all three, and
+     the one with the thud under it is the one that earned it. The counter
+     runs for the whole run rather than resetting with each power-up: tying
+     it to the SKU would mean a player who only gets two crossings out of an
+     Internet Insights never sees the backflip at all. */
+  var pick = crossing ? nextJump() : -1;
+  G.crane  = (pick === 0) ? 1 : 0;
+  G.sprint = (pick === 0 || pick === 1) ? 1 : 0;
+  G.flip   = (pick === 2) ? 1 : 0;
   /* How wide the jump is, kept for the arc: two lanes gets more air than one,
      because it is further and he is in the air longer to cover it. */
   G.sprintSpan = G.sprint ? laneSpan : 1;
@@ -6257,20 +6267,22 @@ function act(dir){
      running jump. Derived rather than written down twice, so the sound
      follows the constants if they move.
 
-     THE BACKFLIP ALWAYS GETS THE WOAH; A FRONT JUMP SOMETIMES DOES. The
-     argument for withholding it was that a woah is what you say going over
-     something backwards and he has not the breath going forwards - true of
-     the man, and the wrong call for the game, because it made two thirds of
-     his crossings quiet. Rolled at WOAH_ODDS instead, which is better than
-     either extreme: every time is a catchphrase, never is a missing sound,
-     and half the time is a man who sometimes says it. */
+     AND THE VOICE GETS LOUDER DOWN THE CYCLE TOO: never on the crane, half
+     the time on the running jump, three times in four on the backflip. Every
+     time is a catchphrase and never is a missing sound; a rising chance is a
+     man who says it when the jump is worth saying it about.
+
+     THE THUD IS THE BACKFLIP'S ALONE. It used to land under all three, which
+     made the loudest part of the cue the one thing that did not vary - so
+     every crossing ended the same way whatever he had just done. On the one
+     move that goes over backwards it is the punctuation; on the other two the
+     whoosh simply runs out, which is what coming down from a running jump
+     sounds like. */
   if (G.flip || G.sprint){
-    AUDIO.flip(HOP_MS / 1000 / SLOW_MAN * (G.flip ? FLIP_SLOW : SPRINT_SLOW));
-    if (G.flip) AUDIO.woah(laneSpan);
-    else {
-      AUDIO.sprintOff();
-      if (Math.random() < WOAH_ODDS) AUDIO.woah(laneSpan);
-    }
+    AUDIO.flip(HOP_MS / 1000 / SLOW_MAN * (G.flip ? FLIP_SLOW : SPRINT_SLOW),
+               !!G.flip);
+    if (!G.flip) AUDIO.sprintOff();
+    if (Math.random() < WOAH_ODDS[pick]) AUDIO.woah(laneSpan);
   }
   G.row = nr; G.col = nc; G.hop = 0;
   if (nr > G.maxRow){ G.maxRow = nr; progress(); }
@@ -7227,12 +7239,11 @@ function sideTurn(){
   return Math.sin(Math.min(1, Math.max(0, G.hop)) * Math.PI);
 }
 
-/* Which jump he does, rolled fresh each crossing and never twice running. */
-var lastJump = -1;
-function rollJump(){
-  var j;
-  do { j = (Math.random() * 3) | 0; } while (j === lastJump);
-  lastJump = j;
+/* Which jump he does: crane, then the running jump, then the backflip, round
+   and round. */
+function nextJump(){
+  var j = G.jumpTurn % 3;
+  G.jumpTurn = (G.jumpTurn + 1) % 3;
   return j;
 }
 

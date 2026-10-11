@@ -3863,25 +3863,40 @@ quicker is the one move that is supposed to be quick.
 
 ## The dojo crane, and turning into the move
 
-Three moves at the kerb — the crane, the running jump, the backflip — and
-**which one you get is rolled, not derived from the width.**
+Three moves at the kerb, **in order, not at random**, and never derived from
+the width.
 
 Tying each to a lane count was tidy and turned out to be the wrong kind of
-tidy: the streets repeat, so the moves repeated with them, and by the third
-one-lane street in a row you knew exactly what you were about to watch.
-Rolling it means the street tells you nothing and every crossing is worth
-looking at. All three are the same leap underneath — same squares, same
-immunity — so any of them fits any street.
+tidy: the streets repeat, so the moves repeated with them. Rolling it fixed
+that and introduced a quieter problem — a random pick has no shape, so three
+crossings could be three cranes and the sequence never built to anything.
 
-**Never the same one twice running**, the same rule the pedestrian lines use.
-With three moves and the last one excluded it is a fair pick of the other two,
-and it rules out the one case that would undo the point of rolling at all: the
-same move three times by chance. Measured over 19 crossings: 6 backflips, 7
-running jumps, 6 cranes, **zero repeats**.
+It is a cycle of three, deliberately ordered from plain to loud:
 
-The sound follows the move rather than the width — backflip 1.08s, the other
-two 0.9s and a push-off — while the *woah's own length* still tracks the
-street, short under three lanes and whole over.
+| | move | sound | woah |
+|---|---|---|---|
+| 1 | the crane | the whoosh | never |
+| 2 | the running jump | the whoosh | half the time |
+| 3 | the backflip | the whoosh **and the landing thud** | three times in four |
+
+So every third crossing is the big one, you always get all three, and the one
+with the thud under it is the one that earned it. Verified: the order repeats
+`crane, jump, flip` indefinitely, and the odds sample at 0, 0.491 and 0.751
+against the configured 0, 0.5, 0.75.
+
+The counter runs for the whole run rather than resetting with each power-up —
+tying it to the SKU would mean a player who only gets two crossings out of an
+Internet Insights never sees the backflip at all.
+
+**The thud is the backflip's alone now.** It used to land under all three,
+which made the loudest part of the cue the one thing that did not vary — every
+crossing ended the same way whatever he had just done. On the move that goes
+over backwards it is punctuation; on the other two the whoosh simply runs out,
+which is what coming down from a running jump sounds like.
+
+All three are the same leap underneath — same squares, same immunity — so any
+of them fits any street, and the *woah's own length* still tracks the street
+rather than the move: short under three lanes, whole over.
 
 **The backflip always gets a woah; a front jump sometimes does.** The argument
 for withholding it was that a woah is what you say going over something
