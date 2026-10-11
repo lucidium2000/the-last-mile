@@ -6195,8 +6195,17 @@ function act(dir){
   var crossing = (G.slowT > 0 && !(G.dashT > 0) && nr > G.fromRow + 1 &&
                   isRoadRow(rows[G.fromRow + 1]) && !isRoadRow(rows[nr]));
   var laneSpan = nr - G.fromRow - 1;
-  G.flip   = (crossing && laneSpan >= 2) ? 1 : 0;
-  G.sprint = (crossing && laneSpan === 1) ? 1 : 0;
+  /* THE RUNNING JUMP TAKES TWO LANES AS WELL. It started as the one-lane
+     answer and the backflip kept everything else, which made the flip the
+     common case - most streets here are one or two lanes deep - and a signature
+     move you see on most crossings is not a signature move. Three lanes is a
+     genuine avenue, and going over backwards is what you do when the gap is
+     frightening rather than when it is merely there. */
+  G.flip   = (crossing && laneSpan >= 3) ? 1 : 0;
+  G.sprint = (crossing && laneSpan >= 1 && laneSpan <= 2) ? 1 : 0;
+  /* How wide the jump is, kept for the arc: two lanes gets more air than one,
+     because it is further and he is in the air longer to cover it. */
+  G.sprintSpan = G.sprint ? laneSpan : 1;
   /* The lanes between the two kerbs, which is what the woah is sized to. */
   /* Both get the jump cue, and it is told how long the jump is so the
      landing thump lands on the landing: 1.08s for the backflip, 0.54 for the
@@ -7072,8 +7081,10 @@ function colSafeFor(r, col, secs){
    So a one-lane street gets the OTHER thing the film is full of: the running
    jump off the roof. He does not stop running to do it - he hits the kerb at
    full stride, leaves the ground, and his legs KEEP GOING in the air the
-   whole way across, which is the whole look. Two lanes or more and he still
-   flips.
+   whole way across, which is the whole look. It covers one and two lane
+   streets - which is most of them - and three or more still gets the
+   backflip, because going over backwards is what you do when the gap is
+   frightening rather than when it is merely there.
 
    That falls out of the rig for free rather than needing a pose: runGait()
    is true for the entire crossing and the limb cycle is driven off walkPh,
@@ -7184,7 +7195,8 @@ function playerPos(){
      going round. That is the difference between a man jumping and a man
      being lobbed. */
   if (G.sprint && G.hop < 1)
-    lift += SPRINT_JUMP * Math.sin(G.hop * Math.PI);
+    lift += SPRINT_JUMP * (1 + 0.22 * ((G.sprintSpan || 1) - 1))
+            * Math.sin(G.hop * Math.PI);
   return { col:G.fromCol + (G.col-G.fromCol)*e, row:G.fromRow + (G.row-G.fromRow)*e,
            lift:lift, sq:s };
 }

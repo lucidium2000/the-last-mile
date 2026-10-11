@@ -3909,8 +3909,17 @@ zebra crossing, and the backflip loses its weight if it is what he does to
 cross anything at all. So a **one-lane street gets the other thing the film is
 full of**: the running jump off the roof. He does not stop running to do it —
 he hits the kerb at full stride, leaves the ground, and **his legs keep going
-in the air** the whole way across, which is the whole look. Two lanes or more
-and he still flips.
+in the air** the whole way across, which is the whole look.
+
+It covers **one and two lane streets**, which is most of them. It started as
+the one-lane answer with the backflip keeping everything else, and that made
+the flip the common case — a signature move you see on most crossings is not a
+signature move. **Three lanes or more still gets the backflip**, because going
+over backwards is what you do when the gap is frightening rather than when it
+is merely there.
+
+Two lanes gets more air than one, 88px against 72: it is further, and he is up
+longer to cover it.
 
 That falls out of the rig for free rather than needing a pose. `runGait()` is
 true for the entire crossing and the limb cycle is driven off `walkPh`, so the
