@@ -3703,6 +3703,35 @@ leaderboard can carry a column for it whenever the val gets redeployed.
 
 
 
+
+## Nothing sits over a cutscene
+
+Collect a TE-ADDON on the last square of a block and STEAK DINNER came up with
+the brand burst, the ThousandEyes logo and a green `+$150,000` printed straight
+through the middle of it. Two unrelated announcements sharing one frame, and
+neither of them readable.
+
+Five things drew *after* `drawScene` and therefore on top of it: the ticker,
+the newspaper, the notice, the money rise and the brand hit. The comment above
+that block already said the scenes "sit over everything, HUD included" — it was
+true of the HUD and false of the five lines underneath it.
+
+**Hiding them costs nothing, which is what makes this a fix rather than a
+patch.** `update()` returns early while a scene is up, so every one of those
+clocks is already *frozen* behind it — they are not expiring unseen, they are
+stopped. Skip the draw and the burst, the rise and the ticker all pick up
+exactly where they were the moment the card lifts. The player gets the entire
+announcement; it just arrives after the cutscene instead of smeared across it.
+
+Proven by driving `update` by hand rather than trusting the frame loop: brand
+1.6 and rise 1.9 at the start, still 1.6 and 1.9 after a full simulated second
+of scene time, then resuming and expiring normally once the card is gone — and
+on screen, the burst plays in full the instant it lifts.
+
+Clearing them instead would have been the easy version and the wrong one: the
+money he just earned would have been announced for a third of a second and then
+thrown away.
+
 ## Times Square corrects itself
 
 The card says *Probably should have gotten an Uber*. For three flashes of

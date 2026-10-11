@@ -18084,14 +18084,35 @@ function render(){
   if (G.state === ST_DEAD)  drawDead();
   if (G.state === ST_NAME)  drawName();
   if (G.state === ST_BOARD){ if (G.report) drawReport(); else drawBoard(); }
-  // the arrival scenes sit over everything, HUD included - they are a
-  // cutscene, not an overlay
+  /* The arrival scenes sit over everything, HUD included - they are a
+     cutscene, not an overlay.
+
+     AND NOTHING SITS OVER THEM. These five all used to draw after the scene
+     and therefore on top of it: collect a TE-ADDON on the last square of a
+     block and STEAK DINNER came up with the brand burst, the logo and a
+     green +$150,000 printed through the middle of it. The screenshot of that
+     is the whole bug - two unrelated announcements sharing one frame, and
+     neither of them readable.
+
+     HIDING THEM COSTS NOTHING, which is the part that makes this the right
+     fix rather than a patch. update() returns early while a scene is up, so
+     every one of these clocks is already FROZEN behind it - they are not
+     expiring unseen, they are stopped. Skip the draw and the burst, the rise
+     and the ticker all pick up exactly where they were the moment the card
+     lifts. The player gets the entire announcement; it just arrives after
+     the cutscene instead of smeared across it.
+
+     Clearing them instead would have been the easy version and the wrong
+     one: the money he just earned would have been announced for a third of
+     a second and then thrown away. */
   if (G.scene) drawScene();
-  if (G.ticker) drawTicker();
-  if (G.paper) drawPaper();
-  if (G.notice && !G.ride) drawNotice();
-  if (G.rise && !G.ride) drawMoneyRise();
-  drawBrandHit();
+  else {
+    if (G.ticker) drawTicker();
+    if (G.paper) drawPaper();
+    if (G.notice && !G.ride) drawNotice();
+    if (G.rise && !G.ride) drawMoneyRise();
+    drawBrandHit();
+  }
   if (SHOW_FPS){
     ctx.setTransform(scale, 0, 0, scale, 0, 0);
     ctx.font = "bold 24px monospace"; ctx.textAlign = "left";
