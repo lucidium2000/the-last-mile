@@ -5407,7 +5407,14 @@ function reset(){
 /* The shared board. An HTTP val (leaderboard/valtown.ts); empty this string
    and the game never opens a socket, which is the RoomOS-safe default. */
 var BOARD_API = "https://lucidium2000--be403ca8c25711f194891607ee4eb77e.web.val.run";
-var BOARD_MAX = 50;                 // rows kept locally, and asked for
+/* TOP TWENTY. It was fifty, and fifty is a long way down a leaderboard for
+   a game you play in a hallway - the twentieth score is already somebody
+   else's good day. Twenty is a board you can read and a bar worth clearing.
+
+   The service still retains a hundred; this is what gets asked for and shown.
+   It is also what decides whether a run is offered the initials screen, so
+   raising the bar here raises it there, which is the same decision said once. */
+var BOARD_MAX = 20;                 // rows kept locally, and asked for
 var BOARD_SHOW = 10;                // rows on screen
 var LS_BOARD = "lastmile.board.v1", LS_STATS = "lastmile.stats.v1",
     LS_WHO   = "lastmile.who.v1";
@@ -5522,7 +5529,7 @@ function boardRank(score, list){
 
 /* ---- the one place that talks to a network, if there is one to talk to --- */
 var BOARD = { rows:boardRead(), state:(BOARD_API && !OFFLINE) ? "…" : "LOCAL",
-              global:null, busy:false };
+              global:null, recent:null, busy:false };
 
 function boardLive(){ return !!BOARD_API && !OFFLINE; }
 
@@ -5539,6 +5546,7 @@ function boardGET(){
       .then(function(j){
         if (j && j.rows){
           BOARD.rows = j.rows; BOARD.global = j.stats || null;
+          BOARD.recent = j.recent || null;
           lsSet(LS_BOARD, j.rows.slice(0, BOARD_MAX));
           give("LIVE");
         } else give("OFFLINE");
@@ -5564,7 +5572,8 @@ function boardPOST(rec){
       })
     }).then(function(r){ return r.ok ? r.json() : null; })
       .then(function(j){
-        if (j && j.rows){ BOARD.rows = j.rows; BOARD.global = j.stats || null; BOARD.state = "LIVE"; }
+        if (j && j.rows){ BOARD.rows = j.rows; BOARD.global = j.stats || null;
+                          BOARD.recent = j.recent || null; BOARD.state = "LIVE"; }
       })
       .catch(function(){ BOARD.state = "OFFLINE"; });
   } catch (e){ BOARD.state = "OFFLINE"; }
@@ -18785,8 +18794,13 @@ function drawReport(){
      mid-street never posts anything, so "gave up and left" is not a bar here
      and cannot be. The title says how runs END, which is exactly the set this
      has. */
-  var gcz = BOARD.global && BOARD.global.causes;
-  head(by, gcz ? "HOW RUNS END  \u00B7  EVERYONE" : "HOW THE TOP RUNS ENDED");
+  /* The window, not the board, and not an all-time counter either. See the
+     service: it is derived on read over the last hundred runs, so it always
+     describes the game as it is now rather than as it was two rebalances
+     ago. The heading says how many it actually has. */
+  var rc = BOARD.recent, gcz = rc && rc.n ? rc.causes : null;
+  head(by, gcz ? ("HOW RUNS END  \u00B7  LAST " + rc.n + (rc.n === 1 ? " RUN" : " RUNS"))
+               : "HOW THE TOP RUNS ENDED");
   var tally = {}, order = [], ck;
   if (gcz){
     for (ck in gcz){

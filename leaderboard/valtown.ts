@@ -36,7 +36,21 @@ import { blob } from "https://esm.town/v/std/blob";
 
 const BOARD_KEY = "lastmile_board";
 const STATS_KEY = "lastmile_stats";
-const KEEP = 100;              // rows retained server side
+const RECENT_KEY = "lastmile_recent";
+/* TWO COLLECTIONS, because they answer two different questions.
+
+   The BOARD is the top scores: who is best, ordered by score, and it is meant
+   to be hard to get on. RECENT is the last hundred runs whatever they scored,
+   in the order they happened, and it is what the distribution charts read -
+   because "how do runs end" asked of the leaderboard is asked of the winners,
+   and the winners are not a sample of anybody.
+
+   KEEP stays at 100 rather than dropping to the 20 the board shows. Retention
+   is not display: the extra 80 cost nothing, they are the only history this
+   thing has, and throwing them away to change a heading would be a strange
+   trade. The game asks for the 20 it wants. */
+const KEEP = 100;              // board rows retained server side
+const RECENT_KEEP = 100;       // runs kept for the distribution, newest last
 const POST_EVERY_MS = 10000;   // one post per browser id per ten seconds
 
 /* Set this to your Pages origin to stop anyone else's page posting to it.
@@ -66,7 +80,12 @@ export default async function (request: Request): Promise<Response> {
     const n = clampInt(url.searchParams.get("n"), 1, KEEP, 25);
     const rows = await readJSON(BOARD_KEY, []);
     const stats = await readJSON(STATS_KEY, blankStats());
-    return json({ rows: rows.slice(0, n), stats: publicStats(stats) });
+    const recent = await readJSON(RECENT_KEY, []);
+    return json({
+      rows: rows.slice(0, n),
+      stats: publicStats(stats),
+      recent: recentSummary(recent),
+    });
   }
 
   if (request.method === "POST" && url.pathname === "/score") {
@@ -109,12 +128,47 @@ export default async function (request: Request): Promise<Response> {
     const kept = rows.slice(0, KEEP);
     await blob.setJSON(BOARD_KEY, kept);
 
+    /* And the same run again, in time order this time. Every run lands here,
+       including the ones that drop straight off the bottom of the board -
+       which is the point: a run that did not place is still a run that
+       happened, and this is the only place that remembers it. */
+    const recent = await readJSON(RECENT_KEY, []);
+    recent.push(rec);
+    const keptRecent = recent.slice(-RECENT_KEEP);
+    await blob.setJSON(RECENT_KEY, keptRecent);
+
     await blob.setJSON(STATS_KEY, bump(stats, rec, id));
 
-    return json({ rows: kept.slice(0, 25), stats: publicStats(stats) });
+    return json({
+      rows: kept.slice(0, 25),
+      stats: publicStats(stats),
+      recent: recentSummary(keptRecent),
+    });
   }
 
   return json({ error: "not found" }, 404);
+}
+
+/* What the last hundred runs looked like. DERIVED ON READ rather than
+   accumulated, which is the whole reason this is a window and not a counter:
+   a running total can only ever grow and can never forget, so it would still
+   be describing a game that has since been rebalanced. Recomputing over a
+   hundred records costs nothing and is always exactly the hundred most recent
+   runs, with nothing to migrate and no stale keys to cap. */
+function recentSummary(list: any[]) {
+  const causes: Record<string, number> = {};
+  let wins = 0, steps = 0, rides = 0, rows = 0, secs = 0, best = 0;
+  for (const r of list) {
+    const why = r.won ? "Booked" : (String(r.cause || "").trim() || "Unknown");
+    causes[why] = (causes[why] || 0) + 1;
+    if (r.won) wins++;
+    steps += r.steps || 0;
+    rides += r.rides || 0;
+    rows += r.rows || 0;
+    secs += r.secs || 0;
+    if ((r.score || 0) > best) best = r.score;
+  }
+  return { n: list.length, wins, steps, rides, rows, secs, best, causes };
 }
 
 async function readJSON(key: string, dflt: any) {
@@ -140,8 +194,7 @@ function blankStats() {
     plays: 0, wins: 0, deaths: 0, bestScore: 0,
     steps: 0, rows: 0, rides: 0, tamWins: 0, addons: 0, champs: 0, secs: 0,
     players: 0, seen: {} as Record<string, number>,
-    powers: cleanPowers(null), causes: {} as Record<string, number>,
-    first: Date.now(), last: 0,
+    powers: cleanPowers(null), first: Date.now(), last: 0,
   };
 }
 /* `seen` is the browser ids, and it never leaves the server - the game only
@@ -164,19 +217,5 @@ function bump(st: any, rec: any, id: string) {
   if (!st.seen[id]) st.players = Object.keys(st.seen).length + 1;
   st.seen[id] = rec.at;                        // doubles as the rate limit clock
   for (const k of POWERS) st.powers[k] = (st.powers[k] || 0) + (rec.powers[k] || 0);
-  /* HOW THE RUN ENDED, counted across every run posted rather than across the
-     hundred rows kept. The board is the good runs by definition, so tallying
-     causes from it answered "how do the BEST runs end" while being captioned
-     as what stops people - and now that a run which misses the board posts its
-     numbers and loses its row, the board would have skewed further still.
-
-     The key is already sanitised to 28 printable characters upstream. The cap
-     is on the number of DISTINCT causes, so a client inventing new ones cannot
-     grow this blob without bound; once it is full, known causes still count. */
-  if (!st.causes) st.causes = {};
-  const why = rec.won ? "Booked" : (rec.cause || "Unknown");
-  if (st.causes[why] != null || Object.keys(st.causes).length < 40) {
-    st.causes[why] = (st.causes[why] || 0) + 1;
-  }
   return st;
 }
