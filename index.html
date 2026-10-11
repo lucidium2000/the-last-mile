@@ -15551,12 +15551,31 @@ function drawPlayer(pp){
      into a smear instead of reading as four separate men. Four blits during
      a move that happens once a street, and the cheapest blur there is on a
      canvas with no filter and no shadowBlur. */
-  if (G.sprint && G.hop < 1){
-    var sa = sprintAmt();
+  /* EVERY MOVE IN THE COAT, not only the jump. The limb rig was already
+     running on sideways steps - same phase advance, same amplitudes, measured
+     identical to a forward one - but the trail was gated on the crossing, so
+     a step aside was the one move in the costume with nothing behind it. A
+     man who blurs going forwards and not going sideways is a man with an
+     effect attached to one keypress.
+
+     Ordinary steps get a little over half the jump's strength. The jump is
+     still the big one; this is the difference between moving and running.
+
+     IT TRAILS THE DIRECTION OF TRAVEL. Dropping the copies straight down was
+     right only because the only move that had them went up the screen. Taking
+     the sign off the actual displacement puts them behind him whichever way
+     he went, which is the entire point of a motion trail. */
+  if (runGait() && G.hop < 1){
+    var sa = G.sprint ? sprintAmt() : G.walkAmt;
+    var gStr = G.sprint ? 0.30 : 0.17;
     if (sa > 0.02){
+      var gdc = G.col - G.fromCol, gdr = G.row - G.fromRow;
+      var gtx = gdc > 0 ? -1 : (gdc < 0 ? 1 : 0);
+      var gty = gdr > 0 ? 1 : (gdr < 0 ? -1 : 0);
       for (var si = SPRINT_GHOSTS; si >= 1; si--){
-        ctx.globalAlpha = 0.30 * sa * (1 - si / (SPRINT_GHOSTS + 1));
-        blitScaled(s, sx, dy + si * SPRINT_GHOST_GAP, kx, ky);
+        ctx.globalAlpha = gStr * sa * (1 - si / (SPRINT_GHOSTS + 1));
+        blitScaled(s, sx + si * SPRINT_GHOST_GAP * gtx,
+                      dy + si * SPRINT_GHOST_GAP * gty, kx, ky);
       }
       ctx.globalAlpha = 1;
     }

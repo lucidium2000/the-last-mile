@@ -3826,6 +3826,32 @@ the more of it anybody actually sees.
 
 
 
+
+## The trail follows him sideways too
+
+*"Neo's run style should be used for sideways movements too."* The limb rig
+already was — measured against a forward step, a sideways one gives the
+identical phase advance (3.88 rad) at the identical amplitudes, with
+`runGait()` true for both. What sideways movement did not have was the
+**blur**.
+
+The trail was gated on the kerb-to-kerb crossing, so a step aside was the one
+move in the costume with nothing behind it. A man who blurs going forwards and
+not going sideways is a man with an effect attached to one keypress.
+
+**It now runs on every move in the coat**, at a little over half the jump's
+strength — 0.17 against 0.30 — so the jump is still the big one and this is just
+the difference between moving and running. The ordinary walk is untouched: 7
+blits a frame, no ghosts.
+
+**And it trails the direction of travel.** Dropping the copies straight down
+was only ever right because the one move that had them went up the screen.
+Taking the sign off the actual displacement puts them behind him whichever way
+he went, which is the entire point of a motion trail. Measured: forward puts
+them at +11 to +44 in y, right at −11 to −44 in x, left at +11 to +44.
+
+11 blits a frame in the coat against the walk's 7, at 60fps.
+
 ## The arms were swinging the whole time
 
 *"Swing the arms when doing the front jump."* They were. The rig had been
