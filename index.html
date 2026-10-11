@@ -391,7 +391,13 @@ var AUDIO = (function(){
      seen him land. */
   var FLIP_LAND_G = FLIP_G * 0.5;
   var WOAH_CUT = 1.45;            // past the landing, and past the word itself
-  var WOAH_FULL_FROM = 2;         // more lanes than this and it plays whole
+  /* WHICH LENGTH BELONGS TO WHICH MOVE, and nothing else decides it. This
+     used to be a lane count - more than two and the clip played whole - which
+     meant the same backflip was a short woah on one street and a three second
+     one on the next. The move was fixed and the sound was not, and from the
+     player's side that is the cue randomising itself for no reason they can
+     see. The running jump gets the short one, the backflip gets the whole
+     thing, every time. */
 
   /* One player for both, and it REAPS. The sample players were the last two
      chains in the engine still wiring a gain to the master and walking away
@@ -1456,14 +1462,14 @@ var AUDIO = (function(){
       }
       hit({ f:4200, to:1400, hp:true, dur:0.17, g:0.10, at:0.14 });
     },
-    woah: function(lanes){
+    woah: function(full){
       if (!live()) return;
       woahClip.prime();
       /* 1.32, up again. The clip peaks at 0.529 internally, so this lands at
          0.70 before the master gain's 0.32 - still comfortably short of
          clipping, and now clearly the loudest thing in the crossing, which is
          the point: it is the only part of it that is him. */
-      woahClip.play(1.32, (lanes || 1) > WOAH_FULL_FROM ? 0 : WOAH_CUT);
+      woahClip.play(1.32, full ? 0 : WOAH_CUT);
     },
     /* Booked. */
     win: function(){
@@ -6282,7 +6288,9 @@ function act(dir){
     AUDIO.flip(HOP_MS / 1000 / SLOW_MAN * (G.flip ? FLIP_SLOW : SPRINT_SLOW),
                !!G.flip);
     if (!G.flip) AUDIO.sprintOff();
-    if (Math.random() < WOAH_ODDS[pick]) AUDIO.woah(laneSpan);
+    /* Full length on the backflip, the short one on the running jump. The
+       street has no say in it - only which move this is. */
+    if (Math.random() < WOAH_ODDS[pick]) AUDIO.woah(pick === 2);
   }
   G.row = nr; G.col = nc; G.hop = 0;
   if (nr > G.maxRow){ G.maxRow = nr; progress(); }

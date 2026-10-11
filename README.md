@@ -3894,9 +3894,20 @@ crossing ended the same way whatever he had just done. On the move that goes
 over backwards it is punctuation; on the other two the whoosh simply runs out,
 which is what coming down from a running jump sounds like.
 
-All three are the same leap underneath — same squares, same immunity — so any
-of them fits any street, and the *woah's own length* still tracks the street
-rather than the move: short under three lanes, whole over.
+**And the street has no say in the sound at all now.** The woah's length was
+still being chosen by lane count — more than two lanes and the clip played
+whole — so the same backflip was a short woah on one street and a three second
+one on the next. The move was fixed and the sound was not, which from the
+player's side is the cue randomising itself for no reason they can see. It is a
+property of the move now: the running jump gets the short one, the backflip
+gets the whole thing, every time.
+
+Measured over 90 crossings spanning one to four lane streets: crane `none` ×18;
+running jump `none` ×9 and `1.47s` ×8; backflip `none` ×4 and `3.03s` ×14. Two
+lengths, each belonging to one move, and street width appearing nowhere in it.
+
+All three are still the same leap underneath — same squares, same immunity — so
+any of them fits any street.
 
 **The backflip always gets a woah; a front jump sometimes does.** The argument
 for withholding it was that a woah is what you say going over something
