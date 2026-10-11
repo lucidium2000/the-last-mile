@@ -3876,8 +3876,36 @@ out of frame at the top of every swing. 1.3 puts it back.
 Going over backwards to clear a single row of tarmac is a man showing off at a
 zebra crossing, and the backflip loses its weight if it is what he does to
 cross anything at all. So a **one-lane street gets the other thing the film is
-full of**: a flat-out sprint, arms and legs going, a trail behind him. Two
-lanes or more and he still flips.
+full of**: the running jump off the roof. He does not stop running to do it —
+he hits the kerb at full stride, leaves the ground, and **his legs keep going
+in the air** the whole way across, which is the whole look. Two lanes or more
+and he still flips.
+
+That falls out of the rig for free rather than needing a pose. `runGait()` is
+true for the entire crossing and the limb cycle is driven off `walkPh`, so the
+legs do not know or care that there is no ground under them — all the jump has
+to add is the arc. Measured across one: legs alternating −27/0, 0/−16, −24/0,
+0/−24 with the arms counter-swinging, through an arc peaking at 89px.
+
+72px of air, lower and flatter than the backflip's 94, because this one is
+going somewhere rather than going up — and it sits *on top of* the stride
+bounce rather than replacing it, so his body still pumps with the legs that are
+still going round. That is the difference between a man jumping and a man being
+lobbed. The shadow pulls in for it, as it does for the flip.
+
+**Same jump cue, no woah.** A woah is what you say going over something
+backwards; going over it forwards at a dead run, he has not got the breath.
+The cue is now told how long the jump is — 1.08s for the backflip, 0.54 for the
+running jump, derived from the constants rather than written down twice —
+because everything in it was written against the backflip and played unscaled
+its landing thump arrived half a second after he was already back on the
+pavement, which reads as a second event rather than as the end of the first.
+
+The six footfalls that used to play across this crossing are down to two: it
+was a run on the ground when they were written, and a man in the air does not
+have feet landing. What is left is the two strides he takes *into* it and the
+scrape of the last one leaving the kerb — the part that says he did not stop to
+jump.
 
 It is built **out of** the walk cycle rather than beside it. The walk is
 already a band-clipped limb rig, and the only thing a sprint is, is the same

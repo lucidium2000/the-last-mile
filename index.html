@@ -877,11 +877,17 @@ var AUDIO = (function(){
        of it. Bandpassed noise is broadband where a voice is, so it masks one
        far more effectively than its amplitude suggests - the woah was nominally
        four times louder than this and still disappeared into it. */
-    flip: function(){
-      whoosh({ f:170, to:2600, dur:0.44, g:0.085, q:0.9, peak:0.62 });
-      whoosh({ f:2600, to:170, dur:0.72, g:0.095, q:0.9, peak:0.26, at:0.40 });
-      tone({ f:180, to:42, dur:1.00, type:"sine", g:0.10, lp:420 });
-      hit({ f:700, to:120, dur:0.20, g:0.10, at:1.05 });
+    flip: function(secs){
+      /* Scaled to the length of the jump. Everything here was written against
+         the backflip's 1.08s, and the running jump is half that - played
+         unscaled its landing thump arrived half a second after he was back
+         on the pavement, which reads as a second event rather than as the
+         end of the first. */
+      var k = (secs || 1.08) / 1.08;
+      whoosh({ f:170, to:2600, dur:0.44*k, g:0.085, q:0.9, peak:0.62 });
+      whoosh({ f:2600, to:170, dur:0.72*k, g:0.095, q:0.9, peak:0.26, at:0.40*k });
+      tone({ f:180, to:42, dur:1.00*k, type:"sine", g:0.10, lp:420 });
+      hit({ f:700, to:120, dur:0.20, g:0.10, at:1.05*k });
     },
     missedClose: function(){
       tone({ f:392, to:196, dur:0.7, type:"sawtooth", g:0.22, lp:900 });
@@ -1420,20 +1426,19 @@ var AUDIO = (function(){
        The short one keeps its 90ms fade, because it IS being cut and a
        waveform truncated at an arbitrary sample is a click. The full one is
        never touched, so there is nothing to fade. */
-    /* THE SPRINT. Six footfalls across the crossing rather than the one note
-       a step gets, pitched down the way a fast foot lands flatter than a slow
-       one, with a rising hiss of air over the top and a scuff on the push-off.
-       No woah: a woah is what you say going over something, and he is going
-       THROUGH this one. */
-    sprint: function(){
+    /* THE PUSH-OFF, under the jump cue. It was six footfalls across the
+       crossing while that crossing was a run on the ground; it is a jump now,
+       and a man in the air does not have feet landing. What is left is the
+       two strides he takes INTO it and the scrape of the last one leaving
+       the kerb - the part that says he did not stop to jump. */
+    sprintOff: function(){
       if (!live()) return;
       var i;
-      for (i = 0; i < 6; i++){
-        hit({ f:1500 - i * 90, to:260, dur:0.085, g:0.17 - i * 0.012, at:i * 0.082 });
-        tone({ f:150 - i * 6, to:84, dur:0.09, type:"sine", g:0.11, at:i * 0.082 });
+      for (i = 0; i < 2; i++){
+        hit({ f:1500 - i * 110, to:260, dur:0.085, g:0.17, at:i * 0.075 });
+        tone({ f:150 - i * 8, to:84, dur:0.09, type:"sine", g:0.11, at:i * 0.075 });
       }
-      whoosh({ f:300, to:1900, dur:0.52, g:0.085, q:1.1, peak:0.72 });
-      hit({ f:4200, to:1400, hp:true, dur:0.16, g:0.09 });
+      hit({ f:4200, to:1400, hp:true, dur:0.17, g:0.10, at:0.14 });
     },
     woah: function(lanes){
       if (!live()) return;
@@ -6193,8 +6198,19 @@ function act(dir){
   G.flip   = (crossing && laneSpan >= 2) ? 1 : 0;
   G.sprint = (crossing && laneSpan === 1) ? 1 : 0;
   /* The lanes between the two kerbs, which is what the woah is sized to. */
-  if (G.flip){ AUDIO.flip(); AUDIO.woah(laneSpan); }
-  else if (G.sprint) AUDIO.sprint();
+  /* Both get the jump cue, and it is told how long the jump is so the
+     landing thump lands on the landing: 1.08s for the backflip, 0.54 for the
+     running jump. Derived rather than written down twice, so the sound
+     follows the constants if they move.
+
+     ONLY THE BACKFLIP GETS THE WOAH. A woah is what you say going over
+     something backwards; going over it forwards at a dead run, he has not
+     got the breath. */
+  if (G.flip || G.sprint){
+    AUDIO.flip(HOP_MS / 1000 / SLOW_MAN * (G.flip ? FLIP_SLOW : SPRINT_SLOW));
+    if (G.flip) AUDIO.woah(laneSpan);
+    else AUDIO.sprintOff();
+  }
   G.row = nr; G.col = nc; G.hop = 0;
   if (nr > G.maxRow){ G.maxRow = nr; progress(); }
   ensureRows(G.maxRow + ROWS_AHEAD);
@@ -7053,9 +7069,16 @@ function colSafeFor(r, col, secs){
    single row of tarmac is a man showing off at a zebra crossing, and the move
    loses its weight if it is what he does to cross anything at all.
 
-   So a one-lane street gets the OTHER thing the film is full of: a flat-out
-   run, arms and legs going, a trail behind him. Two lanes or more and he
-   still flips.
+   So a one-lane street gets the OTHER thing the film is full of: the running
+   jump off the roof. He does not stop running to do it - he hits the kerb at
+   full stride, leaves the ground, and his legs KEEP GOING in the air the
+   whole way across, which is the whole look. Two lanes or more and he still
+   flips.
+
+   That falls out of the rig for free rather than needing a pose: runGait()
+   is true for the entire crossing and the limb cycle is driven off walkPh,
+   so the legs do not know or care that there is no ground under them. All
+   the jump has to add is the arc.
 
    It is built out of the walk cycle rather than beside it, because the walk
    is already a band-clipped limb rig and the only thing a sprint is, is the
@@ -7078,7 +7101,7 @@ function colSafeFor(r, col, secs){
 var SPRINT_SLOW = 3;        // a kerb-to-kerb hop takes this much longer
 var SPRINT_PHASE = 2;       // twice the footfalls per square
 var SPRINT_LIFT = 27, SPRINT_ARM = 19, SPRINT_KNEE = 1.3;
-var SPRINT_BOB = 7;         // px of body bounce, on the whole figure
+var SPRINT_JUMP = 72;       // px of air under the running jump
 var SPRINT_GHOSTS = 3;      // the trail, on the crossing only
 
 /* Is he running? The coat is the whole test. The backflip is excluded because
@@ -7142,11 +7165,14 @@ function playerPos(){
      shield ring and anything else reading pp.lift all agree about how far
      off the ground he is. */
   if (G.flip && G.hop < 1) lift += FLIP_LIFT * Math.sin(G.hop * Math.PI);
-  /* The crossing bounces harder than an ordinary stride - it is the one
-     where he is flat out - on the whole figure so the shadow pumps with it.
-     A runner whose head stays level is a runner on a conveyor belt. */
+  /* And the running jump's arc. Lower and flatter than the backflip's 94,
+     because this one is going somewhere rather than going up - and it sits
+     ON TOP of the stride bounce already in `lift` above rather than
+     replacing it, so his body still pumps with the legs that are still
+     going round. That is the difference between a man jumping and a man
+     being lobbed. */
   if (G.sprint && G.hop < 1)
-    lift += SPRINT_BOB * sprintAmt() * Math.abs(Math.sin(gaitPhase()));
+    lift += SPRINT_JUMP * Math.sin(G.hop * Math.PI);
   return { col:G.fromCol + (G.col-G.fromCol)*e, row:G.fromRow + (G.row-G.fromRow)*e,
            lift:lift, sq:s };
 }
@@ -15301,6 +15327,10 @@ function drawPlayer(pp){
      flight does. A full-size shadow under a man upside down in the air is
      the one thing that would say none of this is really happening. */
   var fk = flipK(), fsh = (fk > 0 && fk < 1) ? Math.sin(fk * Math.PI) : 0;
+  /* The running jump is air too, so the shadow pulls in for it as well -
+     a touch less, because there is a touch less of it. */
+  if (G.sprint && G.hop > 0 && G.hop < 1)
+    fsh = Math.max(fsh, Math.sin(G.hop * Math.PI) * 0.8);
   var k = (1 - pp.sq*0.07) * (1 - fly*0.45) * (1 - fsh*0.40);
   ctx.globalAlpha = (0.34 - pp.sq*0.024) * (1 - fly*0.45) * (1 - fsh*0.45);
   ctx.fillStyle = "#000";
