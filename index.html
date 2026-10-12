@@ -8742,7 +8742,23 @@ function rideAct(dir){
   }
 
   var ns = R.slot + d * RIDE_SUB;
-  if (ns < -0.001 || ns > RIDE_SLOTS - 1 + 0.001){ AUDIO.bump(); return; }
+  /* A STEP INTO THE END WALL IS A SHORT STEP, not a refused one. This used
+     to reject any move whose target fell outside the car, which is right
+     when you are standing ON the end and wrong everywhere else - and the
+     fight made "everywhere else" a real place. The uppercut commits him to
+     wherever the lunge left him, which is some arbitrary fraction of a
+     slot rather than a multiple of the step, so a man who lands at 0.19
+     has exactly two options: 0.44, or a quarter-step to -0.06 that gets
+     thrown away. He can never reach 0.
+
+     That is the roll of notes you cannot pick up. It is lying at slot 0,
+     the pickup radius is 0.13, and he is pinned at 0.19 with no legal move
+     that closes it.
+
+     So the step is clamped to the end instead of discarded, and only a man
+     who is ALREADY against the wall gets the bump. */
+  if ((d < 0 && R.slot <= 0.001) ||
+      (d > 0 && R.slot >= RIDE_SLOTS - 1 - 0.001)){ AUDIO.bump(); return; }
   /* Walking past somebody on a train. It used to be the pavement rule - the
      first attempt got a mouthful and no step, the second went through - and
      on a five-slot car that is a wall, not a crowd. The pavement is a street
@@ -8796,23 +8812,7 @@ function rideAct(dir){
   /* Within half a slot counts, because he no longer lands on the integers
      every time and a roll of notes you walk past without taking is worse
      than one that is not there. */
-  if (R.cash >= 0 && !R.cashGot && Math.abs(ns - R.cash) <= RIDE_TAKE){
-    R.cashGot = true;
-    /* The card never comes up on a train - it would throw him out of the
-       carriage mid-stride - so without this he was handed a five-figure sum
-       and shown nothing at all. The number goes up over his head instead,
-       in the same green and off the same roll. */
-    R.take = { t:0, amt: chuckPayout("Someone left it on the seat.") };
-    /* Same line in the carriage. He does not have to have noticed it first -
-       beating him to something he had not spotted yet is funnier than
-       beating him to something he was walking at, and either way he is
-       standing right there watching it go into your pocket. */
-    if (R.shady >= 0 && Math.abs(R.shadyX - ns) <= HOOD_SPLIT_SLOTS &&
-        !R.ko && R.t - (R.sayAt || -99) > 1.2){
-      R.sayAt = R.t; R.sayLine = HOOD_SPLIT;
-      AUDIO.say(11, SAY_ASK);
-    }
-  }
+  if (R.cash >= 0 && !R.cashGot && Math.abs(ns - R.cash) <= RIDE_TAKE) takeCash(R);
   /* NOT OVER A MAN ON THE FLOOR. There was no `ko` test here, so walking
      onto his slot after decking him raised "he is watching your bag" about
      somebody face down in the aisle - and raised it OVER the celebration,
@@ -9089,6 +9089,14 @@ function updateShady(dt){
       shakeFor(32, 0.10);
       burst(hx, hy, "#ffd9a8");
       sweatBurst(R, hx, hy);
+      /* AND HE DROPS IT. If he got to the roll first it has been in his
+         coat since; it is on the floor now, where he fell. Only if HE took
+         it - a roll already in the player's pocket does not come back out
+         of it. */
+      if (R.cashHim && R.cashGot){
+        R.cash = Math.max(0, Math.min(RIDE_SLOTS - 1, Math.round(R.shadyX)));
+        R.cashGot = false; R.cashHim = false; R.gotCash = 0;
+      }
     }
     /* The carriage reacts a beat late, which is the whole of it: a room
        takes a moment to understand what it just saw. */
@@ -9186,6 +9194,7 @@ function updateShady(dt){
         R.look += (1 - R.look) * Math.min(1, dt * 2.4);
         if (Math.abs(R.shadyX - R.cash) < 0.08){
           R.cashGot = true;              // and it is gone. He was quicker.
+          R.cashHim = true;                // ...and it is HIS, until it is not
           R.gotCash = SHADY_CASH_SECS;
           R.sayAt = R.t; R.sayLine = "Somebody's lucky day.";
           AUDIO.say(11, SAY_WARM);
@@ -9301,9 +9310,41 @@ function updateShady(dt){
   }
 }
 
+/* TAKING THE ROLL, as a thing that happens where he IS rather than only
+   where he just stepped. It used to live inside the move handler and test
+   the square being stepped ONTO, which works for every ordinary approach
+   and fails for the two the fight created: land the uppercut on top of the
+   roll and he is standing on it with no step left to make, or land it
+   against the end of the car and there is no step available at all. Either
+   way the money sat under his feet and would not be picked up.
+
+   Position, not motion. Checked on the move for the immediate feel of it
+   and again every frame for everything else. */
+function takeCash(R){
+  if (R.cash < 0 || R.cashGot) return;
+  R.cashGot = true;
+  /* The card never comes up on a train - it would throw him out of the
+     carriage mid-stride - so without this he was handed a five-figure sum
+     and shown nothing at all. The number goes up over his head instead,
+     in the same green and off the same roll. */
+  R.take = { t:0, amt: chuckPayout("Someone left it on the seat.") };
+  /* Same line in the carriage. He does not have to have noticed it first -
+     beating him to something he had not spotted yet is funnier than beating
+     him to something he was walking at, and either way he is standing right
+     there watching it go into your pocket. */
+  if (R.shady >= 0 && Math.abs(R.shadyX - rideManX(R)) <= HOOD_SPLIT_SLOTS &&
+      !R.ko && R.t - (R.sayAt || -99) > 1.2){
+    R.sayAt = R.t; R.sayLine = HOOD_SPLIT;
+    AUDIO.say(11, SAY_ASK);
+  }
+}
+
 function updateRide(dt){
   var R = G.ride;
   R.t += dt;
+  /* ...and again from wherever he is standing. See takeCash. */
+  if (R.cash >= 0 && !R.cashGot && Math.abs(R.slot - R.cash) <= RIDE_TAKE)
+    takeCash(R);
   if (R.take){
     R.take.t += dt;
     if (R.take.t >= TAKE_SECS) R.take = null;
