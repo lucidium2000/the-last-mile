@@ -5971,7 +5971,11 @@ function unitsUpsell(){
   burst(G.col*TILE + TILE/2, rowScreenY(G.row) - 40, POWERS.path.col);
 }
 
-function flash(name, line, col){ G.flash = { life:2.2, name:name, line:line, col:col }; }
+/* `train` marks a banner raised BY the ride. drawHud bails out during one,
+   so without it these never reach the screen at all. */
+function flash(name, line, col, train){
+  G.flash = { life:2.2, name:name, line:line, col:col, train:!!train };
+}
 /* A flash lives in the top strip and lasts two seconds. Some things need the
    middle of the screen and a few more. */
 function notice(title, line, body, secs, col, art){
@@ -8632,7 +8636,7 @@ function rideAct(dir){
     AUDIO.heave();
     var swung = chuckPayout("He dropped it on his way down.", true);
     flash("JAB, JAB, UPPERCUT",
-          "He picked the wrong commuter.  +" + cash(swung), C.good);
+          "He picked the wrong commuter.  +" + cash(swung), C.good, true);
     return;
   }
 
@@ -8906,7 +8910,19 @@ function updateShady(dt){
   /* Ticked before the knock-out return, or a man floored a frame after he
      grabbed the roll keeps the dollar signs for the rest of the ride. */
   if (R.gotCash > 0) R.gotCash = Math.max(0, R.gotCash - dt);
-  if (R.money) R.money.t += dt;
+  /* THE WIN'S NUMBER STAYS UP UNTIL THE DOORS DO. Three hundred thousand
+     and a carriage full of people saying something is the payoff of the
+     whole scene, and it was fading out while he was still standing there
+     with his fist in the air.
+
+     Its clock runs far enough for the number to POP IN and then stops, so
+     it arrives properly and then simply holds; the moment the doors open
+     it picks up and fades on its own curve. A loss is not held - bad news
+     has been read by the time the red has finished rising. */
+  if (R.money){
+    var holding = R.money.big && !R.opened && R.money.t >= FLOAT_SECS * 0.25;
+    if (!holding) R.money.t += dt;
+  }
 
   /* THE EYES COME UP WHILE HE IS ON YOU. There was already a red in the
      hood - R.eyes, which is a rare flicker that means nothing and is all
@@ -9116,7 +9132,7 @@ function updateShady(dt){
       R.knifeSide = R.shadyX >= rideManX(R) ? 1 : -1;
       shadySay(R, true);
       AUDIO.knife();
-      flash("HE HAS A KNIFE", "Move. Either way.", C.danger);
+      flash("HE HAS A KNIFE", "Move. Either way.", C.danger, true);
     } else {
       R.knife += dt;
       if (R.knife >= KNIFE_GRACE){
@@ -9139,7 +9155,7 @@ function updateShady(dt){
         flash(first ? "HE TOOK YOUR BAG" : "HE IS STILL ON YOU",
               "\u2212" + cash(TRAIN_HIT_CASH) + " off the pipeline." +
               (alsoCash ? "  And the roll off the seat." : ""),
-              C.danger);
+              C.danger, true);
         if (G.hp <= 0){ G.hp = 0; dieKnife(); return; }
       }
     }
@@ -9181,6 +9197,15 @@ function updateRide(dt){
       }
     }
   }
+  /* The banner too. G.flash decays below the ride's early return, so during
+     a ride it does not expire at all - which happened to be what this scene
+     wanted and was luck rather than design. Now it is deliberate: banners
+     hold while the doors are shut and start their clock when they open. */
+  if (R.opened && G.flash){
+    G.flash.life -= dt;
+    if (G.flash.life <= 0) G.flash = null;
+  }
+
   updateShady(dt);
   /* HE CAN DIE IN THERE NOW, and dying clears the ride - so everything
      after this point has to check. updateRideSound went straight to
@@ -9434,7 +9459,7 @@ function startCheer(R, cx0, cw){
   carFloat(R, TRAIN_WIN_CASH, true);
   AUDIO.chaChing(); AUDIO.deal();
   flash("YOU SAVED THE TRAIN!",
-        "+" + cash(TRAIN_WIN_CASH) + " from a grateful carriage.", C.good);
+        "+" + cash(TRAIN_WIN_CASH) + " from a grateful carriage.", C.good, true);
   if (R.pax){
     for (var i = 0; i < R.pax.length; i++){
       var px2 = R.pax[i];
@@ -16229,20 +16254,45 @@ function drawPickupGlow(kind, col, sy, bob){
     ctx.fill();
   }
 
+  /* A TIGHT PALE CORE inside the coloured halo. The halo above is the
+     colour at low alpha spread wide, which tints; this is the opposite -
+     small, bright and nearly white - and having both is the difference
+     between something coloured and something LIT. Three layers, because
+     two steps are visible as steps and four cost more than they add. */
+  ctx.fillStyle = "#ffffff";
+  for (var w2 = 3; w2 >= 1; w2--){
+    ctx.globalAlpha = (0.085 + 0.075 * pul) * g * (1 - w2 / 4.6);
+    ctx.beginPath();
+    ctx.ellipse(cx, cy, 9 + w2 * 7, 10 + w2 * 8, 0, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
   // a ring leaving the ground every 1.2s
   var rp = ((G.t * 0.85) + ph) % 1;
-  ctx.globalAlpha = (1 - rp) * 0.42 * g;
   ctx.strokeStyle = k.col; ctx.lineWidth = 3.5;
+  ctx.globalAlpha = (1 - rp) * 0.42 * g;
   ctx.beginPath();
   ctx.ellipse(cx, sy + 6, 28 + rp*74, 8 + rp*23, 0, 0, Math.PI*2);
   ctx.stroke();
+  /* A second one half a period behind, thinner and dimmer. One ring every
+     1.2s is a pulse you wait for; two overlapping is something running. */
+  var rp2 = (rp + 0.5) % 1;
+  ctx.globalAlpha = (1 - rp2) * 0.20 * g;
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.ellipse(cx, sy + 6, 28 + rp2*74, 8 + rp2*23, 0, 0, Math.PI*2);
+  ctx.stroke();
 
-  // and sparks coming off it
-  for (var q = 0; q < 4; q++){
-    var sp = ((G.t * 0.62) + q*0.25 + ph*0.3) % 1;
+  /* And sparks coming off it - six now, and the white ones TWINKLE: a size
+     that only shrinks is a thing receding, and a size that also flickers is
+     a thing catching the light. */
+  for (var q = 0; q < 6; q++){
+    var sp = ((G.t * 0.62) + q*0.1667 + ph*0.3) % 1;
+    var white = (q % 2) === 1;
     ctx.globalAlpha = (1 - sp) * 0.8 * g;
-    ctx.fillStyle = (q % 2) ? "#ffffff" : k.col;
+    ctx.fillStyle = white ? "#ffffff" : k.col;
     var sz = 5 - sp*3;
+    if (white) sz *= 0.78 + 0.34 * Math.abs(Math.sin(G.t * 9 + q * 1.9));
     ctx.fillRect(cx + Math.sin(sp*6.3 + q*2.1)*30 - sz/2, sy - 6 - sp*118, sz, sz);
   }
   ctx.globalAlpha = 1;
@@ -18564,8 +18614,18 @@ function drawHud(){
 
   /* Nothing shouts over the train. drawHud runs on top of drawRide, so a
      banner raised just before the turnstile - or on the single frame a ride
-     ends - sat across the carriage. The ride is its own scene; let it be one. */
-  if (G.ride) return;
+     ends - sat across the carriage. The ride is its own scene; let it be one.
+
+     EXCEPT THE ONES THE RIDE ITSELF RAISES, which have nowhere else to go.
+     This gate was swallowing every banner the subway has - the knife
+     warning, the robbery, and the win - none of which has ever reached the
+     screen. The band is at y134 and the carriage starts at y470, so it was
+     never covering the thing it was protecting. */
+  if (G.ride){
+    if (G.flash && G.flash.train && !G.tamWin && !G.addonWin && !G.champWin)
+      drawFlashBand();
+    return;
+  }
 
   /* Both message bands sit ABOVE the horizon, over the skyline rather than
      over the road. They used to sit at y=380, in the clear part of the
@@ -18664,15 +18724,18 @@ function drawHud(){
     txt("+" + cash(ADDON_BONUS), ax + aw2 - 166, ay + 108, 48, C.good);
     ctx.globalAlpha = 1;
   }
-  if (G.flash && !G.tamWin && !G.addonWin && !G.champWin){
-    ctx.globalAlpha = Math.min(1, G.flash.life/0.4);
-    var fw = 880, fx = (LOGICAL_W-fw)/2;
-    plate(fx, MSG_Y, fw, 96, C.ink);
-    ctx.fillStyle = G.flash.col; ctx.fillRect(fx, MSG_Y, 8, 96);
-    txt(G.flash.name, LOGICAL_W/2, MSG_Y+32, 26, G.flash.col, "center", fw-60);
-    txt(G.flash.line, LOGICAL_W/2, MSG_Y+68, 21, C.text,      "center", fw-60);
-    ctx.globalAlpha = 1;
-  }
+  if (G.flash && !G.tamWin && !G.addonWin && !G.champWin) drawFlashBand();
+}
+
+/* Pulled out of drawHud so the train can raise one. */
+function drawFlashBand(){
+  ctx.globalAlpha = Math.min(1, G.flash.life/0.4);
+  var fw = 880, fx = (LOGICAL_W-fw)/2;
+  plate(fx, MSG_Y, fw, 96, C.ink);
+  ctx.fillStyle = G.flash.col; ctx.fillRect(fx, MSG_Y, 8, 96);
+  txt(G.flash.name, LOGICAL_W/2, MSG_Y+32, 26, G.flash.col, "center", fw-60);
+  txt(G.flash.line, LOGICAL_W/2, MSG_Y+68, 21, C.text,      "center", fw-60);
+  ctx.globalAlpha = 1;
 }
 
 /* The moment a piece of ThousandEyes lands. The two best things in the game
