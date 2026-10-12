@@ -8450,13 +8450,12 @@ var JAB_POW  = Math.log(0.5) / Math.log(JAB_PEAK);
    bouncing, not a man working. In on the first jab, in for the second and
    the leap, and carried back out as he comes down, because his actual slot
    never changed and landing anywhere else would snap. */
+var COMBO_REACH = 0.92;
 function comboLunge(ft){
   if (ft <= 0) return 0;
-  var IN = 0.16 * DP_SLOW, OUT = FIGHT_SECS - 0.42 * DP_SLOW;
-  if (ft < IN) return Math.sin((ft / IN) * Math.PI * 0.5) * 0.92;
-  if (ft < OUT) return 0.92;
-  var v = Math.min(1, (ft - OUT) / Math.max(0.01, FIGHT_SECS - OUT));
-  return 0.92 * (1 - v * v);
+  var IN = 0.16 * DP_SLOW;
+  if (ft < IN) return Math.sin((ft / IN) * Math.PI * 0.5) * COMBO_REACH;
+  return COMBO_REACH;          // ...and he stays there. See the landing.
 }
 /* Which jab, and how far through it - the arm goes out and comes back on
    one sine, which is the whole of a jab. */
@@ -8574,6 +8573,7 @@ function rideAct(dir){
     R.fight = 1; R.fightT = 0; R.ko = 0; R.koT = 0; R.knife = 0; R.ken = false;
     R.jolt = 0;                          // what the jabs do to him
     R.dpDx = R.shadyX - rideManX(R);     // the gap, to be crossed
+    R.dpBase = rideManX(R);              // ...measured from here, once
     R.face = d;
     AUDIO.heave();
     var swung = chuckPayout("He dropped it on his way down.", true);
@@ -8889,7 +8889,23 @@ function updateShady(dt){
     /* The knockdown starts at the uppercut and runs on the SAME slowed
        clock, or a man in slow motion knocks somebody over at full speed. */
     if (R.fightT >= KO_AT){ R.ko = 1; R.koT = (R.fightT - KO_AT) / DP_SLOW; }
-    if (R.fightT >= FIGHT_SECS) R.fight = 0;
+    if (R.fightT >= FIGHT_SECS){
+      /* HE KEEPS THE GROUND HE TOOK. The lunge used to hand it back on the
+         way down, which meant the last thing the uppercut did was drift him
+         a square backwards through the air - he looked like he was being
+         reeled in off his own punch.
+
+         So the offset becomes a real position instead. comboLunge holds at
+         COMBO_REACH to the end, and on the last frame that same figure is
+         written into his slot: the drawn x before and after is identical,
+         so there is nothing to see, and he comes straight down standing
+         over the man he hit. Clamped, because the far end of a carriage is
+         still the far end of a carriage. */
+      var land = R.dpBase + R.dpDx * COMBO_REACH;
+      land = Math.max(0, Math.min(RIDE_SLOTS - 1, land));
+      R.slot = land; R.slotFrom = land; R.slotX = land; R.stepT = 1;
+      R.fight = 0;
+    }
     return;
   }
   if (R.ko){
@@ -9194,6 +9210,20 @@ function drawRider(cx0, cw, cy){
   var side = R.face || 1;
   var W = sp.w * 0.92, H = sp.h * 0.92;
   var baseY = cy + CAR_FLOOR - lift + sp.h * 0.92;
+  /* HIT. The same two things the street does - a flicker and a reel - plus
+     a shove away from whoever threw it, which the street does not need
+     because out there the thing that hit you has already gone past. In here
+     he is still standing next to it.
+
+     The flicker is a skipped draw rather than an alpha, which is what makes
+     it read as a hit rather than as a ghost; 26Hz is the street's rate and
+     the two should not disagree. */
+  if (G.hurtT > 0 && !R.fight){
+    if (Math.floor(G.hurtT * 26) % 2 === 0) return;
+    var away = -(R.knifeSide || 1);
+    mx += Math.sin(G.hurtT * 46) * 9 + away * 30 * Math.min(1, G.hurtT / 0.5);
+  }
+
   var ft = R.fight ? R.fightT : -1;
 
   /* ONE BODY, DRAWN AT A POINT ON THE FIGHT'S CLOCK. Everything - where he
@@ -9204,7 +9234,7 @@ function drawRider(cx0, cw, cy){
     var k = (t >= UP_AT) ? Math.min(1, (t - UP_AT) / DP_SECS) : -1;
     var rot = lean + (k >= 0 ? -DP_TILT * dpArch(k) * side : 0);
     var px = (t >= 0 && R.dpDx)
-           ? rideSlotX(rideManX(R) + R.dpDx * comboLunge(t), cx0, cw) : mx;
+           ? rideSlotX(R.dpBase + R.dpDx * comboLunge(t), cx0, cw) : mx;
     ctx.save();
     if (alpha < 1) ctx.globalAlpha = alpha;
     ctx.translate(px, baseY - (k >= 0 ? dpRise(k) : 0));
@@ -9461,7 +9491,7 @@ function drawPunchArm(cx0, cw, cy){
   var lift = (R.stepT != null && R.stepT < 1) ? Math.sin(R.stepT * Math.PI) * 7 : 0;
   var baseY = cy + CAR_FLOOR - lift + sp.h * 0.92;
   var k = (t >= UP_AT) ? Math.min(1, (t - UP_AT) / DP_SECS) : -1;
-  var px = R.dpDx ? rideSlotX(rideManX(R) + R.dpDx * comboLunge(t), cx0, cw)
+  var px = R.dpDx ? rideSlotX(R.dpBase + R.dpDx * comboLunge(t), cx0, cw)
                   : rideSlotX(rideManX(R), cx0, cw);
 
   /* TWO SHAPES, ONE ARM. A jab goes out level and comes back on a sine; the
@@ -14052,6 +14082,12 @@ function update(dt){
     if (G.shake === 0) G.shakeFade = 0;
   }
 
+  /* ...and so does the hit flicker, for the third time in this scene. It
+     decayed below the ride's early return, so a blow landed on a train lit
+     the flicker and then froze it on: he would have strobed for the rest of
+     the journey. */
+  if (G.hurtT > 0) G.hurtT = Math.max(0, G.hurtT - dt);
+
   /* THE PARTICLES MOVE UP HERE TOO, and for the same reason the shake does.
      This loop used to sit at the bottom, below the ride's early return, so
      a note thrown on a train hung motionless in the air until the doors
@@ -14173,7 +14209,6 @@ function update(dt){
   }
   if (G.dashPulse > 0) G.dashPulse = Math.max(0, G.dashPulse - dt * 3.4);
   if (G.leapT > 0) G.leapT = Math.max(0, G.leapT - dt);
-  if (G.hurtT > 0) G.hurtT = Math.max(0, G.hurtT - dt);
   if (G.nahT > 0)  G.nahT  = Math.max(0, G.nahT - dt);
   if (G.yumT > 0){
     G.yumT = Math.max(0, G.yumT - dt);
