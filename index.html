@@ -20118,6 +20118,36 @@ function statLine(st){
          "  \u00B7  " + st.rides + " subway rides";
 }
 
+/* ---------------------------------------------------- THE CONTEST CLOCK --
+   Noon in New York on the 16th of October, held as a UTC INSTANT rather
+   than a local one. Every panel then counts down to the same moment
+   whatever its own clock is set to, and a device sitting in the wrong
+   timezone - or with no timezone at all, which happens - cannot disagree
+   with the one next to it about when the thing ends.
+
+   16:00 UTC is noon Eastern. The US is still on daylight time in October;
+   it does not come off until November, so this is EDT at UTC-4 rather than
+   EST at UTC-5. Worth saying out loud because getting it wrong is an hour
+   nobody would notice until the last one.
+
+   NYC ONLY. The unmarked board is the open playground and has no deadline
+   to show. */
+var CONTEST_END = Date.UTC(2026, 9, 16, 16, 0, 0);
+function contestLeft(){
+  return (TEAM === "nyc") ? (CONTEST_END - Date.now()) : null;
+}
+function contestLine(ms){
+  if (ms <= 0) return "CLOSED";
+  var mins = Math.floor(ms / 60000);
+  var h = Math.floor(mins / 60), m = mins % 60, d = Math.floor(h / 24);
+  /* Days appear only once there are any. "86h 22m" is a number somebody has
+     to do arithmetic on; "3d 14h 22m" is one they can read - and the hours
+     and minutes are still right there either way. On the last day it goes
+     back to plain hours and minutes, which is when that is what you want. */
+  return d > 0 ? (d + "d  " + (h % 24) + "h  " + m + "m")
+               : (h + "h  " + m + "m");
+}
+
 function drawBoard(){
   ctx.fillStyle = "rgba(6,5,4,0.93)"; ctx.fillRect(0, 0, LOGICAL_W, LOGICAL_H);
   /* WHICH BOARD, said on the board. Two panels side by side showing
@@ -20219,6 +20249,15 @@ function drawBoard(){
   plate(B.x, B.y, B.w, B.h, "rgba(10,8,13,0.72)", 10);
   ctx.strokeStyle = C.brand; ctx.lineWidth = 2;
   rr(B.x, B.y, B.w, B.h, 10); ctx.stroke();
+  /* The clock, between the summary and the button. Drawn before them both
+     so neither has to make room for it. */
+  var cLeft = contestLeft();
+  if (cLeft !== null){
+    var closed = cLeft <= 0;
+    txt(closed ? "THE CONTEST HAS" : "CONTEST CLOSES IN",
+        LOGICAL_W/2, 838, 20, C.textDim);
+    txt(contestLine(cLeft), LOGICAL_W/2, 874, 40, closed ? C.danger : C.brand);
+  }
   txt("FULL REPORT", B.x + B.w/2, B.y + 28, 26, C.brand);
   txt("every run on this device", B.x + B.w/2, B.y + 52, 17, C.textDim);
 
