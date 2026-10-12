@@ -30,7 +30,18 @@
   #ui{
     position:absolute;right:18px;bottom:16px;z-index:5;
     display:flex;align-items:center;gap:10px;
+    transition:opacity .45s ease;
   }
+  /* THE SCREENSAVER IS A SCREENSAVER. Two chrome buttons parked in the
+     corner of an idle panel are the one thing on it that still says
+     "application", and they are the first thing a passer-by reads. They go
+     with everything else.
+
+     Hidden with opacity and pointer-events rather than display:none so the
+     fade is a fade, and so the layout underneath never moves - a button that
+     reflows on its way out draws the eye to exactly the corner it is trying
+     to leave. */
+  #ui.asleep{ opacity:0; pointer-events:none; }
   #fs,#vol{
     display:none;align-items:center;gap:8px;margin:0;padding:8px 13px;
     border:2px solid #ff6a13;border-radius:8px;
@@ -1746,6 +1757,15 @@ function layout(){
   }
 }
 /* ------------------------------------------------------------ full screen */
+var uiBox = document.getElementById("ui");
+/* Only on a change. This is asked every frame and a style write every frame
+   is a layout the browser did not need to do. */
+var uiAsleep = false;
+function uiSleep(on){
+  if (on === uiAsleep || !uiBox) return;
+  uiAsleep = on;
+  uiBox.className = on ? "asleep" : "";
+}
 var fsBtn = document.getElementById("fs");
 function fsNow(){
   return document.fullscreenElement || document.webkitFullscreenElement ||
@@ -19183,6 +19203,7 @@ function drawSaver(){
 /* --------------------------------------------------------------- main loop */
 var fps = { acc:0, frames:0, value:0 };
 function render(){
+  uiSleep(!!G.saver);
   if (G.saver){ ctx.setTransform(scale, 0, 0, scale, 0, 0); drawSaver(); return; }
   var sx = 0, sy = 0;
   /* Never while a scene is up. startScene clears it, so this is the backstop
