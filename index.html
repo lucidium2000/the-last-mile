@@ -8367,13 +8367,7 @@ var RIDE_PER_ST = 0.6, RIDE_RUN_MIN = 1.0;
    gets ridden, not just on what gets rolled. */
 var SPAN_MIN = 7, SPAN_MAX = 15;
 function rideRun(R){ return (R && R.runDur) || RIDE_PHASES.run; }
-/* HOW FAR THROUGH THE JOURNEY HE IS, which is not the same as how long he
-   has been on the train. R.t cannot simply be frozen while the fight runs -
-   every speech bubble in the carriage is timed off it, so a frozen clock is
-   a carriage full of people whose words never go away - so the HELD time is
-   accumulated separately and taken off. The train stops; the world in it
-   does not. */
-function rideElapsed(R){ return R.t - (R.heldT || 0); }
+
 var RIDE_SLOTS = 5;
 /* The man at the far end of the car. He closes on you in a straight line at
    his own pace rather than in slot-sized hops - he is not playing the same
@@ -8853,21 +8847,27 @@ function shadySay(R, hard){
   AUDIO.say(hard ? 3 : 11, sayFor(R.sayLine, SAY_CROSS));
 }
 
-/* ------------------------------------------------------ THE TRAIN WAITS --
-   Once the blade is out, the ride stops being on a timetable. It used to be
-   a countdown either way, which meant the honest answer to a man with a
-   knife was to stand still and let the doors save you - the one solution
-   the scene must not have.
+/* ------------------------------------------------------ THE DOORS WAIT --
+   The train runs its route on time - the counter above the window ticks
+   down, it pulls in, it stops. What it will not do is let him OUT.
 
-   Held until it is finished, and finished means somebody is on the floor.
-   He has to be put down, or the man with the knife wins.
+   That distinction is the whole thing. Freezing the journey was the first
+   attempt and it was wrong in an obvious way once you see it: a subway
+   train does not stop between stations because somebody on it has a knife.
+   It arrives exactly when it was going to. The doors are what the fight is
+   holding shut.
 
-   Not held before the blade comes out: a ride where nothing happens is
-   still a ride, and it still has a schedule. */
-function trainHeld(R){
+   And it has to hold them, because the alternative is that the honest
+   answer to a man with a knife is to stand still and let the doors save
+   you - which is the one solution this scene cannot have.
+
+   Finished means somebody is on the floor: he gets put down, or the man
+   with the knife wins. If it is him on the floor, the carriage gets its
+   celebration and then a long beat before anybody is going anywhere. */
+function doorsHeld(R){
   if (!R || R.shady < 0) return false;
   if (R.fight) return true;                 // the combo
-  if (R.ko) return (R.winHold || 0) > 0;    // the carriage, and a beat after
+  if (R.ko) return (R.winHold || 0) > 0;    // the carriage, and three seconds
   return !!R.engaged;                       // the blade is out, unresolved
 }
 
@@ -9151,9 +9151,6 @@ function updateShady(dt){
 function updateRide(dt){
   var R = G.ride;
   R.t += dt;
-  /* Everything that happens IN the carriage keeps its clock; the journey
-     does not. See rideElapsed. */
-  if (trainHeld(R)) R.heldT = (R.heldT || 0) + dt;
   if (R.take){
     R.take.t += dt;
     if (R.take.t >= TAKE_SECS) R.take = null;
@@ -9203,12 +9200,19 @@ function updateRide(dt){
     var f = Math.min(1, R.t / rd);
     var e = f < 0.5 ? 2*f*f : 1 - Math.pow(-2*f + 2, 2)/2;
     G.camRow = R.camFrom + (R.toRow - R.camFrom) * e;
-    if (rideElapsed(R) >= rd && !trainHeld(R)){
-      R.phase = "arrive"; R.t = 0; R.heldT = 0; AUDIO.trainStop();
-    }
+    if (R.t >= rd){ R.phase = "arrive"; R.t = 0; AUDIO.trainStop(); }
   } else if (R.phase === "arrive"){
-    if (!R.opened && R.t > 0.35){ R.opened = true; AUDIO.doorsOpen(); }
-    if (R.t >= RIDE_PHASES.arrive){
+    /* ITS OWN CLOCK, not R.t. Everything the carriage says is timed off
+       R.t, so it has to keep running while the doors are shut - and the
+       door sequence has to start from nothing the moment they are released,
+       or a fight that outlasts the journey ends with the doors opening and
+       him stepping off on the same frame. */
+    if (doorsHeld(R)) R.doorT = 0;
+    else {
+      R.doorT = (R.doorT || 0) + dt;
+      if (!R.opened && R.doorT > 0.35){ R.opened = true; AUDIO.doorsOpen(); }
+    }
+    if ((R.doorT || 0) >= RIDE_PHASES.arrive){
       R.phase = "up"; R.t = 0;
       G.row = R.toRow; G.fromRow = R.toRow;
       G.col = R.toCol; G.fromCol = R.toCol; G.hop = 1;
@@ -9363,12 +9367,18 @@ function drawRider(cx0, cw, cy){
    goes up. The money is the part that makes it a celebration rather than
    applause; it is also the only moment in the game where cash comes out of
    somebody who is not being robbed. */
-var CHEER_SECS = 2.4, CHEER_HOP = 0.52;
-/* ...and the train waits out all of it plus a beat. The reward, the thrown
-   money and five people saying something are all worth more than the
-   fourteen seconds they cost, and a station arriving over the top of them
-   would throw the lot away. */
-var WIN_PAUSE = 1.1;
+/* CAR_, because there is already a CHEER_SECS in this file - the hero's own
+   little celebration on the street, declared a few thousand lines further
+   down. Two top-level `var`s of the same name are one variable, and the
+   later assignment wins: this was silently running the carriage on the
+   street cheer's 1.75s and the name here was doing nothing at all. */
+var CAR_CHEER_SECS = 2.4, CHEER_HOP = 0.52;
+/* ...and the doors stay shut for all of it plus three seconds. The reward,
+   the thrown money and five people saying something are worth more than
+   the time they cost, and doors opening over the top of them would throw
+   the lot away. Three seconds of nobody going anywhere afterwards is the
+   beat that makes it land. */
+var WIN_PAUSE = 3.0;
 var CHEER_LINES = [
   "YESSS!", "Got him!", "Oh my GOD", "Somebody film that",
   "That's my train!", "He had it coming", "LET'S GO!",
@@ -9402,8 +9412,8 @@ function cheerMoney(R, cx0, cw){
 }
 
 function startCheer(R, cx0, cw){
-  R.cheer = CHEER_SECS;
-  R.winHold = CHEER_SECS + WIN_PAUSE;
+  R.cheer = CAR_CHEER_SECS;
+  R.winHold = CAR_CHEER_SECS + WIN_PAUSE;
   cheerMoney(R, cx0, cw);
   AUDIO.cheer();
   /* The carriage pays him. Three hundred thousand - three blows' worth - so
@@ -9659,7 +9669,7 @@ function drawPunchArm(cx0, cw, cy){
        punch's. The uppercut throws from a body arched back and travelling;
        this one is a man standing still, and the same socket that looked
        right mid-leap sits too high and too wide on a figure at rest. */
-    var vin = Math.min(1, (CHEER_SECS + WIN_PAUSE - R.winHold) / 0.22);
+    var vin = Math.min(1, (CAR_CHEER_SECS + WIN_PAUSE - R.winHold) / 0.22);
     ext = vin * vin * (3 - 2 * vin);
     /* Up and OUT, so the fist clears his head rather than sitting on it -
        the whole arm is only 25px and his head is 22 across, so a straight
@@ -11379,7 +11389,7 @@ function drawCar(ox, rock, lit){
     var x0 = x + 40, x1 = x + w - 40, my = y + h * 0.5;
     if (x1 <= x0) return;
     ctx.fillStyle = "#39434b"; ctx.fillRect(x0, my - 1.5, x1 - x0, 3);
-    var prog = R.phase === "run" ? Math.min(1, rideElapsed(R) / rideRun(R))
+    var prog = R.phase === "run" ? Math.min(1, R.t / rideRun(R))
              : ((R.phase === "arrive" || R.phase === "up") ? 1 : 0);
     var step = (x1 - x0) / n, i;
     for (i = 0; i <= n; i++){
@@ -14163,7 +14173,7 @@ function drawRide(){
        Taken off the run clock rather than off the camera, which makes it
        exact: the run is 0.6s a street, so this drops by one every 600ms and
        lands on zero as the doors open. */
-    var left = Math.max(0, Math.ceil(R.streets * (1 - Math.min(1, rideElapsed(R) / rideRun(R)))));
+    var left = Math.max(0, Math.ceil(R.streets * (1 - Math.min(1, R.t / rideRun(R)))));
     txt(R.streets + " STREETS  \u00B7  " + left + " TO GO", LOGICAL_W/2, 300, 26, "#ffd24a");
     ctx.globalAlpha = 0.45 + 0.25*Math.sin(G.t*3);
     txt("TAP OR SWIPE TO WALK THROUGH THE CAR", LOGICAL_W/2, 862, 22, "#8d99a6");
