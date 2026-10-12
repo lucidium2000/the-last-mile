@@ -20366,16 +20366,27 @@ function drawBoard(){
   /* Not gated on anything. The prompt below comes and goes with the death
      hold; a credit that blinked in and out with it would read as part of the
      same message. */
-  var cby = LOGICAL_H - 32, cfont = 20;
+  var cby = LOGICAL_H - 32, cfont = 10;
   ctx.font = "bold " + cfont + 'px "Helvetica Neue",Helvetica,Arial,sans-serif';
   var cpw = ctx.measureText(CREDIT_PRE).width;
   var cnw = ctx.measureText(CREDIT_NAME).width;
+  /* THE SAME GREY AS THE WORDS IN FRONT OF IT. The name was in the brand
+     orange, which on this screen is the colour of the thing you are supposed
+     to look at - the countdown, the button, the prompt - and a credit has no
+     business competing with any of them.
+
+     The rule under it stays, at one pixel and in the same grey. Something
+     has to say this is a link or nobody will ever touch it, and an underline
+     is the quietest way left to say it once the colour has gone. */
   txt(CREDIT_PRE,  100,       cby, cfont, C.textDim, "left");
-  txt(CREDIT_NAME, 100 + cpw, cby, cfont, C.brand,   "left");
-  /* Underlined, because an orange word on a screen where orange is simply
-     the brand colour is not yet a link. */
-  ctx.fillStyle = C.brand;
-  ctx.fillRect(100 + cpw, cby + Math.round(cfont * 0.42), cnw, 2);
+  txt(CREDIT_NAME, 100 + cpw, cby, cfont, C.textDim, "left");
+  ctx.fillStyle = C.textDim;
+  ctx.fillRect(100 + cpw, cby + Math.round(cfont * 0.42), cnw, 1);
+  /* The BOX does not shrink with the type. Ten-pixel text is a two-pixel
+     tall target, and this hangs on a wall where people press it with a
+     thumb - so the text gets quieter and the thing you can hit stays 48
+     logical pixels tall. It is invisible and it sits in dead space, so
+     nothing is lost by it being much larger than it looks. */
   CREDIT_HIT = { x: 100 - 14, y: cby - 26, w: cpw + cnw + 28, h: 48 };
 
   // same gate as the tap that acts on it, so the prompt is never a lie
