@@ -19375,8 +19375,12 @@ function rainBreathe(dt){
     }
   }
 }
-var RAIN_MAX = 0.88;            // ...and how present it gets. It is a
-                                // BACKGROUND; the mark is the subject.
+/* The ceiling on how present it gets, and it is a CEILING - the cycle's
+   alpha is multiplied by it, so the rain never reaches full opacity even at
+   the top of its hold. Twenty percent of the black always shows through it.
+   It is a background; the mark is the subject, and code you can see the
+   room through reads as behind the glass rather than painted on it. */
+var RAIN_MAX = 0.80;
 var RAIN_MIN_V = 7, RAIN_MAX_V = 17;    // rows a second
 
 /* The published ThousandEyes agent infrastructure, by /16. Real prefixes
