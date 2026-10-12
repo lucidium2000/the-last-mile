@@ -5434,7 +5434,7 @@ function reset(){
     brand:null, pipePop:0, rise:null, tam:false, tamT:0, tamWins:0, tamWin:null, hurtT:0, nahT:0, nahSay:null, walkSaid:false,
     yumT:0, yumKind:null, yumDir:0, yumBite:0, wowT:0, cheerT:0,
     metro:0, ride:null, trace:null, rides:0, bonus:0, tamLeft:0, riskT:0, dashT:0,
-    leapT:0, leapDir:1, dashBeep:0, idleT:0, saver:false, hushed:false, spin:null,
+    leapT:0, leapDir:1, dashBeep:0, idleT:0, saver:false, saverT:0, hushed:false, spin:null,
     dashFlash:0, dashPulse:0, dashWhole:0,
     scene:null, scenePend:null, scenesSeen:{}, ticker:null, notice:null, southT:0,
     report:false, reportY:0, spinR:0, candy:null, vault:null, nudgeT:0,
@@ -13735,8 +13735,15 @@ function update(dt){
                (G.state === ST_DEAD && G.deadFor >= deathHold());
   if (parked){
     G.idleT += dt;
-    if (G.idleT >= SAVER_AFTER) G.saver = true;
-  } else { G.idleT = 0; G.saver = false; }
+    /* ...and its OWN clock, which the rain needs. G.t has been running
+       since the page loaded and says nothing about how long this particular
+       screensaver has been up, which is exactly what a fade-in is measured
+       against. */
+    if (G.idleT >= SAVER_AFTER){
+      if (!G.saver){ G.saver = true; G.saverT = 0; rainWake(); }
+      else G.saverT += dt;
+    }
+  } else { G.idleT = 0; G.saver = false; G.saverT = 0; }
 
   /* The initials wheel coasting after a flick. Exponential decay, so it is
      the same throw at any frame rate, and it gives up below half a letter a
@@ -19235,6 +19242,175 @@ function drawReport(){
 
    Everything else is skipped while it is up: the world, the HUD, the
    readout. One fill and one blit. */
+/* ===================================================== THE RAIN =========
+   The other one. Not actually a Windows screensaver - it is the falling
+   code from The Matrix (1999), which became the single most cloned
+   screensaver of the Windows 95/98/XP era, which is near enough.
+
+   Simon Whiteley designed it at Animal Logic in Sydney. The Wachowskis had
+   rejected an earlier version for not feeling old-fashioned or Japanese
+   enough, so he went through his wife's Japanese cookbooks and magazines and
+   his children's alphabet books, scanned katakana out of them, mirrored the
+   glyphs and hand-drew the set. He later joked to CNET that the code is
+   sushi recipes, which is the version everybody repeats and is an
+   overstatement - the real set is katakana mixed with numerals and other
+   marks. The green was not in the original concept either; it came later, a
+   nod to the monochrome phosphor terminals the look descends from.
+
+   OURS IS ORANGE, AND IT IS NOT GIBBERISH. The glyphs are the IP addresses
+   ThousandEyes publishes in its own firewall documentation - the agent
+   infrastructure a customer has to let through to be monitored at all. A
+   wall of unreadable symbols says "computery"; a wall of real vantage-point
+   addresses says what the product is. Somebody who works in networking will
+   stop and read one.
+
+   HOW IT IS DRAWN. Not by repainting the trails every frame - that is
+   thousands of glyph draws. The rain lives in its own transparent canvas
+   which is EROSION-faded each frame (destination-out, so it fades toward
+   transparent rather than toward black and the eye still shows through),
+   and each column only paints the one new character at its head. A dozen
+   or so draws a frame, and the trail comes free. */
+var RAIN_CELL_W = 30, RAIN_CELL_H = 30, RAIN_FONT = 23;
+/* How much of a trail is still there a second later. This is the length
+   of the tail, and it has to be long enough to hold a WHOLE ADDRESS - at
+   0.035 the fade outran the fall and you saw three digits chasing each
+   other down the screen, which is not something anybody can read. */
+var RAIN_KEEP = 0.26;
+var RAIN_HEAD = "#ffe3bd";      // the leading character, almost white
+var RAIN_BODY = "#ff7a1a";      // everything behind it
+var RAIN_IN = 3.2;              // seconds to come up from nothing
+var RAIN_MAX = 0.88;            // ...and how present it gets. It is a
+                                // BACKGROUND; the mark is the subject.
+var RAIN_MIN_V = 7, RAIN_MAX_V = 17;    // rows a second
+
+/* The published ThousandEyes agent infrastructure, by /16. Real prefixes
+   from the firewall-configuration tables - US1, US2 and EU - with the host
+   part generated, because a screensaver needs an endless supply and the
+   documentation is a snapshot. Every address that falls past is inside a
+   range a ThousandEyes customer has genuinely had to open. */
+var TE_NETS = ("13.52 13.248 18.144 50.18 52.8 52.9 54.151 54.153 54.176 " +
+  "54.177 54.193 54.215 54.219 54.241 75.2 76.223 99.83 184.169 192.150 " +
+  "204.236 3.13 3.17 3.18 3.33 3.132 3.134 3.138 3.141 15.197 18.116 " +
+  "35.81 35.155 44.227 52.27 52.32 52.89 3.64 3.65 3.66 3.67 3.69 3.70 " +
+  "3.122 3.123 3.124 3.125 3.126 3.127 18.156 18.157 18.158 18.159 " +
+  "18.184 18.185 18.192 18.193 18.194 18.195 18.196 18.197 18.198 " +
+  "35.71 35.157 52.28 52.57 52.58 52.223").split(" ");
+
+/* ...and a few verbatim, so the ones that are genuinely on the page do go
+   past. These are the NAT-traversal endpoints and the addresses shared
+   across regions. */
+var TE_REAL = ("54.241.50.7 54.176.41.14 3.132.6.211 18.116.57.17 " +
+  "18.196.154.132 18.198.93.108 13.52.142.100 75.2.105.19 99.83.165.166 " +
+  "76.223.86.189 13.248.200.34 52.223.3.68 35.71.129.45 " +
+  "204.236.184.131 192.150.160.17").split(" ");
+
+function teIP(){
+  if (Math.random() < 0.34) return TE_REAL[(Math.random() * TE_REAL.length) | 0];
+  return TE_NETS[(Math.random() * TE_NETS.length) | 0] + "." +
+         (1 + (Math.random() * 254 | 0)) + "." + (1 + (Math.random() * 254 | 0));
+}
+
+/* A column's worth of text. The gaps are what break it into addresses you
+   can read one at a time instead of one unbroken ribbon of digits. */
+function rainText(){
+  var n = 2 + (Math.random() * 3 | 0), out = "", i;
+  for (i = 0; i < n; i++) out += (i ? "  " : "") + teIP();
+  return out;
+}
+
+var rainC = null, rainG = null, rainCols = null, rainLast = 0;
+function rainBuild(){
+  if (rainC) return;
+  rainC = document.createElement("canvas");
+  rainC.width = LOGICAL_W; rainC.height = LOGICAL_H;
+  rainG = rainC.getContext("2d");
+  rainG.font = "bold " + RAIN_FONT + "px monospace";
+  rainG.textAlign = "center";
+  rainG.textBaseline = "middle";
+  rainCols = [];
+  var n = Math.ceil(LOGICAL_W / RAIN_CELL_W), i;
+  for (i = 0; i < n; i++) rainCols.push({ txt:"", i:0, y:0, v:0, rest:0, pr:-1, pc:"" });
+  for (i = 0; i < n; i++) rainReset(rainCols[i], true);
+}
+
+function rainReset(c, scatter){
+  c.txt = rainText();
+  c.i = 0;
+  /* Started above the top, by a random amount, so the columns never march in
+     step. On the first build they are scattered down the screen instead, or
+     the whole field arrives as one tidy wavefront. */
+  c.y = scatter ? Math.random() * (LOGICAL_H / RAIN_CELL_H)
+                : -(Math.random() * 22) - 1;
+  c.v = RAIN_MIN_V + Math.random() * (RAIN_MAX_V - RAIN_MIN_V);
+  /* Not every column runs all the time. A full grid of them is a curtain;
+     the gaps are most of what makes it read as rain. */
+  c.rest = scatter ? 0 : Math.random() * 1.1;
+  c.pr = -1; c.pc = "";
+}
+
+/* Wipe it on the way in, so a screensaver that comes up twenty minutes
+   later does not open on the last one's half-faded trails. */
+function rainWake(){
+  if (!rainC) return;
+  rainG.setTransform(1, 0, 0, 1, 0, 0);
+  rainG.globalCompositeOperation = "source-over";
+  rainG.clearRect(0, 0, LOGICAL_W, LOGICAL_H);
+  for (var i = 0; i < rainCols.length; i++) rainReset(rainCols[i], false);
+  rainLast = 0;
+}
+
+function rainStep(dt){
+  var g = rainG, i;
+  /* THE WHOLE TRAIL, FADED, IN ONE OP. destination-out removes alpha rather
+     than adding black: the buffer stays transparent where nothing has
+     fallen, so it can sit over the background without becoming a grey sheet
+     and without hiding the mark behind it. */
+  g.globalCompositeOperation = "destination-out";
+  g.fillStyle = "rgba(0,0,0," + (1 - Math.pow(RAIN_KEEP, dt)).toFixed(4) + ")";
+  g.fillRect(0, 0, LOGICAL_W, LOGICAL_H);
+  g.globalCompositeOperation = "source-over";
+
+  var rows = Math.ceil(LOGICAL_H / RAIN_CELL_H);
+  for (i = 0; i < rainCols.length; i++){
+    var c = rainCols[i];
+    if (c.rest > 0){ c.rest -= dt; continue; }
+    var was = Math.floor(c.y);
+    c.y += c.v * dt;
+    var now = Math.floor(c.y);
+    /* One character per row crossed. A column that has sped past two rows in
+       a frame still draws both, or a fast stream comes out dotted. */
+    var step = now - was;
+    if (step > 3) step = 3;
+    for (var k = 0; k < step; k++){
+      var r = now - (step - 1 - k);
+      if (c.i >= c.txt.length){ rainReset(c, false); break; }
+      var ch = c.txt.charAt(c.i++);
+      var x = i * RAIN_CELL_W + RAIN_CELL_W * 0.5;
+      var y = r * RAIN_CELL_H + RAIN_CELL_H * 0.5;
+      /* THE ONE BEHIND, REPAINTED. Every glyph is drawn once and then just
+         fades, so without this the whole trail would be the pale head
+         colour. Erase the previous cell and lay it down again in body
+         orange: head, then full orange, then the fade. */
+      if (c.pr >= 0 && c.pc !== " "){
+        var py = c.pr * RAIN_CELL_H + RAIN_CELL_H * 0.5;
+        g.globalCompositeOperation = "destination-out";
+        g.fillStyle = "#000";
+        g.fillRect(x - RAIN_CELL_W * 0.5, py - RAIN_CELL_H * 0.5,
+                   RAIN_CELL_W, RAIN_CELL_H);
+        g.globalCompositeOperation = "source-over";
+        g.fillStyle = RAIN_BODY;
+        g.fillText(c.pc, x, py);
+      }
+      if (r >= -1 && r <= rows + 1 && ch !== " "){
+        g.fillStyle = RAIN_HEAD;
+        g.fillText(ch, x, y);
+      }
+      c.pr = r; c.pc = ch;
+      if (r > rows + 2) rainReset(c, false);
+    }
+  }
+}
+
 /* ===================================================== THE FLAG ==========
    3D FLYING OBJECTS, which is the screensaver this is doing an impression
    of. It shipped with Windows NT 3.5 and then 95, 98 and ME, and it came out
@@ -19377,6 +19553,25 @@ function drawSaver(){
   var t = G.t, i;
   ctx.fillStyle = "#05070b";
   ctx.fillRect(0, 0, LOGICAL_W, LOGICAL_H);
+
+  /* --- the code, behind everything. Its own clock, taken off G.t, because
+     render() is not handed a delta and the fade has to be the same length
+     on a panel running at 30fps as on one running at 60. */
+  rainBuild();
+  var rdt = rainLast ? (t - rainLast) : 0;
+  rainLast = t;
+  if (rdt > 0.1) rdt = 0.1;              // a tab that was backgrounded
+  if (rdt > 0) rainStep(rdt);
+  var rin = G.saverT / RAIN_IN;
+  if (rin > 1) rin = 1; else if (rin < 0) rin = 0;
+  /* Eased, not linear. A linear ramp on something this sparse appears all
+     at once about a third of the way in. */
+  rin = rin * rin * (3 - 2 * rin);
+  if (rin > 0){
+    ctx.globalAlpha = rin * RAIN_MAX;
+    ctx.drawImage(rainC, 0, 0, LOGICAL_W, LOGICAL_H);
+    ctx.globalAlpha = 1;
+  }
 
   /* IT STILL WANDERS. Burn-in is the entire reason this class of program
      exists, and a flag pinned to the middle of a panel for eight hours is a
