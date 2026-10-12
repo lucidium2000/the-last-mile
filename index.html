@@ -9418,18 +9418,34 @@ function drawCarFloat(){
    times plain, fighting, and fighting-and-shouting - and the body and the
    drawn arm have to agree about it to the pixel, because the arm's shoulder
    is positioned off the sprite's own width. One function, both callers. */
+/* His face when nothing in particular is happening to him: a read-out of
+   his health, nothing more. Shared, because the street and the train were
+   answering this question in two places and only one of them was answering
+   it at all - see riderSprite. */
+function restingFace(){
+  return G.hp < HP_WORN  ? FACE_WORN
+       : G.hp < HP_LEVEL ? FACE_MEH
+       : G.hp < HP_HAPPY ? FACE_FLAT
+       : FACE_OK;
+}
+
 function riderSprite(R){
   var sfx = (R.face || 1) < 0 ? "_l" : "_r";
   var lvl = G.shield >= 2 ? 2 : (G.shield ? 1 : 0);
   if (!R.fight){
-    /* AND AFTERWARDS HE IS PLEASED. The man is on the floor, the carriage
-       is throwing money, and the hero was going back to the blank default
-       face he rides with - which after all that reads as a man who did not
-       notice. The smile is the world's own FACE_SMILE bake, already there
-       for the street, so he gets his briefcase back with it. It stays up
-       for the rest of the ride: R.ko does not clear. */
-    if (R.ko) return S["pf" + FACE_SMILE + (lvl === 2 ? "P" : lvl === 1 ? "S" : "") + sfx];
-    return S[(lvl === 2 ? "playerP" : lvl === 1 ? "playerS" : "player") + sfx];
+    /* HE HAS A FACE DOWN HERE NOW. The train was drawing the bare
+       player_* bake, which is the model with no `face` argument - and the
+       face block is the only thing that pushes eyes or a mouth, so he rode
+       the whole way to midtown as a blank head. Nobody chose that; the
+       street picks an expression every frame and the carriage simply never
+       asked. Same read-out, same bakes.
+
+       And afterwards he is pleased: the man is on the floor and the
+       carriage is throwing money, which a health read-out has no way to
+       say. It holds for the rest of the ride, because R.ko does not
+       clear. */
+    var f = R.ko ? FACE_SMILE : restingFace();
+    return S["pf" + f + (lvl === 2 ? "P" : lvl === 1 ? "S" : "") + sfx];
   }
   if (R.fightT >= UP_AT)
     return S[(lvl === 2 ? "playerFWP" : lvl === 1 ? "playerFWS" : "playerFW") + sfx];
@@ -16886,10 +16902,7 @@ function drawPlayer(pp){
       /* The proud face belongs to the orange suit, not to the subscription -
          and the suit has its own sprite, so it is baked into heroModel rather
          than selected here. What is left is the health read-out. */
-      face = G.hp < HP_WORN  ? FACE_WORN
-           : G.hp < HP_LEVEL ? FACE_MEH
-           : G.hp < HP_HAPPY ? FACE_FLAT
-           : FACE_OK;
+      face = restingFace();
     }
     var suffix = (G.shield >= 2 ? "P" : G.shield ? "S" : "") + (right ? "_r" : "_l");
     s = face ? S["pf" + face + suffix]
