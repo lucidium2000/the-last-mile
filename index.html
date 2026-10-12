@@ -8487,7 +8487,10 @@ function dpArch(k){
   if (k < DP_TOP) return 0.18 + 0.82 * ((k - DP_DIP) / (DP_TOP - DP_DIP));
   return Math.max(0, 1 - (k - DP_TOP) / 0.42);
 }
-var TRAIN_ROB   = 30;      // what standing still costs you, in health
+/* 35, so three blows kill him from full. At 30 it took four, and four
+   blows is long enough for a passive player to decide the scene is a
+   cutscene happening to somebody else. Three is a count you can feel. */
+var TRAIN_ROB   = 35;      // what standing still costs you, in health
 /* ...AND IN MONEY, BOTH WAYS. He does not take the bag once and sit down any
    more: he backs off, comes again, and every blow that lands is a hundred
    thousand off the pipeline. The longest you can stand there doing nothing
