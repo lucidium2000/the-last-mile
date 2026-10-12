@@ -18083,6 +18083,49 @@ function drawBigArrow(cx, topY, h, col){
   ctx.closePath(); ctx.fill();
 }
 
+/* The same arrow, pointed anywhere. drawBigArrow draws upward from a top
+   edge, which is the right shape and the wrong anchor for this - so it is
+   centred on a point and spun, rather than four more polygons. */
+function ctrlArrow(cx, cy, h, rot, col, alpha){
+  ctx.save();
+  ctx.translate(cx, cy);
+  if (rot) ctx.rotate(rot);
+  if (alpha != null) ctx.globalAlpha = alpha;
+  drawBigArrow(0, -h / 2, h, col);
+  ctx.restore();
+}
+
+/* ------------------------------------------------------------- THE CONTROLS
+   There are two of them and that is the whole selling point, so the title
+   says it as a PICTURE rather than as a caption. The old line - 25px of
+   "Tap anywhere to cross · swipe to step aside" - was accurate, small, and
+   something you had to stop and read; a panel in a hallway gets about a
+   second of attention and nobody spends it on a footnote.
+
+   One arrow against three. The shape of the thing is the instruction: the
+   forward one is lit because it is the one you get for free, and the other
+   three are dim because they cost a swipe. Somebody can take that in
+   without reading either word under it - the words are there for whoever
+   looks twice. */
+function drawControls(cy){
+  var cx = LOGICAL_W / 2, gap = 322;
+  var R = Math.PI / 2;
+
+  // tap: forward, and only forward
+  ctrlArrow(cx - gap, cy, 62, 0, C.brand);
+  txt("TAP", cx - gap, cy + 70, 38, C.brand);
+  txt("to move forward", cx - gap, cy + 108, 27, C.textDim);
+
+  /* swipe: the other three, drawn in the arrangement they are actually in,
+     so the gap in the middle of them is the arrow on the left. */
+  var sx = cx + gap;
+  ctrlArrow(sx - 72, cy, 46, -R, C.text, 0.62);
+  ctrlArrow(sx,      cy, 46,  Math.PI, C.text, 0.62);
+  ctrlArrow(sx + 72, cy, 46,  R, C.text, 0.62);
+  txt("SWIPE", sx, cy + 70, 38, C.text);
+  txt("any other direction", sx, cy + 108, 27, C.textDim);
+}
+
 /* ------------------------------------------------------------- THE MARK ---
    The real ThousandEyes logo, inlined as base64 like everything else in this
    file, because the viewer blocks external images and the whole point of the
@@ -18292,8 +18335,7 @@ function drawTitle(){
   txt("TAP TO START", LOGICAL_W/2, 726, 62, C.brand);
   ctx.globalAlpha = 1;
 
-  txt("Tap anywhere to cross  ·  swipe to step aside",
-      LOGICAL_W/2, 822, 25, C.textDim);
+  drawControls(830);
 
   // the way to the board without having to die first
   var st = statsRead();
