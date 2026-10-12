@@ -20108,7 +20108,11 @@ function dayStamp(ms){
 
 /* Clear of the restart prompt by eighty-odd pixels. At -128 the two were
    fourteen apart and the button read as part of the sentence under it. */
-var REPORT_BTN = { x:LOGICAL_W/2 - 190, y:LOGICAL_H - 180, w:380, h:66 };
+/* Thirty pixels lower than it used to sit, to clear the contest clock above
+   it - the clock grew when it became the thing this screen is for, and a
+   glow that laps over a button border reads as a rendering fault rather
+   than as emphasis. Still well clear of the prompt along the bottom. */
+var REPORT_BTN = { x:LOGICAL_W/2 - 190, y:LOGICAL_H - 150, w:380, h:66 };
 
 function statLine(st){
   if (!st) return "";
@@ -20136,16 +20140,44 @@ var CONTEST_END = Date.UTC(2026, 9, 16, 16, 0, 0);
 function contestLeft(){
   return (TEAM === "nyc") ? (CONTEST_END - Date.now()) : null;
 }
+/* ------------------------------------------------------ HOW LATE IT IS --
+   A deadline that looks the same four days out as it does four minutes out
+   is a date, not a deadline. Three bands, and everything about the clock -
+   its colour, its words, how fast it breathes - comes off this one number:
+
+     0   days left     orange, the brand colour, a slow idle breath
+     1   under a day   red, and the words change to FINAL DAY
+     2   under an hour red, faster, because this is the last call
+
+   Deliberately NOT a continuous ramp. A clock that reddens by a percent an
+   hour is a clock nobody ever notices changing; three steps mean a player
+   who saw it yesterday sees that it is different today. */
+function contestUrg(ms){
+  if (ms <= 3600000) return 2;
+  if (ms <= 86400000) return 1;
+  return 0;
+}
+function contestWord(ms){
+  var u = contestUrg(ms);
+  return u >= 2 ? "FINAL HOUR" : (u === 1 ? "FINAL DAY" : "CONTEST CLOSES IN");
+}
 function contestLine(ms){
   if (ms <= 0) return "CLOSED";
   var mins = Math.floor(ms / 60000);
   var h = Math.floor(mins / 60), m = mins % 60, d = Math.floor(h / 24);
-  /* Days appear only once there are any. "86h 22m" is a number somebody has
-     to do arithmetic on; "3d 14h 22m" is one they can read - and the hours
-     and minutes are still right there either way. On the last day it goes
-     back to plain hours and minutes, which is when that is what you want. */
-  return d > 0 ? (d + "d  " + (h % 24) + "h  " + m + "m")
-               : (h + "h  " + m + "m");
+  /* Each unit appears only once there are any of it. "86h 22m" is a number
+     somebody has to do arithmetic on; "3d 14h 22m" is one they can read -
+     and the smaller units are still right there either way. It sheds them
+     from the left as it runs down, so the last hour is "47m" rather than
+     "0h 47m", and a leading zero never gets to be the biggest thing on the
+     screen at the moment the clock matters most.
+
+     Under a minute it switches to SECONDS, which is the one place this
+     wants to be seen moving. The board redraws every frame, so they tick. */
+  if (ms < 60000) return Math.max(0, Math.ceil(ms / 1000)) + "s";
+  if (d > 0) return d + "d  " + (h % 24) + "h  " + m + "m";
+  if (h > 0) return h + "h  " + m + "m";
+  return m + "m";
 }
 
 function drawBoard(){
@@ -20254,9 +20286,38 @@ function drawBoard(){
   var cLeft = contestLeft();
   if (cLeft !== null){
     var closed = cLeft <= 0;
-    txt(closed ? "THE CONTEST HAS" : "CONTEST CLOSES IN",
-        LOGICAL_W/2, 838, 20, C.textDim);
-    txt(contestLine(cLeft), LOGICAL_W/2, 874, 40, closed ? C.danger : C.brand);
+    var urg = closed ? 2 : contestUrg(cLeft);
+    var col = (closed || urg > 0) ? C.danger : C.brand;
+
+    /* IT BREATHES. Not a blink - a blink is either on or off, and a thing
+       that is half the time absent is a thing you read twice. This never
+       drops below 0.62, so the number is legible on every single frame and
+       what changes is only how bright it is.
+
+       Rate is the urgency, and the fastest it goes is just under 2Hz. That
+       ceiling is not an aesthetic choice: anything flashing above about 3Hz
+       is a photosensitivity risk, and this is going on a wall-mounted panel
+       in an office where nobody chose to look at it. Once it has CLOSED it
+       stops moving altogether, because then it is a fact rather than a
+       warning and facts do not need to wave. */
+    var hz  = closed ? 0 : (urg >= 2 ? 1.9 : (urg === 1 ? 1.3 : 0.8));
+    var pul = hz ? (0.62 + 0.38 * (0.5 + 0.5 * Math.sin(G.t * hz * Math.PI * 2)))
+                 : 1;
+
+    txt(closed ? "THE CONTEST HAS" : contestWord(cLeft),
+        LOGICAL_W/2, 828, 20, urg > 0 ? col : C.textDim);
+
+    var line = contestLine(cLeft);
+    /* A HALO, drawn the only way this file is allowed to draw one. Canvas
+       shadowBlur is banned here - it is the single most expensive thing a
+       RoomOS panel can be asked to do per frame - so the bloom is the same
+       string again, larger and faint, sitting behind. Two fillTexts, no
+       filter, no offscreen buffer, and at a distance it reads as glow. */
+    ctx.globalAlpha = pul * 0.22;
+    txt(line, LOGICAL_W/2, 886, 62, col);
+    ctx.globalAlpha = pul;
+    txt(line, LOGICAL_W/2, 886, 52, col);
+    ctx.globalAlpha = 1;
   }
   txt("FULL REPORT", B.x + B.w/2, B.y + 28, 26, C.brand);
   txt("every run on this device", B.x + B.w/2, B.y + 52, 17, C.textDim);
