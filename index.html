@@ -5744,6 +5744,11 @@ var BOARD_SHOW = 10;                // rows visible at once
 var BOARD_ROW_H = 46;               // ...and how tall one is, which the
                                     //    scroll clamp needs as badly as the
                                     //    draw does, so it lives out here
+/* WHERE THE LIST ACTUALLY IS, recorded as it is drawn. The pointer handler
+   needs it to tell a gesture aimed at the rows from one aimed at the rest of
+   the screen, and the band moves with the title, so hard-coding it would be
+   a second copy of a number that is already computed once a frame. */
+var BOARD_LIST = null;
 /* ------------------------------------------------------- WHICH BOARD ----
    ?team=nyc puts the panel on its own leaderboard. No parameter is the
    default board, which is the one that already has every run ever played on
@@ -6136,7 +6141,10 @@ function wake(){
   return was;
 }
 
-function act(dir){
+/* `isTap` says this came from a finger put down on the screen rather than
+   from a direction anybody chose. Only the board cares, and it cares a lot:
+   see the scroll interception below. */
+function act(dir, isTap){
   if (wake()) return;
   /* NOT DURING A CUTSCENE. update() returns early while one is up, so a tap
      could not kill him - but it could still walk him, collect a pickup and
@@ -6232,7 +6240,17 @@ function act(dir){
     /* UP AND DOWN WALK THE LIST, for the panels with no touchscreen. Any
        other direction still starts a run, which is what every other button
        on this screen does. */
-    if ((dir === "f" || dir === "b") && boardScrollMax() > 0){
+    /* NOT FROM A TAP. Up and down scroll the list for a remote and a
+       keyboard, which is right - but a tap on the screen arrives here as
+       "f", and the moment the board outgrew its ten-row window that meant
+       every tap was read as "scroll up" and returned. The screen stopped
+       starting runs, and it stopped silently: nothing looks broken, the
+       prompt still says TAP ANYWHERE, and the list just twitches.
+
+       It only appears once there are more than ten rows on the board, which
+       is why it surfaced mid-contest and not in any amount of testing on an
+       empty one. */
+    if (!isTap && (dir === "f" || dir === "b") && boardScrollMax() > 0){
       boardScroll(dir === "b" ? BOARD_ROW_H * 3 : -BOARD_ROW_H * 3);
       G.spinB = 0; AUDIO.step(); return;
     }
@@ -7077,6 +7095,12 @@ function submitScore(){
    Taps are unchanged where they already worked: the arrows step one, the
    box selects that column, OK submits. A tap on nothing now does nothing,
    which is the whole of the first fix. */
+/* HOW FAR A FINGER MAY WANDER AND STILL BE A TAP. Six was a mouse's
+   tolerance, and a thumb on a wall panel moves further than that just
+   pressing and letting go - which on a scrollable surface turned taps into
+   drags, and drags are swallowed rather than acted on. Twelve is still far
+   below a deliberate scroll, which travels a row or more. */
+var DRAG_SLOP = 12;
 var INI_DRAG = 46;        // pixels of drag per letter
 var INI_FLICK = 0.42;     // velocity below this and it is a tap, not a throw
 var INI_DECAY = 0.055;    // what is left of the velocity after one second
@@ -7084,6 +7108,10 @@ var INI_DECAY = 0.055;    // what is left of the velocity after one second
 var ptr = null;
 cv.addEventListener("pointerdown", function(e){
   e.preventDefault(); AUDIO.unlock();
+  /* Where the finger landed, in the game's own coordinates. The board needs
+     it before the object below is built. */
+  var rD = cv.getBoundingClientRect();
+  var lyD = (e.clientY - rD.top) / rD.height * LOGICAL_H;
   ptr = { sx:e.clientX, sy:e.clientY, used:false,
           lx:e.clientX, ly:e.clientY, lt:performance.now(),
           vy:0, acc:0, col:-1, drag:false,
@@ -7091,9 +7119,18 @@ cv.addEventListener("pointerdown", function(e){
              it owns every move until it comes up. */
           rpt:(G.state === ST_BOARD && G.report),
           /* ...and the board itself scrolls on the same machinery, but only
-             when there is somewhere to scroll to. Below that, a drag has to
-             stay a tap, or a board of three rows stops starting a new run. */
-          brd:(G.state === ST_BOARD && !G.report && boardScrollMax() > 0) };
+             when there is somewhere to scroll to AND the finger went down on
+             the rows.
+
+             THE SECOND HALF OF THAT IS NOT OPTIONAL. Without it the whole
+             screen was the scroll surface the moment the list outgrew its
+             window - so once the contest board filled up, a tap anywhere at
+             all could be read as a drag and swallowed, and the screen simply
+             stopped starting new runs. It passed every test because
+             synthetic taps do not move and real fingers do. */
+          brd:(G.state === ST_BOARD && !G.report && boardScrollMax() > 0 &&
+               !!BOARD_LIST && lyD >= BOARD_LIST.top &&
+               lyD <= BOARD_LIST.top + BOARD_LIST.h) };
   /* Which column the finger went down on, if any. Grabbing a column stops
      whatever it was doing - a wheel you catch is a wheel that stops. */
   if (G.state === ST_NAME){
@@ -7114,7 +7151,7 @@ cv.addEventListener("pointermove", function(e){
     var rc = cv.getBoundingClientRect();
     var k = LOGICAL_H / rc.height;
     var d = (e.clientY - ptr.ly) * k;
-    if (Math.abs(e.clientY - ptr.sy) > 6) ptr.drag = true;
+    if (Math.abs(e.clientY - ptr.sy) > DRAG_SLOP) ptr.drag = true;
     var nowR = performance.now(), dtR = Math.max(8, nowR - ptr.lt);
     ptr.vy = ptr.vy * 0.6 + (d / (dtR / 1000)) * 0.4;   // px a second, smoothed
     reportScroll(-d);
@@ -7125,7 +7162,7 @@ cv.addEventListener("pointermove", function(e){
     e.preventDefault();
     var rcB = cv.getBoundingClientRect();
     var dB = (e.clientY - ptr.ly) * (LOGICAL_H / rcB.height);
-    if (Math.abs(e.clientY - ptr.sy) > 6) ptr.drag = true;
+    if (Math.abs(e.clientY - ptr.sy) > DRAG_SLOP) ptr.drag = true;
     var nowB = performance.now(), dtB = Math.max(8, nowB - ptr.lt);
     ptr.vy = ptr.vy * 0.6 + (dB / (dtB / 1000)) * 0.4;
     boardScroll(-dB);
@@ -7254,8 +7291,11 @@ cv.addEventListener("pointerup", function(e){
     /* A tap anywhere means forward. The old scheme split the screen into four
        invisible zones, so a tap meant for "cross" near the bottom corners moved
        you sideways instead. Sideways and back come from the arrows or a swipe,
-       both of which are deliberate. */
-    act("f");
+       both of which are deliberate.
+
+       Flagged as a TAP, so the board can tell it from somebody pressing up on
+       a remote - which there means scroll, and here must not. */
+    act("f", true);
   }
   ptr = null;
 }, { passive:false });
@@ -20269,6 +20309,7 @@ function drawBoard(){
      size. The clip is what makes a half-scrolled row cut cleanly at the
      edge instead of printing over the summary underneath. */
   var viewTop = y + 26, viewH = BOARD_SHOW * BOARD_ROW_H;
+  BOARD_LIST = { top: viewTop, h: viewH };
   var sy0 = G.boardY || 0;
   ctx.save();
   ctx.beginPath(); ctx.rect(0, viewTop, LOGICAL_W, viewH); ctx.clip();
