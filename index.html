@@ -5017,24 +5017,6 @@ var SAFE_MIN = 2;          // the shallowest pavement the generator may lay
    An unknown name is not an error here. The drop is guarded by
    POWERS[DROP_PW], so ?pw=off, ?pw=none or ?pw=anythingelse all simply plant
    nothing - which is why there is no list of valid kinds to keep in step. */
-/* ======================================================================
-   TEMPORARY - TEST SHORTCUT TO THE KNIFE  (remove before shipping)
-
-   The fight on the train is the rarest thing in the game: a ride has a
-   hooded man on it 70% of the time and only 5.5% of those are hostile, so
-   the scene somebody actually wants to look at turns up on about one ride
-   in twenty-six - and you have to find a station first.
-
-   With this on: a subway entrance is planted two rows in front of the
-   start, the fare is already paid, and the man on that train is always
-   there and always hostile. Walk up, go down, let him close, swing.
-
-   TO REMOVE: set TEST_SUBWAY to false and delete the four blocks marked
-   TEST_SUBWAY. Nothing else in the file knows about it.
-   ====================================================================== */
-var TEST_SUBWAY = true;
-var testSubDone = false;
-
 var DROP_PW_DEFAULT = null;
 var DROP_PW = (function(){
   var m = /[?&]pw=([a-z]+)/i.exec(location.search);
@@ -5340,13 +5322,6 @@ function makeWalk(r, park, crowd, hood){
      thing without playing for it - ?pw=sponsor for the Cloud Insights
      shoes, ?pw=tam, ?pw=agent, and so on - and it changes nothing for
      anybody who does not type it. */
-  /* TEST_SUBWAY: a station where he can trip over it. */
-  if (TEST_SUBWAY && r === 2 && !testSubDone){
-    testSubDone = true;
-    var tsc = (COLS >> 1) + 1;
-    props.push({ col:tsc, kind:"subway" });
-    blocked[tsc] = true;
-  }
   if (DROP_PW && r === 2 && POWERS[DROP_PW] && !dropDone){
     dropDone = true;
     pickup = { col:COLS >> 1, kind:DROP_PW };
@@ -5654,7 +5629,6 @@ var G = null;
 
 function reset(){
   rows = {}; genCursor = 0; roadRun = 0; safeRun = 0; lastPower = 0; dropDone = false;
-  testSubDone = false;                 /* TEST_SUBWAY */
   nextStreet = START_ST + 1; lastSweep = -99; prevWasSafe = true; lastTam = -99;
   lastHood = -999;
   curStreet = START_ST; curLane = 0; legDir = 1;
@@ -5678,8 +5652,7 @@ function reset(){
     flyT:0, flyA:0, flyBeep:0, flyMove:0, flyTilt:0, walkPh:0, walkAmt:0,
     brand:null, pipePop:0, rise:null, tam:false, tamT:0, tamWins:0, tamWin:null, hurtT:0, nahT:0, nahSay:null, walkSaid:false,
     yumT:0, yumKind:null, yumDir:0, yumBite:0, wowT:0, cheerT:0,
-    metro:(TEST_SUBWAY ? 1 : 0),   /* TEST_SUBWAY: the fare is already paid */
-    ride:null, trace:null, rides:0, bonus:0, tamLeft:0, riskT:0, dashT:0,
+    metro:0, ride:null, trace:null, rides:0, bonus:0, tamLeft:0, riskT:0, dashT:0,
     leapT:0, leapDir:1, dashBeep:0, idleT:0, saver:false, saverT:0, hushed:false, spin:null,
     dashFlash:0, dashPulse:0, dashWhole:0,
     scene:null, scenePend:null, scenesSeen:{}, ticker:null, notice:null, southT:0,
@@ -8313,15 +8286,12 @@ function startRide(enterRow, enterCol){
      had, +10% and then +15%. A straight multiply here because this roll has
      no denominator to fight: a ride either has a roll on it or it does not,
      unlike the pavement, where the weight has to be solved for. */
-  /* TEST_SUBWAY: there is always a roll, because the whole scenario under
-     test is him going for it. */
-  var cash = (TEST_SUBWAY || Math.random() < 0.696) ? ends[(Math.random() * 2) | 0] : -1;
+  var cash = Math.random() < 0.696 ? ends[(Math.random() * 2) | 0] : -1;
   if (cash >= 0){
     var ci = free.indexOf(cash);
     if (ci >= 0) free.splice(ci, 1);
   }
-  /* TEST_SUBWAY: always aboard, and see `hostile` below. */
-  var shady = (TEST_SUBWAY || Math.random() < 0.70) ? pull() : -1;
+  var shady = Math.random() < 0.70 ? pull() : -1;
   G.ride = { t:0, phase:"down", fromRow:enterRow, fromCol:enterCol,
              toRow:dest, toCol:exitCol, camFrom:G.camRow,
              streets:Math.abs(streetAt(dest) - fromSt),
@@ -8334,10 +8304,7 @@ function startRide(enterRow, enterCol){
              face:1, shady:shady, cash:cash, cashGot:false, met:false,
              shadyX:shady, knife:0, knifeSide:0, ko:0, koT:0, swing:0, brace:0,
              robbed:0, clack:0,
-             /* TEST_SUBWAY: NOT the one in twenty, because the scenario under
-                test is now the other one - a man who never draws anything and
-                goes for the money instead. */
-             hostile: TEST_SUBWAY ? false : (Math.random() < SHADY_HOSTILE),
+             hostile: Math.random() < SHADY_HOSTILE,
              tell:0, look:0, lurch:0, eyes:0, sayAt:-99, sayLine:null,
              /* His interest in the money: how long he has been near it,
                 whether he has noticed, and how long since he took it. */
