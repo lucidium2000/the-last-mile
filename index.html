@@ -4910,6 +4910,16 @@ function bakeAll(){
   S.playerFWS_l = bake(playerModel(-1, 1, FACE_SHOUT, true));
   S.playerFWP_r = bake(playerModel(1, 2, FACE_SHOUT, true));
   S.playerFWP_l = bake(playerModel(-1, 2, FACE_SHOUT, true));
+  /* And smiling, still in the fight pose. The victory stance puts an arm in
+     the air and that arm is DRAWN, so the bake under it has to be the one
+     with its own arm and briefcase taken off - otherwise he celebrates with
+     three of them. He gets the case back when the carriage settles. */
+  S.playerFV_r  = bake(playerModel(1, false, FACE_SMILE, true));
+  S.playerFV_l  = bake(playerModel(-1, false, FACE_SMILE, true));
+  S.playerFVS_r = bake(playerModel(1, 1, FACE_SMILE, true));
+  S.playerFVS_l = bake(playerModel(-1, 1, FACE_SMILE, true));
+  S.playerFVP_r = bake(playerModel(1, 2, FACE_SMILE, true));
+  S.playerFVP_l = bake(playerModel(-1, 2, FACE_SMILE, true));
   for (var fc = 1; fc <= 8; fc++){
     S["pf" + fc + "_r"]  = bake(playerModel(1, 0, fc));
     S["pf" + fc + "_l"]  = bake(playerModel(-1, 0, fc));
@@ -8314,6 +8324,13 @@ var RIDE_PER_ST = 0.6, RIDE_RUN_MIN = 1.0;
    gets ridden, not just on what gets rolled. */
 var SPAN_MIN = 7, SPAN_MAX = 15;
 function rideRun(R){ return (R && R.runDur) || RIDE_PHASES.run; }
+/* HOW FAR THROUGH THE JOURNEY HE IS, which is not the same as how long he
+   has been on the train. R.t cannot simply be frozen while the fight runs -
+   every speech bubble in the carriage is timed off it, so a frozen clock is
+   a carriage full of people whose words never go away - so the HELD time is
+   accumulated separately and taken off. The train stops; the world in it
+   does not. */
+function rideElapsed(R){ return R.t - (R.heldT || 0); }
 var RIDE_SLOTS = 5;
 /* The man at the far end of the car. He closes on you in a straight line at
    his own pace rather than in slot-sized hops - he is not playing the same
@@ -8806,8 +8823,9 @@ function shadySay(R, hard){
    still a ride, and it still has a schedule. */
 function trainHeld(R){
   if (!R || R.shady < 0) return false;
-  if (R.ko) return false;                 // he is down; the train may come in
-  return !!(R.fight || R.engaged);
+  if (R.fight) return true;                 // the combo
+  if (R.ko) return (R.winHold || 0) > 0;    // the carriage, and a beat after
+  return !!R.engaged;                       // the blade is out, unresolved
 }
 
 /* He can die down here now, and he could not before: the blow clamped his
@@ -8846,6 +8864,18 @@ function updateShady(dt){
      grabbed the roll keeps the dollar signs for the rest of the ride. */
   if (R.gotCash > 0) R.gotCash = Math.max(0, R.gotCash - dt);
   if (R.money) R.money.t += dt;
+
+  /* THE EYES COME UP WHILE HE IS ON YOU. There was already a red in the
+     hood - R.eyes, which is a rare flicker that means nothing and is all
+     the better for it - and this is the other kind: while the blade is out
+     he is lit, and when he drifts off it goes out.
+
+     Eased rather than switched, because the whole character of this man is
+     that he arrives slowly. It is driven off the knife rather than off
+     `hostile`, so the only thing that lights him up is the thing the player
+     can actually see him doing. Out the moment he is hit. */
+  var rageWant = (R.knife > 0 && !R.ko && !R.fight) ? 1 : 0;
+  R.rage = (R.rage || 0) + (rageWant - (R.rage || 0)) * Math.min(1, dt * 6);
   stepSweat(R, dt);
 
   /* THE COMBO TICKS ABOVE THE PHASE GATE, and that matters. Everything
@@ -8884,6 +8914,7 @@ function updateShady(dt){
        is the answer to it, so it comes in as the voice drops away. */
     if (beat(1.95)) startCheer(R, R.cx0 || 90, R.cw || (LOGICAL_W - 180));
     if (R.cheer > 0) R.cheer = Math.max(0, R.cheer - dt);
+    if (R.winHold > 0) R.winHold = Math.max(0, R.winHold - dt);
     if (R.jolt > 0) R.jolt = Math.max(0, R.jolt - dt / (0.16 * DP_SLOW));
 
     /* The knockdown starts at the uppercut and runs on the SAME slowed
@@ -8911,6 +8942,7 @@ function updateShady(dt){
   if (R.ko){
     R.koT += dt;
     if (R.cheer > 0) R.cheer = Math.max(0, R.cheer - dt);
+    if (R.winHold > 0) R.winHold = Math.max(0, R.winHold - dt);
     return;
   }
   if (R.phase !== "run") return;
@@ -9074,6 +9106,9 @@ function updateShady(dt){
 function updateRide(dt){
   var R = G.ride;
   R.t += dt;
+  /* Everything that happens IN the carriage keeps its clock; the journey
+     does not. See rideElapsed. */
+  if (trainHeld(R)) R.heldT = (R.heldT || 0) + dt;
   if (R.take){
     R.take.t += dt;
     if (R.take.t >= TAKE_SECS) R.take = null;
@@ -9123,7 +9158,9 @@ function updateRide(dt){
     var f = Math.min(1, R.t / rd);
     var e = f < 0.5 ? 2*f*f : 1 - Math.pow(-2*f + 2, 2)/2;
     G.camRow = R.camFrom + (R.toRow - R.camFrom) * e;
-    if (R.t >= rd && !trainHeld(R)){ R.phase = "arrive"; R.t = 0; AUDIO.trainStop(); }
+    if (rideElapsed(R) >= rd && !trainHeld(R)){
+      R.phase = "arrive"; R.t = 0; R.heldT = 0; AUDIO.trainStop();
+    }
   } else if (R.phase === "arrive"){
     if (!R.opened && R.t > 0.35){ R.opened = true; AUDIO.doorsOpen(); }
     if (R.t >= RIDE_PHASES.arrive){
@@ -9282,6 +9319,11 @@ function drawRider(cx0, cw, cy){
    applause; it is also the only moment in the game where cash comes out of
    somebody who is not being robbed. */
 var CHEER_SECS = 2.4, CHEER_HOP = 0.52;
+/* ...and the train waits out all of it plus a beat. The reward, the thrown
+   money and five people saying something are all worth more than the
+   fourteen seconds they cost, and a station arriving over the top of them
+   would throw the lot away. */
+var WIN_PAUSE = 1.1;
 var CHEER_LINES = [
   "YESSS!", "Got him!", "Oh my GOD", "Somebody film that",
   "That's my train!", "He had it coming", "LET'S GO!",
@@ -9316,6 +9358,7 @@ function cheerMoney(R, cx0, cw){
 
 function startCheer(R, cx0, cw){
   R.cheer = CHEER_SECS;
+  R.winHold = CHEER_SECS + WIN_PAUSE;
   cheerMoney(R, cx0, cw);
   AUDIO.cheer();
   /* The carriage pays him. Three hundred thousand - three blows' worth - so
@@ -9474,6 +9517,8 @@ function riderSprite(R){
        carriage is throwing money, which a health read-out has no way to
        say. It holds for the rest of the ride, because R.ko does not
        clear. */
+    if (R.ko && (R.winHold || 0) > 0)
+      return S[(lvl === 2 ? "playerFVP" : lvl === 1 ? "playerFVS" : "playerFV") + sfx];
     var f = R.ko ? FACE_SMILE : restingFace();
     return S["pf" + f + (lvl === 2 ? "P" : lvl === 1 ? "S" : "") + sfx];
   }
@@ -9484,8 +9529,10 @@ function riderSprite(R){
 
 function drawPunchArm(cx0, cw, cy){
   var R = G.ride;
-  if (!R || !R.fight) return;
-  var t = R.fightT, side = R.face || 1;
+  if (!R) return;
+  var victory = !R.fight && R.ko && (R.winHold || 0) > 0;
+  if (!R.fight && !victory) return;
+  var t = R.fight ? R.fightT : 0, side = R.face || 1;
   var sp = riderSprite(R);
   var W = sp.w * 0.92, H = sp.h * 0.92;
   var lift = (R.stepT != null && R.stepT < 1) ? Math.sin(R.stepT * Math.PI) * 7 : 0;
@@ -9500,7 +9547,18 @@ function drawPunchArm(cx0, cw, cy){
      rather than three animations. */
   var ext, fx, fy;
   var shX = side * W * 0.15, shY = -H * 0.72;
-  if (k >= 0){
+  if (victory){
+    /* THE POST-WIN STANCE. One arm straight up, held - the pose every
+       fighting game ends a round on. It goes up fast and settles, because
+       that is how an arm actually gets thrown in the air, and it breathes
+       rather than locking: a figure frozen in a pose for three and a half
+       seconds is a statue of a man celebrating rather than a man
+       celebrating. */
+    var vin = Math.min(1, (CHEER_SECS + WIN_PAUSE - R.winHold) / 0.22);
+    ext = vin * vin * (3 - 2 * vin);
+    fx = shX + side * H * 0.06 * ext;
+    fy = shY - (H * 0.66 + Math.sin(G.t * 2.6) * H * 0.022) * ext;
+  } else if (k >= 0){
     ext = dpArch(k);
     fx = shX + side * H * 0.13 * ext; fy = shY - H * 0.46 * ext;
   } else {
@@ -9768,14 +9826,30 @@ function drawShady(cx0, cw, cy){
       }
       ctx.globalAlpha = 1;
     }
-    // and the little stars, because he is not hurt, he is out
+    /* And the little stars, because he is not hurt, he is out - which only
+       works if they are over his HEAD, and they were orbiting his feet.
+
+       The old position was a guess in the standing figure's coordinates,
+       which stops being true the moment he tips: the pivot of that fall is
+       down by his shoes, so everything measured from it ends up at the
+       wrong end of a man who is now horizontal.
+
+       So the head is SOLVED instead, out of the same three numbers the body
+       is drawn with. His own "up" is (0,-L) in a frame rotated by th, which
+       lands at (L*sin th, -L*cos th) - straight up while he is standing,
+       and all the way out to the side once he is flat. The stars then sit a
+       little above that, on screen, which is where stars go. */
     if (R.koT > 0.4){
+      var th = ease * Math.PI * 0.5 * away;
+      var L  = (196 + (1 - ease) * 6) * K;
+      var hx = mx + away * (14 * snap + 64 * ease) * K + L * Math.sin(th);
+      var hy = (HY(196) - fly) - L * Math.cos(th);
       for (var st = 0; st < 3; st++){
         var sa = G.t * 2.2 + st * 2.09;
         ctx.globalAlpha = 0.75;
         ctx.fillStyle = "#ffd24a";
-        ctx.fillRect(mx + away * 54 * K + Math.cos(sa) * 30 * K - 4,
-                     HY(150) + Math.sin(sa) * 10 - 4, 8, 8);
+        ctx.fillRect(hx + Math.cos(sa) * 30 * K - 4,
+                     hy - 32 * K + Math.sin(sa) * 10 - 4, 8, 8);
         ctx.globalAlpha = 1;
       }
     }
@@ -9796,6 +9870,8 @@ function drawShady(cx0, cw, cy){
     var ep = 1 - R.eyes / EYES_SECS;
     red = ep < EYES_UP ? ep / EYES_UP : Math.max(0, (1 - ep) / (1 - EYES_UP));
   }
+  /* ...or because he is attacking, which beats the flicker. */
+  if ((R.rage || 0) > red) red = R.rage;
   /* And the other kind of light in the hood: he got to the money first. Same
      ramp shape as the red, so they arrive and leave the same way. */
   var grn = 0;
@@ -11183,7 +11259,7 @@ function drawCar(ox, rock, lit){
     var x0 = x + 40, x1 = x + w - 40, my = y + h * 0.5;
     if (x1 <= x0) return;
     ctx.fillStyle = "#39434b"; ctx.fillRect(x0, my - 1.5, x1 - x0, 3);
-    var prog = R.phase === "run" ? Math.min(1, R.t / rideRun(R))
+    var prog = R.phase === "run" ? Math.min(1, rideElapsed(R) / rideRun(R))
              : ((R.phase === "arrive" || R.phase === "up") ? 1 : 0);
     var step = (x1 - x0) / n, i;
     for (i = 0; i <= n; i++){
@@ -13967,7 +14043,7 @@ function drawRide(){
        Taken off the run clock rather than off the camera, which makes it
        exact: the run is 0.6s a street, so this drops by one every 600ms and
        lands on zero as the doors open. */
-    var left = Math.max(0, Math.ceil(R.streets * (1 - Math.min(1, R.t / rideRun(R)))));
+    var left = Math.max(0, Math.ceil(R.streets * (1 - Math.min(1, rideElapsed(R) / rideRun(R)))));
     txt(R.streets + " STREETS  \u00B7  " + left + " TO GO", LOGICAL_W/2, 300, 26, "#ffd24a");
     ctx.globalAlpha = 0.45 + 0.25*Math.sin(G.t*3);
     txt("TAP OR SWIPE TO WALK THROUGH THE CAR", LOGICAL_W/2, 862, 22, "#8d99a6");
