@@ -1888,10 +1888,31 @@ function layout(){
 
   var nb = Math.max(0.5, Math.min(1, scale));
   /* Mid-burst, take the new scale but hold the re-bake. The settled call that
-     follows does it once. */
-  if (!ready || Math.abs(nb - BAKE) > 0.02){
-    BAKE = nb;
-    if (ready && !reflowT) bakeAll();
+     follows does it once.
+
+     0.06, not 0.02. A full pass is 182 sprites and 6.6MB of canvas, and it
+     blocks the main thread while it runs - tens of milliseconds here, and
+     this machine is many times quicker than the panel this has to survive
+     on. At 2% almost any nudge to the viewport paid that cost; at 6% the
+     sprites are never more than six percent off their drawn size, which on
+     this art is not a difference anybody can point to, and most of the
+     re-bakes simply stop happening. */
+  if (!ready || Math.abs(nb - BAKE) > 0.06){
+    /* BAKE MOVES ONLY WHEN THE BAKE DOES. It used to be assigned here and
+       the re-bake skipped if a burst was in progress - which meant the
+       leading call recorded the new scale without producing sprites at it,
+       and the settled call that followed then compared the new scale
+       against itself, saw no difference, and skipped too. The sprites
+       stayed at whatever scale they were last built at, for the life of
+       the page.
+
+       Leaving BAKE stale through the burst is also simply TRUE: it is the
+       scale the sprites are actually drawn at, and nothing should claim
+       otherwise until they have been rebuilt. */
+    if (!ready || !reflowT){
+      BAKE = nb;
+      if (ready) bakeAll();
+    }
   }
 }
 /* ------------------------------------------------------------ full screen */
@@ -1972,9 +1993,19 @@ if (fsCan()){
    for the resizing to stop. */
 var reflowT = null;
 function onReflow(){
-  layout();
+  /* THE TIMER GOES UP FIRST, and that ordering is the whole point.
+     layout() holds its re-bake when `reflowT` is set, which correctly
+     covers events 2..n of a burst - but the FIRST event of a burst arrives
+     with reflowT null, so it re-baked immediately, at a size that was
+     about to change, and then re-baked again when things settled. Two full
+     passes per burst and the first one always thrown away.
+
+     Setting the timer before the immediate layout means every call during
+     a burst sees a burst in progress. One re-bake per burst, at the size
+     it actually ends up. */
   if (reflowT) clearTimeout(reflowT);
   reflowT = setTimeout(function(){ reflowT = null; layout(); }, 180);
+  layout();
 }
 window.addEventListener("resize", onReflow);
 window.addEventListener("orientationchange", onReflow);
