@@ -125,8 +125,19 @@ function repoCode() {
    is a check nobody runs. */
 function norm(s) { return s.replace(/\r\n/g, "\n").replace(/\s+$/, ""); }
 
+/* ------------------------------------------------------- WHICH BLOB API --
+   /v1/blob, not /v2. Val Town moved blobs under projects, and v2 answers a
+   user-scoped token with 400 "This endpoint can only be used with an API
+   token scoped to a project." The board's blobs are not in a project - they
+   belong to the account the val runs as - so v1 is the right door for them
+   and the only one a personal token can open.
+
+   This is why `reset` had never run. It was not the destructive part that
+   was broken; it was every read and write underneath it. */
+const BLOB = "/v1/blob";
+
 async function blobList(prefix) {
-  const r = await api("GET", "/v2/blob" +
+  const r = await api("GET", BLOB +
     (prefix === undefined ? "" : "?prefix=" + encodeURIComponent(prefix)));
   return Array.isArray(r) ? r : (r && r.data) || [];
 }
@@ -162,7 +173,7 @@ async function readBoard() {
   return mine || [];
 }
 async function blobGet(key) {
-  const res = await fetch(API + "/v2/blob/" + encodeURIComponent(key),
+  const res = await fetch(API + BLOB + "/" + encodeURIComponent(key),
                           { headers: { Authorization: "Bearer " + TOKEN } });
   if (res.status === 404) return null;
   if (!res.ok) die("GET blob " + key + " -> " + res.status);
@@ -170,7 +181,7 @@ async function blobGet(key) {
   try { return JSON.parse(txt); } catch (e) { return txt; }
 }
 async function blobPut(key, value) {
-  const res = await fetch(API + "/v2/blob/" + encodeURIComponent(key), {
+  const res = await fetch(API + BLOB + "/" + encodeURIComponent(key), {
     method: "POST",
     headers: { Authorization: "Bearer " + TOKEN, "Content-Type": "application/json" },
     body: JSON.stringify(value),
@@ -178,7 +189,7 @@ async function blobPut(key, value) {
   if (!res.ok) die("POST blob " + key + " -> " + res.status + " " + (await res.text()).slice(0, 200));
 }
 async function blobDelete(key) {
-  const res = await fetch(API + "/v2/blob/" + encodeURIComponent(key),
+  const res = await fetch(API + BLOB + "/" + encodeURIComponent(key),
                           { method: "DELETE", headers: { Authorization: "Bearer " + TOKEN } });
   if (!res.ok && res.status !== 404) die("DELETE blob " + key + " -> " + res.status);
 }
