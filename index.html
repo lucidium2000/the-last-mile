@@ -2791,6 +2791,13 @@ var MODELS = {
    looks as if something has just gone wrong. */
 var FACE_SMILE = 1, FACE_CHEW = 2, FACE_SAD = 3, FACE_WORN = 4,
     FACE_FLAT = 5, FACE_MEH = 6, FACE_OK = 7, FACE_WOW = 8;
+/* 9, and deliberately outside the 1..8 the world bakes: it is only ever
+   asked for by the train. FACE_WOW was the first attempt at a man shouting
+   and it reads as a man who has lost his mind - the round whites and the
+   raised brows are ASTONISHMENT, which is the right face for a headline and
+   the wrong one for throwing a punch. This is the same open mouth with the
+   ordinary two dots left alone above it: he is yelling, not staring. */
+var FACE_SHOUT = 9;
 var HP_HAPPY = 75, HP_LEVEL = 50;
 /* The hero's complexion. It went minifigure yellow for a while, on the
    argument that the man you are playing should be nobody in particular - and
@@ -3266,6 +3273,12 @@ function playerModel(dir, shielded, face, fighting){
         dec.push({ x:0.414, y:0.43, w:0.034, z:0.772, h:0.013, bg:"#2b1f16" });
         dec.push({ x:0.554, y:0.43, w:0.034, z:0.766, h:0.013, bg:"#2b1f16" });
       }
+    }
+    if (face === FACE_SHOUT){
+      /* The mouth only - the eyes above it are whatever the block before
+         pushed, which is the usual pair of dots. */
+      dec.push({ x:0.462, y:0.43, w:0.076, z:0.672, h:0.046, bg:"#5a2c1e" });
+      dec.push({ x:0.474, y:0.43, w:0.052, z:0.682, h:0.028, bg:"#3d1b12" });
     }
     if (face === FACE_WOW){
       /* The headline. Eyes wide open and round rather than the usual bars,
@@ -4887,17 +4900,16 @@ function bakeAll(){
   S.playerFS_l = bake(playerModel(-1, 1, 0, true));
   S.playerFP_r = bake(playerModel(1, 2, 0, true));
   S.playerFP_l = bake(playerModel(-1, 2, 0, true));
-  /* And the same three again SHOUTING. FACE_WOW already exists for the
-     headline - eyes round, brows up and out of the way, mouth an open O -
-     which is exactly the face of a man calling the name of the move. It
-     goes on for the leap only: three shouted punches is a man screaming,
-     one is a dragon punch. */
-  S.playerFW_r  = bake(playerModel(1, false, FACE_WOW, true));
-  S.playerFW_l  = bake(playerModel(-1, false, FACE_WOW, true));
-  S.playerFWS_r = bake(playerModel(1, 1, FACE_WOW, true));
-  S.playerFWS_l = bake(playerModel(-1, 1, FACE_WOW, true));
-  S.playerFWP_r = bake(playerModel(1, 2, FACE_WOW, true));
-  S.playerFWP_l = bake(playerModel(-1, 2, FACE_WOW, true));
+  /* And the same three again SHOUTING - the open mouth of FACE_WOW with the
+     ordinary dot eyes kept above it, which is FACE_SHOUT. On for the leap
+     only: three shouted punches is a man screaming, one is a dragon
+     punch. */
+  S.playerFW_r  = bake(playerModel(1, false, FACE_SHOUT, true));
+  S.playerFW_l  = bake(playerModel(-1, false, FACE_SHOUT, true));
+  S.playerFWS_r = bake(playerModel(1, 1, FACE_SHOUT, true));
+  S.playerFWS_l = bake(playerModel(-1, 1, FACE_SHOUT, true));
+  S.playerFWP_r = bake(playerModel(1, 2, FACE_SHOUT, true));
+  S.playerFWP_l = bake(playerModel(-1, 2, FACE_SHOUT, true));
   for (var fc = 1; fc <= 8; fc++){
     S["pf" + fc + "_r"]  = bake(playerModel(1, 0, fc));
     S["pf" + fc + "_l"]  = bake(playerModel(-1, 0, fc));
@@ -9409,7 +9421,16 @@ function drawCarFloat(){
 function riderSprite(R){
   var sfx = (R.face || 1) < 0 ? "_l" : "_r";
   var lvl = G.shield >= 2 ? 2 : (G.shield ? 1 : 0);
-  if (!R.fight) return S[(lvl === 2 ? "playerP" : lvl === 1 ? "playerS" : "player") + sfx];
+  if (!R.fight){
+    /* AND AFTERWARDS HE IS PLEASED. The man is on the floor, the carriage
+       is throwing money, and the hero was going back to the blank default
+       face he rides with - which after all that reads as a man who did not
+       notice. The smile is the world's own FACE_SMILE bake, already there
+       for the street, so he gets his briefcase back with it. It stays up
+       for the rest of the ride: R.ko does not clear. */
+    if (R.ko) return S["pf" + FACE_SMILE + (lvl === 2 ? "P" : lvl === 1 ? "S" : "") + sfx];
+    return S[(lvl === 2 ? "playerP" : lvl === 1 ? "playerS" : "player") + sfx];
+  }
   if (R.fightT >= UP_AT)
     return S[(lvl === 2 ? "playerFWP" : lvl === 1 ? "playerFWS" : "playerFW") + sfx];
   return S[(lvl === 2 ? "playerFP" : lvl === 1 ? "playerFS" : "playerF") + sfx];
