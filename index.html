@@ -9538,8 +9538,14 @@ function drawPunchArm(cx0, cw, cy){
   var lift = (R.stepT != null && R.stepT < 1) ? Math.sin(R.stepT * Math.PI) * 7 : 0;
   var baseY = cy + CAR_FLOOR - lift + sp.h * 0.92;
   var k = (t >= UP_AT) ? Math.min(1, (t - UP_AT) / DP_SECS) : -1;
-  var px = R.dpDx ? rideSlotX(R.dpBase + R.dpDx * comboLunge(t), cx0, cw)
-                  : rideSlotX(rideManX(R), cx0, cw);
+  /* MID-COMBO he is at an offset off where he began; AFTERWARDS he is
+     simply where he is. Using the combo's own path for the victory pose put
+     the arm back at R.dpBase - where he stood before the first jab - while
+     his body was a whole slot forward at the position he landed on. An arm
+     348px to the left of its own shoulder. */
+  var px = (R.fight && R.dpDx)
+         ? rideSlotX(R.dpBase + R.dpDx * comboLunge(t), cx0, cw)
+         : rideSlotX(rideManX(R), cx0, cw);
 
   /* TWO SHAPES, ONE ARM. A jab goes out level and comes back on a sine; the
      uppercut goes up and stays up while he is in the air. Same sleeve, same
@@ -9840,16 +9846,27 @@ function drawShady(cx0, cw, cy){
        and all the way out to the side once he is flat. The stars then sit a
        little above that, on screen, which is where stars go. */
     if (R.koT > 0.4){
+      /* IN HIS OWN COORDINATES, which run DOWNWARD: 70 is the top of the
+         hood and 223 is the sole, so his head is around 105 and the drawn
+         origin at 0 is seventy units of empty air ABOVE him. Anchoring on
+         that origin - which the first pass did - floated the stars a good
+         sixty pixels clear of a man who is lying down, past the end of his
+         own head.
+
+         A point v is at (0, v*K) from the origin, the origin is L up from
+         the pivot, so v sits (L - v*K) along his own up-axis - straight up
+         while he stands, all the way out to the side once he is flat. */
       var th = ease * Math.PI * 0.5 * away;
       var L  = (196 + (1 - ease) * 6) * K;
-      var hx = mx + away * (14 * snap + 64 * ease) * K + L * Math.sin(th);
-      var hy = (HY(196) - fly) - L * Math.cos(th);
+      var d  = L - 105 * K;                 // his head, not his halo
+      var hx = mx + away * (14 * snap + 64 * ease) * K + d * Math.sin(th);
+      var hy = (HY(196) - fly) - d * Math.cos(th);
       for (var st = 0; st < 3; st++){
         var sa = G.t * 2.2 + st * 2.09;
         ctx.globalAlpha = 0.75;
         ctx.fillStyle = "#ffd24a";
         ctx.fillRect(hx + Math.cos(sa) * 30 * K - 4,
-                     hy - 32 * K + Math.sin(sa) * 10 - 4, 8, 8);
+                     hy - 36 * K + Math.sin(sa) * 10 - 4, 8, 8);
         ctx.globalAlpha = 1;
       }
     }
