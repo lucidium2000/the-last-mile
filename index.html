@@ -8583,6 +8583,13 @@ var JAB_POW  = Math.log(0.5) / Math.log(JAB_PEAK);
    the leap, and carried back out as he comes down, because his actual slot
    never changed and landing anywhere else would snap. */
 var COMBO_REACH = 0.92;
+/* WHERE HE STANDS AFTER THE JABS. Not all the way back. The first version
+   released the whole lunge, which put him a full slot off the man he had
+   just hit twice - a boxer who throws two and then walks to the other side
+   of the room. He holds just under half of the ground instead, which reads
+   as a man still in it, and it leaves him near whatever ends up on the
+   floor. */
+var JAB_HOLD = 0.45;
 function comboLunge(R, ft){
   if (ft <= 0) return 0;
   var IN = 0.16 * DP_SLOW;
@@ -8595,7 +8602,8 @@ function comboLunge(R, ft){
   var OUT = JABS_END - 0.38;
   if (ft < OUT) return COMBO_REACH;
   var v = Math.min(1, (ft - OUT) / Math.max(0.01, JABS_END - OUT));
-  return COMBO_REACH * (1 - v * v);
+  /* ...to JAB_HOLD, not to nothing. */
+  return COMBO_REACH * (JAB_HOLD + (1 - JAB_HOLD) * (1 - v * v));
 }
 /* Which jab, and how far through it - the arm goes out and comes back on
    one sine, which is the whole of a jab. */
@@ -9125,14 +9133,16 @@ function updateShady(dt){
          so there is nothing to see, and he comes straight down standing
          over the man he hit. Clamped, because the far end of a carriage is
          still the far end of a carriage. */
-      if (R.combo){
-        var land = R.dpBase + R.dpDx * COMBO_REACH;
-        land = Math.max(0, Math.min(RIDE_SLOTS - 1, land));
-        R.slot = land; R.slotFrom = land; R.slotX = land; R.stepT = 1;
-      }
-      /* On a jabs-only swing he keeps nothing: comboLunge has already
-         walked him back out by now, so his slot is where it was and there
-         is nothing to commit. */
+      /* HE KEEPS WHAT HE IS STANDING ON, either way. The combo holds the
+         full reach; the jabs hold JAB_HOLD of it. Both commit on the last
+         frame at exactly the figure the lunge was already drawing, so the
+         handover is invisible - and both leave his logical slot where his
+         feet are, which is what everything else in the car measures
+         against. */
+      var keep = R.combo ? COMBO_REACH : COMBO_REACH * JAB_HOLD;
+      var land = R.dpBase + R.dpDx * keep;
+      land = Math.max(0, Math.min(RIDE_SLOTS - 1, land));
+      R.slot = land; R.slotFrom = land; R.slotX = land; R.stepT = 1;
       R.round = (R.round || 0) + 1;
       R.fight = 0;
       if (!R.combo){
