@@ -19235,17 +19235,241 @@ function drawReport(){
 
    Everything else is skipped while it is up: the world, the HUD, the
    readout. One fill and one blit. */
+/* ===================================================== THE FLAG ==========
+   3D FLYING OBJECTS, which is the screensaver this is doing an impression
+   of. It shipped with Windows NT 3.5 and then 95, 98 and ME, and it came out
+   of an internal Microsoft contest to show off the new OpenGL stack - the
+   same contest that produced 3D Pipes, 3D Maze and 3D Text. An executive
+   liked the entries enough that all of them went in rather than the one.
+   Among its objects was a flag, and the flag anybody remembers is the one
+   with the four-pane Windows logo on it: a sheet of cloth turning slowly in
+   the dark, lit from the front, the ripples furthest from the light falling
+   away to black.
+
+   Ours is a sheet of eyes. Which is the joke, and also the product.
+
+   NO WEBGL, so this is a software rasteriser - but a cheap one. The ripple
+   runs along ONE axis, so every column of the cloth stays a straight line in
+   3D, and a straight line in 3D is still a straight line on screen. That
+   means the whole flag can be drawn as a few dozen textured quads taken out
+   of one bitmap, each with its own affine transform, instead of a mesh of
+   several thousand. Two draw calls a strip, sixty-odd strips: about the cost
+   of the HUD, on a screen nobody is playing. Those vertical fold lines in
+   the original are exactly this - a wave travelling horizontally across a
+   cloth whose columns stay straight.
+
+   The one thing it cannot do is a trapezoid; drawImage takes an affine and
+   an affine takes parallelograms. With strips this thin the error is well
+   under a pixel, and the alternative is per-pixel work in JavaScript. */
+/* The cloth takes the MARK'S aspect, not a tidy 16:9. The eye is going to
+   fill it corner to corner, and a flag a different shape from the thing
+   printed on it means letterboxing the logo on a piece of cloth. */
+var FLAG_W = 1240, FLAG_H = 1240 * (223 / 398);
+/* 128 of them. Each strip is ONE flat shade, so the strip count is the
+   resolution of the lighting as well as of the geometry - at 64 the dark
+   half of the cloth banded into visible stairs where the gradient was
+   steepest. Doubling it costs 128 more draws on a screen with nothing else
+   on it, and 768 divides by it exactly, so a strip stays a whole number of
+   texels. */
+var FLAG_STRIPS = 128;               // columns of it
+var FLAG_F = 1010, FLAG_D = 1240;    // focal length, camera distance
+var FLAG_AMP = 200;                  // how deep the ripple runs
+var FLAG_WAVES = 1.35;               // how many of them fit across
+var FLAG_SPD = 1.15;                 // and how fast they travel
+var FLAG_FOG = 620;                  // depth at which the cloth is gone
+var FLAG_AMB = 0.10, FLAG_DIF = 0.95, FLAG_BACK = 0.08;
+/* THE LIGHT IS IN FRONT OF THE CLOTH, slightly up and to the left, so -Z is
+   most of it: -Z is toward the camera. The outward normal below points the
+   same way, which is the only arrangement where a sheet facing you is the
+   bright one - get the sign wrong and every front-facing strip scores
+   negative, falls through to the backlight term and the whole flag renders
+   as a black rectangle with faint eyes on it. */
+var FLAG_LX = -0.18, FLAG_LY = -0.30, FLAG_LZ = -0.937;
+
+/* ------------------------------------------------------------ the cloth */
+/* Built once into an offscreen canvas, because the strips are drawn FROM it
+   rather than computed per frame. Rebuilt if the real mark turns up late -
+   the PNG is inlined but still decodes asynchronously, and the first paint
+   can land before it. */
+/* An exact multiple of FLAG_STRIPS, so a strip is a whole number of texels
+   and drawImage is never asked for a fractional source column. */
+var FTEX_W = 768, FTEX_H = Math.round(768 * TE_MARK_AR);
+var flagTexC = null, flagTexHasMark = false;
+function flagTex(){
+  var want = imgReady(TE_MARK_IMG);
+  if (flagTexC && flagTexHasMark === want) return flagTexC;
+  var c = document.createElement("canvas");
+  c.width = FTEX_W; c.height = FTEX_H;
+  var g = c.getContext("2d");
+  /* LEFT TRANSPARENT. There is no cloth. The original is not a logo printed
+     on a flag, it is the LOGO ITSELF waving - the four panes and their grey
+     frame turning in the dark with the background showing through the gaps.
+     Fill a rectangle behind it and you get a black bedsheet with a badge on
+     it, which is a different and much worse object. */
+  var ew = FTEX_W * 0.98, eh = ew * TE_MARK_AR;
+  var ex = FTEX_W / 2, ey = FTEX_H / 2;
+  if (want){ g.drawImage(TE_MARK_IMG, ex - ew/2, ey - eh/2, ew, eh); }
+  else {
+    /* The same fallback the rest of the file uses, drawn into the sheet
+       instead of onto the screen. */
+    var r = ew / 2;
+    g.lineJoin = "round"; g.lineCap = "round";
+    g.beginPath();
+    g.moveTo(ex - r, ey);
+    g.quadraticCurveTo(ex, ey - r * 0.78, ex + r, ey);
+    g.quadraticCurveTo(ex, ey + r * 0.78, ex - r, ey);
+    g.closePath();
+    g.lineWidth = r * 0.135; g.strokeStyle = C.brand; g.stroke();
+    g.beginPath(); g.arc(ex, ey, r * 0.30, 0, Math.PI * 2);
+    g.fillStyle = C.brand; g.fill();
+  }
+  flagTexC = c; flagTexHasMark = want;
+  return c;
+}
+
+/* THE LIT COPY. The shade varies along u and only along u - which is to say
+   along the texture's own x axis - so the whole frame's lighting can be burnt
+   into a copy of the bitmap with one axis-aligned fillRect per strip, and
+   every strip then drawn at full opacity.
+
+   That is what kills the seams. Quads drawn at alpha < 1 double-composite
+   wherever they overlap, and they have to overlap: abutting quads antialias
+   against each other and leave a hairline down every join. Opaque quads can
+   overlap for free, because the second one simply covers the first. And the
+   darkening itself, done here, is integer rectangles on an untransformed
+   canvas - no antialiasing, nothing to seam.
+
+   source-atop is what keeps the holes. It paints only where the destination
+   already has something, so the gaps the logo is supposed to show the room
+   through stay gaps, and a half-covered pixel on the logo's outline darkens
+   by half as much, which is correct. */
+var flagLitC = null;
+function flagLit(tex, N, sw){
+  if (!flagLitC){
+    flagLitC = document.createElement("canvas");
+    flagLitC.width = FTEX_W; flagLitC.height = FTEX_H;
+  }
+  var g = flagLitC.getContext("2d");
+  g.setTransform(1, 0, 0, 1, 0, 0);
+  g.globalCompositeOperation = "source-over";
+  g.clearRect(0, 0, FTEX_W, FTEX_H);
+  g.globalAlpha = 1;
+  g.drawImage(tex, 0, 0);
+  g.globalCompositeOperation = "source-atop";
+  for (var k = 0; k < N; k++){
+    var dark = 1 - (fgSh[k] + fgSh[k+1]) * 0.5;
+    if (dark <= 0.004) continue;
+    g.fillStyle = "rgba(0,0,0," + dark.toFixed(3) + ")";
+    g.fillRect(k * sw, 0, sw, FTEX_H);
+  }
+  g.globalCompositeOperation = "source-over";
+  return flagLitC;
+}
+
+/* Scratch, reused every frame. A screensaver that allocates three arrays a
+   frame for an hour is a screensaver that stutters once a minute. */
+var fgTX = [], fgTY = [], fgBX = [], fgBY = [], fgSh = [], fgZ = [], fgOrd = [];
+/* Hoisted. A comparator written inline is a fresh closure every frame, and
+   this one runs for as long as the panel is left alone. */
+function fgDepth(a, b){ return (fgZ[b] + fgZ[b+1]) - (fgZ[a] + fgZ[a+1]); }
+
 function drawSaver(){
-  var t = G.t;
-  ctx.fillStyle = "#07080c";
+  var t = G.t, i;
+  ctx.fillStyle = "#05070b";
   ctx.fillRect(0, 0, LOGICAL_W, LOGICAL_H);
-  var dx = Math.sin(t * 0.047) * 150 + Math.sin(t * 0.0193) * 60;
-  var dy = Math.cos(t * 0.031) * 90  + Math.cos(t * 0.0117) * 36;
-  var breathe = 0.80 + 0.20 * (0.5 + 0.5 * Math.sin(t * 0.42));
-  ctx.globalAlpha = breathe;
-  if (!drawMark(LOGICAL_W/2 + dx, LOGICAL_H/2 + dy, 300))
-    drawLogoEye(LOGICAL_W/2 + dx, LOGICAL_H/2 + dy, 150);
-  ctx.globalAlpha = 1;
+
+  /* IT STILL WANDERS. Burn-in is the entire reason this class of program
+     exists, and a flag pinned to the middle of a panel for eight hours is a
+     flag etched into it. Two incommensurate sines, so the path never
+     repeats on any sensible timescale. */
+  var cx = LOGICAL_W/2 + Math.sin(t * 0.047) * 128 + Math.sin(t * 0.0193) * 52;
+  var cy = LOGICAL_H/2 + Math.cos(t * 0.031) * 74  + Math.cos(t * 0.0117) * 30;
+
+  /* The tumble. Yaw is what sells the third dimension - it is the turn that
+     takes the far end of the cloth away from you - so it is the big one, and
+     it never passes through zero, because a flag edge-on to nothing is a
+     flag that looks flat. */
+  var yaw = -0.80 + 0.42 * Math.sin(t * 0.137);
+  var pit =  0.13 * Math.sin(t * 0.0911) + 0.05;
+  var cyw = Math.cos(yaw), syw = Math.sin(yaw);
+  var cpt = Math.cos(pit), spt = Math.sin(pit);
+
+  var tex = flagTex();
+  var N = FLAG_STRIPS, sw = FTEX_W / N;   // an exact integer, see FTEX_W
+  var ph0 = -t * FLAG_SPD, kW = FLAG_WAVES * Math.PI * 2;
+
+  /* --- geometry. N+1 column boundaries, top and bottom of each. */
+  for (i = 0; i <= N; i++){
+    var u = i / N;
+    var amp = FLAG_AMP * (0.20 + 0.80 * u);     // pinned at the hoist
+    var ph  = u * kW + ph0;
+    var z   = amp * Math.sin(ph);
+    var x   = (u - 0.5) * FLAG_W;
+
+    /* yaw about the vertical, then pitch about the horizontal. */
+    var X1 = x * cyw + z * syw;
+    var Z1 = -x * syw + z * cyw;
+
+    var yT = -FLAG_H/2, yB = FLAG_H/2;
+    var Y2t = yT * cpt - Z1 * spt, Z2t = yT * spt + Z1 * cpt;
+    var Y2b = yB * cpt - Z1 * spt, Z2b = yB * spt + Z1 * cpt;
+
+    var kt = FLAG_F / Math.max(220, FLAG_D + Z2t);
+    var kb = FLAG_F / Math.max(220, FLAG_D + Z2b);
+    fgTX[i] = cx + X1 * kt; fgTY[i] = cy + Y2t * kt;
+    fgBX[i] = cx + X1 * kb; fgBY[i] = cy + Y2b * kb;
+
+    /* The normal of z = w(u), rotated the same way the point was. The slope
+       is analytic rather than differenced - a difference across a strip this
+       wide smears the shading by half a fold. */
+    var dA = FLAG_AMP * 0.80;
+    var dz = (dA * Math.sin(ph) + amp * Math.cos(ph) * kW) / FLAG_W;
+    var inv = 1 / Math.sqrt(dz*dz + 1);
+    var n0x = dz * inv, n0z = -inv;      // outward, toward the camera
+    var nX = n0x * cyw + n0z * syw;
+    var nZ = -n0x * syw + n0z * cyw;
+    var nY2 = -nZ * spt, nZ2 = nZ * cpt;
+
+    var d = nX * FLAG_LX + nY2 * FLAG_LY + nZ2 * FLAG_LZ;
+    var lit = FLAG_AMB + (d > 0 ? FLAG_DIF * d : FLAG_BACK * -d);
+
+    /* ...and the dark. The far ripples in the original do not just turn
+       away from the light, they recede into the black. */
+    var Zm = (Z2t + Z2b) * 0.5;
+    var fog = 1.20 - Zm / FLAG_FOG;
+    if (fog > 1) fog = 1; else if (fog < 0) fog = 0;
+    lit *= fog;
+    fgSh[i] = lit > 1 ? 1 : (lit < 0 ? 0 : lit);
+    fgZ[i] = Zm;
+  }
+
+  var lit = flagLit(tex, N, sw);
+
+  /* --- back to front. The sheet folds over itself; without this the near
+     ripple is painted first and the far one lands on top of it. */
+  fgOrd.length = N;
+  for (i = 0; i < N; i++) fgOrd[i] = i;
+  fgOrd.sort(fgDepth);
+
+  /* --- the strips. One textured quad and one wash of black each. */
+  /* Bleed into the neighbour. Adjacent fills antialias against each other
+     and leave a hairline otherwise; the texture is opaque, so whichever
+     strip is drawn second simply covers the overlap. */
+  var BLEED = 1.15;
+  for (var o = 0; o < N; o++){
+    var k = fgOrd[o];
+    /* ...except off the right-hand end of the bitmap, where there is
+       nothing to bleed into and asking for it stretches the last column. */
+    var over = Math.min(sw + BLEED, FTEX_W - k * sw);
+    var ax = fgTX[k], ay = fgTY[k];
+    var ux = (fgTX[k+1] - ax) / sw, uy = (fgTY[k+1] - ay) / sw;
+    var vx = (fgBX[k] - ax) / FTEX_H, vy = (fgBY[k] - ay) / FTEX_H;
+    ctx.save();
+    ctx.transform(ux, uy, vx, vy, ax, ay);
+    ctx.drawImage(lit, k * sw, 0, over, FTEX_H, 0, 0, over, FTEX_H);
+    ctx.restore();
+  }
+  ctx.setTransform(scale, 0, 0, scale, 0, 0);
 }
 
 /* --------------------------------------------------------------- main loop */
