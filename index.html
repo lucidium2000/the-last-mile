@@ -19541,7 +19541,7 @@ function rainStep(dt){
 /* The cloth takes the MARK'S aspect, not a tidy 16:9. The eye is going to
    fill it corner to corner, and a flag a different shape from the thing
    printed on it means letterboxing the logo on a piece of cloth. */
-var FLAG_W = 896, FLAG_H = 896 * (223 / 398);
+var FLAG_W = 762, FLAG_H = 762 * (223 / 398);
 /* 128 of them. Each strip is ONE flat shade, so the strip count is the
    resolution of the lighting as well as of the geometry - at 64 the dark
    half of the cloth banded into visible stairs where the gradient was
@@ -19550,9 +19550,9 @@ var FLAG_W = 896, FLAG_H = 896 * (223 / 398);
    texels. */
 var FLAG_STRIPS = 128;               // columns of it
 var FLAG_F = 1010, FLAG_D = 1240;    // focal length, camera distance
-var FLAG_AMP = 112;                  // how deep the ripple runs
+var FLAG_AMP = 78;                   // how deep the ripple runs
 var FLAG_WAVES = 1.02;               // how many of them fit across
-var FLAG_SPD = 1.15;                 // and how fast they travel
+var FLAG_SPD = 1.495;                // and how fast they travel
 var FLAG_FOG = 620;                  // depth at which the cloth is gone
 var FLAG_AMB = 0.10, FLAG_DIF = 0.95, FLAG_BACK = 0.08;
 /* THE LIGHT IS IN FRONT OF THE CLOTH, slightly up and to the left, so -Z is
