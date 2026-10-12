@@ -4571,6 +4571,23 @@ function propTop(kind){
    which arms the vault; push the same way again inside VAULT_WINDOW and he
    goes over. With nowhere to land it is just the old dull thud, because
    suggesting a move that cannot be made is worse than refusing it. */
+/* ------------------------------------------------------- THE SHOVE ------
+   A refusal that does not move him is a refusal nobody can read. Standing a
+   full square back from somebody and simply not advancing looks like the
+   controls dropped the tap - the player cannot see what he is being stopped
+   BY, because the thing stopping him is a tile away and he never got near
+   it.
+
+   So he goes in. Better than half a square, far enough that he is clearly
+   in their space and clearly been put back out of it, on a sine so the
+   return is a shove rather than a snap. He never holds the square - the
+   move is still refused - but the refusal is now something that happens to
+   him rather than something that fails to. */
+var PUSH_SECS = 0.30, PUSH_DEPTH = 0.58;
+function shove(nr, nc){
+  G.push = { dr:nr - G.row, dc:nc - G.col, t:PUSH_SECS };
+}
+
 function nudge(nr, nc, dir, land, quiet){
   if (!land){ if (!quiet) AUDIO.bump(); return; }
   G.vault = { r:nr, c:nc, dir:dir, t:VAULT_WINDOW };
@@ -5437,7 +5454,7 @@ function reset(){
     leapT:0, leapDir:1, dashBeep:0, idleT:0, saver:false, saverT:0, hushed:false, spin:null,
     dashFlash:0, dashPulse:0, dashWhole:0,
     scene:null, scenePend:null, scenesSeen:{}, ticker:null, notice:null, southT:0,
-    report:false, reportY:0, spinR:0, candy:null, vault:null, nudgeT:0,
+    report:false, reportY:0, spinR:0, candy:null, vault:null, nudgeT:0, push:null,
     leg:1, po:false, won:false,
     fiscT:FISC_MAX, fiscMin:FISC_START_MIN,
     missedClose:false,
@@ -6320,6 +6337,22 @@ function act(dir){
          clears itself in five seconds, and forward and back are both still
          open. */
       if (fo.q){
+        /* EXCEPT ON THE ROUTE. The traced path is the one promise this game
+           makes that it cannot break - it draws a line up the street and
+           says walk this - and a man who wandered over to buy a bagel
+           standing on one of its nodes was quietly breaking it. The player
+           reads that as the route being wrong, not as somebody being in the
+           way, because the route is the thing he was told to trust.
+
+           So he goes past. They are queueing, not braced; he is on a
+           measured path and moving. The bump is there so it still lands as
+           contact rather than as walking through a ghost. */
+        if (onPath){ AUDIO.jostle(); continue; }
+        /* Otherwise he gets the shove rather than a dead stop. He still does
+           not get the square - somebody buying lunch does not yield - but
+           now you can see him try for it and be put back, which is the
+           whole difference between an obstacle and a dropped input. */
+        shove(nr, nc);
         if (G.t - (fo.blockAt || -99) > 1.2){
           fo.blockAt = G.t;
           fo.sayAt = G.t;
@@ -7742,7 +7775,17 @@ function playerPos(){
     lift += SPRINT_JUMP * (1 + 0.22 * ((G.sprintSpan || 1) - 1))
             * (G.crane ? CRANE_LIFT : 1)
             * Math.sin(G.hop * Math.PI);
-  return { col:G.fromCol + (G.col-G.fromCol)*e, row:G.fromRow + (G.row-G.fromRow)*e,
+  /* The shove, as a displacement on top of wherever the step left him. It
+     is deliberately NOT a move: G.row and G.col never change, so nothing
+     downstream - the beam, the trace, what he can be hit by - believes for a
+     frame that he was ever in that square. */
+  var pdr = 0, pdc = 0;
+  if (G.push && G.push.t > 0){
+    var pk = Math.sin((1 - G.push.t / PUSH_SECS) * Math.PI) * PUSH_DEPTH;
+    pdr = G.push.dr * pk; pdc = G.push.dc * pk;
+  }
+  return { col:G.fromCol + (G.col-G.fromCol)*e + pdc,
+           row:G.fromRow + (G.row-G.fromRow)*e + pdr,
            lift:lift, sq:s };
 }
 
@@ -13457,6 +13500,7 @@ function update(dt){
       if (G.candy.t >= CANDY_FLY){ G.candy = null; candyLand(); }
     }
     if (G.nudgeT > 0) G.nudgeT = Math.max(0, G.nudgeT - dt);
+    if (G.push){ G.push.t -= dt; if (G.push.t <= 0) G.push = null; }
     /* The armed vault forgets itself. Walking away and coming back later
        should take two pushes again, not one. */
     if (G.vault){
@@ -19279,6 +19323,58 @@ var RAIN_KEEP = 0.26;
 var RAIN_HEAD = "#ffe3bd";      // the leading character, almost white
 var RAIN_BODY = "#ff7a1a";      // everything behind it
 var RAIN_IN = 3.2;              // seconds to come up from nothing
+/* ---------------------------------------------------- COMING AND GOING --
+   The code does not simply run. It fades up, holds somewhere between one
+   and ten seconds, fades away and leaves the mark alone on the black for a
+   good while before coming back.
+
+   BIASED OFF. It is away two to three times as long as it is present, on
+   average - the rain is the surprise, and a surprise that is on more than
+   it is off is wallpaper. It also means the thing somebody glances at from
+   down the corridor is usually just the eye. */
+var RAIN_HOLD_MIN = 1, RAIN_HOLD_MAX = 10;      // held:   avg 5.5s
+/* The away side has to beat the hold PLUS BOTH RAMPS, which is the part
+   that is easy to get wrong: a 3.2s fade each way adds 6.4s of visible rain
+   to every cycle, so an "off" of 6-22 against a "hold" of 1-10 came out at
+   47% on - even money, not a bias. Against the real on-time of 7.4 to 16.4
+   seconds, this lands around a third on, two thirds off. */
+var RAIN_GONE_MIN = 12, RAIN_GONE_MAX = 34;     // away:   avg 23s
+var rainA = 0, rainPhase = 0, rainHold = 0;     // 0 in, 1 held, 2 out, 3 away
+
+function rainBreathe(dt){
+  if (rainPhase === 0){
+    rainA += dt / RAIN_IN;
+    if (rainA >= 1){
+      rainA = 1; rainPhase = 1;
+      rainHold = RAIN_HOLD_MIN + Math.random() * (RAIN_HOLD_MAX - RAIN_HOLD_MIN);
+    }
+  } else if (rainPhase === 1){
+    rainHold -= dt;
+    if (rainHold <= 0) rainPhase = 2;
+  } else if (rainPhase === 2){
+    rainA -= dt / RAIN_IN;
+    if (rainA <= 0){
+      rainA = 0; rainPhase = 3;
+      rainHold = RAIN_GONE_MIN + Math.random() * (RAIN_GONE_MAX - RAIN_GONE_MIN);
+      /* Wiped on the way out, so the next one is not the last one's
+         leftovers creeping back up to visible. */
+      if (rainG){
+        rainG.globalCompositeOperation = "source-over";
+        rainG.clearRect(0, 0, LOGICAL_W, LOGICAL_H);
+      }
+    }
+  } else {
+    rainHold -= dt;
+    if (rainHold <= 0){
+      rainPhase = 0;
+      /* Scattered, not started. Columns released from the top would spend
+         the whole three-second ramp as a row of stubs along the ceiling;
+         scattered, the field is already full by the time it is visible. */
+      for (var i = 0; rainCols && i < rainCols.length; i++)
+        rainReset(rainCols[i], true);
+    }
+  }
+}
 var RAIN_MAX = 0.88;            // ...and how present it gets. It is a
                                 // BACKGROUND; the mark is the subject.
 var RAIN_MIN_V = 7, RAIN_MAX_V = 17;    // rows a second
@@ -19357,9 +19453,7 @@ function rainWake(){
   rainG.clearRect(0, 0, LOGICAL_W, LOGICAL_H);
   for (var i = 0; i < rainCols.length; i++) rainReset(rainCols[i], false);
   rainLast = 0;
-  /* The mark starts away and fades up with the code, rather than being
-     there already when the panel goes quiet. */
-  flagA = 0; flagPhase = 0; flagHold = 0;
+  rainA = 0; rainPhase = 0; rainHold = 0;
 }
 
 function rainStep(dt){
@@ -19443,7 +19537,7 @@ function rainStep(dt){
 /* The cloth takes the MARK'S aspect, not a tidy 16:9. The eye is going to
    fill it corner to corner, and a flag a different shape from the thing
    printed on it means letterboxing the logo on a piece of cloth. */
-var FLAG_W = 1054, FLAG_H = 1054 * (223 / 398);
+var FLAG_W = 896, FLAG_H = 896 * (223 / 398);
 /* 128 of them. Each strip is ONE flat shade, so the strip count is the
    resolution of the lighting as well as of the geometry - at 64 the dark
    half of the cloth banded into visible stairs where the gradient was
@@ -19522,61 +19616,6 @@ function flagTex(){
    already has something, so the gaps the logo is supposed to show the room
    through stay gaps, and a half-covered pixel on the logo's outline darkens
    by half as much, which is correct. */
-/* ---------------------------------------------------- COMING AND GOING --
-   The mark does not simply sit there. It fades up, holds somewhere between
-   one and ten seconds, fades away, leaves the code to itself for a moment,
-   and comes back - so the screen is never the same twice and the rain gets
-   the room to itself often enough to be noticed.
-
-   IT HAS TO FADE IN ALPHA, NOT IN BRIGHTNESS. There is something behind it
-   now. Darkening the mark toward the background would still occlude the
-   rain, and a logo-shaped hole in the falling code is worse than either.
-
-   Which is why it gets its own buffer. The strips are drawn OPAQUE and
-   overlapping - that is what keeps the seams out of them - and quads drawn
-   at alpha < 1 double-composite wherever they overlap. So they go down at
-   full opacity into a transparent canvas, and the whole assembled mark is
-   composited once, at whatever this moment's alpha is. One extra blit, and
-   the fade cannot reintroduce the striping. */
-var FLAG_FADE = 1.15;                    // seconds of ramp, each way
-var FLAG_HOLD_MIN = 1, FLAG_HOLD_MAX = 10;
-/* How long it stays away. Not specified, so: shorter than it is present -
-   long enough that the code clearly has the screen, short enough that
-   nobody walking past decides the panel is broken. */
-var FLAG_GONE_MIN = 0.9, FLAG_GONE_MAX = 3.2;
-var flagA = 0, flagPhase = 0, flagHold = 0;   // 0 in, 1 held, 2 out, 3 away
-
-function flagBreathe(dt){
-  if (flagPhase === 0){
-    flagA += dt / FLAG_FADE;
-    if (flagA >= 1){
-      flagA = 1; flagPhase = 1;
-      flagHold = FLAG_HOLD_MIN + Math.random() * (FLAG_HOLD_MAX - FLAG_HOLD_MIN);
-    }
-  } else if (flagPhase === 1){
-    flagHold -= dt;
-    if (flagHold <= 0) flagPhase = 2;
-  } else if (flagPhase === 2){
-    flagA -= dt / FLAG_FADE;
-    if (flagA <= 0){
-      flagA = 0; flagPhase = 3;
-      flagHold = FLAG_GONE_MIN + Math.random() * (FLAG_GONE_MAX - FLAG_GONE_MIN);
-    }
-  } else {
-    flagHold -= dt;
-    if (flagHold <= 0) flagPhase = 0;
-  }
-}
-
-var flagBufC = null;
-function flagBuf(){
-  if (!flagBufC){
-    flagBufC = document.createElement("canvas");
-    flagBufC.width = LOGICAL_W; flagBufC.height = LOGICAL_H;
-  }
-  return flagBufC;
-}
-
 var flagLitC = null;
 function flagLit(tex, N, sw){
   if (!flagLitC){
@@ -19619,17 +19658,17 @@ function drawSaver(){
   var rdt = rainLast ? (t - rainLast) : 0;
   rainLast = t;
   if (rdt > 0.1) rdt = 0.1;              // a tab that was backgrounded
-  if (rdt > 0) rainStep(rdt);
-  /* The mark's own cycle runs on the same delta as the rain. */
-  if (rdt > 0) flagBreathe(rdt);
-
-  var rin = G.saverT / RAIN_IN;
-  if (rin > 1) rin = 1; else if (rin < 0) rin = 0;
-  /* Eased, not linear. A linear ramp on something this sparse appears all
-     at once about a third of the way in. */
-  rin = rin * rin * (3 - 2 * rin);
-  if (rin > 0){
-    ctx.globalAlpha = rin * RAIN_MAX;
+  if (rdt > 0) rainBreathe(rdt);
+  /* Not simulated while it is away. Nothing is on screen to be wrong, and
+     the field is rebuilt scattered when it comes back - so the twenty
+     seconds it spends gone cost a comparison rather than twelve hundred
+     full-screen fades. */
+  if (rainA > 0 && rdt > 0) rainStep(rdt);
+  if (rainA > 0){
+    /* Eased, not linear. A linear ramp on something this sparse appears all
+       at once about a third of the way in. */
+    var ra = rainA * rainA * (3 - 2 * rainA);
+    ctx.globalAlpha = ra * RAIN_MAX;
     ctx.drawImage(rainC, 0, 0, LOGICAL_W, LOGICAL_H);
     ctx.globalAlpha = 1;
   }
@@ -19640,13 +19679,6 @@ function drawSaver(){
      repeats on any sensible timescale. */
   var cx = LOGICAL_W/2 + Math.sin(t * 0.047) * 128 + Math.sin(t * 0.0193) * 52;
   var cy = LOGICAL_H/2 + Math.cos(t * 0.031) * 74  + Math.cos(t * 0.0117) * 30;
-
-  /* NOTHING TO DRAW IS NOTHING TO COMPUTE. While the mark is away this is
-     a few hundred draws a frame that would land on a fully transparent
-     buffer and then be composited at zero. The wave is a pure function of
-     t, so skipping frames costs nothing - it picks up exactly where it
-     would have been. */
-  if (flagA <= 0) return;
 
   /* The tumble. Yaw is what sells the third dimension - it is the turn that
      takes the far end of the cloth away from you - so it is the big one, and
@@ -19719,9 +19751,6 @@ function drawSaver(){
      and leave a hairline otherwise; the texture is opaque, so whichever
      strip is drawn second simply covers the overlap. */
   var BLEED = 1.15;
-  var fb = flagBuf(), g = fb.getContext("2d");
-  g.setTransform(1, 0, 0, 1, 0, 0);
-  g.clearRect(0, 0, LOGICAL_W, LOGICAL_H);
   for (var o = 0; o < N; o++){
     var k = fgOrd[o];
     /* ...except off the right-hand end of the bitmap, where there is
@@ -19730,17 +19759,11 @@ function drawSaver(){
     var ax = fgTX[k], ay = fgTY[k];
     var ux = (fgTX[k+1] - ax) / sw, uy = (fgTY[k+1] - ay) / sw;
     var vx = (fgBX[k] - ax) / FTEX_H, vy = (fgBY[k] - ay) / FTEX_H;
-    g.save();
-    g.transform(ux, uy, vx, vy, ax, ay);
-    g.drawImage(lit, k * sw, 0, over, FTEX_H, 0, 0, over, FTEX_H);
-    g.restore();
+    ctx.save();
+    ctx.transform(ux, uy, vx, vy, ax, ay);
+    ctx.drawImage(lit, k * sw, 0, over, FTEX_H, 0, 0, over, FTEX_H);
+    ctx.restore();
   }
-  /* Smoothstepped, so it arrives and leaves without a visible start and
-     stop at either end of the ramp. */
-  var fa = flagA * flagA * (3 - 2 * flagA);
-  ctx.globalAlpha = fa;
-  ctx.drawImage(fb, 0, 0, LOGICAL_W, LOGICAL_H);
-  ctx.globalAlpha = 1;
   ctx.setTransform(scale, 0, 0, scale, 0, 0);
 }
 
