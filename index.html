@@ -1623,6 +1623,40 @@ var AUDIO = (function(){
       tone({ f:2480, to:1900, dur:0.45, type:"sawtooth", g:0.020, at:0.2, lp:3600 });
     },
     /* The hero's end of it: a grunt of effort on the backswing. */
+    /* THE CONNECT. The biggest single sound in the game, and it has to be:
+       it is a briefcase full of hardware arriving under a jaw at the top of
+       a jump, and the old one was a 0.07s crack borrowed from the swing.
+
+       Four things stacked on one frame. The crack is what you hear first
+       and it is the smallest of them. The flat thud underneath is the mass.
+       The square at 112 gives it a body rather than a click, and the sine
+       at 58 is the one nobody consciously hears - it is what makes a hit
+       feel big instead of merely loud, and it is why this is worth four
+       voices rather than one.
+
+       Then the air leaving him, 50ms later, which is the only part of it
+       that is him rather than the impact.
+
+       The peaks sum to about 1.4, and master tops out at 0.32, so the
+       loudest frame lands near 0.45 at the destination - big, and nowhere
+       near clipping. */
+    /* A JAB IS NOT A SMALL PUNCH, it is a different sound: all snap and no
+       mass. Short, bright, almost no low end - which is exactly what makes
+       the uppercut land like a truck two beats later. If these two shared a
+       waveform the combo would be three of the same noise getting louder. */
+    jab: function(){
+      hit({ f:2600, to:1200, hp:true, dur:0.040, g:0.20 });
+      hit({ f:420,  to:150,  dur:0.090, g:0.17 });
+      tone({ f:170, to:96,   dur:0.11, type:"square", g:0.09, lp:420 });
+    },
+    punch: function(){
+      hit({ f:3400, to:1100, hp:true, dur:0.055, g:0.34 });
+      hit({ f:260,  to:58,   dur:0.30, g:0.46 });
+      tone({ f:112, to:40,   dur:0.38, type:"square", g:0.26, lp:220 });
+      tone({ f:58,  to:32,   dur:0.46, type:"sine",   g:0.34 });
+      hit({ f:900,  to:260,  dur:0.30, g:0.14, at:0.05 });
+      tone({ f:220, to:150,  dur:0.50, type:"triangle", g:0.08, at:0.10, lp:800 });
+    },
     heave: function(){
       tone({ f:188, to:124, dur:0.26, type:"sawtooth", g:0.085, lp:620 });
       hit({ f:900, to:400, dur:0.14, g:0.05 });
@@ -4590,6 +4624,13 @@ function propTop(kind){
 var PUSH_SECS = 0.30, PUSH_DEPTH = 0.58;
 function shove(nr, nc){
   G.push = { dr:nr - G.row, dc:nc - G.col, t:PUSH_SECS };
+}
+
+/* A jolt that is over when it is supposed to be. Amplitude and DURATION,
+   rather than amplitude and whatever the global decay makes of it. */
+function shakeFor(amt, secs){
+  G.shake = amt;
+  G.shakeFade = amt / Math.max(0.02, secs);
 }
 
 function nudge(nr, nc, dir, land, quiet){
@@ -8262,7 +8303,54 @@ var SWING_REACH = 1.30;    // how far the briefcase carries
    that eases out at the apex, then a fall that eases in. Symmetrical and it
    reads as a hop; weighted like this and it reads as something that left
    the ground on purpose. */
-var DP_SECS = 0.78;        // the whole move
+/* THE WIND-UP IS 0.11s LONG, and the man he is hitting holds still for it.
+   Contact used to be the same frame as the input, which meant the hero was
+   still a tile away with his arm down when the other man's head went back -
+   he looked like he had knocked him over by pointing at him.
+
+   So the hit is DELAYED by exactly as long as it takes to cross the gap,
+   his victim's clock starts negative, and the punch sound, the shake and
+   the burst all fire on the frame it crosses zero. */
+/* ONE DIAL FOR THE WHOLE FIGHT. Every duration below is a base figure
+   multiplied by DP_SLOW, so the combo can be re-timed by changing one
+   number and nothing can fall out of step with anything else - the ghosts,
+   the lunge, the victim's knockdown and the three contacts all read their
+   boundaries off the same clock.
+
+   At 2 it plays at half speed. This is the rarest thing in the game and the
+   only fight in it; it is worth watching rather than catching. */
+var DP_SLOW = 2.0;
+
+var JAB_SECS = 0.16 * DP_SLOW;      // one jab, out and back
+var KO_DELAY = 0.11 * DP_SLOW;      // the uppercut's wind-up
+var DP_SECS  = 0.78 * DP_SLOW;      // the uppercut itself
+
+/* The three beats, as one timeline. jab, jab, then the leap. */
+var JAB_HIT  = 0.45 * JAB_SECS;         // where in a jab it lands
+var UP_AT    = 2 * JAB_SECS;            // and where the uppercut starts
+var KO_AT    = UP_AT + KO_DELAY;        // ...and where it lands
+var FIGHT_SECS = UP_AT + DP_SECS;
+
+/* HE CLOSES ONCE AND STAYS CLOSED. One envelope across all three punches
+   rather than a lunge per punch - stepping in and out three times is a man
+   bouncing, not a man working. In on the first jab, in for the second and
+   the leap, and carried back out as he comes down, because his actual slot
+   never changed and landing anywhere else would snap. */
+function comboLunge(ft){
+  if (ft <= 0) return 0;
+  var IN = 0.16 * DP_SLOW, OUT = FIGHT_SECS - 0.42 * DP_SLOW;
+  if (ft < IN) return Math.sin((ft / IN) * Math.PI * 0.5) * 0.92;
+  if (ft < OUT) return 0.92;
+  var v = Math.min(1, (ft - OUT) / Math.max(0.01, FIGHT_SECS - OUT));
+  return 0.92 * (1 - v * v);
+}
+/* Which jab, and how far through it - the arm goes out and comes back on
+   one sine, which is the whole of a jab. */
+function jabExt(ft){
+  if (ft < 0 || ft >= UP_AT) return 0;
+  var jp = (ft % JAB_SECS) / JAB_SECS;
+  return Math.sin(jp * Math.PI);
+}
 /* 56, and that number is the car. A dragon punch does not fit in a subway
    carriage: the shell's inside is at cy+9, his head at rest is at cy+119,
    and a raised arm with a briefcase on the end of it eats most of the gap
@@ -8341,11 +8429,11 @@ function rideAct(dir){
      exactly when you need this to work. */
   if (R.shady >= 0 && !R.ko && R.knife > 0 && d === (R.knifeSide || 1) &&
       Math.abs(R.shadyX - rideManX(R)) <= SWING_REACH){
-    R.ko = 1; R.koT = 0; R.dp = DP_SECS; R.knife = 0;
+    R.fight = 1; R.fightT = 0; R.ko = 0; R.koT = 0; R.knife = 0;
+    R.jolt = 0;                          // what the jabs do to him
+    R.dpDx = R.shadyX - rideManX(R);     // the gap, to be crossed
     R.face = d;
     AUDIO.heave();
-    G.shake = 26;                        // it is a bigger hit than it was
-    AUDIO.swing();
     var swung = chuckPayout("He dropped it on his way down.", true);
     flash("BRIEFCASE UPPERCUT",
           "He picked the wrong commuter.  +" + cash(swung), C.good);
@@ -8565,16 +8653,46 @@ function shadySay(R, hard){
 
 function updateShady(dt){
   var R = G.ride;
-  if (R.shady < 0 || R.phase !== "run") return;
-  /* The swing and the brace are the HERO's, and they are set on the same
-     frame the man goes down - so they have to tick before the early return
-     for him, or the player stays frozen mid-follow-through for the rest of
-     the ride. */
-  if (R.dp > 0) R.dp = Math.max(0, R.dp - dt);
+  if (R.shady < 0) return;
   /* Ticked before the knock-out return, or a man floored a frame after he
      grabbed the roll keeps the dollar signs for the rest of the ride. */
   if (R.gotCash > 0) R.gotCash = Math.max(0, R.gotCash - dt);
+
+  /* THE COMBO TICKS ABOVE THE PHASE GATE, and that matters. Everything
+     below only runs while the train is between stations - which is right
+     for a man deciding whether to rob somebody, and wrong for two seconds
+     of animation already in flight. Land the first jab as the brakes go on
+     and the whole fight froze mid-air for the rest of the ride: the hero
+     stuck at the top of his jump, the other man stuck upright.
+
+     The fight is not a decision. Once it has started it finishes. */
+  if (R.fight){
+    var was = R.fightT;
+    R.fightT += dt;
+    var hx = rideSlotX(R.shadyX, R.cx0 || 90, R.cw || (LOGICAL_W - 180));
+    var hy = (R.cy || 470) + CAR_FLOOR - 40;
+
+    function beat(at){ return was < at && R.fightT >= at; }
+    if (beat(JAB_HIT) || beat(JAB_SECS + JAB_HIT)){
+      AUDIO.jab();
+      shakeFor(13, 0.07);
+      R.jolt = 1;
+    }
+    if (beat(KO_AT)){
+      AUDIO.punch();
+      shakeFor(32, 0.10);
+      burst(hx, hy, "#ffd9a8");
+    }
+    if (R.jolt > 0) R.jolt = Math.max(0, R.jolt - dt / (0.16 * DP_SLOW));
+
+    /* The knockdown starts at the uppercut and runs on the SAME slowed
+       clock, or a man in slow motion knocks somebody over at full speed. */
+    if (R.fightT >= KO_AT){ R.ko = 1; R.koT = (R.fightT - KO_AT) / DP_SLOW; }
+    if (R.fightT >= FIGHT_SECS) R.fight = 0;
+    return;
+  }
   if (R.ko){ R.koT += dt; return; }
+  if (R.phase !== "run") return;
 
   /* The red eyes, which are not a tell and are not connected to anything.
      Suppressed while the dollar signs are up: two colours of light in one
@@ -8706,7 +8824,7 @@ function updateShady(dt){
         G.hp = Math.max(1, G.hp - TRAIN_ROB);
         var alsoCash = (R.cash >= 0 && !R.cashGot);
         if (alsoCash){ R.cashGot = true; R.cash = -1; }
-        G.shake = 24; G.hurtT = 0.5;
+        shakeFor(24, 0.10); G.hurtT = 0.5;
         AUDIO.hurt();
         flash("HE TOOK YOUR BAG",
               alsoCash ? "And the roll off the seat. \u2212" + TRAIN_ROB + "% health."
@@ -8803,7 +8921,7 @@ function tunnelLights(speed, y, h){
    the floor and narrowest at the apex, leaning the way the punch went - so
    the smear says "he came from down there" rather than "something moved". */
 function drawSwing(px, cy, R){
-  var k = 1 - R.dp / DP_SECS, side = R.face || 1;
+  var k = Math.min(1, (R.fightT - UP_AT) / DP_SECS), side = R.face || 1;
   if (k < 0 || k > 0.80) return;
   var a = Math.min(1, (0.80 - k) / 0.46) * Math.min(1, k / 0.10);
   var topY = cy + CAR_FLOOR - dpRise(k);
@@ -8856,15 +8974,20 @@ function drawRider(cx0, cw, cy){
   var side = R.face || 1;
   var W = sp.w * 0.92, H = sp.h * 0.92;
   var baseY = cy + CAR_FLOOR - lift + sp.h * 0.92;
-  var dpK = R.dp > 0 ? 1 - R.dp / DP_SECS : -1;
+  var ft = R.fight ? R.fightT : -1;
 
-  /* One body, drawn at a point on the curve. The ghosts are this same call
-     at an earlier k, which is the only reason four of them cost nothing. */
-  function putHero(k, alpha){
+  /* ONE BODY, DRAWN AT A POINT ON THE FIGHT'S CLOCK. Everything - where he
+     is across the gap, how high he is, how far back he is arched and what
+     his arm is doing - is a pure function of that one number, which is why
+     the motion ghosts are free: a ghost is this same call at an earlier t. */
+  function putHero(t, alpha){
+    var k = (t >= UP_AT) ? Math.min(1, (t - UP_AT) / DP_SECS) : -1;
     var rot = lean + (k >= 0 ? -DP_TILT * dpArch(k) * side : 0);
+    var px = (t >= 0 && R.dpDx)
+           ? rideSlotX(rideManX(R) + R.dpDx * comboLunge(t), cx0, cw) : mx;
     ctx.save();
     if (alpha < 1) ctx.globalAlpha = alpha;
-    ctx.translate(mx, baseY - (k >= 0 ? dpRise(k) : 0));
+    ctx.translate(px, baseY - (k >= 0 ? dpRise(k) : 0));
     ctx.rotate(rot);
     ctx.drawImage(sp.img, -sp.w * 0.46, -H, W, H);
 
@@ -8877,10 +9000,20 @@ function drawRider(cx0, cw, cy){
        The case is still in it. He is not a man who happens to be fighting,
        he is a man who was carrying a laptop, a dock and two years of
        printed QBRs and found a use for them. */
-    if (k >= 0 && alpha >= 1){
-      var ext = dpArch(k);
+    if (t >= 0 && alpha >= 1){
+      /* TWO SHAPES, ONE ARM. A jab goes out level and comes back on a sine;
+         the uppercut goes up and stays up while he is in the air. Same
+         sleeve, same fist, same case - only the target moves, which is why
+         the combo reads as one man rather than three animations. */
+      var ext, fx, fy;
       var shX = side * W * 0.15, shY = -H * 0.72;
-      var fx = shX + side * H * 0.13 * ext, fy = shY - H * 0.46 * ext;
+      if (k >= 0){
+        ext = dpArch(k);
+        fx = shX + side * H * 0.13 * ext; fy = shY - H * 0.46 * ext;
+      } else {
+        ext = jabExt(t);
+        fx = shX + side * H * 0.52 * ext; fy = shY - H * 0.05 * ext;
+      }
       ctx.lineCap = "round";
       ctx.strokeStyle = "#232f44"; ctx.lineWidth = H * 0.088;
       ctx.beginPath(); ctx.moveTo(shX, shY); ctx.lineTo(fx, fy); ctx.stroke();
@@ -8897,14 +9030,16 @@ function drawRider(cx0, cw, cy){
     ctx.restore();
   }
 
-  if (dpK >= 0){
+  /* Ghosts only on the leap. A jab is 0.3s of forearm; smearing it just
+     makes him look like he is underwater. */
+  if (ft >= UP_AT){
     for (var gi = DP_GHOSTS; gi >= 1; gi--){
-      var gk = dpK - gi * DP_GHOST_DT;
-      if (gk <= 0) continue;
-      putHero(gk, 0.08 + 0.055 * (DP_GHOSTS - gi));
+      var gt = ft - gi * DP_GHOST_DT * DP_SLOW;
+      if (gt <= UP_AT) continue;
+      putHero(gt, 0.08 + 0.055 * (DP_GHOSTS - gi));
     }
   }
-  putHero(dpK, 1);
+  putHero(ft, 1);
 }
 
 /* The hooded figure. The old one had a face and a pair of sunglasses, which
@@ -9054,6 +9189,16 @@ function drawShady(cx0, cw, cy){
   var R = G.ride;
   if (!R || R.shady < 0) return;
   var mx = rideSlotX(R.shadyX, cx0, cw);
+  /* WHAT A JAB DOES TO HIM. He is not down yet - two of these land before
+     the one that puts him out - so it is a recoil rather than a fall: he is
+     driven back along the punch and springs in again. Without it the first
+     two connect on a man standing perfectly still, which reads as the hero
+     shadow-boxing beside him.
+
+     Folded into his x rather than wrapped in a save/rotate, because this
+     function has several exits and a transform pushed here would have to be
+     popped on all of them. */
+  if (R.fight && !R.ko && R.jolt > 0) mx += (R.face || 1) * 19 * R.jolt;
 
   var F = hoodFit(), K = F.scl;
   function HY(v){ return cy + F.dy + v * K; }     // his own y, on the floor
@@ -9062,7 +9207,11 @@ function drawShady(cx0, cw, cy){
        hit by anything. His head goes first, then his feet leave, then he
        lands and stops. */
     var away = R.face || 1;
-    var snap = Math.min(1, R.koT / 0.09);        // head back
+    /* CLAMPED AT ZERO, all of them. koT starts NEGATIVE now - that is the
+       wind-up, and during it he is simply standing there. Unclamped, a
+       negative clock ran every one of these curves backwards: his head
+       leaned into the punch and he sank through the floor to meet it. */
+    var snap = Math.max(0, Math.min(1, R.koT / 0.09));   // head back
     var tip  = Math.max(0, Math.min(1, (R.koT - 0.07) / 0.30));
     var land = Math.max(0, Math.min(1, (R.koT - 0.37) / 0.14));
     var ease = 1 - Math.pow(1 - tip, 2);
@@ -9071,7 +9220,7 @@ function drawShady(cx0, cw, cy){
        uppercut puts him in the air first and the ground finishes the job.
        The arc returns to zero exactly where `land` starts, so he is coming
        down into his own dust rather than through it. */
-    var lt = Math.min(1, R.koT / 0.37);
+    var lt = Math.max(0, Math.min(1, R.koT / 0.37));
     var fly = Math.sin(lt * Math.PI) * 78 * K;   // he has a ceiling too
 
     ctx.save();
@@ -10400,6 +10549,9 @@ function bakeFolk(){
 
 function drawCar(ox, rock, lit){
   var cy = 470 + rock, ch = 330, cx0 = 90 + ox, cw = LOGICAL_W - 180;
+  /* Kept on the ride, because the impact burst is spawned from the update
+     and has no other way to know where the carriage ended up this frame. */
+  if (G.ride){ G.ride.cx0 = cx0; G.ride.cw = cw; G.ride.cy = cy; }
   ctx.globalAlpha = 0.4; ctx.fillStyle = "#000";
   ctx.fillRect(cx0, cy + ch, cw, 22); ctx.globalAlpha = 1;
 
@@ -10417,7 +10569,8 @@ function drawCar(ox, rock, lit){
   txt("1", cx0+cw-62, cy+41, 26, "#1a0a02");
 
   var R2 = G.ride || {}, wn = RIDE_SLOTS, ww = (cw - 90) / wn;
-  if (R2.dp > 0) drawSwing(rideSlotX(rideManX(R2), cx0, cw), cy, R2);
+  if (R2.fight && R2.fightT >= UP_AT)
+    drawSwing(rideSlotX(rideManX(R2), cx0, cw), cy, R2);
   var cashMX = null;                       // drawn after everybody, see below
   for (var i = 0; i < wn; i++){
     var wx = cx0 + 45 + i*ww, mx = wx + (ww-30)/2;
@@ -13375,6 +13528,27 @@ function hitPlayer(kind, pp){
 
 function update(dt){
   G.t += dt;
+
+  /* THE SHAKE DECAYS FIRST, above every early return in this function, and
+     that placement is the whole fix. It used to live at the bottom - below
+     `if (G.ride){ updateRide(dt); if (G.ride) return; }` - so on a train it
+     never ran at all. Both hits in that scene happen on a train, so both of
+     them set the camera shaking and then left it shaking until the doors
+     opened. It read as a long rumble because it WAS one: the amplitude was
+     never coming down.
+
+     A shake is a property of the camera, not of the world, so it has no
+     business being behind a gate that stops the world.
+
+     The rate is 46 a second by default, which suits a car horn and is far
+     too slow for a hit - 32 of it would take seven tenths of a second to
+     settle. shakeFor() sets its own, and the rate clears with the shake so
+     the next ordinary one is ordinary again. */
+  if (G.shake > 0){
+    G.shake = Math.max(0, G.shake - dt * (G.shakeFade || 46));
+    if (G.shake === 0) G.shakeFade = 0;
+  }
+
   if (G.scene){ updateScene(dt); if (G.scene) return; }
   /* The ticker does NOT freeze the world. It is good news, not a cutscene -
      the street keeps moving under it and he keeps walking, which is why the
@@ -13969,7 +14143,6 @@ function update(dt){
   if (G.state === ST_DEAD && G.tally && G.deadFor >= deathHold()){
     G.tally.t += dt; tallyAudio(dt);
   }
-  if (G.shake > 0) G.shake = Math.max(0, G.shake - dt*46);
 
   if (G.toast){
     G.toast.life -= dt;
