@@ -9551,8 +9551,26 @@ function drawPunchArm(cx0, cw, cy){
      uppercut goes up and stays up while he is in the air. Same sleeve, same
      fist - only the target moves, which is why the combo reads as one man
      rather than three animations. */
+  /* ------------------------------------------------- WHERE THE ARM STARTS
+     SOLVED OFF THE MODEL, not guessed as a fraction of the sprite. The
+     fight bake removes one sleeve, and the gap it leaves is exactly where
+     this arm has to come out of - so ask the bake where that is.
+
+     A model point lands at ox + x*TILE + y*SKEW in the image, and the image
+     is placed at -sp.w*0.46 and scaled by 0.92; the same for z down the
+     other axis. The removed sleeve sits at model x 0.80 facing right and
+     0.20 facing left (the whole model is mirrored for the left-hand bake),
+     and its shoulder end is at z 0.55.
+
+     The guessed numbers were W*0.15 and -H*0.72, which measure out at x 15,
+     y -76. His head spans x -10 to 12 and his chin is at -66. The arm was
+     coming out of his FACE, which is invisible mid-punch because the fist
+     is half a body away by then, and extremely visible the moment he holds
+     a short one up next to his head. */
+  var armMX = side > 0 ? 0.80 : 0.20;
   var ext, fx, fy;
-  var shX = side * W * 0.15, shY = -H * 0.72;
+  var shX = -sp.w * 0.46 + 0.92 * (sp.ox + armMX * TILE + 0.45 * SKEW);
+  var shY = -H + 0.92 * (sp.oy - (0.45 * ROW_H + 0.55 * ZH));
   if (victory){
     /* THE POST-WIN STANCE. A raised fist, held - the pose every fighting
        game ends a round on. It goes up fast and settles, because that is
@@ -9570,12 +9588,14 @@ function drawPunchArm(cx0, cw, cy){
        punch's. The uppercut throws from a body arched back and travelling;
        this one is a man standing still, and the same socket that looked
        right mid-leap sits too high and too wide on a figure at rest. */
-    shX = side * W * 0.08;
-    shY = -H * 0.655;
     var vin = Math.min(1, (CHEER_SECS + WIN_PAUSE - R.winHold) / 0.22);
     ext = vin * vin * (3 - 2 * vin);
-    fx = shX + side * H * 0.030 * ext;
-    fy = shY - (H * 0.22 + Math.sin(G.t * 2.6) * H * 0.010) * ext;
+    /* Up and OUT, so the fist clears his head rather than sitting on it -
+       the whole arm is only 25px and his head is 22 across, so a straight
+       vertical one would land on his ear. Still 25 long: 0.115 out by 0.183
+       up is the same third of his height, pointed away from his face. */
+    fx = shX + side * H * 0.115 * ext;
+    fy = shY - (H * 0.183 + Math.sin(G.t * 2.6) * H * 0.010) * ext;
   } else if (k >= 0){
     ext = dpArch(k);
     fx = shX + side * H * 0.13 * ext; fy = shY - H * 0.46 * ext;
