@@ -7223,6 +7223,20 @@ cv.addEventListener("pointerup", function(e){
       G.report = true; G.reportY = 0; AUDIO.ui();
       ptr = null; return;
     }
+    /* BEFORE the tap-anywhere fallthrough at the bottom of this handler,
+       which on this screen starts a new run - so without this the credit
+       would be unclickable by construction. `!G.report` matters as well:
+       CREDIT_HIT is only refreshed while the board is drawn, and the report
+       sits on top of it. */
+    if (G.state === ST_BOARD && !G.report && CREDIT_HIT &&
+        lx >= CREDIT_HIT.x && lx <= CREDIT_HIT.x + CREDIT_HIT.w &&
+        ly >= CREDIT_HIT.y && ly <= CREDIT_HIT.y + CREDIT_HIT.h){
+      AUDIO.ui();
+      /* A panel in kiosk mode may refuse to open anything, which is fine:
+         the tap is swallowed either way and the board stays put. */
+      try { window.open(CREDIT_URL, "_blank", "noopener"); } catch (e){}
+      ptr = null; return;
+    }
     if (G.state === ST_NAME){
       var h = nameHit(lx, ly);
       if (h){
@@ -20114,6 +20128,22 @@ function dayStamp(ms){
    than as emphasis. Still well clear of the prompt along the bottom. */
 var REPORT_BTN = { x:LOGICAL_W/2 - 190, y:LOGICAL_H - 150, w:380, h:66 };
 
+/* ----------------------------------------------------------- THE CREDIT --
+   Bottom left of the board, which is the one screen everybody lands on
+   after every run - and the one corner it never draws into. The control row
+   lives bottom RIGHT (the volume and full-screen buttons sit over logical
+   x 1589-1899, y 1011-1062 once the canvas fills a 16:9 panel), so this end
+   of the strip is free and the two never meet.
+
+   It is a LINK. The box is measured at draw time rather than declared,
+   because the name is a name and nobody should have to keep a width in sync
+   with it - and it is padded out to 48 logical pixels tall so it is a target
+   a finger can find on a wall panel, not just a line of text that happens to
+   be tappable. */
+var CREDIT_URL = "https://github.com/lucidium2000/the-last-mile";
+var CREDIT_PRE = "Created by ", CREDIT_NAME = "Christopher G. Hunt";
+var CREDIT_HIT = null;
+
 function statLine(st){
   if (!st) return "";
   return st.plays + (st.plays === 1 ? " run" : " runs") +
@@ -20332,6 +20362,21 @@ function drawBoard(){
   }
   txt("FULL REPORT", B.x + B.w/2, B.y + 28, 26, C.brand);
   txt("every run on this device", B.x + B.w/2, B.y + 52, 17, C.textDim);
+
+  /* Not gated on anything. The prompt below comes and goes with the death
+     hold; a credit that blinked in and out with it would read as part of the
+     same message. */
+  var cby = LOGICAL_H - 32, cfont = 20;
+  ctx.font = "bold " + cfont + 'px "Helvetica Neue",Helvetica,Arial,sans-serif';
+  var cpw = ctx.measureText(CREDIT_PRE).width;
+  var cnw = ctx.measureText(CREDIT_NAME).width;
+  txt(CREDIT_PRE,  100,       cby, cfont, C.textDim, "left");
+  txt(CREDIT_NAME, 100 + cpw, cby, cfont, C.brand,   "left");
+  /* Underlined, because an orange word on a screen where orange is simply
+     the brand colour is not yet a link. */
+  ctx.fillStyle = C.brand;
+  ctx.fillRect(100 + cpw, cby + Math.round(cfont * 0.42), cnw, 2);
+  CREDIT_HIT = { x: 100 - 14, y: cby - 26, w: cpw + cnw + 28, h: 48 };
 
   // same gate as the tap that acts on it, so the prompt is never a lie
   if (G.deadFor > deathHold() + 0.25){
