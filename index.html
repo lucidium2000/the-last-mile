@@ -20122,11 +20122,12 @@ function dayStamp(ms){
 
 /* Clear of the restart prompt by eighty-odd pixels. At -128 the two were
    fourteen apart and the button read as part of the sentence under it. */
-/* Thirty pixels lower than it used to sit, to clear the contest clock above
-   it - the clock grew when it became the thing this screen is for, and a
-   glow that laps over a button border reads as a rendering fault rather
-   than as emphasis. Still well clear of the prompt along the bottom. */
-var REPORT_BTN = { x:LOGICAL_W/2 - 190, y:LOGICAL_H - 150, w:380, h:66 };
+/* Fifteen pixels lower than it originally sat, to clear the contest clock
+   above it. It was thirty while the clock still had a halo; the halo went
+   when the clock became a colour ramp, and the fifteen that bought back is
+   spent below, where the prompt and the credit now have to share a strip
+   that the canvas is allowed to crop into. */
+var REPORT_BTN = { x:LOGICAL_W/2 - 190, y:LOGICAL_H - 165, w:380, h:66 };
 
 /* ----------------------------------------------------------- THE CREDIT --
    Bottom left of the board, which is the one screen everybody lands on
@@ -20363,13 +20364,18 @@ function drawBoard(){
   txt("FULL REPORT", B.x + B.w/2, B.y + 28, 26, C.brand);
   txt("every run on this device", B.x + B.w/2, B.y + 52, 17, C.textDim);
 
-  /* Not gated on anything. The prompt below comes and goes with the death
+  /* Not gated on anything. The prompt above it comes and goes with the death
      hold; a credit that blinked in and out with it would read as part of the
-     same message. */
-  var cby = LOGICAL_H - 32, cfont = 10;
+     same message.
+
+     CENTRED, and it has to be measured to be centred, because it is two
+     pieces in two colours rather than one string - so the pair is measured
+     first and the line is started at the point that leaves it balanced. */
+  var cby = LOGICAL_H - 36, cfont = 10;
   ctx.font = "bold " + cfont + 'px "Helvetica Neue",Helvetica,Arial,sans-serif';
   var cpw = ctx.measureText(CREDIT_PRE).width;
   var cnw = ctx.measureText(CREDIT_NAME).width;
+  var cx = Math.round((LOGICAL_W - (cpw + cnw)) / 2);
   /* THE SAME GREY AS THE WORDS IN FRONT OF IT. The name was in the brand
      orange, which on this screen is the colour of the thing you are supposed
      to look at - the countdown, the button, the prompt - and a credit has no
@@ -20378,21 +20384,28 @@ function drawBoard(){
      The rule under it stays, at one pixel and in the same grey. Something
      has to say this is a link or nobody will ever touch it, and an underline
      is the quietest way left to say it once the colour has gone. */
-  txt(CREDIT_PRE,  100,       cby, cfont, C.textDim, "left");
-  txt(CREDIT_NAME, 100 + cpw, cby, cfont, C.textDim, "left");
+  txt(CREDIT_PRE,  cx,       cby, cfont, C.textDim, "left");
+  txt(CREDIT_NAME, cx + cpw, cby, cfont, C.textDim, "left");
   ctx.fillStyle = C.textDim;
-  ctx.fillRect(100 + cpw, cby + Math.round(cfont * 0.42), cnw, 1);
+  ctx.fillRect(cx + cpw, cby + Math.round(cfont * 0.42), cnw, 1);
   /* The BOX does not shrink with the type. Ten-pixel text is a two-pixel
      tall target, and this hangs on a wall where people press it with a
-     thumb - so the text gets quieter and the thing you can hit stays 48
-     logical pixels tall. It is invisible and it sits in dead space, so
-     nothing is lost by it being much larger than it looks. */
-  CREDIT_HIT = { x: 100 - 14, y: cby - 26, w: cpw + cnw + 28, h: 48 };
+     thumb - so the text gets quieter and the thing you can hit stays big
+     enough to hit.
+
+     IT GROWS DOWNWARD, and that is not a detail. While the credit sat in the
+     bottom-left corner the box was centred on it and reached 26px up into
+     empty space; tucked under the prompt, those same 26px landed on "TAP
+     ANYWHERE TO PURSUE A NEW PROSPECT" - so tapping the one instruction on
+     the screen opened a GitHub page instead of starting a run. Measured and
+     caught, not reasoned about. The prompt's descenders stop at 1027 and the
+     box now starts at 1030. */
+  CREDIT_HIT = { x: cx - 14, y: cby - 14, w: cpw + cnw + 28, h: 44 };
 
   // same gate as the tap that acts on it, so the prompt is never a lie
   if (G.deadFor > deathHold() + 0.25){
     ctx.globalAlpha = 0.55 + 0.45*Math.sin(G.t*3);
-    txt("TAP ANYWHERE TO PURSUE A NEW PROSPECT", LOGICAL_W/2, LOGICAL_H - 32, 32, C.brand);
+    txt("TAP ANYWHERE TO PURSUE A NEW PROSPECT", LOGICAL_W/2, LOGICAL_H - 60, 32, C.brand);
     ctx.globalAlpha = 1;
   }
 }
