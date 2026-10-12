@@ -8474,11 +8474,24 @@ var SWING_REACH = 1.30;    // how far the briefcase carries
    The window closes when he reaches the money. Deck him before that and the
    roll is still on the seat for you; leave it too late and he has it, and
    all you get is the applause. */
+var SHOVE_NEAR = 0.34;     // close enough that he is going through you
 function shadySide(R){ return R.shadyX >= rideManX(R) ? 1 : -1; }
 function canSwingAt(R, d){
   if (!R || R.shady < 0 || R.ko) return false;
   if (R.knife > 0) return d === (R.knifeSide || 1);
-  return !!R.sawCash && d === shadySide(R);
+  /* NOT FOR LOOKING AT IT. Wanting the money is not a thing you get hit
+     for, and the first version of this had the hero flattening a man for
+     walking toward a seat - while being, at that exact moment, a man
+     walking toward the same seat himself. The two of them were doing
+     exactly the same thing and only one of them was getting knocked out
+     for it.
+
+     He has to put hands on you first. If the roll is on his side of the
+     car he never touches you, and there is no fight to be had - which is
+     the correct outcome and costs the player nothing, because the roll was
+     never theirs either. If it is on YOUR side he has to come through you
+     to get it, and he does: see the shove. */
+  return !!R.shoved && d === shadySide(R);
 }
 
 /* ------------------------------------------------- THE RISING UPPERCUT --
@@ -8718,6 +8731,16 @@ function rideAct(dir){
      exactly when you need this to work. */
   if (canSwingAt(R, d) &&
       Math.abs(R.shadyX - rideManX(R)) <= SWING_REACH){
+    /* WHICH FIGHT THIS IS, read BEFORE anything is cleared. R.knife is
+       zeroed on the very next line - the blade is gone the moment he is
+       swung at - so asking about it afterwards always answered "no blade",
+       and EVERY fight on the train was recording itself as the money one.
+       The knife scene quietly lost its ending: no thrown money, no
+       $300,000, and the wrong banner.
+
+       Decided on the first swing and kept, because by the second one the
+       blade is long gone either way. */
+    if (!(R.round || 0)) R.winKind = (R.knife > 0) ? "knife" : "cash";
     R.fight = 1; R.fightT = 0; R.ko = 0; R.koT = 0; R.knife = 0; R.ken = false;
     /* The first swing of the ride is jabs; after that he has the measure of
        him and it is the whole combo. */
@@ -8736,7 +8759,6 @@ function rideAct(dir){
     /* Decided on the FIRST swing and kept, because by the second one the
        blade is long gone either way and the ending has to remember which
        fight this was. */
-    if (!(R.round || 0)) R.winKind = (R.knife > 0) ? "knife" : "cash";
     R.jolt = 0;                          // what the jabs do to him
     R.dpDx = R.shadyX - rideManX(R);     // the gap, to be crossed
     R.dpBase = rideManX(R);              // ...measured from here, once
@@ -9210,6 +9232,32 @@ function updateShady(dt){
         AUDIO.say(11, SAY_ASK);
       }
       if (R.sawCash){
+        /* HE COMES THROUGH YOU. Not a scripted beat - it only happens when
+           the money is on the far side of the player, because then the
+           shortest line to it runs through where he is standing. He does
+           not go around. That is the whole character of him and it is also
+           the moment the player is allowed to answer.
+
+           Once, and it stands for the rest of the ride. A man who has
+           already shoved you does not get to reset that by walking away. */
+        if (!R.shoved && !R.ko &&
+            Math.abs(R.shadyX - rideManX(R)) < SHOVE_NEAR){
+          R.shoved = 1;
+          R.sayAt = R.t; R.sayLine = "Move.";
+          AUDIO.say(11, SAY_CROSS);
+          AUDIO.jostle();
+          shakeFor(11, 0.08);
+          /* Put aside, not hurt. He is barged out of the way - which is an
+             assault he can answer and not an injury he has to survive, so
+             it costs no health and no money. */
+          var awayS = (rideManX(R) >= R.shadyX) ? 1 : -1;
+          var toS = Math.max(0, Math.min(RIDE_SLOTS - 1, R.slot + awayS * 0.38));
+          R.slotFrom = rideManX(R);
+          R.stepDur = Math.max(0.05, RIDE_STEP * Math.abs(toS - R.slotFrom));
+          R.slot = toS; R.stepT = 0;
+          flash("HE SHOVED PAST YOU", "Going for the roll on the seat.",
+                C.amber, true);
+        }
         var dM = R.cash - R.shadyX, stepM = SHADY_GREED * dt;
         if (Math.abs(dM) <= stepM) R.shadyX = R.cash;
         else R.shadyX += (dM > 0 ? stepM : -stepM);
