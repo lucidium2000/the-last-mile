@@ -2798,6 +2798,10 @@ var FACE_SMILE = 1, FACE_CHEW = 2, FACE_SAD = 3, FACE_WORN = 4,
    the wrong one for throwing a punch. This is the same open mouth with the
    ordinary two dots left alone above it: he is yelling, not staring. */
 var FACE_SHOUT = 9;
+/* 10. The face he holds the fist up with: one eye shut, mouth just open.
+   A full smile under a raised arm is a man posing for a photograph; a wink
+   is a man who knows you watched him do it. */
+var FACE_WINK = 10;
 var HP_HAPPY = 75, HP_LEVEL = 50;
 /* The hero's complexion. It went minifigure yellow for a while, on the
    argument that the man you are playing should be nobody in particular - and
@@ -3264,6 +3268,13 @@ function playerModel(dir, shielded, face, fighting){
         dec.push({ x:0.546, y:0.43, w:0.042, z:0.734, h:0.013, bg:"#241a12" });
         dec.push({ x:0.410, y:0.43, w:0.046, z:0.756, h:0.012, bg:"#2b1f16" });
         dec.push({ x:0.544, y:0.43, w:0.046, z:0.756, h:0.012, bg:"#2b1f16" });
+      } else if (face === FACE_WINK){
+        /* One dot, one dash. The shut eye is wider than the open one and
+           half as tall, sitting a touch higher - a closed eye is a crease,
+           and a crease that is the same size as the dot beside it just
+           reads as a smaller eye. */
+        dec.push({ x:0.420, y:0.43, w:0.030, z:eyeZ,         h:0.024, bg:"#241a12" });
+        dec.push({ x:0.546, y:0.43, w:0.042, z:eyeZ + 0.007, h:0.011, bg:"#241a12" });
       } else {
         dec.push({ x:0.420, y:0.43, w:0.030, z:eyeZ, h:0.024, bg:"#241a12" });
         dec.push({ x:0.552, y:0.43, w:0.030, z:eyeZ, h:0.024, bg:"#241a12" });
@@ -3273,6 +3284,13 @@ function playerModel(dir, shielded, face, fighting){
         dec.push({ x:0.414, y:0.43, w:0.034, z:0.772, h:0.013, bg:"#2b1f16" });
         dec.push({ x:0.554, y:0.43, w:0.034, z:0.766, h:0.013, bg:"#2b1f16" });
       }
+    }
+    if (face === FACE_WINK){
+      /* Just open - two thirds of the shout's mouth, which is the
+         difference between calling the name of a move and being pleased
+         with yourself. */
+      dec.push({ x:0.470, y:0.43, w:0.060, z:0.676, h:0.030, bg:"#5a2c1e" });
+      dec.push({ x:0.480, y:0.43, w:0.040, z:0.683, h:0.016, bg:"#3d1b12" });
     }
     if (face === FACE_SHOUT){
       /* The mouth only - the eyes above it are whatever the block before
@@ -4914,12 +4932,12 @@ function bakeAll(){
      the air and that arm is DRAWN, so the bake under it has to be the one
      with its own arm and briefcase taken off - otherwise he celebrates with
      three of them. He gets the case back when the carriage settles. */
-  S.playerFV_r  = bake(playerModel(1, false, FACE_SMILE, true));
-  S.playerFV_l  = bake(playerModel(-1, false, FACE_SMILE, true));
-  S.playerFVS_r = bake(playerModel(1, 1, FACE_SMILE, true));
-  S.playerFVS_l = bake(playerModel(-1, 1, FACE_SMILE, true));
-  S.playerFVP_r = bake(playerModel(1, 2, FACE_SMILE, true));
-  S.playerFVP_l = bake(playerModel(-1, 2, FACE_SMILE, true));
+  S.playerFV_r  = bake(playerModel(1, false, FACE_WINK, true));
+  S.playerFV_l  = bake(playerModel(-1, false, FACE_WINK, true));
+  S.playerFVS_r = bake(playerModel(1, 1, FACE_WINK, true));
+  S.playerFVS_l = bake(playerModel(-1, 1, FACE_WINK, true));
+  S.playerFVP_r = bake(playerModel(1, 2, FACE_WINK, true));
+  S.playerFVP_l = bake(playerModel(-1, 2, FACE_WINK, true));
   for (var fc = 1; fc <= 8; fc++){
     S["pf" + fc + "_r"]  = bake(playerModel(1, 0, fc));
     S["pf" + fc + "_l"]  = bake(playerModel(-1, 0, fc));
@@ -9274,7 +9292,7 @@ function drawRider(cx0, cw, cy){
            ? rideSlotX(R.dpBase + R.dpDx * comboLunge(t), cx0, cw) : mx;
     ctx.save();
     if (alpha < 1) ctx.globalAlpha = alpha;
-    ctx.translate(px, baseY - (k >= 0 ? dpRise(k) : 0));
+    ctx.translate(px + riderNudge(R, sp), baseY - (k >= 0 ? dpRise(k) : 0));
     ctx.rotate(rot);
     ctx.drawImage(sp.img, -sp.w * 0.46, -H, W, H);
     /* The body only. The arm is drawn after the man he is hitting - see
@@ -9502,6 +9520,32 @@ function restingFace(){
        : FACE_OK;
 }
 
+/* ------------------------------------------- KEEPING HIM IN ONE PLACE ----
+   Every sprite is drawn centred on its own image width, -sp.w*0.46. That is
+   fine while there is one image; the moment he has six of them it is a bug,
+   because the fight bakes have had the briefcase and a sleeve removed and
+   are therefore NARROWER - 107px against 129 - so the same man centred on
+   his own picture lands ten pixels to the side of where he just was.
+
+   Which is what the end of the victory pose looked like: the arm came down
+   and his whole body stepped sideways with it.
+
+   So every rider bake is nudged back onto the plain one for its facing and
+   shield level. The reference gets zero, the others get the difference, and
+   the body stops moving when the pose does. Derived, not tuned - add a
+   seventh bake tomorrow and it lines up on its own. */
+function riderRef(R){
+  var left = (R.face || 1) < 0;
+  if (G.shield >= 2) return left ? S.playerP_l : S.playerP_r;
+  if (G.shield)      return left ? S.playerS_l : S.playerS_r;
+  return left ? S.player_l : S.player_r;
+}
+function riderNudge(R, sp){
+  var ref = riderRef(R);
+  if (!ref || !sp || ref === sp) return 0;
+  return (-ref.w * 0.46 + 0.92 * ref.ox) - (-sp.w * 0.46 + 0.92 * sp.ox);
+}
+
 function riderSprite(R){
   var sfx = (R.face || 1) < 0 ? "_l" : "_r";
   var lvl = G.shield >= 2 ? 2 : (G.shield ? 1 : 0);
@@ -9606,7 +9650,7 @@ function drawPunchArm(cx0, cw, cy){
   if (ext <= 0.01) return;
 
   ctx.save();
-  ctx.translate(px, baseY - (k >= 0 ? dpRise(k) : 0));
+  ctx.translate(px + riderNudge(R, sp), baseY - (k >= 0 ? dpRise(k) : 0));
   ctx.rotate(k >= 0 ? -DP_TILT * dpArch(k) * side : 0);
   ctx.lineCap = "round";
   ctx.strokeStyle = "#232f44"; ctx.lineWidth = H * 0.088;
