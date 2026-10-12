@@ -19357,6 +19357,9 @@ function rainWake(){
   rainG.clearRect(0, 0, LOGICAL_W, LOGICAL_H);
   for (var i = 0; i < rainCols.length; i++) rainReset(rainCols[i], false);
   rainLast = 0;
+  /* The mark starts away and fades up with the code, rather than being
+     there already when the panel goes quiet. */
+  flagA = 0; flagPhase = 0; flagHold = 0;
 }
 
 function rainStep(dt){
@@ -19440,7 +19443,7 @@ function rainStep(dt){
 /* The cloth takes the MARK'S aspect, not a tidy 16:9. The eye is going to
    fill it corner to corner, and a flag a different shape from the thing
    printed on it means letterboxing the logo on a piece of cloth. */
-var FLAG_W = 1240, FLAG_H = 1240 * (223 / 398);
+var FLAG_W = 1054, FLAG_H = 1054 * (223 / 398);
 /* 128 of them. Each strip is ONE flat shade, so the strip count is the
    resolution of the lighting as well as of the geometry - at 64 the dark
    half of the cloth banded into visible stairs where the gradient was
@@ -19519,6 +19522,61 @@ function flagTex(){
    already has something, so the gaps the logo is supposed to show the room
    through stay gaps, and a half-covered pixel on the logo's outline darkens
    by half as much, which is correct. */
+/* ---------------------------------------------------- COMING AND GOING --
+   The mark does not simply sit there. It fades up, holds somewhere between
+   one and ten seconds, fades away, leaves the code to itself for a moment,
+   and comes back - so the screen is never the same twice and the rain gets
+   the room to itself often enough to be noticed.
+
+   IT HAS TO FADE IN ALPHA, NOT IN BRIGHTNESS. There is something behind it
+   now. Darkening the mark toward the background would still occlude the
+   rain, and a logo-shaped hole in the falling code is worse than either.
+
+   Which is why it gets its own buffer. The strips are drawn OPAQUE and
+   overlapping - that is what keeps the seams out of them - and quads drawn
+   at alpha < 1 double-composite wherever they overlap. So they go down at
+   full opacity into a transparent canvas, and the whole assembled mark is
+   composited once, at whatever this moment's alpha is. One extra blit, and
+   the fade cannot reintroduce the striping. */
+var FLAG_FADE = 1.15;                    // seconds of ramp, each way
+var FLAG_HOLD_MIN = 1, FLAG_HOLD_MAX = 10;
+/* How long it stays away. Not specified, so: shorter than it is present -
+   long enough that the code clearly has the screen, short enough that
+   nobody walking past decides the panel is broken. */
+var FLAG_GONE_MIN = 0.9, FLAG_GONE_MAX = 3.2;
+var flagA = 0, flagPhase = 0, flagHold = 0;   // 0 in, 1 held, 2 out, 3 away
+
+function flagBreathe(dt){
+  if (flagPhase === 0){
+    flagA += dt / FLAG_FADE;
+    if (flagA >= 1){
+      flagA = 1; flagPhase = 1;
+      flagHold = FLAG_HOLD_MIN + Math.random() * (FLAG_HOLD_MAX - FLAG_HOLD_MIN);
+    }
+  } else if (flagPhase === 1){
+    flagHold -= dt;
+    if (flagHold <= 0) flagPhase = 2;
+  } else if (flagPhase === 2){
+    flagA -= dt / FLAG_FADE;
+    if (flagA <= 0){
+      flagA = 0; flagPhase = 3;
+      flagHold = FLAG_GONE_MIN + Math.random() * (FLAG_GONE_MAX - FLAG_GONE_MIN);
+    }
+  } else {
+    flagHold -= dt;
+    if (flagHold <= 0) flagPhase = 0;
+  }
+}
+
+var flagBufC = null;
+function flagBuf(){
+  if (!flagBufC){
+    flagBufC = document.createElement("canvas");
+    flagBufC.width = LOGICAL_W; flagBufC.height = LOGICAL_H;
+  }
+  return flagBufC;
+}
+
 var flagLitC = null;
 function flagLit(tex, N, sw){
   if (!flagLitC){
@@ -19562,6 +19620,9 @@ function drawSaver(){
   rainLast = t;
   if (rdt > 0.1) rdt = 0.1;              // a tab that was backgrounded
   if (rdt > 0) rainStep(rdt);
+  /* The mark's own cycle runs on the same delta as the rain. */
+  if (rdt > 0) flagBreathe(rdt);
+
   var rin = G.saverT / RAIN_IN;
   if (rin > 1) rin = 1; else if (rin < 0) rin = 0;
   /* Eased, not linear. A linear ramp on something this sparse appears all
@@ -19579,6 +19640,13 @@ function drawSaver(){
      repeats on any sensible timescale. */
   var cx = LOGICAL_W/2 + Math.sin(t * 0.047) * 128 + Math.sin(t * 0.0193) * 52;
   var cy = LOGICAL_H/2 + Math.cos(t * 0.031) * 74  + Math.cos(t * 0.0117) * 30;
+
+  /* NOTHING TO DRAW IS NOTHING TO COMPUTE. While the mark is away this is
+     a few hundred draws a frame that would land on a fully transparent
+     buffer and then be composited at zero. The wave is a pure function of
+     t, so skipping frames costs nothing - it picks up exactly where it
+     would have been. */
+  if (flagA <= 0) return;
 
   /* The tumble. Yaw is what sells the third dimension - it is the turn that
      takes the far end of the cloth away from you - so it is the big one, and
@@ -19651,6 +19719,9 @@ function drawSaver(){
      and leave a hairline otherwise; the texture is opaque, so whichever
      strip is drawn second simply covers the overlap. */
   var BLEED = 1.15;
+  var fb = flagBuf(), g = fb.getContext("2d");
+  g.setTransform(1, 0, 0, 1, 0, 0);
+  g.clearRect(0, 0, LOGICAL_W, LOGICAL_H);
   for (var o = 0; o < N; o++){
     var k = fgOrd[o];
     /* ...except off the right-hand end of the bitmap, where there is
@@ -19659,11 +19730,17 @@ function drawSaver(){
     var ax = fgTX[k], ay = fgTY[k];
     var ux = (fgTX[k+1] - ax) / sw, uy = (fgTY[k+1] - ay) / sw;
     var vx = (fgBX[k] - ax) / FTEX_H, vy = (fgBY[k] - ay) / FTEX_H;
-    ctx.save();
-    ctx.transform(ux, uy, vx, vy, ax, ay);
-    ctx.drawImage(lit, k * sw, 0, over, FTEX_H, 0, 0, over, FTEX_H);
-    ctx.restore();
+    g.save();
+    g.transform(ux, uy, vx, vy, ax, ay);
+    g.drawImage(lit, k * sw, 0, over, FTEX_H, 0, 0, over, FTEX_H);
+    g.restore();
   }
+  /* Smoothstepped, so it arrives and leaves without a visible start and
+     stop at either end of the ramp. */
+  var fa = flagA * flagA * (3 - 2 * flagA);
+  ctx.globalAlpha = fa;
+  ctx.drawImage(fb, 0, 0, LOGICAL_W, LOGICAL_H);
+  ctx.globalAlpha = 1;
   ctx.setTransform(scale, 0, 0, scale, 0, 0);
 }
 
