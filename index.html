@@ -4887,6 +4887,17 @@ function bakeAll(){
   S.playerFS_l = bake(playerModel(-1, 1, 0, true));
   S.playerFP_r = bake(playerModel(1, 2, 0, true));
   S.playerFP_l = bake(playerModel(-1, 2, 0, true));
+  /* And the same three again SHOUTING. FACE_WOW already exists for the
+     headline - eyes round, brows up and out of the way, mouth an open O -
+     which is exactly the face of a man calling the name of the move. It
+     goes on for the leap only: three shouted punches is a man screaming,
+     one is a dragon punch. */
+  S.playerFW_r  = bake(playerModel(1, false, FACE_WOW, true));
+  S.playerFW_l  = bake(playerModel(-1, false, FACE_WOW, true));
+  S.playerFWS_r = bake(playerModel(1, 1, FACE_WOW, true));
+  S.playerFWS_l = bake(playerModel(-1, 1, FACE_WOW, true));
+  S.playerFWP_r = bake(playerModel(1, 2, FACE_WOW, true));
+  S.playerFWP_l = bake(playerModel(-1, 2, FACE_WOW, true));
   for (var fc = 1; fc <= 8; fc++){
     S["pf" + fc + "_r"]  = bake(playerModel(1, 0, fc));
     S["pf" + fc + "_l"]  = bake(playerModel(-1, 0, fc));
@@ -5580,7 +5591,7 @@ function reset(){
     shield:false, slowT:0, revealT:0, invulnT:0, powersUsed:0,
     hp:HP_MAX, hpGain:null, hpShow:0, hpFrom:HP_MAX, hpHold:0, hpFill:0,
     meals:0, sadT:0, needFood:0, saidFood:false,
-    bonusChuck:0, bonusTam:0, bonusAddon:0, bonusFood:0, bonusChamp:0,
+    bonusChuck:0, bonusTam:0, bonusAddon:0, bonusFood:0, bonusChamp:0, bonusTrain:0,
     bonusUpsell:0, upsells:0, bonusCloud:0, clouds:0, bonusInsight:0, insights:0,
     dashCash:0, flashRoads:0,
     traceRun:0, flip:0, sprint:0, crane:0, queued:null,
@@ -8476,7 +8487,21 @@ function dpArch(k){
   if (k < DP_TOP) return 0.18 + 0.82 * ((k - DP_DIP) / (DP_TOP - DP_DIP));
   return Math.max(0, 1 - (k - DP_TOP) / 0.42);
 }
-var TRAIN_ROB   = 30;      // what standing still costs you
+var TRAIN_ROB   = 30;      // what standing still costs you, in health
+/* ...AND IN MONEY, BOTH WAYS. He does not take the bag once and sit down any
+   more: he backs off, comes again, and every blow that lands is a hundred
+   thousand off the pipeline. The longest you can stand there doing nothing
+   is now measured in deals rather than in politeness.
+
+   And the other end of it. Put him down and the carriage empties its
+   pockets - three hundred thousand, which is three blows' worth, so the
+   fight is always worth having however long you left it. The health bar is
+   a number nobody watches on a train; the pipeline is the number the whole
+   game is about, so that is where this scene is scored. */
+var TRAIN_HIT_CASH = 100000;
+var TRAIN_WIN_CASH = 300000;
+var SHADY_BACKOFF  = 1.25;  // how long he takes to come back for another
+var FLOAT_SECS     = 1.6;   // how long the number hangs beside him
 
 /* Chuck Bucks found on the train. Same payout as the pavement pickup, same
    card, same voice line - it is the identical event, just somewhere else. */
@@ -8753,12 +8778,60 @@ function shadySay(R, hard){
   AUDIO.say(hard ? 3 : 11, sayFor(R.sayLine, SAY_CROSS));
 }
 
+/* ------------------------------------------------------ THE TRAIN WAITS --
+   Once the blade is out, the ride stops being on a timetable. It used to be
+   a countdown either way, which meant the honest answer to a man with a
+   knife was to stand still and let the doors save you - the one solution
+   the scene must not have.
+
+   Held until it is finished, and finished means somebody is on the floor.
+   He has to be put down, or the man with the knife wins.
+
+   Not held before the blade comes out: a ride where nothing happens is
+   still a ride, and it still has a schedule. */
+function trainHeld(R){
+  if (!R || R.shady < 0) return false;
+  if (R.ko) return false;                 // he is down; the train may come in
+  return !!(R.fight || R.engaged);
+}
+
+/* He can die down here now, and he could not before: the blow clamped his
+   health at 1, which with one robbery and a sit-down was a reasonable
+   place to stop. With the train held and the blows repeating, that clamp
+   turns the carriage into a room he can never leave and never lose in.
+
+   Its own death rather than a hazard's. die() wants a HAZ entry for the
+   objection lines and there is no vehicle involved - this is dieTired's
+   shape, which exists for exactly this reason. */
+function dieKnife(){
+  var R = G.ride;
+  if (R){
+    /* Put him back on the street he boarded from before anything asks
+       where he is: the tally, the money spray and the camera all read
+       G.row, and a dead man on a train that no longer exists has none. */
+    G.row = R.fromRow; G.fromRow = R.fromRow;
+    G.col = R.fromCol; G.fromCol = R.fromCol; G.hop = 1;
+    G.ride = null;
+    ensureRows(G.maxRow + ROWS_AHEAD);
+  }
+  AUDIO.die();
+  G.state = ST_DEAD; G.deadFor = 0; G.shake = 16;
+  G.deathName = "THE MAN WITH THE KNIFE";
+  G.deathObj = "You stood still on a train with somebody who was not going to.";
+  G.deathFix = "Hit him. The briefcase has a laptop and two years of QBRs in it.";
+  var pp = playerPos();
+  burstMoney(pp.col*TILE + TILE/2, rowScreenY(pp.row) - 36);
+  saveBest(pipeline()); endRun();
+}
+
 function updateShady(dt){
   var R = G.ride;
   if (R.shady < 0) return;
   /* Ticked before the knock-out return, or a man floored a frame after he
      grabbed the roll keeps the dollar signs for the rest of the ride. */
   if (R.gotCash > 0) R.gotCash = Math.max(0, R.gotCash - dt);
+  if (R.money) R.money.t += dt;
+  stepSweat(R, dt);
 
   /* THE COMBO TICKS ABOVE THE PHASE GATE, and that matters. Everything
      below only runs while the train is between stations - which is right
@@ -8788,6 +8861,7 @@ function updateShady(dt){
       if (!R.ken) AUDIO.punch();
       shakeFor(32, 0.10);
       burst(hx, hy, "#ffd9a8");
+      sweatBurst(R, hx, hy);
     }
     /* The carriage reacts a beat late, which is the whole of it: a room
        takes a moment to understand what it just saw. */
@@ -8916,17 +8990,21 @@ function updateShady(dt){
   if (!R.robbed && !R.knife && Math.random() < dt * 0.35) shadySay(R, false);
   if (R.tell > 0) R.tell = Math.max(0, R.tell - dt);
 
-  /* Robbed once, he has what he came for and backs off to where he started. */
-  var to = R.robbed ? R.shady : rideManX(R);
+  /* He backs off after a blow and then comes back for another. It used to
+     be one robbery and a sit-down, which made standing still a single
+     mistake with a single price; now it is a meter running. */
+  if (R.backoff > 0) R.backoff = Math.max(0, R.backoff - dt);
+  var to = (R.backoff > 0) ? R.shady : rideManX(R);
   var dx = to - R.shadyX, step = SHADY_SPEED * dt;
   if (Math.abs(dx) <= step) R.shadyX = to;
   else R.shadyX += (dx > 0 ? step : -step);
-  if (R.robbed) return;
+  if (R.backoff > 0) return;
 
   var gap = Math.abs(R.shadyX - rideManX(R));
   if (gap < KNIFE_NEAR){
     if (!R.knife){
       R.knife = 0.0001;
+      R.engaged = 1;                 // from here the train is going nowhere
       R.knifeSide = R.shadyX >= rideManX(R) ? 1 : -1;
       shadySay(R, true);
       AUDIO.knife();
@@ -8934,18 +9012,27 @@ function updateShady(dt){
     } else {
       R.knife += dt;
       if (R.knife >= KNIFE_GRACE){
-        /* Stood still long enough. He takes the bag, and whatever was lying
-           on the seat goes with him. */
+        /* Stood still long enough. The first one costs him the bag and
+           anything lying on the seat; after that there is nothing left to
+           take and it is simply a man hitting him. */
+        var first = !R.robbed;
         R.robbed = 1; R.knife = 0;
-        G.hp = Math.max(1, G.hp - TRAIN_ROB);
+        R.backoff = SHADY_BACKOFF;
+        R.hits = (R.hits || 0) + 1;
+        G.hp -= TRAIN_ROB;
+        G.bonus -= TRAIN_HIT_CASH;
+        G.bonusTrain -= TRAIN_HIT_CASH;
+        carFloat(R, -TRAIN_HIT_CASH);
+
         var alsoCash = (R.cash >= 0 && !R.cashGot);
         if (alsoCash){ R.cashGot = true; R.cash = -1; }
         shakeFor(24, 0.10); G.hurtT = 0.5;
-        AUDIO.hurt();
-        flash("HE TOOK YOUR BAG",
-              alsoCash ? "And the roll off the seat. \u2212" + TRAIN_ROB + "% health."
-                       : "\u2212" + TRAIN_ROB + "% health. Should have moved.",
+        AUDIO.hurt(); AUDIO.nope();
+        flash(first ? "HE TOOK YOUR BAG" : "HE IS STILL ON YOU",
+              "\u2212" + cash(TRAIN_HIT_CASH) + " off the pipeline." +
+              (alsoCash ? "  And the roll off the seat." : ""),
               C.danger);
+        if (G.hp <= 0){ G.hp = 0; dieKnife(); return; }
       }
     }
   } else if (R.knife){
@@ -8987,6 +9074,10 @@ function updateRide(dt){
     }
   }
   updateShady(dt);
+  /* HE CAN DIE IN THERE NOW, and dying clears the ride - so everything
+     after this point has to check. updateRideSound went straight to
+     R.phase and threw on a ride that had just stopped existing. */
+  if (!G.ride) return;
   updateRideSound(dt);
   if (R.phase === "down"){
     if (R.t >= RIDE_PHASES.down){ R.phase = "platform"; R.t = 0; AUDIO.trainIn(); }
@@ -9001,7 +9092,7 @@ function updateRide(dt){
     var f = Math.min(1, R.t / rd);
     var e = f < 0.5 ? 2*f*f : 1 - Math.pow(-2*f + 2, 2)/2;
     G.camRow = R.camFrom + (R.toRow - R.camFrom) * e;
-    if (R.t >= rd){ R.phase = "arrive"; R.t = 0; AUDIO.trainStop(); }
+    if (R.t >= rd && !trainHeld(R)){ R.phase = "arrive"; R.t = 0; AUDIO.trainStop(); }
   } else if (R.phase === "arrive"){
     if (!R.opened && R.t > 0.35){ R.opened = true; AUDIO.doorsOpen(); }
     if (R.t >= RIDE_PHASES.arrive){
@@ -9077,13 +9168,7 @@ function drawRider(cx0, cw, cy){
   if (!R) return;
   var mx = rideSlotX(rideManX(R), cx0, cw);
   var lift = (R.stepT != null && R.stepT < 1) ? Math.sin(R.stepT * Math.PI) * 7 : 0;
-  var sp = R.fight
-         ? (G.shield >= 2 ? (R.face < 0 ? S.playerFP_l : S.playerFP_r)
-          : G.shield      ? (R.face < 0 ? S.playerFS_l : S.playerFS_r)
-                          : (R.face < 0 ? S.playerF_l  : S.playerF_r))
-         : (G.shield >= 2 ? (R.face < 0 ? S.playerP_l : S.playerP_r)
-          : G.shield      ? (R.face < 0 ? S.playerS_l : S.playerS_r)
-                          : (R.face < 0 ? S.player_l  : S.player_r));
+  var sp = riderSprite(R);
 
   /* A stride leans. Without it he is a sprite being slid along a floor; with
      four degrees of it, into the direction of travel and back upright as he
@@ -9188,6 +9273,16 @@ function startCheer(R, cx0, cw){
   R.cheer = CHEER_SECS;
   cheerMoney(R, cx0, cw);
   AUDIO.cheer();
+  /* The carriage pays him. Three hundred thousand - three blows' worth - so
+     that however long he left it before swinging, putting the man down is
+     always worth more than standing there was. It lands with the bills,
+     because the bills are what it is. */
+  G.bonus += TRAIN_WIN_CASH;
+  G.bonusTrain += TRAIN_WIN_CASH;
+  carFloat(R, TRAIN_WIN_CASH, true);
+  AUDIO.chaChing(); AUDIO.deal();
+  flash("YOU SAVED THE TRAIN!",
+        "+" + cash(TRAIN_WIN_CASH) + " from a grateful carriage.", C.good);
   if (R.pax){
     for (var i = 0; i < R.pax.length; i++){
       var px2 = R.pax[i];
@@ -9212,13 +9307,116 @@ function paxHop(R, px2){
   return Math.abs(Math.sin(f * Math.PI)) * 26 * amp;
 }
 
+/* The money moving, beside the man it is moving for. Red off, green on, one
+   piece of code - the sign is the only difference and it should look like
+   the same thing happening twice rather than two effects.
+
+   It is drawn here rather than by the street's floater because that one is
+   suppressed during a ride, and on a train the hero is not where
+   playerPos() says he is. */
+/* `big` is the win. A loss is bad news and bad news does not need to be
+   large; three hundred thousand thrown at him by a carriage is the best
+   thing that happens in the game and it is allowed to take up room. */
+/* Sweat, on the frame it lands. Street Fighter does this and it is the
+   single cheapest thing that makes a hit feel like it had a body behind it:
+   a handful of droplets thrown off the point of contact, lit pale against a
+   dark car, falling under their own weight.
+
+   Its own little pool on the ride rather than the global particle array,
+   because that one is about to be full of the carriage's money. */
+function sweatBurst(R, x, y){
+  R.sweat = [];
+  for (var i = 0; i < 14; i++){
+    /* Up and outward, favouring the direction the punch was going - it is
+       coming off him, not exploding from a point. */
+    var a = -Math.PI / 2 + (Math.random() - 0.5) * 2.5;
+    var sp = 150 + Math.random() * 300;
+    R.sweat.push({ x:x + (Math.random() - 0.5) * 26,
+                   y:y + (Math.random() - 0.5) * 20,
+                   vx:Math.cos(a) * sp + (R.face || 1) * 90,
+                   vy:Math.sin(a) * sp,
+                   r:2.2 + Math.random() * 2.6,
+                   life:0.42 + Math.random() * 0.34, max:0.76 });
+  }
+}
+function stepSweat(R, dt){
+  if (!R.sweat) return;
+  for (var i = R.sweat.length - 1; i >= 0; i--){
+    var d = R.sweat[i];
+    d.life -= dt;
+    if (d.life <= 0){ R.sweat.splice(i, 1); continue; }
+    d.vy += 1350 * dt;
+    d.x += d.vx * dt; d.y += d.vy * dt;
+  }
+  if (!R.sweat.length) R.sweat = null;
+}
+function drawSweat(R){
+  if (!R.sweat) return;
+  for (var i = 0; i < R.sweat.length; i++){
+    var d = R.sweat[i];
+    ctx.globalAlpha = Math.min(1, (d.life / d.max) * 1.6) * 0.9;
+    ctx.fillStyle = "#dff2ff";
+    /* Stretched along the way it is travelling, which is what a thrown
+       droplet looks like and what a circle never does. */
+    var sx2 = 1 + Math.min(1.6, Math.abs(d.vx) / 420);
+    ctx.save();
+    ctx.translate(d.x, d.y);
+    ctx.scale(sx2, 1);
+    ctx.beginPath(); ctx.arc(0, 0, d.r, 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
+  }
+  ctx.globalAlpha = 1;
+}
+
+function carFloat(R, amt, big){ R.money = { t:0, amt:amt, big:!!big }; }
+
+/* Drawn from render(), at the very end, rather than from inside the car.
+   Three hundred thousand is the best news in the game and it was coming out
+   underneath the HUD plates and its own banner. It is the thing to look at,
+   so it goes over everything. */
+function drawCarFloat(){
+  var R = G.ride;
+  if (!R || !R.money) return;
+  var cx0 = R.cx0 || 90, cw = R.cw || (LOGICAL_W - 180), cy = R.cy || 470;
+  var a = 1 - R.money.t / (FLOAT_SECS * (R.money.big ? 1.6 : 1));
+  if (a <= 0){ R.money = null; return; }
+  var up = R.money.amt > 0;
+  var rise = (1 - a) * 62;
+  var x = rideSlotX(rideManX(R), cx0, cw) + 96;
+  var y = cy + CAR_FLOOR - 36 - rise;
+  /* Held solid for the first third, so it is READ before it starts going. A
+     number that fades from the instant it appears is a number nobody
+     finishes reading. */
+  ctx.globalAlpha = Math.min(1, a * 3);
+  var str = (up ? "+" : "\u2212") + cash(Math.abs(R.money.amt));
+  var sz = R.money.big ? 76 : 40;
+  /* A pop on the way in, so it ARRIVES rather than appearing. The first
+     fifth of its life is spent getting to full size. */
+  var inK = Math.min(1, R.money.t / (FLOAT_SECS * 0.18));
+  sz *= 0.72 + 0.28 * (inK * inK * (3 - 2 * inK)) + (1 - inK) * 0.16;
+  txt(str, x + 3, y + 3, sz, up ? "#06200f" : "#2a0a10");
+  txt(str, x, y, sz, up ? C.good : C.danger);
+  ctx.globalAlpha = 1;
+}
+
+/* WHICH SPRITE HE IS, this frame. Twelve of them now - three shield levels
+   times plain, fighting, and fighting-and-shouting - and the body and the
+   drawn arm have to agree about it to the pixel, because the arm's shoulder
+   is positioned off the sprite's own width. One function, both callers. */
+function riderSprite(R){
+  var sfx = (R.face || 1) < 0 ? "_l" : "_r";
+  var lvl = G.shield >= 2 ? 2 : (G.shield ? 1 : 0);
+  if (!R.fight) return S[(lvl === 2 ? "playerP" : lvl === 1 ? "playerS" : "player") + sfx];
+  if (R.fightT >= UP_AT)
+    return S[(lvl === 2 ? "playerFWP" : lvl === 1 ? "playerFWS" : "playerFW") + sfx];
+  return S[(lvl === 2 ? "playerFP" : lvl === 1 ? "playerFS" : "playerF") + sfx];
+}
+
 function drawPunchArm(cx0, cw, cy){
   var R = G.ride;
   if (!R || !R.fight) return;
   var t = R.fightT, side = R.face || 1;
-  var sp = G.shield >= 2 ? (side < 0 ? S.playerFP_l : S.playerFP_r)
-         : G.shield      ? (side < 0 ? S.playerFS_l : S.playerFS_r)
-                         : (side < 0 ? S.playerF_l  : S.playerF_r);
+  var sp = riderSprite(R);
   var W = sp.w * 0.92, H = sp.h * 0.92;
   var lift = (R.stepT != null && R.stepT < 1) ? Math.sin(R.stepT * Math.PI) * 7 : 0;
   var baseY = cy + CAR_FLOOR - lift + sp.h * 0.92;
@@ -9249,8 +9447,55 @@ function drawPunchArm(cx0, cw, cy){
   ctx.beginPath(); ctx.moveTo(shX, shY); ctx.lineTo(fx, fy); ctx.stroke();
   /* The fist proper, a touch bigger than the sleeve so it reads as a hand
      rather than the end of a tube, with the cuff cutting across behind it. */
+  /* ------------------------------------------------------------- FIRE --
+     It is a flaming dragon punch, so the fist is alight for the leap. No
+     shadowBlur and no filters on this renderer, so the glow is BUILT: four
+     stacked tongues, each a column of circles that gets smaller and hotter
+     toward the middle, from a dark orange shell through to a white core.
+     Layered translucency is what makes a hard-edged circle read as flame.
+
+     It wobbles on G.t rather than on the fight clock, so the fire has its
+     own life and does not freeze when the punch does.
+
+     Jabs do not burn. The fire is the uppercut's, which is the only way it
+     stays special - three flaming punches is a man who is simply on fire. */
+  if (k >= 0){
+    var fi = dpArch(k);
+    var wob = G.t * 26;
+    var FCOL = ["rgba(255,88,12,0.26)", "rgba(255,146,28,0.40)",
+                "rgba(255,206,84,0.56)", "rgba(255,248,216,0.80)"];
+    var FRAD = [1.00, 0.70, 0.44, 0.22];
+    for (var fl = 0; fl < 4; fl++){
+      ctx.fillStyle = FCOL[fl];
+      for (var seg = 0; seg < 4; seg++){
+        var r2 = H * 0.165 * FRAD[fl] * fi * (1 - seg * 0.18);
+        if (r2 <= 0.4) continue;
+        var up = seg * H * 0.052 * fi;
+        var sway = Math.sin(wob + seg * 1.7 + fl * 0.9) * H * 0.016 * fi;
+        ctx.beginPath();
+        ctx.arc(fx + sway - side * seg * H * 0.012, fy - up, r2, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+    /* Embers, which are what stops it looking like a painted blob: four
+       specks on their own phases, rising and shrinking. */
+    ctx.fillStyle = "rgba(255,190,96,0.75)";
+    for (var em = 0; em < 4; em++){
+      var ep = (G.t * 1.9 + em * 0.37) % 1;
+      var es = H * 0.020 * (1 - ep) * fi;
+      if (es <= 0.3) continue;
+      ctx.fillRect(fx + Math.sin(wob * 0.5 + em * 2.1) * H * 0.05 - es/2,
+                   fy - ep * H * 0.30 - es/2, es, es);
+    }
+  }
+
+  /* The fist last, so it sits IN the fire rather than under it. */
   ctx.fillStyle = HERO_SKIN;
   ctx.beginPath(); ctx.arc(fx, fy, H * 0.064, 0, Math.PI * 2); ctx.fill();
+  if (k >= 0){
+    ctx.fillStyle = "rgba(255,236,170,0.5)";
+    ctx.beginPath(); ctx.arc(fx, fy, H * 0.064, 0, Math.PI * 2); ctx.fill();
+  }
   ctx.restore();
 }
 
@@ -10841,6 +11086,7 @@ function drawCar(ox, rock, lit){
   /* The money goes over everything, including the car itself - it is in the
      air between the viewer and the carriage, not on the floor of it. */
   if (R2.cheer > 0) drawParts();
+  drawSweat(R2);
   /* Last of all, so nobody in the carriage can stand in front of it. */
   if (cashMX != null) drawCarCash(cashMX, cy);
   if (R2.take) drawCarTake(R2, cx0, cw, cy);
@@ -20414,6 +20660,8 @@ function render(){
     if (G.rise && !G.ride) drawMoneyRise();
     drawBrandHit();
   }
+  /* Last of all, over the HUD and over its own banner. */
+  if (G.ride) drawCarFloat();
   if (SHOW_FPS){
     ctx.setTransform(scale, 0, 0, scale, 0, 0);
     ctx.font = "bold 24px monospace"; ctx.textAlign = "left";
