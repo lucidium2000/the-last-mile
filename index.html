@@ -19797,7 +19797,17 @@ function render(){
   drawHurt();
   drawLowHealth();
   drawSouth();
-  drawHud();
+  /* NOT ON THE TITLE. The readout, the departure board, the street, the best
+     walk and the health bar are all answers to questions a run raises, and
+     before the run they are answers to nothing: a pipeline of $0, a block
+     nobody has walked to yet, a fiscal clock that has not started and a
+     health bar at 100% which is the only value it can have. Five plates of
+     furniture around a picture of a man standing in Midtown.
+
+     The world keeps running behind the card either way - that is the point
+     of the title screen - so taking the HUD off it leaves exactly the thing
+     worth looking at. It all comes back the instant the state does. */
+  if (G.state !== ST_TITLE) drawHud();
   /* Over the HUD, under the cutscenes. It is a mode, not an overlay. */
   if (G.state === ST_PLAY && !G.ride && !G.scene) drawDashHud();
   if (G.state === ST_PLAY) drawLockup();
