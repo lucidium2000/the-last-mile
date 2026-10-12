@@ -1536,7 +1536,12 @@ var AUDIO = (function(){
     neoIn: function(){
       if (!live()) return;
       whoosh({ f:220, to:2400, dur:0.50, g:0.11, q:1.0, peak:0.80 });
-      tone({ f:98, to:330, dur:0.52, type:"sine", g:0.11, lp:900 });
+      /* The swell under it, at half what it was. 98Hz is the lowest note
+         anything in this game plays and a sine has no harmonics to spread
+         the weight, so all of it lands in one place - on a panel with any
+         cabinet behind it that read as a thump rather than as a rise. The
+         sweep still arrives, it just stops arriving in your chest. */
+      tone({ f:98, to:330, dur:0.52, type:"sine", g:0.055, lp:900 });
       whoosh({ f:2600, to:900, dur:0.22, g:0.10, q:1.4, at:0.40 });
       hit({ f:3400, to:900, hp:true, dur:0.055, g:0.20, at:0.60 });   // the click
       tone({ f:1318.51, dur:0.42, type:"sine", g:0.075, at:0.60 });
