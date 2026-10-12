@@ -8313,7 +8313,9 @@ function startRide(enterRow, enterCol){
      had, +10% and then +15%. A straight multiply here because this roll has
      no denominator to fight: a ride either has a roll on it or it does not,
      unlike the pavement, where the weight has to be solved for. */
-  var cash = Math.random() < 0.696 ? ends[(Math.random() * 2) | 0] : -1;
+  /* TEST_SUBWAY: there is always a roll, because the whole scenario under
+     test is him going for it. */
+  var cash = (TEST_SUBWAY || Math.random() < 0.696) ? ends[(Math.random() * 2) | 0] : -1;
   if (cash >= 0){
     var ci = free.indexOf(cash);
     if (ci >= 0) free.splice(ci, 1);
@@ -8332,8 +8334,10 @@ function startRide(enterRow, enterCol){
              face:1, shady:shady, cash:cash, cashGot:false, met:false,
              shadyX:shady, knife:0, knifeSide:0, ko:0, koT:0, swing:0, brace:0,
              robbed:0, clack:0,
-             /* TEST_SUBWAY: always the one in twenty who means it. */
-             hostile: TEST_SUBWAY ? true : (Math.random() < SHADY_HOSTILE),
+             /* TEST_SUBWAY: NOT the one in twenty, because the scenario under
+                test is now the other one - a man who never draws anything and
+                goes for the money instead. */
+             hostile: TEST_SUBWAY ? false : (Math.random() < SHADY_HOSTILE),
              tell:0, look:0, lurch:0, eyes:0, sayAt:-99, sayLine:null,
              /* His interest in the money: how long he has been near it,
                 whether he has noticed, and how long since he took it. */
@@ -8449,6 +8453,33 @@ var EYES_SECS = 2.0, EYES_UP = 0.35, EYES_RATE = 0.09;
 var KNIFE_NEAR  = 0.95;    // how close before the blade comes out
 var KNIFE_GRACE = 1.70;    // how long you have to do something about it
 var SWING_REACH = 1.30;    // how far the briefcase carries
+
+/* ------------------------------------------- THE OTHER REASON TO SWING --
+   Most hooded men on most trains never draw anything. They are a mood, and
+   the right response to a mood is to stand there and let it pass - which is
+   why the fight was gated on the blade: a commuter who can deck anybody who
+   looks at him oddly is not a commuter, he is a problem.
+
+   But there is one other moment where hitting him is obviously right, and
+   it was already in the game: he notices the roll of notes on the seat,
+   stops caring about you entirely, and goes for it. That is not a mood, it
+   is a theft in progress, and it is visible - he TURNS AWAY and walks the
+   other way, which the file already calls "the cue to run".
+
+   It is now also the cue to swing. The fight that follows is the same fight
+   - jabs, he gives ground, then the combo - but the ending is not: nobody
+   is paying him for stopping a pickpocket. The car cheers and that is all
+   it does.
+
+   The window closes when he reaches the money. Deck him before that and the
+   roll is still on the seat for you; leave it too late and he has it, and
+   all you get is the applause. */
+function shadySide(R){ return R.shadyX >= rideManX(R) ? 1 : -1; }
+function canSwingAt(R, d){
+  if (!R || R.shady < 0 || R.ko) return false;
+  if (R.knife > 0) return d === (R.knifeSide || 1);
+  return !!R.sawCash && d === shadySide(R);
+}
 
 /* ------------------------------------------------- THE RISING UPPERCUT --
    He used to lean. A man who has just knocked somebody out with a briefcase
@@ -8677,18 +8708,29 @@ function rideAct(dir){
      Checked before the bounds test, because the swing is not a step: he can be
      cornered against the end of the car with nowhere to retreat and that is
      exactly when you need this to work. */
-  if (R.shady >= 0 && !R.ko && R.knife > 0 && d === (R.knifeSide || 1) &&
+  if (canSwingAt(R, d) &&
       Math.abs(R.shadyX - rideManX(R)) <= SWING_REACH){
     R.fight = 1; R.fightT = 0; R.ko = 0; R.koT = 0; R.knife = 0; R.ken = false;
     /* The first swing of the ride is jabs; after that he has the measure of
        him and it is the whole combo. */
     R.combo = (R.round || 0) > 0;
+    /* Decided on the FIRST swing and kept, because by the second one the
+       blade is long gone either way and the ending has to remember which
+       fight this was. */
+    if (!(R.round || 0)) R.winKind = (R.knife > 0) ? "knife" : "cash";
     R.jolt = 0;                          // what the jabs do to him
     R.dpDx = R.shadyX - rideManX(R);     // the gap, to be crossed
     R.dpBase = rideManX(R);              // ...measured from here, once
     R.face = d;
     AUDIO.heave();
-    if (R.combo){
+    if (R.combo && R.winKind === "cash"){
+      /* No payout on this one, at either end. He is stopping a theft, not
+         being mugged, and nothing about it is owed to him - not the
+         carriage's money at the finish and not the roll out of this man's
+         coat on the way down. The roll on the seat is still on the seat,
+         which is reward enough and was his to begin with. */
+      flash("JAB, JAB, UPPERCUT", "He was going for the roll.", C.good, true);
+    } else if (R.combo){
       var swung = chuckPayout("He dropped it on his way down.", true);
       flash("JAB, JAB, UPPERCUT",
             "He picked the wrong commuter.  +" + cash(swung), C.good, true);
@@ -8771,9 +8813,15 @@ function rideAct(dir){
       AUDIO.say(11, SAY_ASK);
     }
   }
-  if (R.shady >= 0 && !R.met && Math.abs(ns - R.shady) <= RIDE_SUB){
+  /* NOT OVER A MAN ON THE FLOOR. There was no `ko` test here, so walking
+     onto his slot after decking him raised "he is watching your bag" about
+     somebody face down in the aisle - and raised it OVER the celebration,
+     because a flash that is invisible during a ride still overwrites
+     G.flash. Which is the other half of it: this never carried the train
+     flag, so it has never once been seen. Now it is both. */
+  if (R.shady >= 0 && !R.met && !R.ko && Math.abs(ns - R.shady) <= RIDE_SUB){
     R.met = true;
-    flash("HE IS WATCHING YOUR BAG", "Keep walking. Eyes forward.", "#9aa0a6");
+    flash("HE IS WATCHING YOUR BAG", "Keep walking. Eyes forward.", "#9aa0a6", true);
     AUDIO.nope();
   }
   /* Walking into the one who is only being odd about it gets nothing. No
@@ -9273,7 +9321,12 @@ function updateRide(dt){
   /* Two of them, next to each other, exchanging four words. The reply lands
      three quarters of a second after the opener, the same beat the pavement
      uses. */
-  if (R.pax){
+  /* NOT WHILE THEY ARE CHEERING. The ambient chatter writes into the same
+     pax.line the celebration does, on its own timer, so a carriage in the
+     middle of shouting about what it just saw would go back to "signal
+     problems, again" halfway through. It is the right line for a train and
+     exactly the wrong one for this. */
+  if (R.pax && !(R.cheer > 0)){
     R.chatT -= dt;
     if (R.chatT <= 0){
       R.chatT = TRAIN_CHAT_GAP[0] + Math.random() * TRAIN_CHAT_GAP[1];
@@ -9507,6 +9560,14 @@ var CHEER_LINES = [
   "That's my train!", "He had it coming", "LET'S GO!",
   "Did you SEE that", "Finish him!", "Respect"
 ];
+/* A different room. Nobody was in danger, so nothing here is relief - it is
+   a carriage enjoying somebody getting caught, which is a smaller and more
+   particular pleasure and should sound like one. */
+var CHEER_CASH = [
+  "He was going for that!", "Saw him eyeing it", "Nice one",
+  "That's not his!", "Good catch", "I was about to say something",
+  "He does this every day", "Not today, pal", "Ha!"
+];
 
 /* Bills off the whole carriage at once rather than one burst in one place.
    The pool is shared and fixed, so this seeds it across the five slots -
@@ -9537,8 +9598,37 @@ function cheerMoney(R, cx0, cw){
 function startCheer(R, cx0, cw){
   R.cheer = CAR_CHEER_SECS;
   R.winHold = CAR_CHEER_SECS + WIN_PAUSE;
-  cheerMoney(R, cx0, cw);
   AUDIO.cheer();
+
+  /* THE CARRIAGE SAYS SOMETHING EITHER WAY, which is the part that makes it
+     a room rather than a payout. It goes FIRST, because the two endings
+     below used to be the whole of this function and the cash one returned
+     out of it - taking the voices with it and leaving five people jumping
+     in silence. */
+  var pool = (R.winKind === "cash") ? CHEER_CASH : CHEER_LINES;
+  if (R.pax){
+    for (var i = 0; i < R.pax.length; i++){
+      var px2 = R.pax[i];
+      if (!px2) continue;
+      /* Staggered, or five people shout the same syllable in unison and it
+         reads as one voice rather than a carriage. */
+      px2.hopAt = R.t + Math.random() * 0.22;
+      px2.sayAt = R.t + Math.random() * 0.5;
+      px2.line = pool[(Math.random() * pool.length) | 0];
+    }
+  }
+
+  if (R.winKind === "cash"){
+    /* NOBODY PAYS HIM FOR THIS. He stopped a man taking a roll of notes off
+       a seat, which is a good deed and not a service - and the money he
+       saved was never his either. The car cheers, somebody says something,
+       and that is the whole reward. Without the bills, because the bills
+       are what "we are paying you" looks like. */
+    flash("HE WAS GOING FOR YOUR ROLL", "The car saw it too.", C.good, true);
+    return;
+  }
+
+  cheerMoney(R, cx0, cw);
   /* The carriage pays him. Three hundred thousand - three blows' worth - so
      that however long he left it before swinging, putting the man down is
      always worth more than standing there was. It lands with the bills,
@@ -9549,17 +9639,6 @@ function startCheer(R, cx0, cw){
   AUDIO.chaChing(); AUDIO.deal();
   flash("YOU SAVED THE TRAIN!",
         "+" + cash(TRAIN_WIN_CASH) + " from a grateful carriage.", C.good, true);
-  if (R.pax){
-    for (var i = 0; i < R.pax.length; i++){
-      var px2 = R.pax[i];
-      if (!px2) continue;
-      /* Staggered, or five people shout the same syllable in unison and it
-         reads as one voice rather than a carriage. */
-      px2.hopAt = R.t + Math.random() * 0.22;
-      px2.sayAt = R.t + Math.random() * 0.5;
-      px2.line = CHEER_LINES[(Math.random() * CHEER_LINES.length) | 0];
-    }
-  }
 }
 
 /* How far off the floor a given passenger is, this frame. Two hops, the
