@@ -9200,7 +9200,16 @@ function updateRide(dt){
     var f = Math.min(1, R.t / rd);
     var e = f < 0.5 ? 2*f*f : 1 - Math.pow(-2*f + 2, 2)/2;
     G.camRow = R.camFrom + (R.toRow - R.camFrom) * e;
-    if (R.t >= rd){ R.phase = "arrive"; R.t = 0; AUDIO.trainStop(); }
+    /* THE WHOLE ARRIVAL WAITS, not just the doors. R.t runs to the end
+       either way, so the counter above the window still reaches its stop -
+       the journey is finished and says so. What is held is PULLING IN: the
+       brakes, the station coming up outside, the doors. All of that is one
+       process and it reads as one, so a station sliding past the windows
+       while the fight is still going is the arrival happening early no
+       matter where the doors are in it.
+
+       He stays on a moving train until it is over. */
+    if (R.t >= rd && !doorsHeld(R)){ R.phase = "arrive"; R.t = 0; AUDIO.trainStop(); }
   } else if (R.phase === "arrive"){
     /* ITS OWN CLOCK, not R.t. Everything the carriage says is timed off
        R.t, so it has to keep running while the doors are shut - and the
