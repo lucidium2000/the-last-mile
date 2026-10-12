@@ -1657,9 +1657,9 @@ var AUDIO = (function(){
        waveform the combo would be three of the same noise getting louder. */
     /* The combo, as one clip, with the dragon punch last. Returns whether
        it actually played, because the fight's fallback depends on it. */
-    ken: function(){
+    ken: function(cut){
       if (!live() || !kenClip.ready()) return false;
-      kenClip.play(1.05);
+      kenClip.play(1.05, cut || 0);
       return true;
     },
     /* A CARRIAGE GOING UP. Not a sampled crowd - there are no files in this
@@ -8488,6 +8488,39 @@ var KO_AT    = UP_AT + KO_DELAY;                       // 1.06 - and it lands
 var DP_SECS  = 1.56;
 var FIGHT_SECS = UP_AT + DP_SECS;
 
+/* ------------------------------------------------------ TWO EXCHANGES ----
+   The first swing is the two jabs and nothing else. He lands them, the
+   other man gives ground, and comes back - and the NEXT swing is the whole
+   thing with the uppercut on the end of it.
+
+   That is the difference between a finisher and a fight. One exchange is a
+   man pressing a button and watching an animation; two is a man who got
+   hit, backed off, and came again, which is what makes the second one worth
+   landing.
+
+   R.combo is which kind of swing this is, decided at the moment of the
+   swing off how many have already happened. Everything downstream - the
+   timeline's end, the uppercut arm, the shout, the ghosts, the smear, the
+   knockdown, the audio - reads that one flag. */
+var JABS_END   = UP_AT + 0.45;   // the two jabs, then a beat to recover
+var JAB_BACKOFF = 1.05;          // how long he gives ground before returning
+var KEN_CUT    = 0.62;           // the clip, stopped between hit two and hit
+                                 // three. Its own 90ms fade runs 0.53-0.62,
+                                 // clear of the second transient at 0.38 and
+                                 // nowhere near the third at 0.96.
+/* A CEILING ON THE STANDOFF, because the doors are held until this
+   resolves. If he somehow never closes again, the player is on a train that
+   never arrives - which is worse than anything else this scene can do. */
+var FIGHT_STALL = 9;
+
+function fightEnd(R){ return R.combo ? FIGHT_SECS : JABS_END; }
+/* How far through the LEAP, or -1 if this swing has no leap in it. Every
+   piece of the uppercut hangs off this. */
+function upK(R, t){
+  if (!R || !R.combo || t < UP_AT) return -1;
+  return Math.min(1, (t - UP_AT) / DP_SECS);
+}
+
 /* WHAT IS STILL SLOW. The three beats are now the clip's and cannot move,
    but everything BETWEEN them is still a slow-motion fight, and that is
    what this scales: how long he takes to close the gap, how long a jab's
@@ -8509,11 +8542,19 @@ var JAB_POW  = Math.log(0.5) / Math.log(JAB_PEAK);
    the leap, and carried back out as he comes down, because his actual slot
    never changed and landing anywhere else would snap. */
 var COMBO_REACH = 0.92;
-function comboLunge(ft){
+function comboLunge(R, ft){
   if (ft <= 0) return 0;
   var IN = 0.16 * DP_SLOW;
   if (ft < IN) return Math.sin((ft / IN) * Math.PI * 0.5) * COMBO_REACH;
-  return COMBO_REACH;          // ...and he stays there. See the landing.
+  /* On the combo he stays in - he lands on the ground he took, see the
+     landing. On the jabs he steps back out as the exchange breaks, because
+     the other man is giving ground and a hero left standing in the space
+     has not had an exchange, he has had a pause. */
+  if (R.combo) return COMBO_REACH;
+  var OUT = JABS_END - 0.38;
+  if (ft < OUT) return COMBO_REACH;
+  var v = Math.min(1, (ft - OUT) / Math.max(0.01, JABS_END - OUT));
+  return COMBO_REACH * (1 - v * v);
 }
 /* Which jab, and how far through it - the arm goes out and comes back on
    one sine, which is the whole of a jab. */
@@ -8629,14 +8670,22 @@ function rideAct(dir){
   if (R.shady >= 0 && !R.ko && R.knife > 0 && d === (R.knifeSide || 1) &&
       Math.abs(R.shadyX - rideManX(R)) <= SWING_REACH){
     R.fight = 1; R.fightT = 0; R.ko = 0; R.koT = 0; R.knife = 0; R.ken = false;
+    /* The first swing of the ride is jabs; after that he has the measure of
+       him and it is the whole combo. */
+    R.combo = (R.round || 0) > 0;
     R.jolt = 0;                          // what the jabs do to him
     R.dpDx = R.shadyX - rideManX(R);     // the gap, to be crossed
     R.dpBase = rideManX(R);              // ...measured from here, once
     R.face = d;
     AUDIO.heave();
-    var swung = chuckPayout("He dropped it on his way down.", true);
-    flash("JAB, JAB, UPPERCUT",
-          "He picked the wrong commuter.  +" + cash(swung), C.good, true);
+    if (R.combo){
+      var swung = chuckPayout("He dropped it on his way down.", true);
+      flash("JAB, JAB, UPPERCUT",
+            "He picked the wrong commuter.  +" + cash(swung), C.good, true);
+    } else {
+      flash("TWO IN THE BODY",
+            "He gives ground. He is not finished.", C.amber, true);
+    }
     return;
   }
 
@@ -8933,6 +8982,20 @@ function updateShady(dt){
      that he arrives slowly. It is driven off the knife rather than off
      `hostile`, so the only thing that lights him up is the thing the player
      can actually see him doing. Out the moment he is hit. */
+  /* THE STANDOFF CANNOT RUN FOREVER. The doors are held until this
+     resolves, so a man who somehow never closes again would leave the
+     player on a train that never arrives. If nothing has happened for nine
+     seconds - no blade, no fight, nobody down - the scene lets go and the
+     train comes in. It should never fire; it is here so that if it ever
+     does the cost is an anticlimax rather than a stuck game. */
+  if (R.engaged && !R.fight && !R.ko){
+    if (R.knife > 0) R.stall = 0;
+    else {
+      R.stall = (R.stall || 0) + dt;
+      if (R.stall > FIGHT_STALL) R.engaged = 0;
+    }
+  }
+
   var rageWant = (R.knife > 0 && !R.ko && !R.fight) ? 1 : 0;
   R.rage = (R.rage || 0) + (rageWant - (R.rage || 0)) * Math.min(1, dt * 6);
   stepSweat(R, dt);
@@ -8955,13 +9018,15 @@ function updateShady(dt){
     /* ONE PLAY, AT THE TOP. The clip carries all three impacts and the
        shout; the beats below only do the picture. If it never decoded,
        R.ken stays false and the synthesised hits cover for it. */
-    if (beat(KEN_LEAD)) R.ken = AUDIO.ken();
+    /* The clip carries all three impacts and the shout, so a jabs-only
+       swing plays it CUT - after the second hit, before the third. */
+    if (beat(KEN_LEAD)) R.ken = AUDIO.ken(R.combo ? 0 : KEN_CUT);
     if (beat(JAB_HIT) || beat(JAB_SECS + JAB_HIT)){
       if (!R.ken) AUDIO.jab();
       shakeFor(13, 0.07);
       R.jolt = 1;
     }
-    if (beat(KO_AT)){
+    if (R.combo && beat(KO_AT)){
       if (!R.ken) AUDIO.punch();
       shakeFor(32, 0.10);
       burst(hx, hy, "#ffd9a8");
@@ -8973,15 +9038,16 @@ function updateShady(dt){
        rather than off the clock - it is a reaction, so it belongs to the
        thing it is reacting to. A room takes a moment to understand what it
        just saw, and the money does not come out before the man lands. */
-    if (beat(KO_AT + 0.50)) startCheer(R, R.cx0 || 90, R.cw || (LOGICAL_W - 180));
+    if (R.combo && beat(KO_AT + 0.50))
+      startCheer(R, R.cx0 || 90, R.cw || (LOGICAL_W - 180));
     if (R.cheer > 0) R.cheer = Math.max(0, R.cheer - dt);
     if (R.winHold > 0) R.winHold = Math.max(0, R.winHold - dt);
     if (R.jolt > 0) R.jolt = Math.max(0, R.jolt - dt / (0.16 * DP_SLOW));
 
     /* The knockdown starts at the uppercut and runs on the SAME slowed
        clock, or a man in slow motion knocks somebody over at full speed. */
-    if (R.fightT >= KO_AT){ R.ko = 1; R.koT = (R.fightT - KO_AT) / DP_SLOW; }
-    if (R.fightT >= FIGHT_SECS){
+    if (R.combo && R.fightT >= KO_AT){ R.ko = 1; R.koT = (R.fightT - KO_AT) / DP_SLOW; }
+    if (R.fightT >= fightEnd(R)){
       /* HE KEEPS THE GROUND HE TOOK. The lunge used to hand it back on the
          way down, which meant the last thing the uppercut did was drift him
          a square backwards through the air - he looked like he was being
@@ -8993,10 +9059,23 @@ function updateShady(dt){
          so there is nothing to see, and he comes straight down standing
          over the man he hit. Clamped, because the far end of a carriage is
          still the far end of a carriage. */
-      var land = R.dpBase + R.dpDx * COMBO_REACH;
-      land = Math.max(0, Math.min(RIDE_SLOTS - 1, land));
-      R.slot = land; R.slotFrom = land; R.slotX = land; R.stepT = 1;
+      if (R.combo){
+        var land = R.dpBase + R.dpDx * COMBO_REACH;
+        land = Math.max(0, Math.min(RIDE_SLOTS - 1, land));
+        R.slot = land; R.slotFrom = land; R.slotX = land; R.stepT = 1;
+      }
+      /* On a jabs-only swing he keeps nothing: comboLunge has already
+         walked him back out by now, so his slot is where it was and there
+         is nothing to commit. */
+      R.round = (R.round || 0) + 1;
       R.fight = 0;
+      if (!R.combo){
+        /* He gives ground and comes again. The approach logic does the rest
+           on its own once the backoff runs out - closes, re-draws, and the
+           next swing is the whole combo. */
+        R.backoff = JAB_BACKOFF;
+        R.stall = 0;
+      }
     }
     return;
   }
@@ -9351,10 +9430,10 @@ function drawRider(cx0, cw, cy){
      his arm is doing - is a pure function of that one number, which is why
      the motion ghosts are free: a ghost is this same call at an earlier t. */
   function putHero(t, alpha){
-    var k = (t >= UP_AT) ? Math.min(1, (t - UP_AT) / DP_SECS) : -1;
+    var k = upK(R, t);
     var rot = lean + (k >= 0 ? -DP_TILT * dpArch(k) * side : 0);
     var px = (t >= 0 && R.dpDx)
-           ? rideSlotX(R.dpBase + R.dpDx * comboLunge(t), cx0, cw) : mx;
+           ? rideSlotX(R.dpBase + R.dpDx * comboLunge(R, t), cx0, cw) : mx;
     ctx.save();
     if (alpha < 1) ctx.globalAlpha = alpha;
     ctx.translate(px + riderNudge(R, sp), baseY - (k >= 0 ? dpRise(k) : 0));
@@ -9368,7 +9447,7 @@ function drawRider(cx0, cw, cy){
 
   /* Ghosts only on the leap. A jab is 0.3s of forearm; smearing it just
      makes him look like he is underwater. */
-  if (ft >= UP_AT){
+  if (R.combo && ft >= UP_AT){
     for (var gi = DP_GHOSTS; gi >= 1; gi--){
       var gt = ft - gi * DP_GHOST_DT * DP_SLOW;
       if (gt <= UP_AT) continue;
@@ -9637,7 +9716,8 @@ function riderSprite(R){
     var f = R.ko ? FACE_SMILE : restingFace();
     return S["pf" + f + (lvl === 2 ? "P" : lvl === 1 ? "S" : "") + sfx];
   }
-  if (R.fightT >= UP_AT)
+  /* He only shouts on the swing that has a leap in it. */
+  if (R.combo && R.fightT >= UP_AT)
     return S[(lvl === 2 ? "playerFWP" : lvl === 1 ? "playerFWS" : "playerFW") + sfx];
   return S[(lvl === 2 ? "playerFP" : lvl === 1 ? "playerFS" : "playerF") + sfx];
 }
@@ -9652,14 +9732,14 @@ function drawPunchArm(cx0, cw, cy){
   var W = sp.w * 0.92, H = sp.h * 0.92;
   var lift = (R.stepT != null && R.stepT < 1) ? Math.sin(R.stepT * Math.PI) * 7 : 0;
   var baseY = cy + CAR_FLOOR - lift + sp.h * 0.92;
-  var k = (t >= UP_AT) ? Math.min(1, (t - UP_AT) / DP_SECS) : -1;
+  var k = upK(R, t);
   /* MID-COMBO he is at an offset off where he began; AFTERWARDS he is
      simply where he is. Using the combo's own path for the victory pose put
      the arm back at R.dpBase - where he stood before the first jab - while
      his body was a whole slot forward at the position he landed on. An arm
      348px to the left of its own shoulder. */
   var px = (R.fight && R.dpDx)
-         ? rideSlotX(R.dpBase + R.dpDx * comboLunge(t), cx0, cw)
+         ? rideSlotX(R.dpBase + R.dpDx * comboLunge(R, t), cx0, cw)
          : rideSlotX(rideManX(R), cx0, cw);
 
   /* TWO SHAPES, ONE ARM. A jab goes out level and comes back on a sine; the
@@ -11336,7 +11416,7 @@ function drawCar(ox, rock, lit){
   txt("1", cx0+cw-62, cy+41, 26, "#1a0a02");
 
   var R2 = G.ride || {}, wn = RIDE_SLOTS, ww = (cw - 90) / wn;
-  if (R2.fight && R2.fightT >= UP_AT)
+  if (R2.fight && R2.combo && R2.fightT >= UP_AT)
     drawSwing(rideSlotX(rideManX(R2), cx0, cw), cy, R2);
   var cashMX = null;                       // drawn after everybody, see below
   for (var i = 0; i < wn; i++){
