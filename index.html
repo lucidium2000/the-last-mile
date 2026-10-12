@@ -1488,7 +1488,11 @@ var AUDIO = (function(){
        notes every power gets, and this is the costume arriving. Two different
        statements, and the one that is the same every time is the one that can
        afford to be quiet. */
-    freeYourMind: function(){ if (live()){ freeClip.prime(); freeClip.play(0.62); } },
+    /* 1.24, which is twice what it was. It is the one line of dialogue the
+       game ever plays and it was arriving under the pickup's own fanfare.
+       Safe at the output: this gain feeds `master`, which tops out at
+       MASTER_G 0.32, so a full-scale sample still lands around 0.40. */
+    freeYourMind: function(){ if (live()){ freeClip.prime(); freeClip.play(1.24); } },
     /* And him, going over the street. OVER the whoosh, not under it: the
        whoosh is the air and it was written to sit where a voice sits, which
        is how a cue at four times its amplitude still went missing underneath
@@ -18329,7 +18333,7 @@ function drawTitle(){
   btxt(" Last Mile", x0, yb, big, C.text, "left");
   ctx.textBaseline = "middle";          // back to what everything else wants
 
-  txt("Penn 1 to the meeting.", LOGICAL_W/2, 552, 32, C.textDim);
+  txt("Every minute counts. Every deal matters.", LOGICAL_W/2, 552, 32, C.textDim);
 
   ctx.globalAlpha = 0.58 + 0.42*Math.sin(G.t*3);
   txt("TAP TO START", LOGICAL_W/2, 726, 62, C.brand);
@@ -18345,8 +18349,6 @@ function drawTitle(){
   txt("LEADERBOARD", BOARD_BTN.x + BOARD_BTN.w/2, BOARD_BTN.y + 36, 26, C.brand);
   txt(st.plays + (st.plays === 1 ? " run from this device" : " runs from this device"),
       BOARD_BTN.x + BOARD_BTN.w/2, BOARD_BTN.y + 66, 18, C.textDim);
-  txt("Penn 1  ·  Midtown  ·  the last mile", LOGICAL_W/2, 1004, 19,
-      "rgba(253,244,238,0.30)");
 }
 
 function drawDead(){
