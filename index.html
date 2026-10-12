@@ -2798,10 +2798,16 @@ var FACE_SMILE = 1, FACE_CHEW = 2, FACE_SAD = 3, FACE_WORN = 4,
    the wrong one for throwing a punch. This is the same open mouth with the
    ordinary two dots left alone above it: he is yelling, not staring. */
 var FACE_SHOUT = 9;
-/* 10. The face he holds the fist up with: one eye shut, mouth just open.
-   A full smile under a raised arm is a man posing for a photograph; a wink
-   is a man who knows you watched him do it. */
-var FACE_WINK = 10;
+/* 10. The face he holds the fist up with: both eyes shut, mouth just open.
+   A full smile under a raised arm is a man posing for a photograph. Eyes
+   closed is a man enjoying the moment and not checking whether anybody
+   saw - which is funnier, and reads at a distance where a wink does not,
+   because at this size one open eye and one shut is just two eyes.
+
+   11. And the two jabs, which were blank. A man throwing punches with no
+   face on him is a man sleepwalking; this is brows down, eyes narrowed and
+   the mouth set. He only wears it for the jabs - the leap has its own. */
+var FACE_BEAM = 10, FACE_FIERCE = 11;
 var HP_HAPPY = 75, HP_LEVEL = 50;
 /* The hero's complexion. It went minifigure yellow for a while, on the
    argument that the man you are playing should be nobody in particular - and
@@ -3268,13 +3274,17 @@ function playerModel(dir, shielded, face, fighting){
         dec.push({ x:0.546, y:0.43, w:0.042, z:0.734, h:0.013, bg:"#241a12" });
         dec.push({ x:0.410, y:0.43, w:0.046, z:0.756, h:0.012, bg:"#2b1f16" });
         dec.push({ x:0.544, y:0.43, w:0.046, z:0.756, h:0.012, bg:"#2b1f16" });
-      } else if (face === FACE_WINK){
-        /* One dot, one dash. The shut eye is wider than the open one and
-           half as tall, sitting a touch higher - a closed eye is a crease,
-           and a crease that is the same size as the dot beside it just
-           reads as a smaller eye. */
-        dec.push({ x:0.420, y:0.43, w:0.030, z:eyeZ,         h:0.024, bg:"#241a12" });
+      } else if (face === FACE_BEAM){
+        /* Two dashes. Wider than the dots and half as tall, sitting a
+           touch higher - a shut eye is a crease, and a crease the same
+           size as the dot it replaces just reads as a smaller eye. */
+        dec.push({ x:0.414, y:0.43, w:0.042, z:eyeZ + 0.007, h:0.011, bg:"#241a12" });
         dec.push({ x:0.546, y:0.43, w:0.042, z:eyeZ + 0.007, h:0.011, bg:"#241a12" });
+      } else if (face === FACE_FIERCE){
+        /* Narrowed: the same width, two thirds the height, sitting low
+           under the brows that are about to come down over them. */
+        dec.push({ x:0.418, y:0.43, w:0.034, z:eyeZ - 0.004, h:0.016, bg:"#241a12" });
+        dec.push({ x:0.550, y:0.43, w:0.034, z:eyeZ - 0.004, h:0.016, bg:"#241a12" });
       } else {
         dec.push({ x:0.420, y:0.43, w:0.030, z:eyeZ, h:0.024, bg:"#241a12" });
         dec.push({ x:0.552, y:0.43, w:0.030, z:eyeZ, h:0.024, bg:"#241a12" });
@@ -3285,12 +3295,27 @@ function playerModel(dir, shielded, face, fighting){
         dec.push({ x:0.554, y:0.43, w:0.034, z:0.766, h:0.013, bg:"#2b1f16" });
       }
     }
-    if (face === FACE_WINK){
+    if (face === FACE_BEAM){
       /* Just open - two thirds of the shout's mouth, which is the
          difference between calling the name of a move and being pleased
          with yourself. */
       dec.push({ x:0.470, y:0.43, w:0.060, z:0.676, h:0.030, bg:"#5a2c1e" });
       dec.push({ x:0.480, y:0.43, w:0.040, z:0.683, h:0.016, bg:"#3d1b12" });
+    }
+    if (face === FACE_FIERCE){
+      /* BROWS, which are the whole expression - the eyes under them are
+         barely changed. Nothing here can rotate, so each brow is two steps
+         dropping toward the nose, which at this size is a diagonal.
+         Angling them the other way would be worry; this way is temper. */
+      dec.push({ x:0.396, y:0.43, w:0.032, z:0.782, h:0.014, bg:"#2b1f16" });
+      dec.push({ x:0.426, y:0.43, w:0.032, z:0.768, h:0.014, bg:"#2b1f16" });
+      dec.push({ x:0.542, y:0.43, w:0.032, z:0.768, h:0.014, bg:"#2b1f16" });
+      dec.push({ x:0.572, y:0.43, w:0.032, z:0.782, h:0.014, bg:"#2b1f16" });
+      /* ...and a set mouth: a bar with both corners a step DOWN, which is
+         the one arrangement that reads as cross rather than merely firm. */
+      dec.push({ x:0.466, y:0.43, w:0.068, z:0.678, h:0.013, bg:"#2b1f16" });
+      dec.push({ x:0.456, y:0.43, w:0.018, z:0.668, h:0.012, bg:"#2b1f16" });
+      dec.push({ x:0.526, y:0.43, w:0.018, z:0.668, h:0.012, bg:"#2b1f16" });
     }
     if (face === FACE_SHOUT){
       /* The mouth only - the eyes above it are whatever the block before
@@ -4912,12 +4937,12 @@ function bakeAll(){
   /* The same three, with the case and the punching sleeve taken off. Six
      more bakes against forty-odd already there, and only the train ever
      asks for one. */
-  S.playerF_r  = bake(playerModel(1, false, 0, true));
-  S.playerF_l  = bake(playerModel(-1, false, 0, true));
-  S.playerFS_r = bake(playerModel(1, 1, 0, true));
-  S.playerFS_l = bake(playerModel(-1, 1, 0, true));
-  S.playerFP_r = bake(playerModel(1, 2, 0, true));
-  S.playerFP_l = bake(playerModel(-1, 2, 0, true));
+  S.playerF_r  = bake(playerModel(1, false, FACE_FIERCE, true));
+  S.playerF_l  = bake(playerModel(-1, false, FACE_FIERCE, true));
+  S.playerFS_r = bake(playerModel(1, 1, FACE_FIERCE, true));
+  S.playerFS_l = bake(playerModel(-1, 1, FACE_FIERCE, true));
+  S.playerFP_r = bake(playerModel(1, 2, FACE_FIERCE, true));
+  S.playerFP_l = bake(playerModel(-1, 2, FACE_FIERCE, true));
   /* And the same three again SHOUTING - the open mouth of FACE_WOW with the
      ordinary dot eyes kept above it, which is FACE_SHOUT. On for the leap
      only: three shouted punches is a man screaming, one is a dragon
@@ -4932,12 +4957,12 @@ function bakeAll(){
      the air and that arm is DRAWN, so the bake under it has to be the one
      with its own arm and briefcase taken off - otherwise he celebrates with
      three of them. He gets the case back when the carriage settles. */
-  S.playerFV_r  = bake(playerModel(1, false, FACE_WINK, true));
-  S.playerFV_l  = bake(playerModel(-1, false, FACE_WINK, true));
-  S.playerFVS_r = bake(playerModel(1, 1, FACE_WINK, true));
-  S.playerFVS_l = bake(playerModel(-1, 1, FACE_WINK, true));
-  S.playerFVP_r = bake(playerModel(1, 2, FACE_WINK, true));
-  S.playerFVP_l = bake(playerModel(-1, 2, FACE_WINK, true));
+  S.playerFV_r  = bake(playerModel(1, false, FACE_BEAM, true));
+  S.playerFV_l  = bake(playerModel(-1, false, FACE_BEAM, true));
+  S.playerFVS_r = bake(playerModel(1, 1, FACE_BEAM, true));
+  S.playerFVS_l = bake(playerModel(-1, 1, FACE_BEAM, true));
+  S.playerFVP_r = bake(playerModel(1, 2, FACE_BEAM, true));
+  S.playerFVP_l = bake(playerModel(-1, 2, FACE_BEAM, true));
   for (var fc = 1; fc <= 8; fc++){
     S["pf" + fc + "_r"]  = bake(playerModel(1, 0, fc));
     S["pf" + fc + "_l"]  = bake(playerModel(-1, 0, fc));
@@ -8928,9 +8953,11 @@ function updateShady(dt){
     }
     /* The carriage reacts a beat late, which is the whole of it: a room
        takes a moment to understand what it just saw. */
-    /* After the shout, not under it. The clip runs to 2.30 and the carriage
-       is the answer to it, so it comes in as the voice drops away. */
-    if (beat(1.95)) startCheer(R, R.cx0 || 90, R.cw || (LOGICAL_W - 180));
+    /* Half a second after the knockout, and measured off the knockout
+       rather than off the clock - it is a reaction, so it belongs to the
+       thing it is reacting to. A room takes a moment to understand what it
+       just saw, and the money does not come out before the man lands. */
+    if (beat(KO_AT + 0.50)) startCheer(R, R.cx0 || 90, R.cw || (LOGICAL_W - 180));
     if (R.cheer > 0) R.cheer = Math.max(0, R.cheer - dt);
     if (R.winHold > 0) R.winHold = Math.max(0, R.winHold - dt);
     if (R.jolt > 0) R.jolt = Math.max(0, R.jolt - dt / (0.16 * DP_SLOW));
