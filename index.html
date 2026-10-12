@@ -9554,16 +9554,28 @@ function drawPunchArm(cx0, cw, cy){
   var ext, fx, fy;
   var shX = side * W * 0.15, shY = -H * 0.72;
   if (victory){
-    /* THE POST-WIN STANCE. One arm straight up, held - the pose every
-       fighting game ends a round on. It goes up fast and settles, because
-       that is how an arm actually gets thrown in the air, and it breathes
-       rather than locking: a figure frozen in a pose for three and a half
-       seconds is a statue of a man celebrating rather than a man
-       celebrating. */
+    /* THE POST-WIN STANCE. A raised fist, held - the pose every fighting
+       game ends a round on. It goes up fast and settles, because that is
+       how an arm actually gets thrown in the air, and it breathes rather
+       than locking: a figure frozen in a pose for three and a half seconds
+       is a statue of a man celebrating rather than a man celebrating.
+
+       IT IS A FOREARM, NOT A FLAGPOLE. The first pass borrowed the
+       uppercut's reach, which is 0.66 of his height - two thirds of the
+       whole man - and put the fist 43px clear above the top of his own
+       head. A third of that is an arm: the fist comes up beside his head
+       rather than above it.
+
+       Its own shoulder, too, a little lower and further in than the
+       punch's. The uppercut throws from a body arched back and travelling;
+       this one is a man standing still, and the same socket that looked
+       right mid-leap sits too high and too wide on a figure at rest. */
+    shX = side * W * 0.08;
+    shY = -H * 0.655;
     var vin = Math.min(1, (CHEER_SECS + WIN_PAUSE - R.winHold) / 0.22);
     ext = vin * vin * (3 - 2 * vin);
-    fx = shX + side * H * 0.06 * ext;
-    fy = shY - (H * 0.66 + Math.sin(G.t * 2.6) * H * 0.022) * ext;
+    fx = shX + side * H * 0.030 * ext;
+    fy = shY - (H * 0.22 + Math.sin(G.t * 2.6) * H * 0.010) * ext;
   } else if (k >= 0){
     ext = dpArch(k);
     fx = shX + side * H * 0.13 * ext; fy = shY - H * 0.46 * ext;
