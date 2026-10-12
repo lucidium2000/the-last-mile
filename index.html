@@ -8217,6 +8217,57 @@ var EYES_SECS = 2.0, EYES_UP = 0.35, EYES_RATE = 0.09;
 var KNIFE_NEAR  = 0.95;    // how close before the blade comes out
 var KNIFE_GRACE = 1.70;    // how long you have to do something about it
 var SWING_REACH = 1.30;    // how far the briefcase carries
+
+/* ------------------------------------------------- THE RISING UPPERCUT --
+   He used to lean. A man who has just knocked somebody out with a briefcase
+   full of printed QBRs should not look like he shifted his weight, so this
+   is a dragon punch: crouch, leave the floor, arch back, and come up
+   through him with the case still in his hand.
+
+   ONE CURVE, SAMPLED SEVERAL TIMES. dpRise and dpArch are pure functions of
+   how far through the move he is, which is what makes the motion ghosts
+   free - a ghost is the same body drawn at an earlier k. Nothing is stored
+   per frame and nothing can drift out of step with anything else.
+
+   The shape of the curve is the whole character of the punch: a fast rise
+   that eases out at the apex, then a fall that eases in. Symmetrical and it
+   reads as a hop; weighted like this and it reads as something that left
+   the ground on purpose. */
+var DP_SECS = 0.78;        // the whole move
+/* 56, and that number is the car. A dragon punch does not fit in a subway
+   carriage: the shell's inside is at cy+9, his head at rest is at cy+119,
+   and a raised arm with a briefcase on the end of it eats most of the gap
+   before he leaves the floor at all. At 196 he went up through the roof and
+   stood in the black above it, which reads as a bug rather than as a punch.
+
+   56 is about half his own height - unmistakably off the floor - and keeps
+   the case under the ceiling at the apex with the arch allowed for. The
+   drama comes from the ghosts, the smear and the arch instead of from
+   altitude, which is the right trade in a space this size. */
+var DP_H = 56;             // how far off the floor he gets
+var DP_TILT = 0.38;        // and how far back he arches at the top
+var DP_GHOSTS = 4, DP_GHOST_DT = 0.05;
+var DP_DIP = 0.13, DP_TOP = 0.50;          // the crouch, and the apex
+
+function dpRise(k){
+  if (k <= 0) return 0;
+  if (k < DP_DIP) return -11 * Math.sin(k / DP_DIP * Math.PI);    // the crouch
+  if (k < DP_TOP){
+    var u = (k - DP_DIP) / (DP_TOP - DP_DIP);
+    return DP_H * Math.sin(u * Math.PI * 0.5);                    // up, easing out
+  }
+  var v = Math.min(1, (k - DP_TOP) / (1 - DP_TOP));
+  return DP_H * Math.cos(v * Math.PI * 0.5);                      // down, easing in
+}
+/* The arch and the arm run together - the fist is thrown as the body goes
+   back, and both unwind on the way down, a little ahead of the landing so
+   he is upright before his feet are. */
+function dpArch(k){
+  if (k <= 0) return 0;
+  if (k < DP_DIP) return (k / DP_DIP) * 0.18;
+  if (k < DP_TOP) return 0.18 + 0.82 * ((k - DP_DIP) / (DP_TOP - DP_DIP));
+  return Math.max(0, 1 - (k - DP_TOP) / 0.42);
+}
 var TRAIN_ROB   = 30;      // what standing still costs you
 
 /* Chuck Bucks found on the train. Same payout as the pavement pickup, same
@@ -8261,14 +8312,13 @@ function rideAct(dir){
      exactly when you need this to work. */
   if (R.shady >= 0 && !R.ko && R.knife > 0 && d === (R.knifeSide || 1) &&
       Math.abs(R.shadyX - rideManX(R)) <= SWING_REACH){
-    R.ko = 1; R.koT = 0; R.swing = 0.42; R.knife = 0;
+    R.ko = 1; R.koT = 0; R.dp = DP_SECS; R.knife = 0;
     R.face = d;
-    R.brace = 0.55;                      // the hero's own follow-through
     AUDIO.heave();
-    G.shake = 18;
+    G.shake = 26;                        // it is a bigger hit than it was
     AUDIO.swing();
     var swung = chuckPayout("He dropped it on his way down.", true);
-    flash("BRIEFCASE, FULL SWING",
+    flash("BRIEFCASE UPPERCUT",
           "He picked the wrong commuter.  +" + cash(swung), C.good);
     return;
   }
@@ -8491,8 +8541,7 @@ function updateShady(dt){
      frame the man goes down - so they have to tick before the early return
      for him, or the player stays frozen mid-follow-through for the rest of
      the ride. */
-  if (R.swing > 0) R.swing = Math.max(0, R.swing - dt);
-  if (R.brace > 0) R.brace = Math.max(0, R.brace - dt);
+  if (R.dp > 0) R.dp = Math.max(0, R.dp - dt);
   /* Ticked before the knock-out return, or a man floored a frame after he
      grabbed the roll keeps the dollar signs for the rest of the ride. */
   if (R.gotCash > 0) R.gotCash = Math.max(0, R.gotCash - dt);
@@ -8721,22 +8770,24 @@ function tunnelLights(speed, y, h){
   ctx.globalAlpha = 1;
 }
 
-/* The briefcase going round. Drawn behind everybody so it reads as a swing
-   through the scene rather than a rectangle stuck to the player. */
+/* The column of air he went up through. Drawn behind everybody, widest at
+   the floor and narrowest at the apex, leaning the way the punch went - so
+   the smear says "he came from down there" rather than "something moved". */
 function drawSwing(px, cy, R){
-  var k = 1 - R.swing / 0.42, side = R.face || 1;
-  var ang = (-0.9 + k * 2.6) * side;
-  ctx.save();
-  ctx.translate(px, cy + 128); ctx.rotate(ang);
-  ctx.globalAlpha = 0.30 * (1 - k);
-  ctx.fillStyle = "#f6efe2";
-  ctx.fillRect(side > 0 ? 0 : -150, -5, 150, 10);        // the arc it leaves
+  var k = 1 - R.dp / DP_SECS, side = R.face || 1;
+  if (k < 0 || k > 0.80) return;
+  var a = Math.min(1, (0.80 - k) / 0.46) * Math.min(1, k / 0.10);
+  var topY = cy + CAR_FLOOR - dpRise(k);
+  var botY = cy + CAR_FLOOR + 44;
+  ctx.fillStyle = "#ffd9a8";
+  for (var i = 0; i < 9; i++){
+    var t = i / 8;
+    var y = botY + (topY - botY) * t;
+    var w = 48 - t * 34;
+    ctx.globalAlpha = a * 0.20 * (1 - t * 0.55);
+    ctx.fillRect(px + side * (5 + t * 28) - w / 2, y, w, 17);
+  }
   ctx.globalAlpha = 1;
-  ctx.translate(side * 112, 0);
-  ctx.fillStyle = "#4a3524"; ctx.fillRect(-28, -20, 56, 40);
-  ctx.fillStyle = "#5d442d"; ctx.fillRect(-28, -20, 56, 7);
-  ctx.fillStyle = "#c9a227"; ctx.fillRect(-7, -4, 14, 9);
-  ctx.restore();
 }
 
 /* The player, between slots. A step is a fifth of a second of easing out plus
@@ -8773,20 +8824,58 @@ function drawRider(cx0, cw, cy){
   var lean = 0;
   if (R.stepT != null && R.stepT < 1) lean = Math.sin(R.stepT * Math.PI) * 0.075 * (R.face || 1);
 
-  /* And the swing throws him. He winds back, comes through hard, and is still
-     settling for a third of a second after the case has landed. */
-  var brace = R.brace > 0 ? R.brace / 0.55 : 0;
-  if (brace){
-    var phase = 1 - brace;                       // 0 at the moment of contact
-    lean += (phase < 0.18 ? -0.22 + phase * 2.2 : 0.18 * Math.pow(1 - phase, 2))
-            * (R.face || 1);
+  var side = R.face || 1;
+  var W = sp.w * 0.92, H = sp.h * 0.92;
+  var baseY = cy + CAR_FLOOR - lift + sp.h * 0.92;
+  var dpK = R.dp > 0 ? 1 - R.dp / DP_SECS : -1;
+
+  /* One body, drawn at a point on the curve. The ghosts are this same call
+     at an earlier k, which is the only reason four of them cost nothing. */
+  function putHero(k, alpha){
+    var rot = lean + (k >= 0 ? -DP_TILT * dpArch(k) * side : 0);
+    ctx.save();
+    if (alpha < 1) ctx.globalAlpha = alpha;
+    ctx.translate(mx, baseY - (k >= 0 ? dpRise(k) : 0));
+    ctx.rotate(rot);
+    ctx.drawImage(sp.img, -sp.w * 0.46, -H, W, H);
+
+    /* THE ARM, which the sprite does not have. Every figure in this game is
+       one baked image, so a thrown fist cannot come out of the bake - it is
+       drawn on, in the suit's own navy, from the shoulder to wherever the
+       extension has got to. It rides inside the same rotate as the body, so
+       it arches with him instead of hinging off a man who is leaning.
+
+       The case is still in it. He is not a man who happens to be fighting,
+       he is a man who was carrying a laptop, a dock and two years of
+       printed QBRs and found a use for them. */
+    if (k >= 0 && alpha >= 1){
+      var ext = dpArch(k);
+      var shX = side * W * 0.15, shY = -H * 0.72;
+      var fx = shX + side * H * 0.13 * ext, fy = shY - H * 0.46 * ext;
+      ctx.lineCap = "round";
+      ctx.strokeStyle = "#232f44"; ctx.lineWidth = H * 0.088;
+      ctx.beginPath(); ctx.moveTo(shX, shY); ctx.lineTo(fx, fy); ctx.stroke();
+      ctx.fillStyle = HERO_SKIN;
+      ctx.beginPath(); ctx.arc(fx, fy, H * 0.050, 0, Math.PI * 2); ctx.fill();
+      var bw = H * 0.21, bh = H * 0.150;
+      ctx.save();
+      ctx.translate(fx, fy - bh * 0.52); ctx.rotate(side * 0.22);
+      ctx.fillStyle = "#4a3524"; ctx.fillRect(-bw/2, -bh/2, bw, bh);
+      ctx.fillStyle = "#5d442d"; ctx.fillRect(-bw/2, -bh/2, bw, bh * 0.20);
+      ctx.fillStyle = "#c9a227"; ctx.fillRect(-bw*0.10, -bh*0.06, bw*0.20, bh*0.24);
+      ctx.restore();
+    }
+    ctx.restore();
   }
 
-  ctx.save();
-  ctx.translate(mx, cy + CAR_FLOOR - lift + sp.h * 0.92);
-  ctx.rotate(lean);
-  ctx.drawImage(sp.img, -sp.w*0.46, -sp.h*0.92, sp.w*0.92, sp.h*0.92);
-  ctx.restore();
+  if (dpK >= 0){
+    for (var gi = DP_GHOSTS; gi >= 1; gi--){
+      var gk = dpK - gi * DP_GHOST_DT;
+      if (gk <= 0) continue;
+      putHero(gk, 0.08 + 0.055 * (DP_GHOSTS - gi));
+    }
+  }
+  putHero(dpK, 1);
 }
 
 /* The hooded figure. The old one had a face and a pair of sunglasses, which
@@ -8949,8 +9038,15 @@ function drawShady(cx0, cw, cy){
     var land = Math.max(0, Math.min(1, (R.koT - 0.37) / 0.14));
     var ease = 1 - Math.pow(1 - tip, 2);
 
+    /* AND HE LEAVES THE FLOOR. A man tipping over is what a shove does; an
+       uppercut puts him in the air first and the ground finishes the job.
+       The arc returns to zero exactly where `land` starts, so he is coming
+       down into his own dust rather than through it. */
+    var lt = Math.min(1, R.koT / 0.37);
+    var fly = Math.sin(lt * Math.PI) * 78 * K;   // he has a ceiling too
+
     ctx.save();
-    ctx.translate(mx + away * (14 * snap + 40 * ease) * K, HY(196));
+    ctx.translate(mx + away * (14 * snap + 64 * ease) * K, HY(196) - fly);
     ctx.rotate(ease * Math.PI * 0.5 * away);
     ctx.translate(0, -(196 + (1 - ease) * 6) * K);
     ctx.globalAlpha = 1;
@@ -10292,7 +10388,7 @@ function drawCar(ox, rock, lit){
   txt("1", cx0+cw-62, cy+41, 26, "#1a0a02");
 
   var R2 = G.ride || {}, wn = RIDE_SLOTS, ww = (cw - 90) / wn;
-  if (R2.swing > 0) drawSwing(rideSlotX(rideManX(R2), cx0, cw), cy, R2);
+  if (R2.dp > 0) drawSwing(rideSlotX(rideManX(R2), cx0, cw), cy, R2);
   var cashMX = null;                       // drawn after everybody, see below
   for (var i = 0; i < wn; i++){
     var wx = cx0 + 45 + i*ww, mx = wx + (ww-30)/2;
