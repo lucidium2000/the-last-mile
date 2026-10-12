@@ -8722,6 +8722,17 @@ function rideAct(dir){
     /* The first swing of the ride is jabs; after that he has the measure of
        him and it is the whole combo. */
     R.combo = (R.round || 0) > 0;
+    /* THROWING A PUNCH HOLDS THE DOORS, exactly as the blade does. Up to
+       now only the knife did it, which left the money scenario able to end
+       mid-fight: land the jabs, he gives ground, and the train pulls in
+       before he has come back. A fight is a fight whichever one started
+       it - and the hero started this one, which if anything is the better
+       reason to make him finish it.
+
+       The stall clock restarts here too, so each exchange buys another nine
+       seconds and only genuine inaction after the last punch lets the train
+       in. */
+    R.engaged = 1; R.stall = 0;
     /* Decided on the FIRST swing and kept, because by the second one the
        blade is long gone either way and the ending has to remember which
        fight this was. */
@@ -8985,9 +8996,12 @@ function shadySay(R, hard){
    celebration and then a long beat before anybody is going anywhere. */
 function doorsHeld(R){
   if (!R || R.shady < 0) return false;
-  if (R.fight) return true;                 // the combo
+  if (R.fight) return true;                 // mid-swing
   if (R.ko) return (R.winHold || 0) > 0;    // the carriage, and three seconds
-  return !!R.engaged;                       // the blade is out, unresolved
+  /* Set by the blade coming out OR by the hero throwing the first punch.
+     Either way something has started that the station does not get to
+     interrupt. */
+  return !!R.engaged;
 }
 
 /* He can die down here now, and he could not before: the blow clamped his
