@@ -4,6 +4,9 @@ A single-file browser game. You walk uptown from Penn 1 to a customer meeting,
 crossing Midtown traffic. Built to run as a web app on Cisco RoomOS devices
 (Board / Desk / Room Navigator).
 
+**Play it:** [thelastmile.live](http://thelastmile.live)  
+**Created by:** Christopher G. Hunt
+
 **Status: prototype.** Not an official Cisco or ThousandEyes product, and not
 affiliated with or endorsed by either.
 
@@ -5823,3 +5826,52 @@ Generation guarantees, each covering a bug found in testing:
   is always available.
 - Parked trucks block exactly the columns they occupy, so you can never step
   into a cell that kills you on arrival.
+
+---
+
+## Credits
+
+**Created by Christopher G. Hunt.**
+
+| | |
+|---|---|
+| **Play** | [thelastmile.live](http://thelastmile.live) — NYC board at [thelastmile.live/nyc](http://thelastmile.live/nyc) |
+| **Repository** | [github.com/lucidium2000/the-last-mile](https://github.com/lucidium2000/the-last-mile) |
+| **Built with** | Nothing. One HTML file — canvas 2D, Web Audio, no libraries, no build step, no network. |
+
+Everything in the file is original work by the author except the four audio
+excerpts noted below: the voxel models and their baker, the Midtown
+generator, the software-rasterised cloth in the screensaver, the synthesised
+audio graph, the leaderboard service, and the notes above — which are a
+design diary rather than documentation, and are the reason this README is
+longer than most of the code it describes.
+
+## License
+
+The **source** is released under the [MIT License](LICENSE) — free to use,
+modify and redistribute, provided the copyright notice is retained.
+
+**The embedded audio is not.** Six recordings are inlined as base64 so the
+page fetches nothing. Two of them — `DIG_B64` and `WALK_B64` — are original
+recordings and are covered by the licence above. The other four are short
+excerpts of **third-party recordings**:
+
+| Constant | What it is |
+|---|---|
+| `FREE_B64` | a film line, used as the flight cue |
+| `WOAH_B64` | a film line, used on the dodge |
+| `KEN_B64`  | a video-game voice clip, used for the subway combo |
+| `RING_B64` | a bell, used on the tenth node of a path trace |
+
+These are **not the author's work and are not covered by the MIT grant**, so
+the repository as a whole is not redistributable under it. Anyone reusing
+this beyond private or internal play should strip those four constants.
+Removing them is safe: the game is built to behave identically with no audio
+at all, `RING_B64` and `KEN_B64` already fall back to synthesised cues when
+they fail to decode, and the other two simply go silent.
+
+## Disclaimer
+
+Not an official Cisco or ThousandEyes product. Independent work, not
+sponsored by, endorsed by, or affiliated with Cisco or ThousandEyes. Provided
+**"as is"**, without warranty of any kind.
