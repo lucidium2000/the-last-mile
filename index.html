@@ -18866,16 +18866,27 @@ function drawHud(){
      board - stacking four lines in here pushed the last of them down onto the
      street, and there was a clear 310px of band going spare between the board
      and BEST WALK the whole time. */
+  /* 480 TO 694, AND IT USED TO BE 514 TO 764. The departure board's plate
+     starts at 710, so the old box overlapped it by fifty-four pixels and
+     C.ink is translucent - two coats of rgba(10,6,4,0.76) is not the same
+     colour as one. Over the night sky behind it that is invisible, which is
+     why it survived; over a lit window it is 18 against 53 and the strip has
+     a darker rectangle sitting in the middle of it.
+
+     Moved left rather than merely narrowed, so the text keeps its room. It
+     clears a popping PIPELINE - which reaches 430 at its largest - by fifty,
+     and leaves the same 16px gap to the board that the two boxes further
+     along already use. */
   var back = G.leg < 0;
-  plate(514, 26, 250, 104, C.ink);
-  txt(back ? "BACK TO PENN 1" : "BLOCK", 538, 58, back ? 20 : 26,
+  plate(480, 26, 214, 104, C.ink);
+  txt(back ? "BACK TO PENN 1" : "BLOCK", 504, 58, back ? 20 : 26,
       back ? C.good : C.textDim, "left");
   /* CAPPED, because the street number grows. "W 45 ST" is 163px at 42 and
      fits; "W 108 ST" is 187 and runs to 725, fifteen past the departure
      board's plate edge - on either leg, so this one predates the stacking
      above and would have turned up on its own the first time somebody walked
      past a hundredth street. Squeezed is ugly; overlapping is broken. */
-  txt("W " + G.street + " ST", 538, 98, 42, C.amber, "left", 168);
+  txt("W " + G.street + " ST", 504, 98, 42, C.amber, "left", 168);
 
   /* HOW FAR THERE IS LEFT, in the gap to the right of the departure board.
      The band runs 1210 to 1520 between that board and BEST WALK and had
