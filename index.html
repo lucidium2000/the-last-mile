@@ -5745,7 +5745,18 @@ var BOARD_API = "https://lucidium2000--be403ca8c25711f194891607ee4eb77e.web.val.
    The service still retains a hundred; this is what gets asked for and shown.
    It is also what decides whether a run is offered the initials screen, so
    raising the bar here raises it there, which is the same decision said once. */
-var BOARD_MAX = 20;                 // rows kept locally, and asked for
+/* FIFTY, AND IT WAS TWENTY. This is the number of rows the client asks the
+   server for, and boardRank reads the same list to decide whether a run is
+   worth a name - so at twenty, a board with twenty rows on it stopped asking
+   anybody their initials unless they beat twentieth place on their FIRST
+   attempt. On the contest board that cut had already climbed to $869,993,
+   which is more than most people score in their opening run, so new players
+   were being posted anonymously and never appeared at all. The barrier to
+   joining rose as the board filled, which is exactly backwards.
+
+   The server keeps a hundred either way, so this costs one bigger fetch and
+   nothing else. */
+var BOARD_MAX = 50;                 // rows kept locally, and asked for
 /* TEN ON SCREEN, TWENTY IN THE LIST. The board holds the full top twenty
    now, and shows ten of it - so at rest it looks exactly as it always did,
    and the other ten are a drag away rather than behind a second screen.
@@ -20842,6 +20853,7 @@ function drawReport(){
     var max = 1, j;
     for (j = 0; j < items.length; j++) max = Math.max(max, items[j][1]);
     var cw = W / Math.max(1, items.length), bw = Math.max(6, cw * 0.62);
+    var vEvery = Math.max(1, Math.ceil(62 / cw));
     ctx.globalAlpha = 0.10; ctx.fillStyle = C.text;
     ctx.fillRect(x0, y2 + h, W, 2);                           // the floor
     ctx.globalAlpha = 1;
@@ -20859,7 +20871,10 @@ function drawReport(){
       /* THE VALUE ON THE BAR. Without it a column chart is a shape - you can
          see that one is taller than another and not by how much, or of what,
          which is most of why these two read as decoration. */
-      if (valFmt && items[j][1] > 0)
+      /* Thinned to fit. Fifty columns across 1700px leaves 34 apiece, and a
+         money label is sixty wide - so it prints every Nth bar, where N is
+         however many it takes to stop them touching. */
+      if (valFmt && items[j][1] > 0 && j % vEvery === 0)
         txt(valFmt(items[j][1]), cx + bw/2, cy - 9, 16, C.text);
     }
     return max;
