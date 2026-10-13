@@ -18914,10 +18914,10 @@ function drawHud(){
      to do anyway is worse than one reading none. */
   var togo = back ? Math.max(0, G.street - START_ST)
                   : Math.max(0, TURN_ST - G.street);
-  plate(HUD_X[3], HUD_Y, HUD_W, HUD_H, C.ink);
-  txt(back ? "BLOCKS TO PENN 1" : "BLOCKS TO DINNER", HUD_X[3] + HUD_PAD,
+  plate(HUD_X[2], HUD_Y, HUD_W, HUD_H, C.ink);
+  txt(back ? "BLOCKS TO PENN 1" : "BLOCKS TO DINNER", HUD_X[2] + HUD_PAD,
       HUD_LBL, 24, C.textDim, "left");
-  txt(String(togo), HUD_X[3] + HUD_PAD, HUD_VAL, 52,
+  txt(String(togo), HUD_X[2] + HUD_PAD, HUD_VAL, 52,
       togo <= 10 ? C.good : C.amber, "left");
 
   if (G.leg < 0){
@@ -18932,25 +18932,25 @@ function drawHud(){
        counter, where there is nothing else to collide with. */
     /* Under the counter it explains, which is now the box to the right of
        the departure board. */
-    var ay2 = 164 + Math.sin(G.t * 3) * 2;
+    var ay2 = 164 + Math.sin(G.t * 3) * 2, ax3 = HUD_X[2] + 31;
     ctx.fillStyle = C.good;
     ctx.beginPath();
-    ctx.moveTo(1469, ay2 - 15);
-    ctx.lineTo(1480, ay2);
-    ctx.lineTo(1474, ay2);
-    ctx.lineTo(1474, ay2 + 15);
-    ctx.lineTo(1464, ay2 + 15);
-    ctx.lineTo(1464, ay2);
-    ctx.lineTo(1458, ay2);
+    ctx.moveTo(ax3,      ay2 - 15);
+    ctx.lineTo(ax3 + 11, ay2);
+    ctx.lineTo(ax3 + 5,  ay2);
+    ctx.lineTo(ax3 + 5,  ay2 + 15);
+    ctx.lineTo(ax3 - 5,  ay2 + 15);
+    ctx.lineTo(ax3 - 5,  ay2);
+    ctx.lineTo(ax3 - 11, ay2);
     ctx.closePath(); ctx.fill();
-    txt("STILL WALK UP", 1500, 158, 20, C.good, "left");
-    txt("the numbers count down", 1500, 182, 18, C.textDim, "left");
+    txt("STILL WALK UP", HUD_X[2] + 62, 158, 20, C.good, "left");
+    txt("the numbers count down", HUD_X[2] + 62, 182, 18, C.textDim, "left");
   }
 
   // the board - the real reason you are hurrying
   var secs = Math.max(0, Math.ceil(G.fiscT));
   var urgent = G.fiscT < 12;
-  plate(HUD_X[2], HUD_Y, HUD_W, HUD_H, C.ink);
+  plate(HUD_X[3], HUD_Y, HUD_W, HUD_H, C.ink);
   /* THE CLOCK IS A NUMBER LIKE THE OTHER THREE, so it is set like them: what
      it is on the label line, what it reads on the value line. It used to be
      one string - "END OF FISCAL 0:48" - at 34px, which made the only figure
@@ -18965,13 +18965,13 @@ function drawHud(){
      HUD. The clock face reads fiscMin, which counts, while the countdown
      reads fiscT, which drains - the face is never ahead of the timer and
      never behind by more than the walking has banked. */
-  txt("END OF FISCAL", HUD_X[2] + HUD_PAD, HUD_LBL, 24, C.textDim, "left");
+  txt("END OF FISCAL", HUD_X[3] + HUD_PAD, HUD_LBL, 24, C.textDim, "left");
   txt(FISC_Q + "  ·  " + fiscClock(G.fiscMin),
-      HUD_X[2] + HUD_W - HUD_PAD, HUD_LBL, 20, C.textDim, "right");
+      HUD_X[3] + HUD_W - HUD_PAD, HUD_LBL, 20, C.textDim, "right");
   var tcol = urgent ? C.danger : C.amber;
   if (urgent && Math.sin(G.t*9) < 0) tcol = C.text;
   txt(Math.floor(secs/60) + ":" + pad2(secs%60),
-      HUD_X[2] + HUD_PAD, HUD_VAL, 52, tcol, "left");
+      HUD_X[3] + HUD_PAD, HUD_VAL, 52, tcol, "left");
 
   /* BEST WALK is not drawn here any more. It was the widest box in the strip
      and it held the one number that cannot move during a run - a personal
