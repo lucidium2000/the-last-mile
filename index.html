@@ -20839,6 +20839,13 @@ function drawReport(){
   var powItems = [];
   for (i = 0; i < POWER_ORDER.length; i++){
     var kk = POWER_ORDER[i], pk = POWERS[kk];
+    /* AND NOT THE PATH PICKUP. It is a kind the draw can never return - the
+       trace is what the TE-ADDON terminal runs, and the terminal is the row
+       below. Leaving it on the chart meant two rows for one feature, one of
+       which could never move again: a number frozen at whatever it reached
+       before the pickup left the pool, sitting under a heading that reads as
+       a live count. The terminal carries it now. */
+    if (kk === "path") continue;
     /* THE METROCARD COUNTS RIDES, NOT CARDS. It is the one power-up whose
        pickup is not the event - a card in the wallet has done nothing, and
        cards stack, so three picked up and never swiped read as three times
@@ -20851,8 +20858,23 @@ function drawReport(){
       isMetro ? (st.rides || 0) : ((st.powers && st.powers[kk]) || 0),
       kk
     ]);
+    /* THE TERMINAL BELONGS ON THIS CHART, and it was missing from it
+       entirely. POWER_ORDER is a list of PICKUP kinds and the TE-ADDON is
+       not one - it is pavement furniture you use from where you stand - so
+       it fell through a chart that is read as "everything you got".
+
+       Which left the report showing PATH VISUALIZATION, the pickup, while
+       hiding the terminal that is the only thing that ever runs a trace and
+       the most-used feature in the game. Counted in terminals attached, the
+       same number the end-of-run tally reports, in the same colour, and set
+       directly under the TAM because those two are the pair this is for. */
+    if (kk === "tam")
+      powItems.push(["TE-ADDON (TERMINALS)", st.addons || 0, "addon"]);
   }
-  bars(by, powItems, function(it){ return POWERS[it[2]] ? POWERS[it[2]].col : C.brand; });
+  bars(by, powItems, function(it){
+    if (it[2] === "addon") return POWERS.path.col;
+    return POWERS[it[2]] ? POWERS[it[2]].col : C.brand;
+  });
   by += 54 + powItems.length*36 + 54;
 
   /* ---- and LAST, the names ---------------------------------------------
