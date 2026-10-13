@@ -20946,8 +20946,20 @@ function drawReport(){
   var reach    = Math.min(1, (S.rows / pr) / Math.max(1, st.bestRows || 1));
   /* The fourth ring was pipeline a minute, which is a money figure and so is
      the device's alone. With a shared record to draw on it becomes terminals
-     a run - a number that IS everybody's, and the one a player can act on. */
-  var addRun = (Math.round((S.addons || 0) / pr * 10) / 10).toFixed(1);
+     a run - a number that IS everybody's, and the one a player can act on.
+
+     OFF THE ROWS, NOT THE COUNTER. The stats blob keeps a running total of
+     terminals and a running total of plays, and dividing one by the other
+     assumes every play could have contributed to the first. On a board that
+     predates the field most of them could not: the open board reads 119 over
+     699 and prints 0.2, when the same figure measured on a board where every
+     run is recent is 2.7. A sum whose denominator counts runs that were never
+     able to add to it is not an average of anything.
+
+     The rows know the difference, because a run that did not report the field
+     holds null there rather than zero - so avgOf skips it and the answer is
+     over the runs that could actually answer. */
+  var addAvg = avgOf(list, function(r){ return r.addons; });
   var perMin   = st.secs ? Math.round((st.scoreSum || 0) / (st.secs / 60)) : 0;
   var gy = by + 112, gr = 62, gw = W / 4;
   ring(x0 + gw*0.5, gy, gr, bookRate, C.good,
@@ -20956,8 +20968,8 @@ function drawReport(){
        String(Math.round(S.rows / pr)), "BLOCKS A RUN");
   ring(x0 + gw*2.5, gy, gr, Math.min(1, (S.rides/pr) / 3), C.pw3,
        (Math.round((S.rides||0)/pr*10)/10).toFixed(1), "RIDES A RUN");
-  if (gl) ring(x0 + gw*3.5, gy, gr, Math.min(1, (S.addons/pr) / 6), POWERS.path.col,
-               addRun, "TE-ADDONS A RUN");
+  if (gl) ring(x0 + gw*3.5, gy, gr, Math.min(1, (addAvg || 0) / 6), POWERS.path.col,
+               avg1(addAvg), "TE-ADDONS A RUN");
   else    ring(x0 + gw*3.5, gy, gr, Math.min(1, perMin / 2000000), C.pw5,
                perMin ? cash(perMin) : "\u2014", "PIPELINE A MINUTE");
   by += 290;
@@ -20980,13 +20992,31 @@ function drawReport(){
     by += 170;
   }
 
-  head(by, "EVERYONE, PER RUN", gl ? (S.players + " players") : "this device");
+  /* MEASURED THE SAME WAY AS THE ROW ABOVE IT, which is the whole reason the
+     two sit together. It used to come off the stats blob while the top five
+     came off the rows - two different populations, two different ways of
+     handling a missing field, stacked as though they were a comparison. The
+     te-addons column was the one that showed it, but every column had it.
+
+     So both are the board now, run for run, and the heading says so rather
+     than saying "everyone": it IS everyone who has posted, which is not the
+     same claim as every run ever played. The totals underneath still carry
+     that, from the counters, where it is right. */
+  var boardSecs = avgOf(list, function(r){ return r.secs; });
+  /* "The board", not "the rest of it" - the top five are in this set too, so
+     the second row is the whole population and the first is its sharp end.
+     And not "everyone" either: it is everyone who has POSTED, which is not
+     the same claim as every run ever played. The totals below still carry
+     that, from the counters, where it is right. */
+  head(by, "THE BOARD, PER RUN",
+       list.length + (list.length === 1 ? " run posted" : " runs posted"));
   cards(by, [
-    ["blocks",   String(Math.round((S.rows || 0) / pr))],
-    ["rides",    (Math.round((S.rides || 0) / pr * 10) / 10).toFixed(1)],
-    ["te-addons",addRun, POWERS.path.col],
-    ["tam",      (Math.round((S.tamWins || 0) / pr * 10) / 10).toFixed(1), C.pw5],
-    ["minutes",  (Math.round((S.secs || 0) / pr / 6) / 10).toFixed(1)]
+    ["blocks",   avg0(avgOf(list, function(r){ return r.rows; }))],
+    ["rides",    avg1(avgOf(list, function(r){ return r.rides; }))],
+    ["te-addons",avg1(addAvg), POWERS.path.col],
+    ["tam",      avg1(avgOf(list, function(r){ return r.tamWins; })), C.pw5],
+    ["minutes",  boardSecs == null ? "\u2014"
+                                   : (Math.round(boardSecs / 6) / 10).toFixed(1)]
   ]);
   by += 170;
 
