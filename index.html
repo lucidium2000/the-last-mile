@@ -20785,12 +20785,26 @@ function drawReport(){
     if (note) txt(note, x0 + W, y2, 18, C.textDim, "right");
     ctx.fillStyle = "rgba(255,255,255,0.12)"; ctx.fillRect(x0, y2 + 16, W, 2);
   }
+  /* A row of figures. items are [LABEL, value, colour, badge], where a badge
+     is the SKU's own chip - the same rounded tile and dark letter the game
+     puts on screen while the power-up is running - so the two rows that
+     matter name their SKUs the way the street does rather than in grey
+     lower case. */
   function cards(y2, items){
     var cw = W / items.length;
     for (var j = 0; j < items.length; j++){
-      var cx = x0 + j*cw;
+      var cx = x0 + j*cw, lab = items[j][0], bg = items[j][3];
       txt(items[j][1], cx + cw/2, y2 + 46, 34, items[j][2] || C.text);
-      txt(items[j][0], cx + cw/2, y2 + 80, 18, C.textDim);
+      if (bg){
+        ctx.font = 'bold 18px "Helvetica Neue",Helvetica,Arial,sans-serif';
+        var lw = ctx.measureText(lab).width, bs = 24, gapB = 9;
+        var bx = cx + cw/2 - (lw + bs + gapB) / 2;
+        plate(bx, y2 + 62, bs, bs, bg[1], 6);
+        txt(bg[0], bx + bs/2, y2 + 75, bg[0].length > 1 ? 13 : 16, "#1a0a02");
+        txt(lab, bx + bs + gapB, y2 + 80, 18, C.textDim, "left");
+      } else {
+        txt(lab, cx + cw/2, y2 + 80, 18, C.textDim);
+      }
     }
   }
   /* A bar with a lit top edge and a bright nose. Four rects, no gradient. */
@@ -20824,7 +20838,7 @@ function drawReport(){
     }
   }
   /* A column chart. Bands again, brightest at the cap. */
-  function cols(y2, h, items, colFn, labEvery){
+  function cols(y2, h, items, colFn, labEvery, valFmt){
     var max = 1, j;
     for (j = 0; j < items.length; j++) max = Math.max(max, items[j][1]);
     var cw = W / Math.max(1, items.length), bw = Math.max(6, cw * 0.62);
@@ -20842,6 +20856,11 @@ function drawReport(){
       ctx.globalAlpha = 1;
       if (!labEvery || j % labEvery === 0)
         txt(items[j][0], cx + bw/2, y2 + h + 24, 17, C.textDim);
+      /* THE VALUE ON THE BAR. Without it a column chart is a shape - you can
+         see that one is taller than another and not by how much, or of what,
+         which is most of why these two read as decoration. */
+      if (valFmt && items[j][1] > 0)
+        txt(valFmt(items[j][1]), cx + bw/2, cy - 9, 16, C.text);
     }
     return max;
   }
@@ -20914,17 +20933,17 @@ function drawReport(){
   var top5 = list.slice(0, Math.min(5, list.length));
   var heroes = [
     ["SCORE TO BEAT", lead ? cash(lead.score) : "\u2014",
-                      lead ? (lead.ini + " leads") : "nobody has posted yet", C.brand],
+                      lead ? (lead.ini + " LEADS") : "NOBODY HAS POSTED YET", C.brand],
     ["YOUR BEST",     mine ? cash(mine) : "\u2014",
                       /* WOULD rank. This is the device's best across every
                          board it has ever played, and the table beside it is
                          one board - so stating it as a position on that table
                          is a claim the number cannot support. As a "where
                          this would land" it is true either way. */
-                      mine ? ("would rank " + rank + " of " + Math.max(1, list.length))
-                           : "no run posted from here", C.text],
+                      mine ? ("WOULD RANK " + rank + " OF " + Math.max(1, list.length))
+                           : "NO RUN POSTED FROM HERE", C.text],
     ["THE GAP",       !lead ? "\u2014" : (gap ? cash(gap) : "YOU LEAD"),
-                      !lead ? "" : (gap ? "to take first" : "hold it"),
+                      !lead ? "" : (gap ? "TO TAKE FIRST" : "HOLD IT"),
                       gap ? C.danger : C.good]
   ];
   var hw = W / 3;
@@ -20941,7 +20960,7 @@ function drawReport(){
   by += 178;
 
   /* ---- the gauges ------------------------------------------------------ */
-  head(by, "AT A GLANCE", gl ? ("EVERYONE  \u00B7  " + gl.players + " players") : "THIS DEVICE");
+  head(by, "AT A GLANCE", gl ? ("EVERYONE  \u00B7  " + gl.players + " PLAYERS") : "THIS DEVICE");
   var bookRate = S.wins / pr;
   var reach    = Math.min(1, (S.rows / pr) / Math.max(1, st.bestRows || 1));
   /* The fourth ring was pipeline a minute, which is a money figure and so is
@@ -20979,14 +20998,16 @@ function drawReport(){
      the other. Either on its own is a statistic; together they are the
      advice - whatever the top five do more of is the thing to go and do. */
   if (top5.length){
-    head(by, "THE TOP " + top5.length + ", PER RUN", "the runs you are chasing");
+    head(by, "THE TOP " + top5.length + ", PER RUN", "THE RUNS YOU ARE CHASING");
     var t5secs = avgOf(top5, function(r){ return r.secs; });
     cards(by, [
-      ["blocks",   avg0(avgOf(top5, function(r){ return r.rows; }))],
-      ["rides",    avg1(avgOf(top5, function(r){ return r.rides; }))],
-      ["te-addons",avg1(avgOf(top5, function(r){ return r.addons; })), POWERS.path.col],
-      ["tam",      avg1(avgOf(top5, function(r){ return r.tamWins; })), C.pw5],
-      ["minutes",  t5secs == null ? "—"
+      ["BLOCKS",    avg0(avgOf(top5, function(r){ return r.rows; }))],
+      ["RIDES",     avg1(avgOf(top5, function(r){ return r.rides; }))],
+      ["TE-ADDONS", avg1(avgOf(top5, function(r){ return r.addons; })),
+                    POWERS.path.col, [POWERS.path.letter, POWERS.path.col]],
+      ["TAM",       avg1(avgOf(top5, function(r){ return r.tamWins; })),
+                    POWERS.tam.col, [POWERS.tam.letter, POWERS.tam.col]],
+      ["MINUTES",  t5secs == null ? "—"
                                   : (Math.round(t5secs / 6) / 10).toFixed(1)]
     ]);
     by += 170;
@@ -21002,6 +21023,12 @@ function drawReport(){
      than saying "everyone": it IS everyone who has posted, which is not the
      same claim as every run ever played. The totals underneath still carry
      that, from the counters, where it is right. */
+  /* The two chips, drawn the way the street draws them. P is Path
+     Visualization's own letter and colour, which is what a terminal runs;
+     T is the TAM's. Both are lifted from POWERS rather than typed again, so
+     a SKU that gets recoloured gets recoloured here with it. */
+  var BADGE_ADD = [POWERS.path.letter, POWERS.path.col];
+  var BADGE_TAM = [POWERS.tam.letter,  POWERS.tam.col];
   var boardSecs = avgOf(list, function(r){ return r.secs; });
   /* "The board", not "the rest of it" - the top five are in this set too, so
      the second row is the whole population and the first is its sharp end.
@@ -21009,13 +21036,14 @@ function drawReport(){
      the same claim as every run ever played. The totals below still carry
      that, from the counters, where it is right. */
   head(by, "THE BOARD, PER RUN",
-       list.length + (list.length === 1 ? " run posted" : " runs posted"));
+       list.length + (list.length === 1 ? " RUN POSTED" : " RUNS POSTED"));
   cards(by, [
-    ["blocks",   avg0(avgOf(list, function(r){ return r.rows; }))],
-    ["rides",    avg1(avgOf(list, function(r){ return r.rides; }))],
-    ["te-addons",avg1(addAvg), POWERS.path.col],
-    ["tam",      avg1(avgOf(list, function(r){ return r.tamWins; })), C.pw5],
-    ["minutes",  boardSecs == null ? "\u2014"
+    ["BLOCKS",    avg0(avgOf(list, function(r){ return r.rows; }))],
+    ["RIDES",     avg1(avgOf(list, function(r){ return r.rides; }))],
+    ["TE-ADDONS", avg1(addAvg), POWERS.path.col, BADGE_ADD],
+    ["TAM",       avg1(avgOf(list, function(r){ return r.tamWins; })),
+                  POWERS.tam.col, BADGE_TAM],
+    ["MINUTES",  boardSecs == null ? "\u2014"
                                    : (Math.round(boardSecs / 6) / 10).toFixed(1)]
   ]);
   by += 170;
@@ -21023,12 +21051,12 @@ function drawReport(){
   /* ---- and the totals behind all of it ---------------------------------- */
   head(by, "TOTALS  \u00B7  " + (gl ? "EVERY RUN BY EVERYONE" : "EVERY RUN ON THIS DEVICE"));
   cards(by, [
-    ["runs",    String(S.plays)],
-    ["booked",  String(S.wins), C.good],
-    ["blocks",  (S.rows || 0).toLocaleString("en-US")],
-    ["steps",   (S.steps || 0).toLocaleString("en-US")],
-    ["rides",   String(S.rides || 0)],
-    ["on the street", hms(S.secs)]
+    ["RUNS",    String(S.plays)],
+    ["BOOKED",  String(S.wins), C.good],
+    ["BLOCKS",  (S.rows || 0).toLocaleString("en-US")],
+    ["STEPS",   (S.steps || 0).toLocaleString("en-US")],
+    ["RIDES",   String(S.rides || 0)],
+    ["ON THE STREET", hms(S.secs)]
   ]);
   by += 170;
 
@@ -21036,12 +21064,19 @@ function drawReport(){
   if (list.length){
     var med = list[Math.floor(list.length/2)].score;
     head(by, "PIPELINE ACROSS THE BOARD",
-         "top " + list.length + "  \u00B7  median " + cash(med));
+         "TOP " + list.length + "  \u00B7  MEDIAN " + cash(med));
     var scoreItems = [];
     for (i = 0; i < list.length; i++) scoreItems.push([String(i+1), list[i].score]);
+    /* Short money on the bars - twenty columns of "$9,748,887" is a wall of
+       digits, and to a tenth of a million is all anybody reads off a chart
+       anyway. */
+    var mShort = function(v){
+      return v >= 1e6 ? "$" + (Math.round(v / 1e5) / 10).toFixed(1) + "M"
+                      : "$" + Math.round(v / 1e3) + "K";
+    };
     var smax = cols(by + 44, 150, scoreItems, function(it, j){
       return j === 0 ? C.pw5 : (list[j].won ? C.good : C.brand);
-    }, list.length > 12 ? 2 : 1);
+    }, list.length > 12 ? 2 : 1, mShort);
     /* The median as a line across it, which is the whole point of showing
        twenty columns rather than one average: you can see whether the board
        is a field or one runaway. */
@@ -21053,25 +21088,40 @@ function drawReport(){
     by += 44 + 150 + 56;
 
     /* ---- how far people actually get --------------------------------- */
-    head(by, "HOW FAR THEY GET", "blocks reached, top " + list.length);
-    var bins = [0,0,0,0,0,0,0,0], labs = ["0-9","10-19","20-29","30-39","40-49","50-59","60-69","70+"];
-    for (i = 0; i < list.length; i++){
-      var bi = Math.min(7, Math.floor((list[i].rows || 0) / 10));
-      bins[bi]++;
-    }
+    /* BINS SIZED TO THE RUNS, not to the game this used to be. They were
+       fixed at ten blocks apiece up to "70+", which was a sensible shape
+       once; the board now has runs of three hundred and twenty-four blocks
+       on it, so every single one of them landed in the last bucket and the
+       chart drew one tall bar and seven empty ones. It was not wrong about
+       the data, it had simply been outgrown by it.
+
+       The step is computed off the longest walk and rounded to something a
+       person would pick - ten, twenty, fifty - so the eight buckets always
+       span the field whatever the field turns out to be. */
+    var rmax = 0;
+    for (i = 0; i < list.length; i++) rmax = Math.max(rmax, list[i].rows || 0);
+    var step = Math.max(10, Math.ceil((rmax + 1) / 8 / 10) * 10);
+    var bins = [0,0,0,0,0,0,0,0], labs = [];
+    for (i = 0; i < 8; i++)
+      labs.push(i === 7 ? (7 * step) + "+"
+                        : (i * step) + "-" + ((i + 1) * step - 1));
+    for (i = 0; i < list.length; i++)
+      bins[Math.min(7, Math.floor((list[i].rows || 0) / step))]++;
     var binItems = [];
     for (i = 0; i < bins.length; i++) binItems.push([labs[i], bins[i]]);
+    head(by, "HOW FAR THEY GET",
+         "BLOCKS REACHED  ·  TOP " + list.length);
     cols(by + 44, 130, binItems, function(it, j){
       return j >= 6 ? C.good : (j >= 4 ? C.brand : C.pw3);
-    });
+    }, 1, function(v){ return String(v); });
     by += 44 + 130 + 56;
   }
 
   /* ---- how runs end ---------------------------------------------------- */
   var gcz = rc && rc.n ? rc.causes : null;
   head(by, gcz ? "HOW RUNS END" : "HOW THE TOP RUNS ENDED",
-       gcz ? ("last " + rc.n + (rc.n === 1 ? " run" : " runs") + "  \u00B7  everyone")
-           : "this board");
+       gcz ? ("LAST " + rc.n + (rc.n === 1 ? " RUN" : " RUNS") + "  \u00B7  EVERYONE")
+           : "THIS BOARD");
   var tally = {}, order = [], ck;
   if (gcz){
     for (ck in gcz){
@@ -21094,7 +21144,7 @@ function drawReport(){
   by += 54 + causeItems.length*36 + 44;
 
   /* ---- what they picked up --------------------------------------------- */
-  head(by, "POWER-UPS COLLECTED", gl ? "everyone" : "this device");
+  head(by, "POWER-UPS COLLECTED", gl ? "EVERYONE" : "THIS DEVICE");
   var powItems = [];
   for (i = 0; i < POWER_ORDER.length; i++){
     var kk = POWER_ORDER[i], pk = POWERS[kk];
