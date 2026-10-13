@@ -20710,15 +20710,62 @@ function drawReport(){
 
   /* ---- what somebody repeats in a corridor ----------------------------- */
   var by = oy + 10;
-  var pr = Math.max(1, st.plays);
-  var avgScore = st.scoreRuns ? Math.round(st.scoreSum / st.scoreRuns) : 0;
   var rc = BOARD.recent, gl = BOARD.global;
+  /* EVERYBODY'S NUMBERS, NOT THIS PANEL'S. This page was built before there
+     was a service to ask, so it read the device's own tally throughout -
+     which on a panel in a hallway is the tally of whoever last stood at it,
+     and tells a player nothing about the people they are trying to beat.
+     `S` is the shared record when there is one and the device's when there
+     is not, so the whole page answers the same question either way.
+
+     ONE THING CANNOT COME FROM IT. The service keeps counts - runs, blocks,
+     steps, rides, seconds, every power-up - but no running SUM of pipeline,
+     so the money averages have no shared equivalent and stay on the device,
+     labelled as such rather than quietly mixed in. */
+  var S = gl || st;
+  var pr = Math.max(1, S.plays);
+  var avgScore = st.scoreRuns ? Math.round(st.scoreSum / st.scoreRuns) : 0;
+
+  /* ---- where the player actually stands --------------------------------
+     A leaderboard is read for one reason: to find out what it takes to get
+     past the person above you. The number to beat, what you have managed,
+     and the distance between them - in that order, because that is the
+     order the question is asked in. */
+  var lead = list.length ? list[0] : null;
+  var mine = st.bestScore || 0;
+  var rank = 0;
+  for (i = 0; i < list.length; i++) if (list[i].score > mine) rank++;
+  rank += 1;
+  var gap = lead ? Math.max(0, lead.score - mine) : 0;
+
+  /* An average over the rows that actually carry the field. `addons` and
+     `champs` arrived after the board did, so rows older than they are hold
+     null - counting those as zero would quietly drag the leaders' average
+     down and make the thing look easier than it is. */
+  function avgOf(rowset, pick){
+    var n = 0, t = 0;
+    for (var q = 0; q < rowset.length; q++){
+      var v = pick(rowset[q]);
+      if (v == null) continue;
+      t += v; n++;
+    }
+    return n ? t / n : 0;
+  }
+  var top5 = list.slice(0, Math.min(5, list.length));
   var heroes = [
-    ["PIPELINE BUILT", cash(st.scoreSum || 0), "on this device", C.good],
-    ["BEST RUN",       cash(st.bestScore),     "all time",       C.brand],
-    ["AVERAGE RUN",    st.scoreRuns ? cash(avgScore) : "\u2014",
-                       st.scoreRuns + (st.scoreRuns === 1 ? " run" : " runs") + " counted",
-                       C.text]
+    ["SCORE TO BEAT", lead ? cash(lead.score) : "\u2014",
+                      lead ? (lead.ini + " leads") : "nobody has posted yet", C.brand],
+    ["YOUR BEST",     mine ? cash(mine) : "\u2014",
+                      /* WOULD rank. This is the device's best across every
+                         board it has ever played, and the table beside it is
+                         one board - so stating it as a position on that table
+                         is a claim the number cannot support. As a "where
+                         this would land" it is true either way. */
+                      mine ? ("would rank " + rank + " of " + Math.max(1, list.length))
+                           : "no run posted from here", C.text],
+    ["THE GAP",       !lead ? "\u2014" : (gap ? cash(gap) : "YOU LEAD"),
+                      !lead ? "" : (gap ? "to take first" : "hold it"),
+                      gap ? C.danger : C.good]
   ];
   var hw = W / 3;
   for (i = 0; i < heroes.length; i++){
@@ -20735,41 +20782,63 @@ function drawReport(){
 
   /* ---- the gauges ------------------------------------------------------ */
   head(by, "AT A GLANCE", gl ? ("EVERYONE  \u00B7  " + gl.players + " players") : "THIS DEVICE");
-  var bookRate = (gl ? (gl.wins / Math.max(1, gl.plays)) : (st.wins / pr));
-  var reach    = Math.min(1, (st.rows / pr) / Math.max(1, st.bestRows || 1));
+  var bookRate = S.wins / pr;
+  var reach    = Math.min(1, (S.rows / pr) / Math.max(1, st.bestRows || 1));
+  /* The fourth ring was pipeline a minute, which is a money figure and so is
+     the device's alone. With a shared record to draw on it becomes terminals
+     a run - a number that IS everybody's, and the one a player can act on. */
+  var addRun = (Math.round((S.addons || 0) / pr * 10) / 10).toFixed(1);
   var perMin   = st.secs ? Math.round((st.scoreSum || 0) / (st.secs / 60)) : 0;
   var gy = by + 112, gr = 62, gw = W / 4;
   ring(x0 + gw*0.5, gy, gr, bookRate, C.good,
        Math.round(bookRate*100) + "%", "BOOKED");
   ring(x0 + gw*1.5, gy, gr, reach, C.brand,
-       String(Math.round(st.rows / pr)), "BLOCKS A RUN");
-  ring(x0 + gw*2.5, gy, gr, Math.min(1, (st.rides/pr) / 3), C.pw3,
-       (Math.round((st.rides||0)/pr*10)/10).toFixed(1), "RIDES A RUN");
-  ring(x0 + gw*3.5, gy, gr, Math.min(1, perMin / 2000000), C.pw5,
-       perMin ? cash(perMin) : "\u2014", "PIPELINE A MINUTE");
+       String(Math.round(S.rows / pr)), "BLOCKS A RUN");
+  ring(x0 + gw*2.5, gy, gr, Math.min(1, (S.rides/pr) / 3), C.pw3,
+       (Math.round((S.rides||0)/pr*10)/10).toFixed(1), "RIDES A RUN");
+  if (gl) ring(x0 + gw*3.5, gy, gr, Math.min(1, (S.addons/pr) / 6), POWERS.path.col,
+               addRun, "TE-ADDONS A RUN");
+  else    ring(x0 + gw*3.5, gy, gr, Math.min(1, perMin / 2000000), C.pw5,
+               perMin ? cash(perMin) : "\u2014", "PIPELINE A MINUTE");
   by += 290;
 
-  /* ---- the totals ------------------------------------------------------ */
-  head(by, "TOTALS  \u00B7  EVERY RUN ON THIS DEVICE");
+  /* ---- what the people above you are doing -----------------------------
+     The two rows that matter, and they matter because they sit one above
+     the other. Either on its own is a statistic; together they are the
+     advice - whatever the top five do more of is the thing to go and do. */
+  if (top5.length){
+    head(by, "THE TOP " + top5.length + ", PER RUN", "the runs you are chasing");
+    cards(by, [
+      ["blocks",   String(Math.round(avgOf(top5, function(r){ return r.rows; })))],
+      ["rides",    (Math.round(avgOf(top5, function(r){ return r.rides; }) * 10) / 10).toFixed(1)],
+      ["te-addons",(Math.round(avgOf(top5, function(r){ return r.addons; }) * 10) / 10).toFixed(1),
+                   POWERS.path.col],
+      ["tam",      (Math.round(avgOf(top5, function(r){ return r.tamWins; }) * 10) / 10).toFixed(1),
+                   C.pw5],
+      ["minutes",  (Math.round(avgOf(top5, function(r){ return r.secs; }) / 6) / 10).toFixed(1)]
+    ]);
+    by += 170;
+  }
+
+  head(by, "EVERYONE, PER RUN", gl ? (S.players + " players") : "this device");
   cards(by, [
-    ["runs",    String(st.plays)],
-    ["booked",  String(st.wins), C.good],
-    ["blocks",  (st.rows || 0).toLocaleString("en-US")],
-    ["steps",   (st.steps || 0).toLocaleString("en-US")],
-    ["rides",   String(st.rides || 0)],
-    ["on the street", hms(st.secs)]
+    ["blocks",   String(Math.round((S.rows || 0) / pr))],
+    ["rides",    (Math.round((S.rides || 0) / pr * 10) / 10).toFixed(1)],
+    ["te-addons",addRun, POWERS.path.col],
+    ["tam",      (Math.round((S.tamWins || 0) / pr * 10) / 10).toFixed(1), C.pw5],
+    ["minutes",  (Math.round((S.secs || 0) / pr / 6) / 10).toFixed(1)]
   ]);
   by += 170;
 
-  head(by, "PER RUN, ON AVERAGE");
+  /* ---- and the totals behind all of it ---------------------------------- */
+  head(by, "TOTALS  \u00B7  " + (gl ? "EVERY RUN BY EVERYONE" : "EVERY RUN ON THIS DEVICE"));
   cards(by, [
-    ["pipeline", st.scoreRuns ? cash(avgScore) : "\u2014", C.good],
-    ["blocks",   String(Math.round((st.rows || 0) / pr))],
-    ["steps",    String(Math.round((st.steps || 0) / pr))],
-    ["rides",    (Math.round((st.rides || 0) / pr * 10) / 10).toFixed(1)],
-    ["minutes",  (Math.round((st.secs || 0) / pr / 6) / 10).toFixed(1)],
-    ["booked",   (Math.round(st.wins / pr * 1000) / 10) + "%",
-      st.wins ? C.good : C.textDim]
+    ["runs",    String(S.plays)],
+    ["booked",  String(S.wins), C.good],
+    ["blocks",  (S.rows || 0).toLocaleString("en-US")],
+    ["steps",   (S.steps || 0).toLocaleString("en-US")],
+    ["rides",   String(S.rides || 0)],
+    ["on the street", hms(S.secs)]
   ]);
   by += 170;
 
@@ -20835,7 +20904,7 @@ function drawReport(){
   by += 54 + causeItems.length*36 + 44;
 
   /* ---- what they picked up --------------------------------------------- */
-  head(by, "POWER-UPS COLLECTED", "this device");
+  head(by, "POWER-UPS COLLECTED", gl ? "everyone" : "this device");
   var powItems = [];
   for (i = 0; i < POWER_ORDER.length; i++){
     var kk = POWER_ORDER[i], pk = POWERS[kk];
@@ -20855,7 +20924,7 @@ function drawReport(){
     var isMetro = kk === "metro";
     powItems.push([
       isMetro ? "METROCARD (RIDES)" : (pk ? pk.name : kk.toUpperCase()),
-      isMetro ? (st.rides || 0) : ((st.powers && st.powers[kk]) || 0),
+      isMetro ? (S.rides || 0) : ((S.powers && S.powers[kk]) || 0),
       kk
     ]);
     /* THE TERMINAL BELONGS ON THIS CHART, and it was missing from it
@@ -20869,7 +20938,7 @@ function drawReport(){
        same number the end-of-run tally reports, in the same colour, and set
        directly under the TAM because those two are the pair this is for. */
     if (kk === "tam")
-      powItems.push(["TE-ADDON (TERMINALS)", st.addons || 0, "addon"]);
+      powItems.push(["TE-ADDON", S.addons || 0, "addon"]);
   }
   bars(by, powItems, function(it){
     if (it[2] === "addon") return POWERS.path.col;
@@ -20942,7 +21011,9 @@ function drawReport(){
   ctx.fillRect(0, REPORT_TOP - 2, LOGICAL_W, 2);
 
   txt("FULL REPORT", 100, 74, 46, C.brand, "left");
-  txt("every run on this device  \u00B7  " + dayStamp(st.first) + " to " + dayStamp(st.last),
+  var gH = BOARD.global;
+  txt((gH ? "every run by everyone  \u00B7  " : "every run on this device  \u00B7  ") +
+      dayStamp((gH || st).first) + " to " + dayStamp((gH || st).last),
       100, 118, 21, C.textDim, "left");
 
   var B = CLOSE_BTN;
