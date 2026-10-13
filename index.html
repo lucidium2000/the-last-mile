@@ -3811,34 +3811,7 @@ var POWER_WEIGHTS = {
          metro    48.25% -> 42.34%     traffic   8.77% ->  7.70%
          chuck    21.81% -> 19.14%     insight   3.13% -> 15.00%
          agent    14.41% -> 12.65%     sponsor   3.62% ->  3.18%  */
-
-/* ------------------------------------------- PATH VISUALIZATION, AT LAST --
-   It had no entry here at all, which does not mean "rare" - it means the
-   draw could never return it. buildTrace() has exactly one caller, the
-   `path` branch of collect(), and the only thing that could reach it was the
-   ?pw=path debug parameter. The trace, the ten-node Units Upsell and its
-   bell had been unreachable in normal play for longer than this file has
-   had a leaderboard: the NYC board recorded 108 pickups across 22 runs with
-   not one path among them, while every other kind turned up.
-
-   15%, level with Internet Insights, because it is a premiere SKU alongside
-   the TAM and the promotion exists to put it in front of people.
-
-   AND THE WHOLE COST COMES OFF THE METROCARD. These are shares of one draw,
-   so they sum to one and a new entry has to be paid for by somebody - the
-   neutral move is to take it off all six in proportion, which is what was
-   done when Internet Insights went up. Not here. The metrocard was 42% of
-   the pool, better than twice the next thing, and it is the one pickup the
-   player has plenty of; the other five keep their rates to the decimal
-   because the total weight is deliberately left where it was. Only the
-   metrocard moves: 42.34% -> 27.34%, still the most common thing on the
-   street.
-
-   27.28 is 15% of 181.87, which is the same weight Internet Insights
-   carries for the same reason - both numbers are solved against the total,
-   not picked. */
-  metro:49.72, chuck:34.81, agent:23, traffic:14, insight:27.28,
-  sponsor:5.78, path:27.28
+  metro:77, chuck:34.81, agent:23, traffic:14, insight:27.28, sponsor:5.78
 };
 /* What the generator actually draws from. Identical to POWER_WEIGHTS once
    POWER_BOOST is null again. */
