@@ -18890,10 +18890,17 @@ function drawHud(){
       pe > 0 ? C.good : C.textDim, "left");
   txt(cash(pipeline()), HUD_X[0] + HUD_PAD, HUD_VAL, Math.round(48 + pe * 12),
       pe > 0 ? C.good : C.text, "left");
-  /* THE BEST WALK, under the number it is the bar for. It had its own box in
-     this strip once, the widest one in it, for a figure that cannot move
-     during a run; a footnote under the live number is what it always was. */
-  var hiBest = best();
+  /* THE NUMBER TO BEAT, under the number that is chasing it - and it is
+     EVERYBODY'S, not this machine's. A personal best on a panel in a hallway
+     is the best of whoever last stood at it, which is a bar nobody set and
+     nobody is trying to clear. The board's top score is the one that means
+     something in a contest, and boardGET runs at startup so it is there from
+     the first street.
+
+     The device's own best is the fallback, for a run with no service behind
+     it - offline, or no board configured at all - where the only honest bar
+     available is the one this machine has managed. */
+  var hiBest = (BOARD.global && BOARD.global.bestScore) || best();
   if (hiBest > 0)
     txt("BEST  " + cash(hiBest), HUD_X[0] + HUD_PAD, HUD_SUB, 18,
         C.sub, "left");
