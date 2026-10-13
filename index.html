@@ -18840,10 +18840,28 @@ function drawHud(){
       pe > 0 ? C.good : C.text, "left");
 
   // where you are, in blocks
-  plate(514, 26, 250, 104, C.ink);
-  txt(G.leg > 0 ? "BLOCK" : "BACK TO PENN 1", 538, 58, 26,
-      G.leg > 0 ? C.textDim : C.good, "left");
-  txt("W " + G.street + " ST", 538, 98, 42, C.amber, "left");
+  /* THE RETURN LEG NEEDS A TALLER BOX AND A SMALLER LABEL. "BLOCK" is five
+     characters and "BACK TO PENN 1" is fourteen - at 26px the long one ran
+     from 538 to about 748, and the departure board's plate starts at 710, so
+     the two sat on top of each other for forty pixels. 20px brings it inside
+     its own box.
+
+     The blocks-to-go counter moves in here with it, underneath, which is the
+     other half of the same problem: it used to be drawn on the right at
+     x=1740, which is inside the BEST WALK plate, so on any run with a best
+     walk to show the two were printed over each other. Stacked under the
+     street it has the column to itself and the right-hand plate goes back to
+     holding one thing. */
+  var back = G.leg < 0;
+  plate(514, 26, 250, back ? 150 : 104, C.ink);
+  txt(back ? "BACK TO PENN 1" : "BLOCK", 538, back ? 54 : 58, back ? 20 : 26,
+      back ? C.good : C.textDim, "left");
+  /* CAPPED, because the street number grows. "W 45 ST" is 163px at 42 and
+     fits; "W 108 ST" is 187 and runs to 725, fifteen past the departure
+     board's plate edge - on either leg, so this one predates the stacking
+     above and would have turned up on its own the first time somebody walked
+     past a hundredth street. Squeezed is ugly; overlapping is broken. */
+  txt("W " + G.street + " ST", 538, back ? 94 : 98, 42, C.amber, "left", 168);
 
   if (G.leg < 0){
     /* Spell the countdown out: "W 68 ST" ticking down is only obvious if you
@@ -18851,24 +18869,30 @@ function drawHud(){
        beside the street it ran straight through the departure board, which
        owns the middle. */
     var togo = Math.max(0, G.street - START_ST);
-    txt("BLOCKS TO PENN 1", 1740, 58, 26, C.textDim, "right");
-    txt(String(togo), 1740, 100, 46, togo <= 10 ? C.good : C.amber, "right");
+    /* 17, not 18. At 18 the label measured 176px and ran to x=714, four past
+       the departure board's plate edge at 710 - which is the same collision
+       this move was meant to end, just four pixels of it. */
+    txt("BLOCKS TO PENN 1", 538, 124, 17, C.textDim, "left");
+    txt(String(togo), 538, 160, 34, togo <= 10 ? C.good : C.amber, "left");
     /* The numbers fall while he still walks up the screen, and once the notice
        has gone this is the only thing left saying so. On the right, under the
        counter, where there is nothing else to collide with. */
-    var ay2 = 158 + Math.sin(G.t * 3) * 2;
+    /* Under the counter, which is now on the left - the note explains why
+       that number falls while he walks up the screen, so it has to be beside
+       the number it is explaining. */
+    var ay2 = 206 + Math.sin(G.t * 3) * 2;
     ctx.fillStyle = C.good;
     ctx.beginPath();
-    ctx.moveTo(1536, ay2 - 15);
-    ctx.lineTo(1547, ay2);
-    ctx.lineTo(1541, ay2);
-    ctx.lineTo(1541, ay2 + 15);
-    ctx.lineTo(1531, ay2 + 15);
-    ctx.lineTo(1531, ay2);
-    ctx.lineTo(1525, ay2);
+    ctx.moveTo(545, ay2 - 15);
+    ctx.lineTo(556, ay2);
+    ctx.lineTo(550, ay2);
+    ctx.lineTo(550, ay2 + 15);
+    ctx.lineTo(540, ay2 + 15);
+    ctx.lineTo(540, ay2);
+    ctx.lineTo(534, ay2);
     ctx.closePath(); ctx.fill();
-    txt("STILL WALK UP", 1740, 152, 20, C.good, "right");
-    txt("the numbers count down", 1740, 176, 18, C.textDim, "right");
+    txt("STILL WALK UP", 576, 200, 20, C.good, "left");
+    txt("the numbers count down", 576, 224, 18, C.textDim, "left");
   }
 
   // the board - the real reason you are hurrying
