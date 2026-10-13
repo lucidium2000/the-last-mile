@@ -18849,9 +18849,13 @@ function drawHud(){
      1892, every label on one baseline and every number on another. BEST WALK
      is gone, which is what made the room - it was the widest box in the
      strip holding the one figure that cannot change during a run. */
-  var HUD_Y = 26, HUD_H = 104, HUD_PAD = 24;
+  var HUD_Y = 12, HUD_H = 118, HUD_PAD = 24;
   var HUD_X = [28, 498, 968, 1438], HUD_W = 454;
-  var HUD_LBL = 56, HUD_VAL = 104;     // the two baselines, shared by all four
+  /* THREE BASELINES NOW, shared by all four boxes: a quiet line of context,
+     the label, the number. The box grew UPWARD to make room - it ends at 130
+     because MSG_Y is 134 and the message row has to stay clear of it, so the
+     only way out was the twelve pixels of margin above. */
+  var HUD_TOP = 38, HUD_LBL = 70, HUD_VAL = 118;
 
   var pk = G.pipePop > 0 ? Math.min(1, G.pipePop / PIPE_POP) : 0;
   var pe = pk > 0 ? Math.sin(Math.min(1, pk * 1.25) * Math.PI) : 0;
@@ -18861,9 +18865,21 @@ function drawHud(){
     rr(HUD_X[0], HUD_Y, HUD_W, HUD_H, 10); ctx.fill();
     ctx.globalAlpha = 1;
   }
-  txt("PIPELINE", HUD_X[0] + HUD_PAD, HUD_LBL, 24,
+  /* THE BEST WALK COMES BACK, as the context line over the number it is the
+     context for. It had its own box in the strip once, the widest one, for a
+     figure that cannot move during a run; up here it is a line of reference
+     over the live number it sets the bar for, which is what it always was.
+
+     Above rather than below, to match the clock: context, label, value, in
+     all four boxes. Dim rather than green - it is something to beat, not
+     something that just happened. */
+  var hiBest = best();
+  if (hiBest > 0)
+    txt("BEST  " + cash(hiBest), HUD_X[0] + HUD_PAD, HUD_TOP, 18,
+        C.textDim, "left");
+  txt("PIPELINE", HUD_X[0] + HUD_PAD, HUD_LBL, 22,
       pe > 0 ? C.good : C.textDim, "left");
-  txt(cash(pipeline()), HUD_X[0] + HUD_PAD, HUD_VAL, Math.round(52 + pe * 12),
+  txt(cash(pipeline()), HUD_X[0] + HUD_PAD, HUD_VAL, Math.round(48 + pe * 12),
       pe > 0 ? C.good : C.text, "left");
 
   // where you are, in blocks
@@ -18889,14 +18905,17 @@ function drawHud(){
   /* Both labels fit at the shared size now the box is a full 454 wide - the
      long one measures 203 against 406 of room - so neither has to be shrunk
      to sit beside the other. */
-  txt(back ? "BACK TO PENN 1" : "BLOCK", HUD_X[1] + HUD_PAD, HUD_LBL, 24,
+  txt(back ? "BACK TO PENN 1" : "BLOCK", HUD_X[1] + HUD_PAD, HUD_LBL, 22,
       back ? C.good : C.textDim, "left");
   /* CAPPED, because the street number grows. "W 45 ST" is 163px at 42 and
      fits; "W 108 ST" is 187 and runs to 725, fifteen past the departure
      board's plate edge - on either leg, so this one predates the stacking
      above and would have turned up on its own the first time somebody walked
      past a hundredth street. Squeezed is ugly; overlapping is broken. */
-  txt("W " + G.street + " ST", HUD_X[1] + HUD_PAD, HUD_VAL, 52, C.amber,
+  /* White, not amber. Amber is what the clock and the blocks counter use for
+     "this is running down"; the street is neither - it is simply where he is,
+     and reads as a fact rather than a warning in the text colour. */
+  txt("W " + G.street + " ST", HUD_X[1] + HUD_PAD, HUD_VAL, 48, C.text,
       "left", HUD_W - HUD_PAD*2);
 
   /* HOW FAR THERE IS LEFT, in the gap to the right of the departure board.
@@ -18916,8 +18935,8 @@ function drawHud(){
                   : Math.max(0, TURN_ST - G.street);
   plate(HUD_X[2], HUD_Y, HUD_W, HUD_H, C.ink);
   txt(back ? "BLOCKS TO PENN 1" : "BLOCKS TO DINNER", HUD_X[2] + HUD_PAD,
-      HUD_LBL, 24, C.textDim, "left");
-  txt(String(togo), HUD_X[2] + HUD_PAD, HUD_VAL, 52,
+      HUD_LBL, 22, C.textDim, "left");
+  txt(String(togo), HUD_X[2] + HUD_PAD, HUD_VAL, 48,
       togo <= 10 ? C.good : C.amber, "left");
 
   if (G.leg < 0){
@@ -18965,13 +18984,13 @@ function drawHud(){
      HUD. The clock face reads fiscMin, which counts, while the countdown
      reads fiscT, which drains - the face is never ahead of the timer and
      never behind by more than the walking has banked. */
-  txt("END OF FISCAL", HUD_X[3] + HUD_PAD, HUD_LBL, 24, C.textDim, "left");
   txt(FISC_Q + "  ·  " + fiscClock(G.fiscMin),
-      HUD_X[3] + HUD_W - HUD_PAD, HUD_LBL, 20, C.textDim, "right");
+      HUD_X[3] + HUD_PAD, HUD_TOP, 18, C.textDim, "left");
+  txt("END OF FISCAL", HUD_X[3] + HUD_PAD, HUD_LBL, 22, C.textDim, "left");
   var tcol = urgent ? C.danger : C.amber;
   if (urgent && Math.sin(G.t*9) < 0) tcol = C.text;
   txt(Math.floor(secs/60) + ":" + pad2(secs%60),
-      HUD_X[3] + HUD_PAD, HUD_VAL, 52, tcol, "left");
+      HUD_X[3] + HUD_PAD, HUD_VAL, 48, tcol, "left");
 
   /* BEST WALK is not drawn here any more. It was the widest box in the strip
      and it held the one number that cannot move during a run - a personal
