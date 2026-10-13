@@ -14224,6 +14224,15 @@ var SCENES = {
                "Nothing is booked until the paper is on the desk. Forty-seven blocks downtown."] }
 };
 
+/* WHERE THE WALK TURNS ROUND, read off the scene that turns it rather than
+   written down twice. It is 81st, and the counter in the HUD has to agree
+   with the scene that fires - so it asks the same table instead of carrying
+   its own copy of the number. */
+var TURN_ST = (function(){
+  for (var k in SCENES) if (SCENES[k] && SCENES[k].turn) return +k;
+  return 81;
+})();
+
 /* The way home. The streets count down and every landmark comes back in the
    opposite order, because both are keyed on the street number. */
 var SCENES_BACK = {
@@ -18852,28 +18861,40 @@ function drawHud(){
      walk to show the two were printed over each other. Stacked under the
      street it has the column to itself and the right-hand plate goes back to
      holding one thing. */
+  /* ONE STACK, BOTH WAYS. The walk out had no target on it at all - just
+     the street he was standing on, which says where he is and nothing about
+     how far there is to go. Now each leg names the place it is walking to
+     and counts the blocks down to it: the dinner on the way up, Penn 1 on
+     the way back. Same box, same four lines, so the eye does not have to
+     re-learn the corner halfway through a run. */
   var back = G.leg < 0;
-  plate(514, 26, 250, back ? 150 : 104, C.ink);
-  txt(back ? "BACK TO PENN 1" : "BLOCK", 538, back ? 54 : 58, back ? 20 : 26,
+  plate(514, 26, 250, 150, C.ink);
+  txt(back ? "BACK TO PENN 1" : "BLOCK", 538, 54, back ? 20 : 24,
       back ? C.good : C.textDim, "left");
   /* CAPPED, because the street number grows. "W 45 ST" is 163px at 42 and
      fits; "W 108 ST" is 187 and runs to 725, fifteen past the departure
      board's plate edge - on either leg, so this one predates the stacking
      above and would have turned up on its own the first time somebody walked
      past a hundredth street. Squeezed is ugly; overlapping is broken. */
-  txt("W " + G.street + " ST", 538, back ? 94 : 98, 42, C.amber, "left", 168);
+  txt("W " + G.street + " ST", 538, 94, 42, C.amber, "left", 168);
+
+  /* Clamped at zero both ways. Walking out he can be carried past 81st by a
+     subway ride before the dinner fires - the scene is flagged `must` and
+     plays wherever he lands - and a counter reading minus four blocks to a
+     thing he is about to do anyway is worse than one reading none. */
+  var togo = back ? Math.max(0, G.street - START_ST)
+                  : Math.max(0, TURN_ST - G.street);
+  txt(back ? "BLOCKS TO PENN 1" : "BLOCKS TO DINNER", 538, 124, 17,
+      C.textDim, "left");
+  txt(String(togo), 538, 160, 34, togo <= 10 ? C.good : C.amber, "left");
 
   if (G.leg < 0){
     /* Spell the countdown out: "W 68 ST" ticking down is only obvious if you
        were watching it tick up. It sits on the right of the top band - put
        beside the street it ran straight through the departure board, which
        owns the middle. */
-    var togo = Math.max(0, G.street - START_ST);
-    /* 17, not 18. At 18 the label measured 176px and ran to x=714, four past
-       the departure board's plate edge at 710 - which is the same collision
-       this move was meant to end, just four pixels of it. */
-    txt("BLOCKS TO PENN 1", 538, 124, 17, C.textDim, "left");
-    txt(String(togo), 538, 160, 34, togo <= 10 ? C.good : C.amber, "left");
+    /* The counter itself is drawn above, for both legs. What is left here is
+       the one line that only makes sense coming home. */
     /* The numbers fall while he still walks up the screen, and once the notice
        has gone this is the only thing left saying so. On the right, under the
        counter, where there is nothing else to collide with. */
