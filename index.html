@@ -250,6 +250,17 @@ var C = {
   signGreen:"#1f6b4a",                       // real NYC street-sign green
   good:"#8fe388", danger:"#ff4f7e",
   text:"#fdf4ee", textDim:"rgba(253,244,238,0.58)",
+  /* THE FOOTNOTE COLOUR, for the small line under each HUD number. Every
+     other colour in here already means something - amber is running down,
+     green is good, red is trouble, orange is the brand - and a best walk and
+     a timestamp are none of those. They are reference: true, worth knowing,
+     not telling you to do anything.
+
+     Cool, against a street lit entirely in warm light, so it reads as a
+     different KIND of information rather than a dimmer version of the number
+     above it, which is all textDim could ever say. Muted enough at 18px not
+     to compete with it, and 9.3:1 on the plate. */
+  sub:"#9ab6c4",
   ink:"rgba(10,6,4,0.76)"
 };
 
@@ -18851,11 +18862,15 @@ function drawHud(){
      strip holding the one figure that cannot change during a run. */
   var HUD_Y = 12, HUD_H = 118, HUD_PAD = 24;
   var HUD_X = [28, 498, 968, 1438], HUD_W = 454;
-  /* THREE BASELINES NOW, shared by all four boxes: a quiet line of context,
-     the label, the number. The box grew UPWARD to make room - it ends at 130
-     because MSG_Y is 134 and the message row has to stay clear of it, so the
-     only way out was the twelve pixels of margin above. */
-  var HUD_TOP = 38, HUD_LBL = 70, HUD_VAL = 118;
+  /* THREE BASELINES, shared by all four boxes: the label, the number, and a
+     footnote UNDER it. Under, because the number is what the box is for and
+     a line above it is read first - a best walk and a timestamp are both
+     things you check after the figure they belong to, not before.
+
+     The box still ends at 130, because MSG_Y is 134 and the message row has
+     to stay clear of it; the twelve pixels of margin above are what the
+     third row is paid for with. */
+  var HUD_LBL = 42, HUD_VAL = 92, HUD_SUB = 120;
 
   var pk = G.pipePop > 0 ? Math.min(1, G.pipePop / PIPE_POP) : 0;
   var pe = pk > 0 ? Math.sin(Math.min(1, pk * 1.25) * Math.PI) : 0;
@@ -18865,22 +18880,17 @@ function drawHud(){
     rr(HUD_X[0], HUD_Y, HUD_W, HUD_H, 10); ctx.fill();
     ctx.globalAlpha = 1;
   }
-  /* THE BEST WALK COMES BACK, as the context line over the number it is the
-     context for. It had its own box in the strip once, the widest one, for a
-     figure that cannot move during a run; up here it is a line of reference
-     over the live number it sets the bar for, which is what it always was.
-
-     Above rather than below, to match the clock: context, label, value, in
-     all four boxes. Dim rather than green - it is something to beat, not
-     something that just happened. */
-  var hiBest = best();
-  if (hiBest > 0)
-    txt("BEST  " + cash(hiBest), HUD_X[0] + HUD_PAD, HUD_TOP, 18,
-        C.textDim, "left");
   txt("PIPELINE", HUD_X[0] + HUD_PAD, HUD_LBL, 22,
       pe > 0 ? C.good : C.textDim, "left");
   txt(cash(pipeline()), HUD_X[0] + HUD_PAD, HUD_VAL, Math.round(48 + pe * 12),
       pe > 0 ? C.good : C.text, "left");
+  /* THE BEST WALK, under the number it is the bar for. It had its own box in
+     this strip once, the widest one in it, for a figure that cannot move
+     during a run; a footnote under the live number is what it always was. */
+  var hiBest = best();
+  if (hiBest > 0)
+    txt("BEST  " + cash(hiBest), HUD_X[0] + HUD_PAD, HUD_SUB, 18,
+        C.sub, "left");
 
   // where you are, in blocks
   /* THE RETURN LEG NEEDS A TALLER BOX AND A SMALLER LABEL. "BLOCK" is five
@@ -18984,13 +18994,13 @@ function drawHud(){
      HUD. The clock face reads fiscMin, which counts, while the countdown
      reads fiscT, which drains - the face is never ahead of the timer and
      never behind by more than the walking has banked. */
-  txt(FISC_Q + "  ·  " + fiscClock(G.fiscMin),
-      HUD_X[3] + HUD_PAD, HUD_TOP, 18, C.textDim, "left");
   txt("END OF FISCAL", HUD_X[3] + HUD_PAD, HUD_LBL, 22, C.textDim, "left");
   var tcol = urgent ? C.danger : C.amber;
   if (urgent && Math.sin(G.t*9) < 0) tcol = C.text;
   txt(Math.floor(secs/60) + ":" + pad2(secs%60),
       HUD_X[3] + HUD_PAD, HUD_VAL, 48, tcol, "left");
+  txt(FISC_Q + "  ·  " + fiscClock(G.fiscMin),
+      HUD_X[3] + HUD_PAD, HUD_SUB, 18, C.sub, "left");
 
   /* BEST WALK is not drawn here any more. It was the widest box in the strip
      and it held the one number that cannot move during a run - a personal
