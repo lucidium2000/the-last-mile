@@ -18870,7 +18870,13 @@ function drawHud(){
      The box still ends at 130, because MSG_Y is 134 and the message row has
      to stay clear of it; the twelve pixels of margin above are what the
      third row is paid for with. */
-  var HUD_LBL = 42, HUD_VAL = 92, HUD_SUB = 120;
+  /* The footnote had three pixels of air under a 48px number, which is not a
+     gap, it is a collision that happens to miss. The box cannot grow - 130 is
+     fixed by the message row at 134 - so the room comes from tightening the
+     top instead: the label rides up, the number with it, and the footnote
+     drops two. Measured in ascenders rather than guessed at, it reads
+     12 / 9 / 11 / 4 down the box. */
+  var HUD_LBL = 40, HUD_VAL = 88, HUD_SUB = 122;
 
   var pk = G.pipePop > 0 ? Math.min(1, G.pipePop / PIPE_POP) : 0;
   var pe = pk > 0 ? Math.sin(Math.min(1, pk * 1.25) * Math.PI) : 0;
