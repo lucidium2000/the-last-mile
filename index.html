@@ -20900,8 +20900,17 @@ function drawReport(){
       if (v == null) continue;
       t += v; n++;
     }
-    return n ? t / n : 0;
+    /* NULL, NOT ZERO, when not one row carried the field. It returned 0 and
+       that is a different claim: on the open board every one of the top five
+       predates `addons`, so the page read "the best runs took 0.0 terminals"
+       under a line saying everyone averages 0.2 - which is not a surprising
+       statistic, it is an impossible one, and the only reason it looked like
+       data is that it was formatted like data. An em dash says the thing
+       that is actually true: nobody recorded it. */
+    return n ? t / n : null;
   }
+  function avg1(v){ return v == null ? "—" : (Math.round(v * 10) / 10).toFixed(1); }
+  function avg0(v){ return v == null ? "—" : String(Math.round(v)); }
   var top5 = list.slice(0, Math.min(5, list.length));
   var heroes = [
     ["SCORE TO BEAT", lead ? cash(lead.score) : "\u2014",
@@ -20959,14 +20968,14 @@ function drawReport(){
      advice - whatever the top five do more of is the thing to go and do. */
   if (top5.length){
     head(by, "THE TOP " + top5.length + ", PER RUN", "the runs you are chasing");
+    var t5secs = avgOf(top5, function(r){ return r.secs; });
     cards(by, [
-      ["blocks",   String(Math.round(avgOf(top5, function(r){ return r.rows; })))],
-      ["rides",    (Math.round(avgOf(top5, function(r){ return r.rides; }) * 10) / 10).toFixed(1)],
-      ["te-addons",(Math.round(avgOf(top5, function(r){ return r.addons; }) * 10) / 10).toFixed(1),
-                   POWERS.path.col],
-      ["tam",      (Math.round(avgOf(top5, function(r){ return r.tamWins; }) * 10) / 10).toFixed(1),
-                   C.pw5],
-      ["minutes",  (Math.round(avgOf(top5, function(r){ return r.secs; }) / 6) / 10).toFixed(1)]
+      ["blocks",   avg0(avgOf(top5, function(r){ return r.rows; }))],
+      ["rides",    avg1(avgOf(top5, function(r){ return r.rides; }))],
+      ["te-addons",avg1(avgOf(top5, function(r){ return r.addons; })), POWERS.path.col],
+      ["tam",      avg1(avgOf(top5, function(r){ return r.tamWins; })), C.pw5],
+      ["minutes",  t5secs == null ? "—"
+                                  : (Math.round(t5secs / 6) / 10).toFixed(1)]
     ]);
     by += 170;
   }
