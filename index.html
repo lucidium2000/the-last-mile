@@ -19973,16 +19973,36 @@ function tickSpread(items){
 
 function tickerFacts(){
   var f = [], g = BOARD.global, rows = BOARD.rows || [], i, r, k;
-  var best = {}, rides = {}, adds = {}, tam = {}, runs = {}, causes = {};
+  var best = {}, runs = {}, causes = {};
   for (i = 0; i < rows.length; i++){
     r = rows[i]; k = r.ini;
     if (!k || k === "---") continue;
     if (!best[k] || r.score > best[k]) best[k] = r.score;
-    rides[k] = (rides[k] || 0) + (r.rides   || 0);
-    adds[k]  = (adds[k]  || 0) + (r.addons  || 0);
-    tam[k]   = (tam[k]   || 0) + (r.tamWins || 0);
     runs[k]  = (runs[k]  || 0) + 1;
     if (!r.won && r.cause) causes[r.cause] = (causes[r.cause] || 0) + 1;
+  }
+
+  /* THE BEST SINGLE RUN AT SOMETHING, not a player's total of it.
+     These used to be sums: every row a player had on the board, added up,
+     and announced as "X HAS TAKEN THE MOST SUBWAY RIDES". The board is the
+     top fifty SCORES, not a record of what anybody has played - so the sum
+     was over a filtered subset of one player's runs, and somebody with
+     twenty uncharted rides beat the "winner" without appearing at all. It
+     said most runs, too, when all it could see was most runs good enough to
+     chart.
+
+     A single row proves a single run, so that is what these claim now: the
+     most rides, terminals or TAM payouts anybody has got out of ONE walk.
+     Nothing is summed and nothing is extrapolated beyond the row it came
+     from. */
+  function peak(field){
+    var bi = -1, bv = 0;
+    for (var q = 0; q < rows.length; q++){
+      var r2 = rows[q];
+      if (!r2.ini || r2.ini === "---") continue;
+      if ((r2[field] || 0) > bv){ bv = r2[field]; bi = q; }
+    }
+    return bi < 0 ? null : [rows[bi].ini, bv];
   }
 
   /* Who is leading, and for how long - the one fact that is about the lead,
@@ -19995,14 +20015,21 @@ function tickerFacts(){
   }
 
   var t;
-  t = tickTop(rides);
-  if (t) tickPush(f, t[0] + " HAS TAKEN THE MOST SUBWAY RIDES  \u00B7  " + t[1], t[0]);
-  t = tickTop(adds);
-  if (t) tickPush(f, t[0] + " HAS ATTACHED THE MOST TE-ADDON TERMINALS  \u00B7  " + t[1], t[0]);
-  t = tickTop(tam);
-  if (t) tickPush(f, t[0] + " HAS GOT THE MOST OUT OF A TAM  \u00B7  " + t[1], t[0]);
+  t = peak("rides");
+  if (t && t[1] > 1)
+    tickPush(f, t[0] + " RODE THE SUBWAY " + t[1] + " TIMES IN ONE RUN", t[0]);
+  t = peak("addons");
+  if (t && t[1] > 1)
+    tickPush(f, t[0] + " ATTACHED " + t[1] + " TE-ADDON TERMINALS IN ONE RUN", t[0]);
+  t = peak("tamWins");
+  if (t && t[1] > 1)
+    tickPush(f, t[0] + " GOT " + t[1] + " PAYOUTS OUT OF ONE TAM", t[0]);
+  /* ON THE BOARD, and it says so. This one really is a count of rows, and a
+     count of rows is a count of runs good enough to chart - which is worth
+     saying, but is not the same thing as having played the most. */
   t = tickTop(runs);
-  if (t && t[1] > 1) tickPush(f, t[0] + " HAS WALKED IT THE MOST  \u00B7  " + t[1] + " RUNS", t[0]);
+  if (t && t[1] > 1)
+    tickPush(f, t[0] + " HAS " + t[1] + " RUNS ON THE BOARD", t[0]);
   t = tickTop(causes);
   if (t) tickPush(f, "MOST RUNS END ON " + t[0], "ends");
 
