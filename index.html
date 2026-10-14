@@ -20006,8 +20006,11 @@ function tickerFacts(){
       if (pop && POWERS[pop[0]])
         f.push("THE MOST COLLECTED SKU IS THE " + POWERS[pop[0]].name);
     }
-    if (g.players > 1 && g.plays)
-      f.push(g.players + " PEOPLE HAVE WALKED IT  \u00B7  " + g.plays + " RUNS");
+    /* NO HEADCOUNT. "15 people have walked it" is true and reads as a
+       verdict on the other forty-five - and this is the first screen a
+       newcomer sees, where an empty-room sign is the last thing that should
+       greet somebody deciding whether to bother. Every other fact here
+       counts what HAS happened rather than who has not turned up. */
     if (g.rows)
       f.push("EVERYONE HAS WALKED " +
              Math.round(toBlocks(g.rows)).toLocaleString("en-US") +
@@ -20043,7 +20046,7 @@ function tickerFacts(){
    attention rather than take it - small enough to read when you look down,
    quiet enough to ignore while you are reading anything else. The same size
    the HUD sets its own footnotes at. */
-var TICK_SIZE = 20, TICK_SPEED = 62, TICK_GAP = 120;
+var TICK_SIZE = 20, TICK_SPEED = 45, TICK_GAP = 120;
 var tickParts = null, tickSpan = 0, tickKey = "";
 
 function tickerBelt(){
