@@ -5762,6 +5762,29 @@ var BOARD_MAX = 50;                 // rows kept locally, and asked for
    and the other ten are a drag away rather than behind a second screen.
    BOARD_SHOW is therefore the size of the WINDOW, not the length of the
    list; BOARD_MAX is the list. */
+/* ---------------------------------------------- ROWS ARE NOT BLOCKS ------
+   A run records `rows`: G.maxRow, the furthest ROW of the grid it reached.
+   A row is one lane of traffic or one strip of pavement, and a street
+   crossing is several of them - four lanes of 42nd are four rows that all
+   share the number 42. So a player who walked forty blocks records a hundred
+   and seventy-odd rows, and a report that calls that "BLOCKS" is telling him
+   he walked a hundred and seventy blocks, which is most of Manhattan.
+
+   The run also records `streets`, and that is NOT the fix: it is
+   |G.street - START_ST|, the distance from Penn at the moment of death, so
+   on the way home it counts back DOWN. The longest run on the board holds
+   415 rows and 0 streets, because it walked all the way there and all the
+   way back.
+
+   So rows are converted instead. The ratio is measured off the runs that
+   cannot have turned round, 57 of them across both boards: a median of 4.35
+   rows to the block, spread 3.5 to 5.9 because a side street is one lane and
+   an avenue is four. It is a conversion rather than a count, and the
+   conversion checks out at the far end - that 415-row round trip comes to 95
+   blocks against a true there-and-back of 94. */
+var ROWS_PER_BLOCK = 4.35;
+function toBlocks(r){ return (r == null) ? null : r / ROWS_PER_BLOCK; }
+
 var BOARD_SHOW = 10;                // rows visible at once
 var BOARD_ROW_H = 46;               // ...and how tall one is, which the
                                     //    scroll clamp needs as badly as the
@@ -20978,6 +21001,7 @@ function drawReport(){
   head(by, "AT A GLANCE", gl ? ("EVERYONE  \u00B7  " + gl.players + " PLAYERS") : "THIS DEVICE");
   var bookRate = S.wins / pr;
   var reach    = Math.min(1, (S.rows / pr) / Math.max(1, st.bestRows || 1));
+  var blkRun   = toBlocks(S.rows) / pr;
   /* The fourth ring was pipeline a minute, which is a money figure and so is
      the device's alone. With a shared record to draw on it becomes terminals
      a run - a number that IS everybody's, and the one a player can act on.
@@ -20999,7 +21023,7 @@ function drawReport(){
   ring(x0 + gw*0.5, gy, gr, bookRate, C.good,
        Math.round(bookRate*100) + "%", "BOOKED");
   ring(x0 + gw*1.5, gy, gr, reach, C.brand,
-       String(Math.round(S.rows / pr)), "BLOCKS A RUN");
+       String(Math.round(blkRun)), "BLOCKS A RUN");
   ring(x0 + gw*2.5, gy, gr, Math.min(1, (S.rides/pr) / 3), C.pw3,
        (Math.round((S.rides||0)/pr*10)/10).toFixed(1), "RIDES A RUN");
   if (gl) ring(x0 + gw*3.5, gy, gr, Math.min(1, (addAvg || 0) / 6), POWERS.path.col,
@@ -21016,7 +21040,7 @@ function drawReport(){
     head(by, "THE TOP " + top5.length + ", PER RUN", "THE RUNS YOU ARE CHASING");
     var t5secs = avgOf(top5, function(r){ return r.secs; });
     cards(by, [
-      ["BLOCKS",    avg0(avgOf(top5, function(r){ return r.rows; }))],
+      ["BLOCKS",    avg0(toBlocks(avgOf(top5, function(r){ return r.rows; })))],
       ["RIDES",     avg1(avgOf(top5, function(r){ return r.rides; }))],
       ["TE-ADDONS", avg1(avgOf(top5, function(r){ return r.addons; })),
                     POWERS.path.col, [POWERS.path.letter, POWERS.path.col]],
@@ -21053,7 +21077,7 @@ function drawReport(){
   head(by, "THE BOARD, PER RUN",
        list.length + (list.length === 1 ? " RUN POSTED" : " RUNS POSTED"));
   cards(by, [
-    ["BLOCKS",    avg0(avgOf(list, function(r){ return r.rows; }))],
+    ["BLOCKS",    avg0(toBlocks(avgOf(list, function(r){ return r.rows; })))],
     ["RIDES",     avg1(avgOf(list, function(r){ return r.rides; }))],
     ["TE-ADDONS", avg1(addAvg), POWERS.path.col, BADGE_ADD],
     ["TAM",       avg1(avgOf(list, function(r){ return r.tamWins; })),
@@ -21068,7 +21092,7 @@ function drawReport(){
   cards(by, [
     ["RUNS",    String(S.plays)],
     ["BOOKED",  String(S.wins), C.good],
-    ["BLOCKS",  (S.rows || 0).toLocaleString("en-US")],
+    ["BLOCKS",  Math.round(toBlocks(S.rows || 0)).toLocaleString("en-US")],
     ["STEPS",   (S.steps || 0).toLocaleString("en-US")],
     ["RIDES",   String(S.rides || 0)],
     ["ON THE STREET", hms(S.secs)]
@@ -21114,14 +21138,15 @@ function drawReport(){
        person would pick - ten, twenty, fifty - so the eight buckets always
        span the field whatever the field turns out to be. */
     var rmax = 0;
-    for (i = 0; i < list.length; i++) rmax = Math.max(rmax, list[i].rows || 0);
+    for (i = 0; i < list.length; i++)
+      rmax = Math.max(rmax, toBlocks(list[i].rows || 0));
     var step = Math.max(10, Math.ceil((rmax + 1) / 8 / 10) * 10);
     var bins = [0,0,0,0,0,0,0,0], labs = [];
     for (i = 0; i < 8; i++)
       labs.push(i === 7 ? (7 * step) + "+"
                         : (i * step) + "-" + ((i + 1) * step - 1));
     for (i = 0; i < list.length; i++)
-      bins[Math.min(7, Math.floor((list[i].rows || 0) / step))]++;
+      bins[Math.min(7, Math.floor(toBlocks(list[i].rows || 0) / step))]++;
     var binItems = [];
     for (i = 0; i < bins.length; i++) binItems.push([labs[i], bins[i]]);
     head(by, "HOW FAR THEY GET",
@@ -21238,7 +21263,8 @@ function drawReport(){
     txt(String(i+1),   x0 + 36,  ry, 21, i < 3 ? C.brand : C.textDim, "right");
     txt(r.ini,         x0 + 60,  ry, 25, col, "left");
     txt(cash(r.score), x0 + 380, ry, 22, col, "right");
-    txt(String(r.rows || 0), x0 + 480, ry, 20, C.textDim, "right");
+    txt(String(Math.round(toBlocks(r.rows || 0))), x0 + 480, ry, 20,
+        C.textDim, "right");
     txt((r.steps || 0).toLocaleString("en-US"), x0 + 600, ry, 20, C.textDim, "right");
     txt(String(r.rides || 0),   x0 + 690,  ry, 20, C.textDim, "right");
     txt(String(r.tamWins || 0), x0 + 770,  ry, 20, C.textDim, "right");
