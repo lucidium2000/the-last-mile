@@ -19936,6 +19936,41 @@ function tickAgo(ms){
   if (h >= 2)  return h + " HOURS";
   return "AN HOUR";
 }
+/* Each fact carries a SUBJECT - whose it is, or what it is about - and the
+   belt is then dealt out so no two neighbours share one. Without it the list
+   comes out in the order it was built, which put the leader in the first two
+   facts and again in the fifth: three mentions of one person inside five,
+   while twelve others went unnamed. The point of the ticker is that a room
+   of fifty contains a lot of people who are not winning. */
+function tickPush(f, str, who){ f.push({ s: str, who: who }); }
+
+function tickSpread(items){
+  var out = [], pool = items.slice(), last = null, i, pick;
+  while (pool.length){
+    pick = -1;
+    for (i = 0; i < pool.length; i++) if (pool[i].who !== last){ pick = i; break; }
+    if (pick < 0) pick = 0;              // all that is left shares a subject
+    out.push(pool[pick]); last = pool[pick].who; pool.splice(pick, 1);
+  }
+  /* THE BELT WRAPS, so the last fact sits next to the first and a greedy pass
+     left to itself will happily put the same subject at both ends. If it has,
+     the straggler is lifted out and dropped into the first gap where both of
+     its new neighbours differ - and put back untouched if there is no such
+     gap, which only happens on a board with barely any facts on it. */
+  if (out.length > 2 && out[out.length - 1].who === out[0].who){
+    var moved = out.pop();
+    for (i = 1; i < out.length; i++){
+      if (out[i-1].who !== moved.who && out[i].who !== moved.who){
+        out.splice(i, 0, moved); moved = null; break;
+      }
+    }
+    if (moved) out.push(moved);
+  }
+  var res = [];
+  for (i = 0; i < out.length; i++) res.push(out[i].s);
+  return res;
+}
+
 function tickerFacts(){
   var f = [], g = BOARD.global, rows = BOARD.rows || [], i, r, k;
   var best = {}, rides = {}, adds = {}, tam = {}, runs = {}, causes = {};
@@ -19955,21 +19990,21 @@ function tickerFacts(){
   if (rows.length && rows[0].ini && rows[0].ini !== "---"){
     var held = Date.now() - (rows[0].at || Date.now());
     if (held > 3600000)
-      f.push(rows[0].ini + " HAS HELD THE LEAD FOR " + tickAgo(held));
-    f.push("THE SCORE TO BEAT IS " + cash(rows[0].score) + "  \u00B7  " + rows[0].ini);
+      tickPush(f, rows[0].ini + " HAS HELD THE LEAD FOR " + tickAgo(held), rows[0].ini);
+    tickPush(f, "THE SCORE TO BEAT IS " + cash(rows[0].score) + "  \u00B7  " + rows[0].ini, rows[0].ini);
   }
 
   var t;
   t = tickTop(rides);
-  if (t) f.push(t[0] + " HAS TAKEN THE MOST SUBWAY RIDES  \u00B7  " + t[1]);
+  if (t) tickPush(f, t[0] + " HAS TAKEN THE MOST SUBWAY RIDES  \u00B7  " + t[1], t[0]);
   t = tickTop(adds);
-  if (t) f.push(t[0] + " HAS ATTACHED THE MOST TE-ADDON TERMINALS  \u00B7  " + t[1]);
+  if (t) tickPush(f, t[0] + " HAS ATTACHED THE MOST TE-ADDON TERMINALS  \u00B7  " + t[1], t[0]);
   t = tickTop(tam);
-  if (t) f.push(t[0] + " HAS GOT THE MOST OUT OF A TAM  \u00B7  " + t[1]);
+  if (t) tickPush(f, t[0] + " HAS GOT THE MOST OUT OF A TAM  \u00B7  " + t[1], t[0]);
   t = tickTop(runs);
-  if (t && t[1] > 1) f.push(t[0] + " HAS WALKED IT THE MOST  \u00B7  " + t[1] + " RUNS");
+  if (t && t[1] > 1) tickPush(f, t[0] + " HAS WALKED IT THE MOST  \u00B7  " + t[1] + " RUNS", t[0]);
   t = tickTop(causes);
-  if (t) f.push("MOST RUNS END ON " + t[0]);
+  if (t) tickPush(f, "MOST RUNS END ON " + t[0], "ends");
 
   /* The longest single walk, in blocks rather than rows - see toBlocks. */
   /* THE MIDDLE RUN, NOT THE MEAN ONE. g.secs over g.plays comes out at ten
@@ -19981,14 +20016,14 @@ function tickerFacts(){
   for (i = 0; i < rows.length; i++) if (rows[i].secs > 0) secsList.push(rows[i].secs);
   if (secsList.length > 2){
     secsList.sort(function(a, b){ return a - b; });
-    f.push("THE TYPICAL RUN LASTS " +
-           mmss(secsList[Math.floor(secsList.length / 2)]));
+    tickPush(f, "THE TYPICAL RUN LASTS " +
+           mmss(secsList[Math.floor(secsList.length / 2)]), "pace");
   }
 
   var far = 0;
   for (i = 0; i < rows.length; i++) far = Math.max(far, rows[i].rows || 0);
-  if (far > 0) f.push("THE LONGEST WALK SO FAR IS " +
-                      Math.round(toBlocks(far)) + " BLOCKS");
+  if (far > 0) tickPush(f, "THE LONGEST WALK SO FAR IS " +
+                      Math.round(toBlocks(far)) + " BLOCKS", "far");
 
   if (g){
     if (g.powers){
@@ -20004,7 +20039,7 @@ function tickerFacts(){
       }
       var pop = tickTop(pool);
       if (pop && POWERS[pop[0]])
-        f.push("THE MOST COLLECTED SKU IS THE " + POWERS[pop[0]].name);
+        tickPush(f, "THE MOST COLLECTED SKU IS THE " + POWERS[pop[0]].name, "sku");
     }
     /* NO HEADCOUNT. "15 people have walked it" is true and reads as a
        verdict on the other forty-five - and this is the first screen a
@@ -20012,16 +20047,16 @@ function tickerFacts(){
        greet somebody deciding whether to bother. Every other fact here
        counts what HAS happened rather than who has not turned up. */
     if (g.rows)
-      f.push("EVERYONE HAS WALKED " +
+      tickPush(f, "EVERYONE HAS WALKED " +
              Math.round(toBlocks(g.rows)).toLocaleString("en-US") +
-             " BLOCKS BETWEEN THEM");
-    if (g.addons) f.push(g.addons + " TE-ADDON TERMINALS ATTACHED SO FAR");
-    if (g.rides)  f.push(g.rides + " SUBWAY RIDES TAKEN SO FAR");
+             " BLOCKS BETWEEN THEM", "far");
+    if (g.addons) tickPush(f, g.addons + " TE-ADDON TERMINALS ATTACHED SO FAR", "sku");
+    if (g.rides)  tickPush(f, g.rides + " SUBWAY RIDES TAKEN SO FAR", "rides");
 
     if (g.plays){
-      if (!g.wins) f.push("NOBODY HAS BOOKED A DEAL YET");
-      else f.push(g.wins + (g.wins === 1 ? " RUN HAS" : " RUNS HAVE") +
-                  " MADE IT BACK TO PENN 1");
+      if (!g.wins) tickPush(f, "NOBODY HAS BOOKED A DEAL YET", "ends");
+      else tickPush(f, g.wins + (g.wins === 1 ? " RUN HAS" : " RUNS HAVE") +
+                  " MADE IT BACK TO PENN 1", "ends");
     }
   }
   return f;
@@ -20055,7 +20090,7 @@ function tickerBelt(){
             (g ? (g.plays + "." + g.players + "." + g.addons) : "-");
   if (key === tickKey) return tickParts;
   tickKey = key;
-  var facts = tickerFacts();
+  var facts = tickSpread(tickerFacts());
   tickParts = [];
   tickSpan = 0;
   if (!facts.length) return tickParts;
