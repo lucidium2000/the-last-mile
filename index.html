@@ -19992,7 +19992,17 @@ function tickerFacts(){
 
   if (g){
     if (g.powers){
-      var pop = tickTop(g.powers);
+      /* NOT THE METROCARD. It is 42% of the drop pool by design, so it wins
+         this every time and the fact never says anything - and it is not a
+         ThousandEyes SKU either, it is a subway card. The question is which
+         of the products people pick up most. */
+      var pool = {}, pk2;
+      for (pk2 in g.powers){
+        if (!Object.prototype.hasOwnProperty.call(g.powers, pk2)) continue;
+        if (pk2 === "metro") continue;
+        pool[pk2] = g.powers[pk2];
+      }
+      var pop = tickTop(pool);
       if (pop && POWERS[pop[0]])
         f.push("THE MOST COLLECTED SKU IS THE " + POWERS[pop[0]].name);
     }
@@ -20014,7 +20024,44 @@ function tickerFacts(){
   return f;
 }
 
-var TICK_SECS = 5;
+/* ------------------------------------------------------- THE MARQUEE -----
+   It used to fade one fact in and out in place, which reads as a slideshow.
+   A ticker moves, so this one moves: right to left, continuously, the way a
+   news crawl does.
+
+   IT DOES NOT DRAW A SEVEN-THOUSAND-PIXEL STRING. Joining fifteen facts into
+   one line and letting the canvas clip it would lay out that whole line
+   every frame, on a panel that has to run a game as well. Instead each fact
+   keeps its own offset along an imaginary belt, and the draw loop skips
+   every one that is not currently on screen - which is two or three of them
+   at any moment, however many facts there are.
+
+   The belt wraps: each fact is also considered one belt-length further on,
+   so the end of the list runs straight into the start of it with no gap. */
+var TICK_SIZE = 24, TICK_SPEED = 62, TICK_GAP = 120;
+var tickParts = null, tickSpan = 0, tickKey = "";
+
+function tickerBelt(){
+  var g = BOARD.global;
+  var key = (BOARD.rows ? BOARD.rows.length : 0) + "|" +
+            (g ? (g.plays + "." + g.players + "." + g.addons) : "-");
+  if (key === tickKey) return tickParts;
+  tickKey = key;
+  var facts = tickerFacts();
+  tickParts = [];
+  tickSpan = 0;
+  if (!facts.length) return tickParts;
+  ctx.font = "bold " + TICK_SIZE + 'px "Helvetica Neue",Helvetica,Arial,sans-serif';
+  for (var i = 0; i < facts.length; i++){
+    var w = ctx.measureText(facts[i]).width;
+    tickParts.push({ s: facts[i], x: tickSpan, w: w });
+    tickSpan += w + TICK_GAP;
+  }
+  /* A belt shorter than the screen would show the same fact twice side by
+     side, so it is padded out to at least one screen plus a gap. */
+  if (tickSpan < LOGICAL_W + TICK_GAP) tickSpan = LOGICAL_W + TICK_GAP;
+  return tickParts;
+}
 
 function drawTitle(){
   ctx.fillStyle = "rgba(8,5,3,0.66)";
@@ -20106,17 +20153,18 @@ function drawTitle(){
   txt(st.plays + (st.plays === 1 ? " run from this device" : " runs from this device"),
       BOARD_BTN.x + BOARD_BTN.w/2, BOARD_BTN.y + 66, 18, C.textDim);
 
-  /* One at a time, along the bottom, fading between. The index and the fade
-     both come off G.t rather than a counter, so nothing has to be kept
-     between frames and nothing drifts if the page is backgrounded. */
-  var facts = tickerFacts();
-  if (facts.length){
-    var ph = (G.t % TICK_SECS) / TICK_SECS;
-    var fade = Math.min(1, Math.min(ph, 1 - ph) / 0.12);
-    ctx.globalAlpha = fade;
-    txt(facts[Math.floor(G.t / TICK_SECS) % facts.length],
-        LOGICAL_W/2, 1042, 26, C.sub, "center", LOGICAL_W - 200);
-    ctx.globalAlpha = 1;
+  /* The crawl. Position comes off G.t, so nothing is kept between frames. */
+  var belt = tickerBelt();
+  if (belt && belt.length){
+    var off = (G.t * TICK_SPEED) % tickSpan;
+    for (var ti = 0; ti < belt.length; ti++){
+      var pt = belt[ti], px = pt.x - off;
+      if (px + pt.w > 0 && px < LOGICAL_W)
+        txt(pt.s, px, 1042, TICK_SIZE, C.textDim, "left");
+      px += tickSpan;                       // the same fact, one belt later
+      if (px + pt.w > 0 && px < LOGICAL_W)
+        txt(pt.s, px, 1042, TICK_SIZE, C.textDim, "left");
+    }
   }
 }
 
