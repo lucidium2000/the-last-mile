@@ -19906,6 +19906,116 @@ function drawLockup(){
    every power-up already announces itself when collected, so the title does
    not need to teach them. The overlay is light enough to see the traffic
    moving behind it. */
+/* ------------------------------------------------------------ THE TICKER --
+   A line of true things along the bottom of the title, built from whatever
+   the board happens to know. It exists because a leaderboard answers one
+   question - who is winning - and a room of fifty people contains a lot of
+   people who are not, and who need some other reason to look.
+
+   So the facts are deliberately not all about the lead. Most rides, most
+   terminals, most runs, the commonest way to die, how far everybody has
+   walked between them: a dozen ways to be mentioned on the front screen
+   without being first.
+
+   EVERY ONE IS GUARDED. The board may be empty, offline, or carrying rows
+   from a build that did not record half these fields - so each fact is only
+   pushed if the number behind it exists, and the ticker simply shows fewer
+   of them rather than inventing any. */
+function tickTop(map){
+  var k, bk = null, bv = -1;
+  for (k in map){
+    if (!Object.prototype.hasOwnProperty.call(map, k)) continue;
+    if (map[k] > bv){ bv = map[k]; bk = k; }
+  }
+  return (bk && bv > 0) ? [bk, bv] : null;
+}
+function tickAgo(ms){
+  var h = Math.floor(ms / 3600000);
+  if (h >= 48) return Math.floor(h / 24) + " DAYS";
+  if (h >= 24) return "A DAY";
+  if (h >= 2)  return h + " HOURS";
+  return "AN HOUR";
+}
+function tickerFacts(){
+  var f = [], g = BOARD.global, rows = BOARD.rows || [], i, r, k;
+  var best = {}, rides = {}, adds = {}, tam = {}, runs = {}, causes = {};
+  for (i = 0; i < rows.length; i++){
+    r = rows[i]; k = r.ini;
+    if (!k || k === "---") continue;
+    if (!best[k] || r.score > best[k]) best[k] = r.score;
+    rides[k] = (rides[k] || 0) + (r.rides   || 0);
+    adds[k]  = (adds[k]  || 0) + (r.addons  || 0);
+    tam[k]   = (tam[k]   || 0) + (r.tamWins || 0);
+    runs[k]  = (runs[k]  || 0) + 1;
+    if (!r.won && r.cause) causes[r.cause] = (causes[r.cause] || 0) + 1;
+  }
+
+  /* Who is leading, and for how long - the one fact that is about the lead,
+     and it is really about how long it has gone unanswered. */
+  if (rows.length && rows[0].ini && rows[0].ini !== "---"){
+    var held = Date.now() - (rows[0].at || Date.now());
+    if (held > 3600000)
+      f.push(rows[0].ini + " HAS HELD THE LEAD FOR " + tickAgo(held));
+    f.push("THE SCORE TO BEAT IS " + cash(rows[0].score) + "  \u00B7  " + rows[0].ini);
+  }
+
+  var t;
+  t = tickTop(rides);
+  if (t) f.push(t[0] + " HAS TAKEN THE MOST SUBWAY RIDES  \u00B7  " + t[1]);
+  t = tickTop(adds);
+  if (t) f.push(t[0] + " HAS ATTACHED THE MOST TE-ADDON TERMINALS  \u00B7  " + t[1]);
+  t = tickTop(tam);
+  if (t) f.push(t[0] + " HAS GOT THE MOST OUT OF A TAM  \u00B7  " + t[1]);
+  t = tickTop(runs);
+  if (t && t[1] > 1) f.push(t[0] + " HAS WALKED IT THE MOST  \u00B7  " + t[1] + " RUNS");
+  t = tickTop(causes);
+  if (t) f.push("MOST RUNS END ON " + t[0]);
+
+  /* The longest single walk, in blocks rather than rows - see toBlocks. */
+  /* THE MIDDLE RUN, NOT THE MEAN ONE. g.secs over g.plays comes out at ten
+     minutes, which no run on this board is anywhere near - the counter keeps
+     running on a game somebody walked away from, and one abandoned tab at
+     forty-nine minutes drags the average past every real run. A median off
+     the rows ignores it. */
+  var secsList = [];
+  for (i = 0; i < rows.length; i++) if (rows[i].secs > 0) secsList.push(rows[i].secs);
+  if (secsList.length > 2){
+    secsList.sort(function(a, b){ return a - b; });
+    f.push("THE TYPICAL RUN LASTS " +
+           mmss(secsList[Math.floor(secsList.length / 2)]));
+  }
+
+  var far = 0;
+  for (i = 0; i < rows.length; i++) far = Math.max(far, rows[i].rows || 0);
+  if (far > 0) f.push("THE LONGEST WALK SO FAR IS " +
+                      Math.round(toBlocks(far)) + " BLOCKS");
+
+  if (g){
+    if (g.powers){
+      var pop = tickTop(g.powers);
+      if (pop && POWERS[pop[0]])
+        f.push("THE MOST COLLECTED SKU IS THE " + POWERS[pop[0]].name);
+    }
+    if (g.players > 1 && g.plays)
+      f.push(g.players + " PEOPLE HAVE WALKED IT  \u00B7  " + g.plays + " RUNS");
+    if (g.rows)
+      f.push("EVERYONE HAS WALKED " +
+             Math.round(toBlocks(g.rows)).toLocaleString("en-US") +
+             " BLOCKS BETWEEN THEM");
+    if (g.addons) f.push(g.addons + " TE-ADDON TERMINALS ATTACHED SO FAR");
+    if (g.rides)  f.push(g.rides + " SUBWAY RIDES TAKEN SO FAR");
+
+    if (g.plays){
+      if (!g.wins) f.push("NOBODY HAS BOOKED A DEAL YET");
+      else f.push(g.wins + (g.wins === 1 ? " RUN HAS" : " RUNS HAVE") +
+                  " MADE IT BACK TO PENN 1");
+    }
+  }
+  return f;
+}
+
+var TICK_SECS = 5;
+
 function drawTitle(){
   ctx.fillStyle = "rgba(8,5,3,0.66)";
   ctx.fillRect(0, 0, LOGICAL_W, LOGICAL_H);
@@ -19995,6 +20105,19 @@ function drawTitle(){
   txt("LEADERBOARD", BOARD_BTN.x + BOARD_BTN.w/2, BOARD_BTN.y + 36, 26, C.brand);
   txt(st.plays + (st.plays === 1 ? " run from this device" : " runs from this device"),
       BOARD_BTN.x + BOARD_BTN.w/2, BOARD_BTN.y + 66, 18, C.textDim);
+
+  /* One at a time, along the bottom, fading between. The index and the fade
+     both come off G.t rather than a counter, so nothing has to be kept
+     between frames and nothing drifts if the page is backgrounded. */
+  var facts = tickerFacts();
+  if (facts.length){
+    var ph = (G.t % TICK_SECS) / TICK_SECS;
+    var fade = Math.min(1, Math.min(ph, 1 - ph) / 0.12);
+    ctx.globalAlpha = fade;
+    txt(facts[Math.floor(G.t / TICK_SECS) % facts.length],
+        LOGICAL_W/2, 1042, 26, C.sub, "center", LOGICAL_W - 200);
+    ctx.globalAlpha = 1;
+  }
 }
 
 function drawDead(){
@@ -20769,7 +20892,15 @@ function reportH(){ return reportBottom || 1200; }
    screens that can both be up, and one offset shared between them means
    opening the report from a scrolled board starts you halfway down the
    report. */
-function boardRows(){ return BOARD.rows.slice(0, BOARD_MAX); }
+/* TWENTY ON THE BOARD, FIFTY IN THE REPORT. They used to be the same number
+   and that number had to be fifty, because boardRank reads the same list to
+   decide whether a run is worth a name - at twenty it stopped asking anybody
+   who could not beat twentieth place. Fifty fixed that and made the board
+   screen a long scroll of also-rans. So the fetch and the rank test keep
+   fifty, and only the screen is cut back: the top twenty is a leaderboard,
+   and the rest is detail, which is what the report is for. */
+var BOARD_VIEW = 20;                // rows shown on the board screen
+function boardRows(){ return BOARD.rows.slice(0, BOARD_VIEW); }
 function boardScrollMax(){
   return Math.max(0, (boardRows().length - BOARD_SHOW) * BOARD_ROW_H);
 }
