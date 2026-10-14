@@ -20038,7 +20038,12 @@ function tickerFacts(){
 
    The belt wraps: each fact is also considered one belt-length further on,
    so the end of the list runs straight into the start of it with no gap. */
-var TICK_SIZE = 24, TICK_SPEED = 62, TICK_GAP = 120;
+/* 20, and it was 24. This sits at the very bottom of the title screen and is
+   the only moving thing on it, so it is the one element that has to earn its
+   attention rather than take it - small enough to read when you look down,
+   quiet enough to ignore while you are reading anything else. The same size
+   the HUD sets its own footnotes at. */
+var TICK_SIZE = 20, TICK_SPEED = 62, TICK_GAP = 120;
 var tickParts = null, tickSpan = 0, tickKey = "";
 
 function tickerBelt(){
