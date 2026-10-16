@@ -21338,12 +21338,24 @@ function drawReport(){
 
   /* ---- and the totals behind all of it ---------------------------------- */
   head(by, "TOTALS  \u00B7  " + (gl ? "EVERY RUN BY EVERYONE" : "EVERY RUN ON THIS DEVICE"));
+  /* THE TOTALS ARE A PRODUCT TALLY NOW. Blocks, steps and rides are how far
+     and how long, and three of the six cells were spending themselves on
+     that while the SKUs this whole thing exists to show off had none. Blocks
+     and rides are still on the two gauges above and in both comparison rows;
+     steps were only ever here, and are the one real loss.
+
+     INSIGHTS IS THE WHOLE FAMILY - Internet, Traffic and Cloud. They are
+     three separate pickups in the pool and three separate bars further down
+     the page, but on a totals line "insights" is the thing a seller says,
+     and splitting it three ways here would have buried all three. */
+  var pw = S.powers || {};
+  var insights = (pw.insight || 0) + (pw.traffic || 0) + (pw.sponsor || 0);
   cards(by, [
-    ["RUNS",    String(S.plays)],
-    ["BOOKED",  String(S.wins), C.good],
-    ["BLOCKS",  Math.round(toBlocks(S.rows || 0)).toLocaleString("en-US")],
-    ["STEPS",   (S.steps || 0).toLocaleString("en-US")],
-    ["RIDES",   String(S.rides || 0)],
+    ["RUNS",      String(S.plays)],
+    ["BOOKED",    String(S.wins), C.good],
+    ["TE-ADDONS", String(S.addons || 0), POWERS.path.col, BADGE_ADD],
+    ["TAMS",      String(pw.tam || 0),   POWERS.tam.col,  BADGE_TAM],
+    ["INSIGHTS",  String(insights),      POWERS.insight.col],
     ["ON THE STREET", hms(S.secs)]
   ]);
   by += 170;
