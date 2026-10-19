@@ -3827,6 +3827,13 @@ var POWER_WEIGHTS = {
 /* What the generator actually draws from. Identical to POWER_WEIGHTS once
    POWER_BOOST is null again. */
 var POWER_DROPS = boostPool(POWER_WEIGHTS, POWER_BOOST);
+/* DEMO: the opening blocks, weighted hard towards the two SKUs that look
+   like something when they fire - Internet Insights drops the whole grid
+   into slow motion and Endpoint Agents puts a blazer on him. boostPool
+   takes MULTIPLIERS on the existing share and re-normalises the rest, so
+   2.6x apiece lifts them from 15% and 12.7% to roughly 39% and 33% without
+   anything having to be solved by hand. */
+var DEMO_DROPS = boostPool(POWER_WEIGHTS, { insight:2.6, agent:2.6 });
 /* How far the world is throttled while Internet Insights is up. One constant,
    because the mover and the crossing test both read it and they must agree -
    a predictor running at a different rate than the thing it predicts will tell
@@ -5082,6 +5089,7 @@ var legDir = 1;
    street that ran left-to-right on the way up runs right-to-left now. */
 function laneDir(no){ return streetDir(no) * legDir; }
 var lastSweep = -99, prevWasSafe = true, lastHood = -999;
+var demoStation = false, demoStationBack = false;   // DEMO
 
 /* MIN_WINDOW is the shortest time a column may stay clear. A hop is 135ms, so
    0.60s leaves room to read the gap and commit. MAX_SPEED keeps traffic
@@ -5377,14 +5385,21 @@ function makeWalk(r, park, crowd, hood){
      could not get meaningfully more common by taking a bigger share - the
      ceiling is how often a pickup spawns at all. Raising the density lifts
      every power-up's absolute rate, which is what doubling actually needs. */
-  if (r >= 7 && r - lastPower >= 6 && Math.random() < 0.48){
+  /* DEMO: and far more often, far closer together, for as long as the
+     showcase lasts. Nine rolls in ten against a gap of three, rather than
+     one in two against a gap of six. */
+  var pRoll = (DEMO && r < DEMO_SHOWCASE_ROWS) ? 0.9 : 0.48;
+  var pGap  = (DEMO && r < DEMO_SHOWCASE_ROWS) ? 3   : 6;
+  if (r >= 7 && r - lastPower >= pGap && Math.random() < pRoll){
     for (var t=0;t<14;t++){
       var pc = (Math.random()*COLS)|0;
       if (!blocked[pc]){
         // the TAM is the rare drop, gated by its own long cooldown
         var kind = (legDir > 0 && r > 7 && r - lastTam >= TAM_COOLDOWN_ROWS &&
                     Math.random() < TAM_CHANCE)
-                   ? "tam" : wpick(POWER_DROPS);
+                   ? "tam"
+                   : wpick(DEMO && r < DEMO_SHOWCASE_ROWS ? DEMO_DROPS
+                                                          : POWER_DROPS);
         if (kind === "tam") lastTam = r;
         pickup = { col:pc, kind:kind };
         lastPower = r; break;
@@ -5545,7 +5560,28 @@ function pushRow(row){ rows[genCursor++] = row; }
 function ensureRows(upTo){
   while (genCursor <= upTo){
     var r = genCursor;
-    if (r < 3){ pushRow(makeWalk(r, false)); safeRun++; prevWasSafe = true; continue; }
+    if (r < 3){
+      var w0 = makeWalk(r, false);
+      /* DEMO: a station on the third row, before he has crossed anything.
+         Planted rather than rolled for, because a showreel cannot open with
+         the presenter walking around looking for a staircase. */
+      /* DEMO: a Chuck Bucks on the opening pavement, before anything else
+         happens. Rows under 3 carry no blockers at all, so any column is
+         safe to drop it on. */
+      /* DEMO: the whole opening is on row one - a Chuck Bucks to the left
+         of him and the express to the right, both one step away. The
+         staircase is deliberately NOT straight ahead: at column eight the
+         first forward tap would board the train before anybody had seen the
+         street, and the opening is half of what there is to show. */
+      if (DEMO && r === 1 && !demoStation){
+        demoStation = true;
+        w0.pickup = { col:(COLS >> 1) - 2, kind:"chuck" };
+        var dc = (COLS >> 1) + 3;
+        w0.props.push({ col:dc, kind:"subway" });
+        w0.blocked[dc] = true;
+      }
+      pushRow(w0); safeRun++; prevWasSafe = true; continue;
+    }
 
     var d = difficulty(r), wantRoad;
     /* Which street the next road row would belong to: the one being crossed if
@@ -5572,7 +5608,21 @@ function ensureRows(upTo){
       var wantHood = !inPark(curStreet) && (r - lastHood) >= HOOD_GAP &&
                      r >= 6 && Math.random() < HOOD_ODDS;
       if (wantHood) lastHood = r;
-      pushRow(makeWalk(r, inPark(curStreet), crowdHere(curStreet), wantHood));
+      var wRow = makeWalk(r, inPark(curStreet), crowdHere(curStreet), wantHood);
+      /* DEMO: THE WAY HOME, planted on the first pavement generated after
+         the dinner has turned him round. The ride out is guaranteed because
+         its station is placed on row one; without this its counterpart was
+         left to the ordinary prop roll, and a demo that depends on a
+         staircase turning up is a demo that stalls on stage. */
+      if (DEMO && legDir < 0 && !demoStationBack && !wRow.park){
+        var bc = COLS >> 1;
+        if (!wRow.blocked[bc] && !(wRow.pickup && wRow.pickup.col === bc)){
+          demoStationBack = true;
+          wRow.props.push({ col:bc, kind:"subway" });
+          wRow.blocked[bc] = true;
+        }
+      }
+      pushRow(wRow);
       safeRun++; roadRun = 0; prevWasSafe = true;
       continue;
     }
@@ -5679,6 +5729,7 @@ function reset(){
   nextStreet = START_ST + 1; lastSweep = -99; prevWasSafe = true; lastTam = -99;
   lastHood = -999;
   curStreet = START_ST; curLane = 0; legDir = 1;
+  demoStation = false; demoStationBack = false;   // DEMO: one station a leg
   ensureRows(ROWS_AHEAD);
   G = {
     state:ST_TITLE, row:0, col:COLS>>1, fromRow:0, fromCol:COLS>>1,
@@ -5699,7 +5750,10 @@ function reset(){
     flyT:0, flyA:0, flyBeep:0, flyMove:0, flyTilt:0, walkPh:0, walkAmt:0,
     brand:null, pipePop:0, rise:null, tam:false, tamT:0, tamWins:0, tamWin:null, hurtT:0, nahT:0, nahSay:null, walkSaid:false,
     yumT:0, yumKind:null, yumDir:0, yumBite:0, wowT:0, cheerT:0,
-    metro:0, ride:null, trace:null, rides:0, bonus:0, tamLeft:0, riskT:0, dashT:0,
+    /* DEMO: two fares, one out and one home, so nothing has to be found
+       before the express can be shown. */
+    metro: DEMO ? 2 : 0,
+    ride:null, trace:null, rides:0, bonus:0, tamLeft:0, riskT:0, dashT:0,
     leapT:0, leapDir:1, dashBeep:0, idleT:0, saver:false, saverT:0, hushed:false, spin:null,
     dashFlash:0, dashPulse:0, dashWhole:0,
     scene:null, scenePend:null, scenesSeen:{}, ticker:null, notice:null, southT:0,
@@ -5756,6 +5810,30 @@ var BOARD_API = "https://lucidium2000--be403ca8c25711f194891607ee4eb77e.web.val.
 
    The server keeps a hundred either way, so this costs one bigger fetch and
    nothing else. */
+/* ========================================================= DEMO MODE =====
+   TEMPORARY. Everything gated on DEMO is a showreel for one presentation and
+   is meant to be cut afterwards: set DEMO to false and the game is exactly
+   what it was. It exists because the parts of this worth showing a room -
+   the terminal, the TAM, the carriage, the dinner - are forty blocks and ten
+   minutes apart, and a demo does not have ten minutes.
+
+   What it changes, all of it NYC only:
+     - a station on the third row, and two fares in your pocket
+     - that first train runs express to the dinner at 81st
+     - the train home runs express to Penn, which is the ending
+     - every demo train carries the hooded man AND a roll of notes
+     - Internet Insights and Endpoint Agents flood the opening blocks
+     - one extra card after the beach: adoption, and the top five
+
+   GREP "DEMO" TO REMOVE IT. Every block is marked. */
+/* DECLARED HERE, SET BELOW. TEAM is parsed sixty lines further down, and
+   `var` hoists the name without the value - so reading it up here got
+   undefined and DEMO was silently false on the one board it is for. It is
+   assigned the moment TEAM exists instead. */
+var DEMO = false;
+var DEMO_SHOWCASE_ROWS = 44;        // how far the power-up flood reaches
+var DEMO_RIDE_STREETS  = 22;        // what the express CHARGES for, in time
+
 var BOARD_MAX = 50;                 // rows kept locally, and asked for
 /* TEN ON SCREEN, TWENTY IN THE LIST. The board holds the full top twenty
    now, and shows ten of it - so at rest it looks exactly as it always did,
@@ -5813,6 +5891,7 @@ var TEAM = (function(){
   var m = /[?&]team=([A-Za-z0-9-]{1,24})(?:&|$)/.exec(location.search);
   return m ? m[1].toLowerCase() : "";
 })();
+DEMO = (TEAM === "nyc");            // DEMO: see the block above
 var TEAM_SFX = TEAM ? "." + TEAM : "";
 /* The local cache is namespaced too. One panel switched between boards would
    otherwise show the other board's rows for as long as it took the fetch to
@@ -6448,7 +6527,10 @@ function act(dir, isTap){
                 "Walk a few blocks. There is another station.", "#ffd24a");
           return;
         }
-        if (G.metro > 0){ startRide(nr, nc); return; }
+        /* DEMO: the turnstile is open. Nothing has to be collected before
+           the express can be shown, and the fare counter is left alone
+           below so it cannot run negative. */
+        if (DEMO || G.metro > 0){ startRide(nr, nc); return; }
         G.nahT = 0.85;                       // he looks at the turnstile and no
         G.nahSay = "NEED METRO CARD";
         AUDIO.bump();
@@ -8328,7 +8410,10 @@ function startRide(enterRow, enterCol){
   /* Seven to fifteen streets, so the generator has to run far enough ahead to
      hold them: fifteen crossings is fifty-odd rows once the multi-lane streets
      are counted, and the search has to outrun that with room to spare. */
-  ensureRows(G.maxRow + 160);
+  /* DEMO: forty-seven streets is better than two hundred rows at four and a
+     bit rows each, so the ordinary hundred and sixty would not have reached
+     the dinner and the search would quietly settle for somewhere nearer. */
+  ensureRows(G.maxRow + (DEMO ? 340 : 160));
   var fromSt = streetAt(enterRow);
   /* Seven to fifteen streets IN THE DIRECTION OF TRAVEL. On the way back the
      numbers descend, and the old test - streetAt(r) >= fromSt + 10 - could
@@ -8342,6 +8427,11 @@ function startRide(enterRow, enterCol){
      walking, without deciding the run on its own. */
   var span = SPAN_MIN + ((Math.random() * (SPAN_MAX - SPAN_MIN + 1)) | 0);
   var wantSt = fromSt + legDir * span;
+  /* DEMO: the express. Out, it runs to the dinner; home, it runs to Penn,
+     which is where the ending lives. Both ends are the clamps the ordinary
+     ride already respects, so this asks for the furthest thing it is allowed
+     to have rather than breaking any rule below. */
+  if (DEMO) wantSt = legDir > 0 ? TURN_ST : START_ST;
   /* Both ends of the walk are hard stops. Going up, the train may not carry
      you past the dinner at 81 - it is the pivot of the whole game, and a ride
      that flew over it left the player walking uptown forever with no turn and
@@ -8349,7 +8439,8 @@ function startRide(enterRow, enterCol){
   if (legDir < 0) wantSt = Math.max(START_ST, wantSt);
   else            wantSt = Math.min(TURN_ST, wantSt);
   var dest = null, cap = null, best = null, r, w, sn;
-  for (r = enterRow + 3; r < enterRow + 200; r++){
+  var reach = enterRow + (DEMO ? 400 : 200);
+  for (r = enterRow + 3; r < reach; r++){
     w = rows[r];
     if (!w || w.type !== "safe" || w.park) continue;   // no station inside the park
     sn = streetAt(r);
@@ -8369,7 +8460,13 @@ function startRide(enterRow, enterCol){
   /* And whatever the search landed on, it does not get to break the number
      on the tin. SPAN_MAX is the promise; the nearest station inside it is
      the ride. */
-  if (dest !== null && Math.abs(streetAt(dest) - fromSt) > SPAN_MAX) dest = best;
+  /* DEMO IS EXEMPT FROM THIS ONE, and it is the line that mattered: it
+     rewrites any destination further than SPAN_MAX back to the nearest
+     station inside fifteen streets. Perfectly right for a metrocard, fatal
+     for an express - the ride to 81st was being quietly turned into a ride
+     to 49th, which is what it did on the first run of this. */
+  if (!DEMO && dest !== null && Math.abs(streetAt(dest) - fromSt) > SPAN_MAX)
+    dest = best;
   if (dest === null){ AUDIO.bump(); return; }
 
   /* He comes up in the MIDDLE of the pavement, every time. It used to reuse
@@ -8396,7 +8493,7 @@ function startRide(enterRow, enterCol){
   dw.props.push({ col:exitCol, kind:"subway", exit:true });
   delete dw.blocked[exitCol];
 
-  G.metro--;                             // one swipe, one fare
+  if (!DEMO) G.metro--;                  // one swipe, one fare (DEMO: free)
   G.rides++;
   /* The car is five standing positions wide. He starts in the middle; the
      other two slots are rolled per ride and never land on top of him or on
@@ -8421,25 +8518,38 @@ function startRide(enterRow, enterCol){
      had, +10% and then +15%. A straight multiply here because this roll has
      no denominator to fight: a ride either has a roll on it or it does not,
      unlike the pavement, where the weight has to be solved for. */
-  var cash = Math.random() < 0.696 ? ends[(Math.random() * 2) | 0] : -1;
+  /* DEMO: the roll is always aboard, at one end or the other. The whole
+     carriage set piece - him noticing it, going for it, coming through you
+     to get there - needs something to go for. */
+  var cash = (DEMO || Math.random() < 0.696) ? ends[(Math.random() * 2) | 0] : -1;
   if (cash >= 0){
     var ci = free.indexOf(cash);
     if (ci >= 0) free.splice(ci, 1);
   }
-  var shady = Math.random() < 0.70 ? pull() : -1;
+  /* DEMO: and so is he. */
+  var shady = (DEMO || Math.random() < 0.70) ? pull() : -1;
   G.ride = { t:0, phase:"down", fromRow:enterRow, fromCol:enterCol,
              toRow:dest, toCol:exitCol, camFrom:G.camRow,
              streets:Math.abs(streetAt(dest) - fromSt),
              /* Both ends, kept on the ride rather than looked up later: the
                 rows under them are regenerated while he is on the train. */
              fromSt:fromSt, toSt:streetAt(dest),
+             /* DEMO: forty-seven streets at six tenths each is twenty-eight
+                seconds of tunnel, which is a long time to watch on a stage.
+                It is charged as DEMO_RIDE_STREETS instead - long enough for
+                the carriage to play out, short enough to sit through. */
              runDur:Math.max(RIDE_RUN_MIN,
-                             RIDE_PER_ST * Math.abs(streetAt(dest) - fromSt)),
+                             RIDE_PER_ST * (DEMO ? DEMO_RIDE_STREETS
+                                                 : Math.abs(streetAt(dest) - fromSt))),
              rock:0, slot:2, slotX:2, slotFrom:2, stepT:1,
              face:1, shady:shady, cash:cash, cashGot:false, met:false,
              shadyX:shady, knife:0, knifeSide:0, ko:0, koT:0, swing:0, brace:0,
              robbed:0, clack:0,
-             hostile: Math.random() < SHADY_HOSTILE,
+             /* DEMO: NOT the knife. With a roll on every demo train the
+                scene to show is the one about the money - he spots it, he
+                shoves past you to get it, and only then may you answer. The
+                blade is a different scene and it does not need the cash. */
+             hostile: DEMO ? false : (Math.random() < SHADY_HOSTILE),
              tell:0, look:0, lurch:0, eyes:0, sayAt:-99, sayLine:null,
              /* His interest in the money: how long he has been near it,
                 whether he has noticed, and how long since he took it. */
@@ -13272,6 +13382,74 @@ function sceneArm(x0, y0, x1, y1, w, col){
    The audience is what sells the size of it. Four ranks of heads, each rank
    bigger and darker than the one behind, with phones going off in them at
    random - a crowd drawn as one texture reads as carpet. */
+/* ------------------------------------------------- DEMO: THE LAST CARD ---
+   One more screen after the beach, and the only one in the game that is
+   about the room rather than about the run: how much of each SKU everybody
+   picked up between them, and who finished on top.
+
+   The numbers count themselves up over the first second and a half, because
+   a total that is simply THERE is a number and a total that arrives is a
+   result. The five names come in one at a time after it, for the same
+   reason.
+
+   It reads the live board, so it is right whenever it is shown - and it
+   degrades rather than lies: with no service behind it the three totals
+   fall back to this device's own tally and the list is simply shorter. */
+function demoTopFive(){
+  var rows = BOARD.rows || [], best = {}, i, r;
+  for (i = 0; i < rows.length; i++){
+    r = rows[i];
+    if (!r.ini || r.ini === "---") continue;
+    if (!best[r.ini] || r.score > best[r.ini]) best[r.ini] = r.score;
+  }
+  var tab = [];
+  for (var k in best)
+    if (Object.prototype.hasOwnProperty.call(best, k)) tab.push([k, best[k]]);
+  tab.sort(function(x, y){ return y[1] - x[1]; });
+  return tab.slice(0, 5);
+}
+
+function sceneAdoption(t, a){
+  var g = BOARD.global || statsRead(), pw = (g && g.powers) || {};
+  var ins = (pw.insight || 0) + (pw.traffic || 0) + (pw.sponsor || 0);
+  var stats = [
+    ["TE-ADDONS", g.addons || 0, POWERS.path.col,    POWERS.path.letter],
+    ["TAMS",      pw.tam   || 0, POWERS.tam.col,     POWERS.tam.letter],
+    ["INSIGHTS",  ins,           POWERS.insight.col, POWERS.insight.letter]
+  ];
+
+  txt("WHAT THE ROOM PICKED UP", LOGICAL_W/2, 232, 42, C.brand);
+
+  var k = Math.min(1, t / 1.6), ease = 1 - Math.pow(1 - k, 3);
+  var cw = LOGICAL_W / 3, i;
+  for (i = 0; i < 3; i++){
+    var cx = cw * i + cw / 2;
+    /* The SKU's own chip over its number, the same tile the street uses. */
+    plate(cx - 19, 282, 38, 38, stats[i][2], 9);
+    txt(stats[i][3], cx, 303, stats[i][3].length > 1 ? 20 : 24, "#1a0a02");
+    txt(Math.round(stats[i][1] * ease).toLocaleString("en-US"),
+        cx, 400, 92, stats[i][2]);
+    txt(stats[i][0], cx, 452, 28, C.textDim);
+  }
+
+  var five = demoTopFive();
+  if (!five.length) return;
+  txt("AND THE FIVE WHO WALKED IT BEST", LOGICAL_W/2, 548, 32, C.brand);
+  for (i = 0; i < five.length; i++){
+    /* Staggered in, a third of a second apart, after the totals have
+       finished counting. */
+    var ap = Math.min(1, Math.max(0, (t - 2.3 - i * 0.34) / 0.4));
+    if (ap <= 0) continue;
+    ctx.globalAlpha = a * ap;
+    var y = 612 + i * 56;
+    var col = i === 0 ? C.pw5 : C.text;
+    txt(String(i + 1), LOGICAL_W/2 - 300, y, 30, i < 3 ? C.brand : C.textDim, "right");
+    txt(five[i][0], LOGICAL_W/2 - 250, y, 36, col, "left");
+    txt(cash(five[i][1]), LOGICAL_W/2 + 300, y, 34, col, "right");
+    ctx.globalAlpha = a;
+  }
+}
+
 function sceneStage(t, a){
   var i;
   // the room
@@ -14356,7 +14534,14 @@ var SCENES_END = {
               finishes typing at 5.5s of a 10.6s scene, leaving five
               seconds to look at it. */
            sub2:"Your number goes back to 0 tomorrow", sub2At:3.0,
-           draw:sceneCabana, secs:10.6, music:"island", win:true }
+           /* DEMO: the beach hands on to the adoption card instead of
+              ending the run. Outside the demo it still wins here. */
+           draw:sceneCabana, secs:10.6, music:"island",
+           then: DEMO ? "adoption" : null, win: !DEMO },
+  /* DEMO: and this is the last thing on screen before the readout. */
+  adoption:{ title:"THE LAST MILE", sub:"What this room adopted on the way",
+             draw:sceneAdoption, secs:11.0, solid:true, holdOut:true,
+             music:"island", win:true }
 };
 
 /* A scene can fire on the step that lands him in the middle of a road, and a
