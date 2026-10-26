@@ -20729,8 +20729,12 @@ function statLine(st){
    NYC ONLY. The unmarked board is the open playground and has no deadline
    to show. */
 var CONTEST_ENDS = {
-  nyc: Date.UTC(2026, 9, 16, 16, 0, 0)     // noon ET, Friday 16 October
-  /* lpo: Date.UTC(YYYY, M-1, D, H, 0, 0)  <- add the lunch-and-learn here */
+  nyc: Date.UTC(2026, 9, 16, 16, 0, 0),    // noon ET, Friday 16 October
+  /* Friday 30 October. 16:00 UTC is noon EASTERN DAYLIGHT time - the clocks
+     do not go back until 1 November, so this one is still UTC-4 rather than
+     UTC-5. Worth stating, because getting it wrong is an hour nobody would
+     notice until the last one. */
+  lpo: Date.UTC(2026, 9, 30, 16, 0, 0)     // noon ET, Friday 30 October
 };
 function contestLeft(){
   /* A DEADLINE PER BOARD. It was "nyc, and nothing else", so a second room
@@ -20773,6 +20777,29 @@ function contestCol(ms){
   var k = contestK(ms);
   return k < 0.5 ? mix2(C.good,  C.amber,  k * 2)
                  : mix2(C.amber, C.danger, (k - 0.5) * 2);
+}
+/* THE LABEL IS READ OFF THE DEADLINE, not typed next to it. It used to be
+   the literal string "CONTEST CLOSES THIS FRIDAY AT NOON, OCT 16TH" - which
+   was true for exactly one board on exactly one week, and would have had the
+   lunch-and-learn advertising New York's date.
+
+   Local time, deliberately: the deadline is stored as a UTC instant so every
+   panel agrees on the moment, but the words under it should read in the time
+   of whoever is looking. */
+function contestWhen(){
+  var end = CONTEST_ENDS[TEAM];
+  if (!end) return "";
+  var d = new Date(end);
+  var DAY = ["SUNDAY","MONDAY","TUESDAY","WEDNESDAY","THURSDAY","FRIDAY","SATURDAY"];
+  var MON = ["JAN","FEB","MAR","APR","MAY","JUN","JUL","AUG","SEP","OCT","NOV","DEC"];
+  var h = d.getHours(), m = d.getMinutes();
+  var when = h === 12 && !m ? "NOON"
+           : h === 0  && !m ? "MIDNIGHT"
+           : ((h % 12) || 12) + (m ? ":" + pad2(m) : "") + (h < 12 ? "AM" : "PM");
+  var n = d.getDate(), teen = n > 3 && n < 21;
+  var suf = teen ? "TH" : ["TH","ST","ND","RD"][Math.min(n % 10, 4) % 4] || "TH";
+  return "CLOSES " + DAY[d.getDay()] + " AT " + when + ",  " +
+         MON[d.getMonth()] + " " + n + suf;
 }
 function contestLine(ms){
   if (ms <= 0) return "CLOSED";
@@ -20924,7 +20951,7 @@ function drawBoard(){
        anything; "closes Friday at noon" is a thing a person can put in a
        calendar without doing arithmetic, and it is the half of this that is
        still useful to somebody who walks past without stopping. */
-    txt(closed ? "THE CONTEST HAS" : "CONTEST CLOSES THIS FRIDAY AT NOON, OCT 16TH",
+    txt(closed ? "THE CONTEST HAS" : contestWhen(),
         LOGICAL_W/2, 828, 20, closed ? col : C.textDim);
 
     ctx.globalAlpha = pul;
