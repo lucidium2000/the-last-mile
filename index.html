@@ -5756,9 +5756,14 @@ var BOARD_API = "https://lucidium2000--be403ca8c25711f194891607ee4eb77e.web.val.
 
    The server keeps a hundred either way, so this costs one bigger fetch and
    nothing else. */
-/* ------------------------------------------------- THE NYC END CARD ------
-   One extra screen after the beach on the team board, and nothing else: what
-   everybody picked up between them, and the five who walked it best.
+/* ----------------------------------------------------- THE END CARD -----
+   One extra screen after the beach on ANY team board - ?team=nyc, ?team=lpo,
+   whatever the next one is - and nothing else: what everybody picked up
+   between them, and the five who walked it best.
+
+   Keyed on "is this a team board" rather than on a city, because the thing
+   it is for is a room with its own leaderboard, and there will be more of
+   those than there are of New York.
 
    This is all that is left of the demo shortcuts - the express trains, the
    free turnstile, the planted staircases and the flooded opening blocks have
@@ -5767,7 +5772,7 @@ var BOARD_API = "https://lucidium2000--be403ca8c25711f194891607ee4eb77e.web.val.
    DECLARED HERE, SET BELOW. TEAM is parsed sixty lines further down and
    `var` hoists the name without the value, so reading it up here got
    undefined and this was silently false on the one board it is for. */
-var NYC_END_CARD = false;
+var END_CARD = false;
 
 var BOARD_MAX = 50;                 // rows kept locally, and asked for
 /* TEN ON SCREEN, TWENTY IN THE LIST. The board holds the full top twenty
@@ -5826,7 +5831,7 @@ var TEAM = (function(){
   var m = /[?&]team=([A-Za-z0-9-]{1,24})(?:&|$)/.exec(location.search);
   return m ? m[1].toLowerCase() : "";
 })();
-NYC_END_CARD = (TEAM === "nyc");    // see the block above
+END_CARD = !!TEAM;                  // any team board, see the block above
 var TEAM_SFX = TEAM ? "." + TEAM : "";
 /* The local cache is namespaced too. One panel switched between boards would
    otherwise show the other board's rows for as long as it took the fetch to
@@ -14442,7 +14447,7 @@ var SCENES_END = {
            /* On the team board the beach hands on to the end card instead
               of finishing the run. Everywhere else it still wins here. */
            draw:sceneCabana, secs:10.6, music:"island",
-           then: NYC_END_CARD ? "adoption" : null, win: !NYC_END_CARD },
+           then: END_CARD ? "adoption" : null, win: !END_CARD },
   /* The last thing on screen before the readout, team board only. */
   adoption:{ title:"THE LAST MILE", sub:"What this room adopted on the way",
              draw:sceneAdoption, secs:11.0, solid:true, holdOut:true,
@@ -20723,9 +20728,17 @@ function statLine(st){
 
    NYC ONLY. The unmarked board is the open playground and has no deadline
    to show. */
-var CONTEST_END = Date.UTC(2026, 9, 16, 16, 0, 0);
+var CONTEST_ENDS = {
+  nyc: Date.UTC(2026, 9, 16, 16, 0, 0)     // noon ET, Friday 16 October
+  /* lpo: Date.UTC(YYYY, M-1, D, H, 0, 0)  <- add the lunch-and-learn here */
+};
 function contestLeft(){
-  return (TEAM === "nyc") ? (CONTEST_END - Date.now()) : null;
+  /* A DEADLINE PER BOARD. It was "nyc, and nothing else", so a second room
+     with its own leaderboard could never have a clock. A board with no entry
+     here simply has no countdown, which is the right default - most rooms do
+     not need one, and a wrong date is worse than no date. */
+  var end = CONTEST_ENDS[TEAM];
+  return end ? (end - Date.now()) : null;
 }
 /* ------------------------------------------------------ HOW LATE IT IS --
    One number, 0 at the far end of the ramp and 1 at the deadline, and the
