@@ -123,7 +123,7 @@ it is pavement furniture, and comes up about as often as a newsstand.
 
 | Parameter | Effect |
 |---|---|
-| `?team=nyc` | Use a separate leaderboard for that team |
+| `?team=<name>` | Put this panel on its own leaderboard, separate from every other board. Lower-case letters, digits and hyphens. A board comes into existence the first time a score is posted to it — nothing has to be created first. |
 | `?safe=1` | **Guest-safe mode.** Replaces sales objections with neutral network hazards. Use this for rooms customers sit in. |
 | `?mute=1` | Forces silence for a whole deployment, overriding the local toggle |
 | `?fps=1` | Perf overlay: FPS, backing-store size, device pixel ratio |
@@ -137,6 +137,11 @@ Optional. Three initials and a score, posted to a small service; without one,
 or with `?offline=1`, the game keeps its own stats on the device and plays
 exactly the same. The board screen shows the top runs; **FULL REPORT** shows
 everything the game has been counting.
+
+A bare URL is the open board, shared by everyone. `?team=<name>` gives a
+room its own: its own rows, its own totals, and its own end card after the
+last scene. Runs never cross between boards — a panel posts to one and one
+only, which is the point of having them.
 
 ---
 

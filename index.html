@@ -5832,6 +5832,19 @@ var TEAM = (function(){
   return m ? m[1].toLowerCase() : "";
 })();
 END_CARD = !!TEAM;                  // any team board, see the block above
+/* WHAT THE SHORT CODE STANDS FOR, where there is room to say it. The code is
+   what goes in the URL and what people say out loud, so it keeps the big
+   title; the long name goes underneath it, because a panel in a hallway is
+   read by people who were not in the meeting the acronym was coined in.
+
+   Only boards whose name I have actually been told are in here. A board with
+   no entry shows its code and nothing else, which is what every board did
+   before this existed - a guessed expansion on a screen in front of a room
+   is worse than no expansion at all. */
+var TEAM_NAMES = {
+  ncs: "NORTH COAST SELECT"
+};
+function teamName(){ return TEAM ? (TEAM_NAMES[TEAM] || "") : ""; }
 var TEAM_SFX = TEAM ? "." + TEAM : "";
 /* The local cache is namespaced too. One panel switched between boards would
    otherwise show the other board's rows for as long as it took the fetch to
@@ -20839,6 +20852,13 @@ function drawBoard(){
   txt(badge, bx + bw/2, 110, 20,
       badge === "LIVE" ? C.good : (badge === "OFFLINE" ? C.danger : C.textDim));
 
+  /* The long name under the short one. It sits in the gap that was already
+     there between the title and the column heads - baseline 150, with the
+     rule at 194 - so nothing below has to move for it, and boards with no
+     long name look exactly as they did. */
+  var tname = teamName();
+  if (tname) txt(tname, LOGICAL_W/2, 150, 24, C.sub);
+
   var x0 = 250, x1 = 1670, y = 178, rowH = 46;
   /* Six columns, not eight. BLOCKS and STEPS came off: they are the detail
      of HOW a number was got, and this screen only has to answer who is top
@@ -21621,7 +21641,10 @@ function drawReport(){
      It used to be first. A table of twenty rows at the top of a page means
      everything that explains it is below the fold, and the one screen that
      exists to make an argument opened with its appendix. */
-  head(by, (TEAM ? TEAM.toUpperCase() + "  \u00B7  " : "") +
+  /* The long name if there is one, the code if there is not. A report gets
+     photographed, mailed and read away from the panel it was taken on, so
+     this is the one place the full name earns its width. */
+  head(by, (TEAM ? (teamName() || TEAM.toUpperCase()) + "  \u00B7  " : "") +
            "THE BOARD  \u00B7  TOP " + Math.max(1, list.length));
   var hy = by + 52;
   txt("#",        x0 + 36,   hy, 18, C.textDim, "right");
