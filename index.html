@@ -20734,12 +20734,17 @@ function statLine(st){
    at all, which happens - cannot disagree with the one next to it about
    when the thing ends.
 
-   WHICH MEANS THE OFFSET HAS TO BE WRITTEN BY HAND, and it is not the same
-   all year. Noon Eastern is 16:00 UTC on daylight time and 17:00 UTC on
-   standard time, and the clocks go back on the first Sunday of November -
-   1 November in 2026. Copying last month's line into this month's is how
-   a contest closes an hour early, which is the kind of error nobody
-   notices until the last hour of it.
+   WHICH MEANS THE OFFSET HAS TO BE WRITTEN BY HAND, and it depends on two
+   things that both change: WHICH COAST the room is on, and WHETHER THE
+   CLOCKS ARE FORWARD. Noon on the wall is
+
+       Eastern   16:00 UTC on daylight time,  17:00 UTC on standard
+       Pacific   19:00 UTC on daylight time,  20:00 UTC on standard
+
+   and the clocks go back on the first Sunday of November - 1 November in
+   2026. Copying one board's line onto another is how a contest closes
+   three hours early, which is the kind of error nobody notices until the
+   last hour of it. EVERY ENTRY BELOW NAMES ITS ZONE for that reason.
 
    A board with no entry here has no countdown, which is the right default:
    the unmarked board is the open playground, and most rooms do not want a
@@ -20748,9 +20753,11 @@ var CONTEST_ENDS = {
   /* October, so EDT and UTC-4. */
   nyc: Date.UTC(2026, 9, 16, 16, 0, 0),    // noon ET, Friday 16 October
   lpo: Date.UTC(2026, 9, 30, 16, 0, 0),    // noon ET, Friday 30 October
-  /* November, so EST and UTC-5 - an hour later in UTC than the two above
-     for the same noon on the wall. */
-  ncs: Date.UTC(2026, 10, 6, 17, 0, 0)     // noon ET, Friday 6 November
+  /* PACIFIC, and November, so PST at UTC-8 - four hours later in UTC than
+     the two above for the same noon on the wall. Checked against the zone
+     database rather than worked out by hand: this instant reads
+     Fri, Nov 6, 12:00 PM PST in America/Los_Angeles. */
+  ncs: Date.UTC(2026, 10, 6, 20, 0, 0)     // noon PT, Friday 6 November
 };
 function contestLeft(){
   /* A DEADLINE PER BOARD. It was "nyc, and nothing else", so a second room
