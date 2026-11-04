@@ -20728,26 +20728,29 @@ function statLine(st){
 }
 
 /* ---------------------------------------------------- THE CONTEST CLOCK --
-   Noon in New York on the 16th of October, held as a UTC INSTANT rather
-   than a local one. Every panel then counts down to the same moment
-   whatever its own clock is set to, and a device sitting in the wrong
-   timezone - or with no timezone at all, which happens - cannot disagree
-   with the one next to it about when the thing ends.
+   A deadline per board, held as a UTC INSTANT rather than a local one.
+   Every panel then counts down to the same moment whatever its own clock is
+   set to, and a device sitting in the wrong timezone - or with no timezone
+   at all, which happens - cannot disagree with the one next to it about
+   when the thing ends.
 
-   16:00 UTC is noon Eastern. The US is still on daylight time in October;
-   it does not come off until November, so this is EDT at UTC-4 rather than
-   EST at UTC-5. Worth saying out loud because getting it wrong is an hour
-   nobody would notice until the last one.
+   WHICH MEANS THE OFFSET HAS TO BE WRITTEN BY HAND, and it is not the same
+   all year. Noon Eastern is 16:00 UTC on daylight time and 17:00 UTC on
+   standard time, and the clocks go back on the first Sunday of November -
+   1 November in 2026. Copying last month's line into this month's is how
+   a contest closes an hour early, which is the kind of error nobody
+   notices until the last hour of it.
 
-   NYC ONLY. The unmarked board is the open playground and has no deadline
-   to show. */
+   A board with no entry here has no countdown, which is the right default:
+   the unmarked board is the open playground, and most rooms do not want a
+   clock at all. */
 var CONTEST_ENDS = {
+  /* October, so EDT and UTC-4. */
   nyc: Date.UTC(2026, 9, 16, 16, 0, 0),    // noon ET, Friday 16 October
-  /* Friday 30 October. 16:00 UTC is noon EASTERN DAYLIGHT time - the clocks
-     do not go back until 1 November, so this one is still UTC-4 rather than
-     UTC-5. Worth stating, because getting it wrong is an hour nobody would
-     notice until the last one. */
-  lpo: Date.UTC(2026, 9, 30, 16, 0, 0)     // noon ET, Friday 30 October
+  lpo: Date.UTC(2026, 9, 30, 16, 0, 0),    // noon ET, Friday 30 October
+  /* November, so EST and UTC-5 - an hour later in UTC than the two above
+     for the same noon on the wall. */
+  ncs: Date.UTC(2026, 10, 6, 17, 0, 0)     // noon ET, Friday 6 November
 };
 function contestLeft(){
   /* A DEADLINE PER BOARD. It was "nyc, and nothing else", so a second room
